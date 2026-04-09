@@ -1,5 +1,16 @@
 import OpenAI from "openai";
 
+/** Replace problematic Unicode characters that can break ByteString encoding. */
+function sanitize(input: string): string {
+  return input
+    .replace(/[\u2018\u2019\u02BC]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/\u00A0/g, " ")
+    .replace(/[\u200B-\u200F\uFEFF]/g, "");
+}
+
 type CompetencyItem = {
   competency: string;
   level: string;
@@ -130,7 +141,7 @@ export async function POST(req: Request) {
 
     const evidence = buildEvidence(sentMails, actionLog, flags);
 
-    const prompt = `
+    const prompt = sanitize(`
 Tu es un évaluateur expert de serious game professionnel.
 
 Tu dois produire un débrief PERSONNALISÉ, FACTUEL, EXIGEANT et CRÉDIBLE.
@@ -187,7 +198,7 @@ FORMAT DE SORTIE STRICT :
     }
   ]
 }
-`;
+`);
 
     const response = await client.responses.create({
       model: "gpt-4.1-mini",

@@ -1,13 +1,20 @@
+import OpenAI from "openai";
+
 function s(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
 }
 
-function ascii(input: string) {
+/** Replace ALL non-ASCII characters that could break ByteString encoding.
+ *  Keeps standard Latin-1 supplement (accents, ñ, etc.) but replaces
+ *  anything above U+00FF and common problematic chars. */
+function sanitize(input: string): string {
   return input
-    .replace(/[\u2018\u2019]/g, "'")
-    .replace(/[\u201C\u201D]/g, '"')
-    .replace(/[\u2013\u2014]/g, "-")
-    .replace(/\u00A0/g, " ");
+    .replace(/[\u2018\u2019\u02BC]/g, "'")   // curly single quotes + modifier apostrophe
+    .replace(/[\u201C\u201D]/g, '"')          // curly double quotes
+    .replace(/[\u2013\u2014]/g, "-")          // en/em dashes
+    .replace(/\u2026/g, "...")                 // ellipsis
+    .replace(/\u00A0/g, " ")                  // non-breaking space
+    .replace(/[\u200B-\u200F\uFEFF]/g, "");   // zero-width chars + BOM
 }
 
 export async function POST(req: Request) {
@@ -15,24 +22,26 @@ export async function POST(req: Request) {
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return Response.json(
-        {
-          error: "OPENAI_API_KEY manquante côté serveur.",
-        },
+        { error: "OPENAI_API_KEY manquante côté serveur." },
         { status: 500 }
       );
     }
 
+    const client = new OpenAI({ apiKey });
+
     const body = await req.json();
 
-    const playerName = ascii(s(body?.playerName, "Joueur")).trim() || "Joueur";
-    const message = ascii(s(body?.message, ""));
-    const phaseTitle = ascii(s(body?.phaseTitle, ""));
-    const phaseObjective = ascii(s(body?.phaseObjective, ""));
-    const phasePrompt = ascii(s(body?.phasePrompt, ""));
-    const mode = ascii(s(body?.mode, "guided"));
+    const playerName = sanitize(s(body?.playerName, "Joueur")).trim() || "Joueur";
+    const message = sanitize(s(body?.message, ""));
+    const phaseTitle = sanitize(s(body?.phaseTitle, ""));
+    const phaseObjective = sanitize(s(body?.phaseObjective, ""));
+    const phasePrompt = sanitize(s(body?.phasePrompt, ""));
+    const mode = sanitize(s(body?.mode, "guided"));
     const narrative =
       body?.narrative && typeof body.narrative === "object" ? body.narrative : {};
-    const initialEvents = Array.isArray(body?.initialEvents) ? body.initialEvents : [];
+    const initialEvents = Array.isArray(body?.initialEvents)
+      ? body.initialEvents
+      : [];
     const recentConversation = Array.isArray(body?.recentConversation)
       ? body.recentConversation
       : [];
@@ -64,7 +73,7 @@ MODE AUTONOMY:
 - You do not give away the answer.
 `;
 
-    const roleplayPrompt = ascii(`
+    const roleplayPrompt = sanitize(`
 You are ONLY Romain Dufresne, colleague of the player in a professional serious game.
 
 The player is named: ${playerName}
@@ -77,14 +86,14 @@ IMPORTANT:
 - You reply only as Romain.
 
 SCENARIO CONTEXT:
-- Context: ${ascii(s((narrative as any)?.context, ""))}
-- Mission: ${ascii(s((narrative as any)?.mission, ""))}
-- Initial situation: ${ascii(s((narrative as any)?.initial_situation, ""))}
-- Trigger: ${ascii(s((narrative as any)?.trigger, ""))}
-- Background fact: ${ascii(s((narrative as any)?.background_fact, ""))}
+- Context: ${sanitize(s((narrative as any)?.context, ""))}
+- Mission: ${sanitize(s((narrative as any)?.mission, ""))}
+- Initial situation: ${sanitize(s((narrative as any)?.initial_situation, ""))}
+- Trigger: ${sanitize(s((narrative as any)?.trigger, ""))}
+- Background fact: ${sanitize(s((narrative as any)?.background_fact, ""))}
 
 INITIAL EVENTS:
-${ascii(JSON.stringify(initialEvents, null, 2))}
+${sanitize(JSON.stringify(initialEvents, null, 2))}
 
 CURRENT PHASE:
 - Title: ${phaseTitle}
@@ -94,7 +103,7 @@ CURRENT PHASE:
 ${modeGuidance}
 
 RECENT HISTORY:
-${ascii(JSON.stringify(recentConversation, null, 2))}
+${sanitize(JSON.stringify(recentConversation, null, 2))}
 
 LAST PLAYER MESSAGE (${playerName}):
 ${message}
@@ -112,35 +121,16 @@ RULES:
 Return ONLY Romain's reply in plain text.
 `);
 
-    const roleplayRes = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1-mini",
-        input: roleplayPrompt,
-      }),
+    const roleplayResponse = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: roleplayPrompt,
     });
 
-    const roleplayData = await roleplayRes.json();
-
-    if (!roleplayRes.ok) {
-      return Response.json(
-        {
-          error:
-            roleplayData?.error?.message ||
-            "Erreur OpenAI sur la réponse de Romain.",
-        },
-        { status: 500 }
-      );
-    }
-
-    const reply = ascii(roleplayData?.output_text || "").trim() ||
+    const reply =
+      sanitize(roleplayResponse.output_text || "").trim() ||
       `Je ne suis pas sur de te suivre, ${playerName}. Reprends-moi le probleme clairement.`;
 
-    const evaluationPrompt = ascii(`
+    const evaluationPrompt = sanitize(`
 You are a VERY STRICT evaluator of a professional serious game.
 
 Your task:
@@ -157,7 +147,7 @@ PHASE:
 - Instruction: ${phasePrompt}
 
 CRITERIA:
-${ascii(JSON.stringify(criteria, null, 2))}
+${sanitize(JSON.stringify(criteria, null, 2))}
 
 LAST PLAYER MESSAGE:
 ${message}
@@ -178,19 +168,10 @@ Return STRICT JSON:
 }
 `);
 
-    const evalRes = await fetch("https://api.openai.com/v1/responses", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "gpt-4.1-mini",
-        input: evaluationPrompt,
-      }),
+    const evalResponse = await client.responses.create({
+      model: "gpt-4.1-mini",
+      input: evaluationPrompt,
     });
-
-    const evalData = await evalRes.json();
 
     let evaluation: {
       matched_criteria?: string[];
@@ -198,17 +179,9 @@ Return STRICT JSON:
       flags_to_set?: Record<string, boolean>;
     } = {};
 
-    if (evalRes.ok) {
-      try {
-        evaluation = JSON.parse(evalData?.output_text?.trim() || "{}");
-      } catch {
-        evaluation = {
-          matched_criteria: [],
-          score_delta: 0,
-          flags_to_set: {},
-        };
-      }
-    } else {
+    try {
+      evaluation = JSON.parse(evalResponse.output_text?.trim() || "{}");
+    } catch {
       evaluation = {
         matched_criteria: [],
         score_delta: 0,
@@ -241,6 +214,7 @@ Return STRICT JSON:
       flags_to_set: flagsToSet,
     });
   } catch (error: any) {
+    console.error("Erreur chat route:", error);
     return Response.json(
       {
         error: s(error?.message, "Erreur cote serveur IA"),
