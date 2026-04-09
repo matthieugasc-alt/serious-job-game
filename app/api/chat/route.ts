@@ -4,20 +4,54 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-function safeString(value: unknown, fallback = "") {
+function s(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
+}
+
+function ascii(input: string) {
+  return input
+    .replace(/[\u2018\u2019]/g, "'")
+    .replace(/[\u201C\u201D]/g, '"')
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/\u00A0/g, " ")
+    .replace(/[^\x00-\x7F]/g, (ch) => {
+      const map: Record<string, string> = {
+        e: "e",
+        E: "E",
+        a: "a",
+        A: "A",
+        i: "i",
+        I: "I",
+        o: "o",
+        O: "O",
+        u: "u",
+        U: "U",
+        c: "c",
+        C: "C",
+      };
+      return map[ch] || "";
+    });
+}
+
+function safeJsonResponse(payload: any, status = 200) {
+  return new Response(JSON.stringify(payload), {
+    status,
+    headers: {
+      "content-type": "application/json; charset=utf-8",
+    },
+  });
 }
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
-    const playerName = safeString(body?.playerName, "Joueur").trim() || "Joueur";
-    const message = safeString(body?.message, "");
-    const phaseTitle = safeString(body?.phaseTitle, "");
-    const phaseObjective = safeString(body?.phaseObjective, "");
-    const phasePrompt = safeString(body?.phasePrompt, "");
-    const mode = safeString(body?.mode, "guided");
+    const playerName = ascii(s(body?.playerName, "Joueur")).trim() || "Joueur";
+    const message = ascii(s(body?.message, ""));
+    const phaseTitle = ascii(s(body?.phaseTitle, ""));
+    const phaseObjective = ascii(s(body?.phaseObjective, ""));
+    const phasePrompt = ascii(s(body?.phasePrompt, ""));
+    const mode = ascii(s(body?.mode, "guided"));
     const narrative =
       body?.narrative && typeof body.narrative === "object" ? body.narrative : {};
     const initialEvents = Array.isArray(body?.initialEvents) ? body.initialEvents : [];
@@ -29,102 +63,102 @@ export async function POST(req: Request) {
     const modeGuidance =
       mode === "guided"
         ? `
-MODE GUIDED :
-- Tu aides un peu plus que d'habitude.
-- Tu peux donner un léger indice ou poser une question utile.
-- Tu soutiens ${playerName} sans faire le travail à sa place.
-- Tu ne donnes jamais la solution complète.
+MODE GUIDED:
+- You help a bit more than usual.
+- You may give a light hint or ask one useful question.
+- You support ${playerName} without doing the work in their place.
+- You never give the full solution.
 `
         : mode === "standard"
         ? `
-MODE STANDARD :
-- Tu es un collègue professionnel, réactif et crédible.
-- Tu aides modérément.
-- Tu peux challenger une idée floue.
-- Tu demandes souvent une précision utile.
-- Tu ne donnes pas le plan complet.
+MODE STANDARD:
+- You are a professional, reactive, credible colleague.
+- You help moderately.
+- You may challenge vague ideas.
+- You often ask for useful clarification.
+- You do not give the full plan.
 `
         : `
-MODE AUTONOMY :
-- Tu aides peu.
-- Tu considères que ${playerName} doit construire seul son raisonnement.
-- Tu peux douter, recadrer, demander de préciser.
-- Tu ne souffles pas la réponse.
+MODE AUTONOMY:
+- You help little.
+- You assume ${playerName} must build the reasoning alone.
+- You may doubt, reframe, ask for precision.
+- You do not give away the answer.
 `;
 
-    const roleplayPrompt = `
-Tu incarnes UNIQUEMENT Romain Dufresne, collègue du joueur dans un serious game professionnel.
+    const roleplayPrompt = ascii(`
+You are ONLY Romain Dufresne, colleague of the player in a professional serious game.
 
-Le joueur s'appelle : ${playerName}
+The player is named: ${playerName}
 
-IMPORTANT :
-- Tu ne t'appelles pas ${playerName}.
-- Tu t'appelles Romain Dufresne.
-- Si tu t'adresses au joueur par son prénom/nom, utilise ${playerName}.
-- Ne confonds jamais ton identité avec celle du joueur.
-- Tu réponds uniquement comme Romain, jamais comme un narrateur, un coach ou un évaluateur.
+IMPORTANT:
+- You are not named ${playerName}.
+- You are Romain Dufresne.
+- If you address the player by name, use ${playerName}.
+- Never confuse your identity with the player's.
+- You reply only as Romain, never as narrator, coach or evaluator.
 
-IDENTITÉ DE ROMAIN :
-- collègue sérieux
-- pressé
-- crédible
-- opérationnel
-- pas omniscient
-- pas stupide
-- pas caricatural
-- pas professeur
-- pas évaluateur
+IDENTITY OF ROMAIN:
+- serious colleague
+- under time pressure
+- credible
+- operational
+- not omniscient
+- not stupid
+- not caricatural
+- not a teacher
+- not an evaluator
 
-INTERDIT :
-- Tu n'es pas un assistant généraliste.
-- Tu n'inventes aucun autre univers.
-- Tu ne donnes jamais la solution complète.
-- Tu ne listes jamais le plan parfait.
-- Tu ne reformules jamais toute la situation proprement à la place du joueur.
-- Tu ne joues pas au consultant.
-- Tu ne notes pas le joueur.
-- Tu ne parles pas à la place du consulat, de la PAF ou de Claudia, sauf si le scénario montre explicitement leur message.
+FORBIDDEN:
+- You are not a general assistant.
+- Do not invent any other universe.
+- Never give the complete solution.
+- Never list the perfect plan.
+- Never restate the whole situation cleanly in place of the player.
+- Do not act like a consultant.
+- Do not grade the player.
+- Do not speak on behalf of the consulate, border police or Claudia unless the scenario explicitly shows their message.
 
-CONTEXTE DU SCÉNARIO :
-- Contexte : ${safeString(narrative?.context, "")}
-- Mission : ${safeString(narrative?.mission, "")}
-- Situation initiale : ${safeString(narrative?.initial_situation, "")}
-- Déclencheur : ${safeString(narrative?.trigger, "")}
-- Fait complémentaire : ${safeString(narrative?.background_fact, "")}
+SCENARIO CONTEXT:
+- Context: ${ascii(s((narrative as any)?.context, ""))}
+- Mission: ${ascii(s((narrative as any)?.mission, ""))}
+- Initial situation: ${ascii(s((narrative as any)?.initial_situation, ""))}
+- Trigger: ${ascii(s((narrative as any)?.trigger, ""))}
+- Background fact: ${ascii(s((narrative as any)?.background_fact, ""))}
 
-ÉVÉNEMENTS INITIAUX :
-${JSON.stringify(initialEvents, null, 2)}
+INITIAL EVENTS:
+${ascii(JSON.stringify(initialEvents, null, 2))}
 
-PHASE ACTUELLE :
-- Titre : ${phaseTitle}
-- Objectif : ${phaseObjective}
-- Consigne : ${phasePrompt}
+CURRENT PHASE:
+- Title: ${phaseTitle}
+- Objective: ${phaseObjective}
+- Instruction: ${phasePrompt}
 
 ${modeGuidance}
 
-HISTORIQUE RÉCENT :
-${JSON.stringify(recentConversation, null, 2)}
+RECENT HISTORY:
+${ascii(JSON.stringify(recentConversation, null, 2))}
 
-DERNIER MESSAGE DU JOUEUR (${playerName}) :
+LAST PLAYER MESSAGE (${playerName}):
 ${message}
 
-RÈGLES DE COMPORTEMENT :
-- Tu réponds comme un collègue humain crédible.
-- Si ${playerName} est hors sujet, tu le recadres brièvement.
-- Si ${playerName} dit une absurdité, tu montres ton incompréhension sans résoudre à sa place.
-- Tu peux poser une bonne question.
-- Tu peux rappeler l’urgence.
-- Tu peux exprimer un doute réaliste.
-- Tu peux demander d’être plus précis.
-- Tu ne dois jamais être soit trop brillant, soit trop idiot.
-- Tu réponds en 1 à 3 phrases en général.
-- Ton ton est oral, naturel, pro.
-- Tu évites de répéter mot pour mot ce que tu as déjà dit juste avant.
-- Tu ne donnes pas d’évaluation pédagogique.
-- Si le joueur dit juste "c'est fait", "ok", "yes", ou quelque chose de trop vague, tu demandes ce qui a été fait exactement.
+BEHAVIOR RULES:
+- Reply like a credible human colleague.
+- If ${playerName} is off topic, reframe briefly.
+- If ${playerName} says something absurd, show you do not follow, without solving it for them.
+- You may ask one good question.
+- You may remind the urgency.
+- You may express realistic doubt.
+- You may ask for more precision.
+- You must never be too brilliant or too stupid.
+- Reply in 1 to 3 sentences generally.
+- Tone: natural, spoken, professional.
+- Avoid repeating exactly what you already said.
+- Do not give pedagogical evaluation.
+- If the player says only "ok", "yes", "done", or something too vague, ask what was done exactly.
 
-Réponds UNIQUEMENT avec la réplique de Romain, en texte brut.
-`;
+Return ONLY Romain's line in plain text.
+`);
 
     const roleplayResponse = await client.responses.create({
       model: "gpt-4.1-mini",
@@ -132,53 +166,52 @@ Réponds UNIQUEMENT avec la réplique de Romain, en texte brut.
     });
 
     const reply =
-      roleplayResponse.output_text?.trim() ||
-      `Je ne suis pas sûr de te suivre, ${playerName}. Reprends-moi le problème clairement.`;
+      ascii(roleplayResponse.output_text?.trim() || "") ||
+      `I am not sure I follow you, ${playerName}. Rephrase the problem clearly.`;
 
-    const strictEvaluationPrompt = `
-Tu es un évaluateur TRÈS STRICT d'un serious game professionnel.
+    const strictEvaluationPrompt = ascii(`
+You are a VERY STRICT evaluator of a professional serious game.
 
-Ta mission :
-évaluer UNIQUEMENT le dernier message du joueur dans le canal de chat.
+Your task:
+evaluate ONLY the player's last chat message.
 
-IMPORTANT :
-- Tu n'évalues PAS les mails.
-- Tu n'évalues PAS les pièces jointes.
-- Tu n'évalues PAS l'intention générale du joueur.
-- Tu n'évalues PAS la qualité globale de la session.
-- Tu notes seulement le DERNIER message du joueur ci-dessous.
+IMPORTANT:
+- Do NOT evaluate emails.
+- Do NOT evaluate attachments.
+- Do NOT evaluate overall intent.
+- Do NOT evaluate the overall quality of the session.
+- Evaluate only the LAST player message below.
 
-Tu ne dois PAS tenir compte :
-- de la réponse de Romain
-- de l'intention supposée du joueur
-- du fait que le joueur semble avoir compris
-- de l'historique si le dernier message n'est pas assez explicite
+Ignore:
+- Romain's reply
+- supposed player intention
+- whether the player seems to have understood
+- the history if the last message is not explicit enough
 
-PHASE :
-- Titre : ${phaseTitle}
-- Objectif : ${phaseObjective}
-- Consigne : ${phasePrompt}
+PHASE:
+- Title: ${phaseTitle}
+- Objective: ${phaseObjective}
+- Instruction: ${phasePrompt}
 
-CRITÈRES À ÉVALUER :
-${JSON.stringify(criteria, null, 2)}
+CRITERIA:
+${ascii(JSON.stringify(criteria, null, 2))}
 
-DERNIER MESSAGE DU JOUEUR :
+LAST PLAYER MESSAGE:
 ${message}
 
-RÈGLES D'ÉVALUATION :
-- Ne valide un critère que s'il est explicitement présent ou très clairement formulé.
-- Si c'est vague, implicite, approximatif, ambigu ou simplement suggéré : NE PAS VALIDER.
-- N'accorde aucun point pour une intuition partielle.
-- N'accorde aucun point pour une formulation trop générale.
-- N'accorde aucun point parce que l'idée globale est bonne.
-- Si le joueur mélange plusieurs idées sans précision, ne valide que ce qui est clairement formulé.
-- Tu dois être conservateur.
-- Le score doit être difficile à obtenir.
-- Tu ne peux valider au maximum que 2 critères sur un seul message.
-- Si le message est de type "ok", "yes", "c'est fait", "j'ai tout", "je gère", sans contenu métier explicite, score_delta = 0.
+EVALUATION RULES:
+- Validate a criterion only if it is explicit or very clearly formulated.
+- If vague, implicit, approximate, ambiguous or merely suggested: DO NOT VALIDATE.
+- No points for partial intuition.
+- No points for overly general wording.
+- No points just because the overall idea is good.
+- If the player mixes several ideas without precision, validate only what is clearly stated.
+- Be conservative.
+- The score should be hard to obtain.
+- At most 2 validated criteria in one message.
+- If the message is like "ok", "yes", "done", "I have everything", "I got it", without explicit business content, score_delta = 0.
 
-Réponds STRICTEMENT au format JSON :
-
+Return STRICT JSON only:
 {
   "matched_criteria": ["criterion_id_1"],
   "score_delta": 1,
@@ -186,7 +219,7 @@ Réponds STRICTEMENT au format JSON :
     "flag_name": true
   }
 }
-`;
+`);
 
     const evaluationResponse = await client.responses.create({
       model: "gpt-4.1-mini",
@@ -210,7 +243,7 @@ Réponds STRICTEMENT au format JSON :
     }
 
     const matchedCriteria = Array.isArray(evaluation.matched_criteria)
-      ? evaluation.matched_criteria.slice(0, 2)
+      ? evaluation.matched_criteria.slice(0, 2).map((x) => ascii(String(x)))
       : [];
 
     const flagsToSet =
@@ -227,26 +260,27 @@ Réponds STRICTEMENT au format JSON :
         ? evaluation.score_delta
         : matchedCriteria.length;
 
-    return Response.json(
+    return safeJsonResponse(
       {
         reply,
         matched_criteria: matchedCriteria,
         score_delta: scoreDelta,
         flags_to_set: flagsToSet,
       },
-      { status: 200 }
+      200
     );
   } catch (error: any) {
     console.error("Erreur API chat:", error);
 
-    return Response.json(
+    return safeJsonResponse(
       {
-        error:
-          safeString(error?.message) ||
-          safeString(error?.error?.message) ||
-          "Erreur côté serveur IA",
+        error: ascii(
+          s(error?.message) ||
+            s(error?.error?.message) ||
+            "Erreur cote serveur IA"
+        ),
       },
-      { status: 500 }
+      500
     );
   }
 }
