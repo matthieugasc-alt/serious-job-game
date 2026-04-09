@@ -1,0 +1,808 @@
+{
+  "scenario_id": "ci_atterrissage_45min_v3",
+  "version": "3.0.0",
+  "locale": "fr-FR",
+
+  "meta": {
+    "title": "Atterrissage dans 45 minutes",
+    "subtitle": "Serious game interactif - Exercice de r\u00e9daction en situation d'urgence",
+    "job_family": "assistant_cooperation_internationale",
+    "difficulty": "junior",
+    "estimated_duration_min": 20,
+    "pedagogical_goals": [
+      "Comprendre rapidement une information critique en langue \u00e9trang\u00e8re",
+      "Construire une strat\u00e9gie institutionnelle sous contrainte de temps",
+      "R\u00e9diger un courriel diplomatique et exploitable",
+      "G\u00e9rer l'incertitude, les interruptions et la coordination"
+    ]
+  },
+
+  "narrative": {
+    "context": "Tu es assistant\u00b7e de coop\u00e9ration internationale depuis 8 mois au sein de la Direction des Relations Internationales (DRI) de la R\u00e9gion Nouvelle-Aquitaine. La R\u00e9gion entretient un partenariat de coop\u00e9ration d\u00e9centralis\u00e9e avec la Regi\u00f3n Arequipa (P\u00e9rou) sur un programme d'appui \u00e0 la gestion durable de l'eau.",
+    "mission": "Une d\u00e9l\u00e9gation p\u00e9ruvienne de 3 personnes arrive \u00e0 Bordeaux pour une mission de travail de 5 jours : visites techniques, ateliers avec les services r\u00e9gionaux et signature d'un avenant au protocole de coop\u00e9ration.",
+    "initial_situation": "Mardi 7 avril, 9h15. Tu arrives au bureau. Ta responsable Nathalie Musik, cheffe du p\u00f4le Am\u00e9riques, est en d\u00e9placement \u00e0 Paris pour une r\u00e9union au Minist\u00e8re de l'Europe et des Affaires \u00e9trang\u00e8res. Elle est injoignable jusqu'\u00e0 11h. Le programme de la semaine est cal\u00e9 depuis trois semaines. L'accueil \u00e0 l'a\u00e9roport de Bordeaux-M\u00e9rignac est pr\u00e9vu \u00e0 11h00 (vol Lima \u2192 Madrid \u2192 Bordeaux, r\u00e9f\u00e9rence IB 8764). Ton coll\u00e8gue Romain Dufresne, charg\u00e9 de mission, doit aller chercher la d\u00e9l\u00e9gation.",
+    "trigger": "\u00c0 9h20, Romain t'appelle, stress\u00e9 : il a re\u00e7u un message WhatsApp en espagnol de Claudia Vargas R\u00edos, la cheffe de la d\u00e9l\u00e9gation p\u00e9ruvienne, envoy\u00e9 depuis l'escale \u00e0 Madrid. Il ne comprend pas l'espagnol et te transf\u00e8re le message.",
+    "background_fact": "Tu v\u00e9rifies dans le dossier : la copie scann\u00e9e du visa de Jorge Huam\u00e1n Quispe indique bien une date de validit\u00e9 au 7 avril (aujourd'hui), alors que la mission dure jusqu'au 12. La lettre d'invitation officielle, sign\u00e9e par le Pr\u00e9sident de R\u00e9gion, mentionne les dates du 7 au 12 avril pour les trois membres de la d\u00e9l\u00e9gation. Il s'agit probablement d'une erreur de saisie lors de la demande de visa."
+  },
+
+  "timeline": {
+    "scenario_start": "2025-04-07T09:20:00",
+    "email_deadline": "2025-04-07T09:45:00",
+    "flight_arrival": "2025-04-07T11:00:00",
+    "border_control_window": "2025-04-07T11:20:00/2025-04-07T11:30:00",
+    "manager_available_at": "2025-04-07T11:00:00"
+  },
+
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "(joueur)",
+      "role": "Assistant\u00b7e coop\u00e9ration internationale, DRI",
+      "interaction_mode": null,
+      "controlled_by": "player"
+    },
+    {
+      "actor_id": "romain",
+      "name": "Romain Dufresne",
+      "role": "Charg\u00e9 de mission, coll\u00e8gue",
+      "personality": "Press\u00e9, op\u00e9rationnel, stress\u00e9 mais coop\u00e9ratif. Ne comprend pas l'espagnol. Pas force de proposition mais r\u00e9actif aux id\u00e9es du joueur.",
+      "interaction_modes": ["phone", "in_person"],
+      "controlled_by": "ai_agent",
+      "availability": "Disponible jusqu'\u00e0 ~9h50 en personne, puis part \u00e0 l'a\u00e9roport et n'est joignable que par t\u00e9l\u00e9phone"
+    },
+    {
+      "actor_id": "nathalie",
+      "name": "Nathalie Musik",
+      "role": "Cheffe du p\u00f4le Am\u00e9riques, responsable hi\u00e9rarchique du joueur",
+      "interaction_modes": ["unreachable"],
+      "controlled_by": "system",
+      "availability": "Injoignable jusqu'\u00e0 11h (r\u00e9union au MEAE \u00e0 Paris)"
+    },
+    {
+      "actor_id": "claudia",
+      "name": "Claudia Vargas R\u00edos",
+      "role": "Cheffe de la d\u00e9l\u00e9gation p\u00e9ruvienne",
+      "interaction_modes": ["whatsapp"],
+      "controlled_by": "system",
+      "availability": "Dans l'avion Madrid \u2192 Bordeaux, communication limit\u00e9e"
+    },
+    {
+      "actor_id": "jorge",
+      "name": "Jorge Huam\u00e1n Quispe",
+      "role": "Ing\u00e9nieur hydraulique, Gouvernement r\u00e9gional d'Arequipa",
+      "interaction_modes": [],
+      "controlled_by": "system",
+      "availability": "Dans l'avion, visa probl\u00e9matique"
+    },
+    {
+      "actor_id": "consulat_madrid",
+      "name": "Consulat g\u00e9n\u00e9ral de France \u00e0 Madrid",
+      "role": "Service des visas",
+      "personality": "Formel, prudent, bureaucratique. Utilise le conditionnel. Ne s'engage pas clairement.",
+      "interaction_modes": ["email"],
+      "controlled_by": "system"
+    },
+    {
+      "actor_id": "paf_bordeaux",
+      "name": "PAF Bordeaux-M\u00e9rignac",
+      "role": "Police aux fronti\u00e8res",
+      "interaction_modes": ["phone", "email"],
+      "controlled_by": "system",
+      "availability": "Joignable par t\u00e9l\u00e9phone (via Romain) et par email"
+    }
+  ],
+
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "lettre_invitation",
+        "label": "Lettre d'invitation officielle du Pr\u00e9sident de R\u00e9gion",
+        "contains": ["dates_7_12_avril", "trois_noms_delegation", "objet_mission_eau"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "programme_mission",
+        "label": "Programme d\u00e9taill\u00e9 de la mission (5 jours)",
+        "contains": ["visites_techniques", "ateliers", "signature_avenant"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "reservation_hotel",
+        "label": "R\u00e9servation d'h\u00f4tel de la d\u00e9l\u00e9gation",
+        "contains": ["prise_en_charge_hebergement", "dates_sejour"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "scans_passeports_delegation",
+        "label": "Copies scann\u00e9es couleur des trois passeports",
+        "contains": ["pages_identite_trois_membres"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "scans_visas_delegation",
+        "label": "Copies scann\u00e9es couleur des trois visas Schengen",
+        "contains": ["visa_jorge_expire_7_avril", "visa_claudia_valide", "visa_troisieme_valide"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "reservation_vol_retour",
+        "label": "R\u00e9servation du vol retour",
+        "contains": ["numero_reservation", "date_retour_12_avril"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "convention_cooperation",
+        "label": "R\u00e9f\u00e9rence de la convention de coop\u00e9ration R\u00e9gion Nouvelle-Aquitaine / Regi\u00f3n Arequipa",
+        "contains": ["numero_convention", "cadre_institutionnel"],
+        "usable_as_pj": false
+      },
+      {
+        "doc_id": "coord_consulat_madrid",
+        "label": "Coordonn\u00e9es email du service des visas du consulat \u00e0 Madrid",
+        "contains": ["email_service_visas"],
+        "usable_as_pj": false
+      },
+      {
+        "doc_id": "coord_paf_bordeaux",
+        "label": "Coordonn\u00e9es de la PAF Bordeaux-M\u00e9rignac",
+        "contains": ["telephone_standard", "email"],
+        "usable_as_pj": false
+      },
+      {
+        "doc_id": "numero_vol",
+        "label": "Num\u00e9ro de vol IB 8764, arriv\u00e9e Bordeaux 11h00",
+        "contains": ["reference_vol", "horaire_arrivee"],
+        "usable_as_pj": false
+      }
+    ]
+  },
+
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "Le joueur n'est pas habilit\u00e9 \u00e0 engager officiellement la R\u00e9gion. Il mentionne que sa responsable confirmera d\u00e8s 11h.",
+    "diplomatic_tone_required": true,
+    "uncertainty": "Le joueur ne sait pas si le consulat va r\u00e9pondre, ni si la PAF acceptera. Le consulat n'est pas responsable de l'erreur.",
+    "input_language": "es",
+    "output_language": "fr"
+  },
+
+  "state": {
+    "current_phase": null,
+    "phase_1_score": 0,
+    "phase_2_score": 0,
+    "phase_3_score": 0,
+    "phase_4_score": 0,
+    "total_score": 0,
+    "adaptive_mode": null,
+    "flags": {
+      "identified_visa_expiry": false,
+      "identified_mission_date_mismatch": false,
+      "identified_airline_boarding": false,
+      "identified_border_risk": false,
+      "identified_others_ok": false,
+      "named_consulate_madrid": false,
+      "chose_formal_email": false,
+      "copied_paf": false,
+      "parallel_action_suggested": false,
+      "strategy_found_without_help": false,
+      "method_described_before_writing": false,
+      "mail_has_clear_subject": false,
+      "mail_has_structure": false,
+      "mail_tone_diplomatic": false,
+      "mail_mentions_pj": false,
+      "manager_absence_mentioned": false,
+      "interrupt_decision_clear": false,
+      "romain_called_paf": false,
+      "email_to_consulate_sent": false,
+      "replied_to_consulate": false,
+      "attached_passport_visa": false,
+      "attached_invitation": false,
+      "attached_return_flight": false,
+      "attached_programme_hotel": false,
+      "proposed_hierarchy_note_later": false,
+      "communication_romain_clear": false,
+      "message_claudia_reassuring": false
+    }
+  },
+
+  "initial_events": [
+    {
+      "event_id": "romain_initial_call",
+      "type": "phone_call",
+      "actor": "romain",
+      "content": "Eh, j'ai un message de Claudia Vargas sur WhatsApp, la cheffe de la d\u00e9l\u00e9gation p\u00e9ruvienne. Elle m'a \u00e9crit depuis Madrid mais c'est en espagnol, je comprends rien. \u00c7a a l'air urgent vu les points d'exclamation. Je te transf\u00e8re."
+    },
+    {
+      "event_id": "whatsapp_claudia",
+      "type": "whatsapp_message",
+      "actor": "claudia",
+      "language": "es",
+      "content": "Romain, tenemos un problema. En el mostrador de facturaci\u00f3n en Madrid, la aerol\u00ednea nos inform\u00f3 que la visa Schengen de nuestro colega Jorge Huam\u00e1n Quispe (ingeniero hidr\u00e1ulico del Gobierno Regional de Arequipa) vence hoy a medianoche. La aerol\u00ednea acept\u00f3 embarcarlo, pero nos advirti\u00f3 que la polic\u00eda de fronteras en Burdeos podr\u00eda rechazarlo porque la fecha de salida del territorio (domingo 12 de abril) supera la validez de su visa. Los otros dos pasaportes est\u00e1n en regla. \u00bfQu\u00e9 hacemos? Aterrizamos en 1h40."
+    }
+  ],
+
+  "phases": [
+    {
+      "phase_id": "phase_1_comprehension",
+      "title": "Compr\u00e9hension",
+      "duration_target_min": 3,
+      "objective": "Comprendre le message en espagnol et transmettre l'information essentielle \u00e0 Romain",
+
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Romain attend que tu lui expliques ce que dit le message."
+      },
+
+      "agent_behavior": {
+        "actor": "romain",
+        "style": "Dans l'attente. Ne comprend pas l'espagnol. Pose des questions courtes, pressantes.",
+        "response_rules": [
+          {
+            "condition": "player_delays",
+            "line": "Alors ? C'est grave ou pas ? Moi je dois partir \u00e0 l'a\u00e9roport dans 45 minutes\u2026"
+          },
+          {
+            "condition": "player_says_no_spanish",
+            "line": "Moi non plus ! Essaie avec un traducteur en ligne, on n'a pas le temps de chercher quelqu'un."
+          },
+          {
+            "condition": "summary_incomplete_or_wrong",
+            "line": "Attends, je comprends pas bien. C'est un probl\u00e8me de billet d'avion ou de visa ? C'est quoi exactement le souci ?"
+          },
+          {
+            "condition": "summary_correct",
+            "line": "Attends, son visa expire aujourd'hui ?! Mais la mission c'est jusqu'\u00e0 dimanche ! C'est pas possible, on avait tout envoy\u00e9 \u00e0 l'ambassade\u2026"
+          }
+        ]
+      },
+
+      "scoring": {
+        "max_score": 5,
+        "criteria": [
+          {
+            "criterion_id": "identified_visa_expiry",
+            "description": "Le visa de Jorge Huam\u00e1n Quispe expire aujourd'hui (7 avril)",
+            "points": 1,
+            "sets_flag": "identified_visa_expiry"
+          },
+          {
+            "criterion_id": "identified_mission_date_mismatch",
+            "description": "La mission dure jusqu'au 12 avril, au-del\u00e0 de la validit\u00e9 du visa",
+            "points": 1,
+            "sets_flag": "identified_mission_date_mismatch"
+          },
+          {
+            "criterion_id": "identified_airline_boarding",
+            "description": "La compagnie l'a laiss\u00e9 embarquer malgr\u00e9 tout",
+            "points": 1,
+            "sets_flag": "identified_airline_boarding"
+          },
+          {
+            "criterion_id": "identified_border_risk",
+            "description": "Le risque concret : refoulement par la PAF \u00e0 Bordeaux",
+            "points": 1,
+            "sets_flag": "identified_border_risk"
+          },
+          {
+            "criterion_id": "identified_others_ok",
+            "description": "Les deux autres membres de la d\u00e9l\u00e9gation sont en r\u00e8gle",
+            "points": 1,
+            "sets_flag": "identified_others_ok"
+          }
+        ],
+        "thresholds": [
+          { "range": [5, 5], "sets_adaptive_mode": "autonomy", "label": "Compr\u00e9hension compl\u00e8te" },
+          { "range": [3, 4], "sets_adaptive_mode": "standard", "label": "Compr\u00e9hension partielle" },
+          { "range": [0, 2], "sets_adaptive_mode": "guided",   "label": "Compr\u00e9hension faible" }
+        ]
+      },
+
+      "completion_rule": {
+        "type": "minimum_key_facts",
+        "minimum": 3,
+        "or_max_exchanges": 5
+      },
+      "next_phase": "phase_2_strategy"
+    },
+
+    {
+      "phase_id": "phase_2_strategy",
+      "title": "Strat\u00e9gie",
+      "duration_target_min": 5,
+      "objective": "Proposer un plan d'action cr\u00e9dible. C'est le joueur qui doit amener l'id\u00e9e de contacter la bonne autorit\u00e9.",
+
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Qu'est-ce que tu proposes de faire maintenant ?"
+      },
+
+      "agent_behavior_by_mode": {
+        "autonomy": {
+          "actor": "romain",
+          "style": "Fait confiance au joueur et se met en retrait. Il valide mais ne guide pas.",
+          "response_rules": [
+            {
+              "condition": "player_proposes_consulate_madrid",
+              "line": "Si tu penses que c'est la bonne piste, vas-y. Tu as besoin de quoi de mon c\u00f4t\u00e9 ?"
+            },
+            {
+              "condition": "player_proposes_wrong_track",
+              "line": "Hmm\u2026 tu es s\u00fbr\u00b7e ? Moi je sais pas trop, c'est toi qui as compris le message. Fais comme tu le sens, mais fais vite."
+            },
+            {
+              "condition": "player_proposes_nothing",
+              "line": "C'est toi qui as la vision du probl\u00e8me, moi j'ai pas compris le message. Qu'est-ce que tu proposes ?"
+            }
+          ]
+        },
+        "standard": {
+          "actor": "romain",
+          "style": "Coop\u00e8re activement, r\u00e9agit aux id\u00e9es, recadre si n\u00e9cessaire.",
+          "response_rules": [
+            {
+              "condition": "player_proposes_call_nathalie",
+              "line": "J'ai essay\u00e9, elle d\u00e9croche pas. Elle est en r\u00e9union au Minist\u00e8re jusqu'\u00e0 11h, tu sais comment c'est\u2026 On peut pas attendre."
+            },
+            {
+              "condition": "player_proposes_contact_lima",
+              "line": "Lima ? Mais ils sont d\u00e9j\u00e0 en route pour Bordeaux, c'est trop tard pour Lima. Et avec le d\u00e9calage horaire il est genre 3h du matin l\u00e0-bas."
+            },
+            {
+              "condition": "player_proposes_consulate_madrid",
+              "line": "Oui, pas b\u00eate ! C'est leur derni\u00e8re escale. Il me semble qu'on a l'email du service des visas quelque part dans le dossier."
+            },
+            {
+              "condition": "player_proposes_call_paf_only",
+              "line": "On peut essayer, mais la PAF va nous demander un document officiel, ils vont pas nous croire sur parole. Il faudrait un truc \u00e9crit d'une autorit\u00e9 comp\u00e9tente."
+            },
+            {
+              "condition": "player_has_full_strategy",
+              "line": "Ok, \u00e7a me para\u00eet bien. Toi tu r\u00e9diges, moi je retrouve le num\u00e9ro de la PAF au cas o\u00f9. On a la lettre d'invitation du Pr\u00e9sident dans le dossier, \u00e7a peut servir."
+            }
+          ]
+        },
+        "guided": {
+          "actor": "romain",
+          "style": "Essaie d'aider mais n'a pas beaucoup plus de recul. R\u00e9fl\u00e9chit \u00e0 voix haute de mani\u00e8re d\u00e9sordonn\u00e9e. Ne donne JAMAIS le plan complet. L\u00e2che des indices flous que le joueur doit assembler.",
+          "response_rules": [
+            {
+              "condition": "phase_entry",
+              "line": "Bon \u00e9coute, j'ai rappel\u00e9 Claudia, j'ai compris un mot sur trois mais je crois que c'est un truc de visa qui expire. Enfin je suis pas s\u00fbr. Toi t'as compris quoi exactement ?"
+            },
+            {
+              "condition": "player_confirms_visa_problem",
+              "line": "Ok\u2026 donc il va se faire bloquer \u00e0 l'a\u00e9roport, c'est \u00e7a ? Merde. Il faut qu'on pr\u00e9vienne quelqu'un, non ? Mais qui ? Nathalie r\u00e9pond pas\u2026"
+            },
+            {
+              "condition": "player_proposes_nothing",
+              "line": "Faut qu'on contacte une autorit\u00e9, un consulat, une ambassade, je sais pas\u2026 T'as pas un annuaire ou un truc dans le dossier ?"
+            },
+            {
+              "condition": "player_proposes_any_track",
+              "line": "Peut-\u00eatre, je sais pas. Essaie, on verra bien. De toute fa\u00e7on on a pas 50 options."
+            },
+            {
+              "condition": "player_fully_blocked_after_multiple_exchanges",
+              "line": "\u00c9coute, moi le seul truc que je sais c'est qu'ils sont en escale \u00e0 Madrid. Est-ce qu'il y a pas un consulat fran\u00e7ais l\u00e0-bas \u00e0 qui on pourrait \u00e9crire ? Je dis \u00e7a, je dis rien\u2026"
+            }
+          ]
+        }
+      },
+
+      "scoring": {
+        "max_score": 5,
+        "criteria": [
+          {
+            "criterion_id": "named_consulate_madrid",
+            "description": "Identifie le consulat de France \u00e0 Madrid comme interlocuteur pertinent",
+            "points": 1,
+            "sets_flag": "named_consulate_madrid"
+          },
+          {
+            "criterion_id": "chose_formal_email",
+            "description": "Propose d'\u00e9crire un courriel formel (pas seulement un appel)",
+            "points": 1,
+            "sets_flag": "chose_formal_email"
+          },
+          {
+            "criterion_id": "copied_paf",
+            "description": "Pense \u00e0 mettre la PAF en copie",
+            "points": 1,
+            "sets_flag": "copied_paf"
+          },
+          {
+            "criterion_id": "parallel_action",
+            "description": "Envisage une action parall\u00e8le (appel PAF + mail consulat)",
+            "points": 1,
+            "sets_flag": "parallel_action_suggested"
+          },
+          {
+            "criterion_id": "strategy_without_help",
+            "description": "Arrive \u00e0 la strat\u00e9gie sans aide directionnelle forte de Romain",
+            "points": 1,
+            "sets_flag": "strategy_found_without_help",
+            "note": "Attribu\u00e9 si le joueur identifie le consulat de Madrid avant que Romain ne le mentionne, quel que soit le mode adaptatif"
+          }
+        ]
+      },
+
+      "completion_rule": {
+        "type": "required_flag",
+        "flag": "named_consulate_madrid",
+        "or_max_exchanges": 8
+      },
+      "next_phase": "phase_3_execution"
+    },
+
+    {
+      "phase_id": "phase_3_execution",
+      "title": "Ex\u00e9cution",
+      "duration_target_min": 10,
+      "objective": "Structurer son approche puis r\u00e9diger le courriel au consulat",
+
+      "subphases": [
+        {
+          "subphase_id": "phase_3a_method",
+          "title": "M\u00e9thode",
+          "duration_target_min": 2,
+
+          "trigger_line": {
+            "actor": "romain",
+            "content": "Ok, avant que tu te lances, dis-moi vite : tu \u00e9cris \u00e0 qui exactement, tu mets qui en copie, et tu joins quoi ? Que je sois s\u00fbr qu'on est align\u00e9s avant que je parte chercher les num\u00e9ros de la PAF."
+          },
+
+          "player_input": {
+            "type": "free_text",
+            "prompt": "D\u00e9cris ton plan d'envoi : destinataire, copie, pi\u00e8ces jointes, grandes lignes du message."
+          },
+
+          "expected_elements": [
+            { "element": "destinataire", "expected": "Service des visas, Consulat g\u00e9n\u00e9ral de France \u00e0 Madrid" },
+            { "element": "copie", "expected": "PAF Bordeaux-M\u00e9rignac" },
+            { "element": "pj", "expected": "Lettre d'invitation, copie visa/passeport Jorge, programme, vol retour" },
+            { "element": "plan_message", "expected": "Contexte \u2192 probl\u00e8me \u2192 demande \u2192 disponibilit\u00e9" }
+          ],
+
+          "agent_feedback_rules": [
+            {
+              "if_missing": "copie_paf",
+              "actor": "romain",
+              "line": "Et la PAF de Bordeaux, tu les mets pas en copie ? C'est quand m\u00eame eux qui vont d\u00e9cider si Jorge passe ou pas\u2026"
+            },
+            {
+              "if_missing": "lettre_invitation",
+              "actor": "romain",
+              "line": "Tu pensais pas \u00e0 joindre la lettre d'invitation du Pr\u00e9sident ? C'est quand m\u00eame \u00e7a qui prouve que les dates c'est 7-12 avril."
+            },
+            {
+              "if_well_structured": true,
+              "actor": "romain",
+              "line": "Parfait, c'est carr\u00e9. Vas-y, r\u00e9dige pendant que je cherche le num\u00e9ro de la PAF."
+            },
+            {
+              "if_no_method": true,
+              "actor": "romain",
+              "line": "Attends deux secondes. L\u00e0 c'est un mail \u00e0 un consulat, pas un SMS. Tu envoies \u00e0 qui exactement et tu mets quoi en pi\u00e8ce jointe ? Dis-moi avant de foncer."
+            }
+          ]
+        },
+
+        {
+          "subphase_id": "phase_3b_writing",
+          "title": "R\u00e9daction",
+          "duration_target_min": 8,
+
+          "player_input": {
+            "type": "rich_text",
+            "prompt": "R\u00e9dige le courriel au consulat."
+          },
+
+          "interruptions": [
+            {
+              "interrupt_id": "romain_paf_decision",
+              "trigger_after_seconds": 300,
+              "actor": "romain",
+              "channel": "in_person",
+              "content": "Bon, tu en es o\u00f9 ? J'ai trouv\u00e9 le num\u00e9ro de la PAF M\u00e9rignac. Est-ce que je les appelle maintenant pour les pr\u00e9venir, ou j'attends que ton mail soit parti ? Dis-moi, parce que moi je dois partir \u00e0 l'a\u00e9roport dans 20 minutes.",
+              "player_response_type": "decision",
+              "response_options": {
+                "call_now": {
+                  "romain_reply": "Ok j'appelle. Je leur dis quoi exactement ? Donne-moi les grandes lignes, que je raconte pas n'importe quoi.",
+                  "state_effects": { "romain_called_paf": true }
+                },
+                "wait_for_mail": {
+                  "romain_reply": "D'accord mais fais vite, si je pars sans avoir pr\u00e9venu personne c'est pas id\u00e9al\u2026",
+                  "state_effects": {}
+                },
+                "do_both_parallel": {
+                  "romain_reply": "Bonne id\u00e9e, comme \u00e7a on couvre les deux fronts. Je les appelle, je leur annonce que tu envoies un mail avec les justificatifs dans la foul\u00e9e.",
+                  "state_effects": { "romain_called_paf": true }
+                }
+              }
+            }
+          ]
+        }
+      ],
+
+      "scoring": {
+        "max_score": 7,
+        "criteria": [
+          {
+            "criterion_id": "method_described",
+            "description": "D\u00e9crit sa m\u00e9thode avant de r\u00e9diger (destinataire, copie, PJ, plan du mail)",
+            "points": 1,
+            "sets_flag": "method_described_before_writing"
+          },
+          {
+            "criterion_id": "mail_clear_subject",
+            "description": "Objet du courriel explicite et professionnel",
+            "points": 1,
+            "sets_flag": "mail_has_clear_subject"
+          },
+          {
+            "criterion_id": "mail_structure",
+            "description": "Corps structur\u00e9 : contexte \u2192 probl\u00e8me \u2192 demande \u2192 disponibilit\u00e9",
+            "points": 1,
+            "sets_flag": "mail_has_structure"
+          },
+          {
+            "criterion_id": "mail_tone",
+            "description": "Ton diplomatique adapt\u00e9 (sollicitation, pas exigence)",
+            "points": 1,
+            "sets_flag": "mail_tone_diplomatic"
+          },
+          {
+            "criterion_id": "mail_attachments",
+            "description": "Mentionne les pi\u00e8ces jointes pertinentes (lettre d'invitation, copie visa, programme)",
+            "points": 1,
+            "sets_flag": "mail_mentions_pj"
+          },
+          {
+            "criterion_id": "manager_mentioned",
+            "description": "Mentionne l'absence de sa responsable et sa disponibilit\u00e9 \u00e0 11h",
+            "points": 1,
+            "sets_flag": "manager_absence_mentioned"
+          },
+          {
+            "criterion_id": "interrupt_decision",
+            "description": "Prend une d\u00e9cision claire face \u00e0 l'interruption de Romain (appel PAF)",
+            "points": 1,
+            "sets_flag": "interrupt_decision_clear"
+          }
+        ]
+      },
+
+      "completion_rule": {
+        "type": "email_submitted",
+        "required_fields": ["destinataire", "objet", "corps", "pj_mentionnees"]
+      },
+      "state_effects_on_complete": {
+        "email_to_consulate_sent": true
+      },
+      "next_phase": "phase_4_rebound"
+    },
+
+    {
+      "phase_id": "phase_4_rebound",
+      "title": "Rebond",
+      "duration_target_min": 5,
+      "objective": "R\u00e9pondre efficacement \u00e0 une r\u00e9ponse \u00e9vasive du consulat tout en g\u00e9rant la pression de Romain et Claudia",
+
+      "trigger_events": [
+        {
+          "event_id": "consulate_reply",
+          "type": "email",
+          "actor": "consulat_madrid",
+          "delay_after_phase_start": "120s",
+          "subject": "RE : URGENT \u2014 Visa expirant \u2014 D\u00e9l\u00e9gation officielle Regi\u00f3n Arequipa \u2014 Vol IB 8764",
+          "content": "Madame, Monsieur,\n\nNous accusons r\u00e9ception de votre message. Nous vous informons que le service des visas du Consulat g\u00e9n\u00e9ral de France \u00e0 Madrid n'est pas comp\u00e9tent pour modifier ou prolonger un visa d\u00e9livr\u00e9 par un autre poste (en l'occurrence l'Ambassade de France \u00e0 Lima).\n\nCependant, sous r\u00e9serve de la transmission d'un dossier complet, nous pourrions \u00e9ventuellement \u00e9mettre une note \u00e0 l'attention des services de contr\u00f4le aux fronti\u00e8res.\n\nMerci de nous faire parvenir :\n1. Copie couleur du passeport de l'int\u00e9ress\u00e9 (page d'identit\u00e9 et page du visa)\n2. Lettre d'invitation originale mentionnant les dates et l'objet du s\u00e9jour\n3. Justificatif de prise en charge (h\u00e9bergement, programme)\n4. Confirmation du vol retour\n5. Note de votre hi\u00e9rarchie confirmant le caract\u00e8re officiel de la mission\n\nNous attirons votre attention sur le fait que cette d\u00e9marche ne constitue en aucun cas une garantie d'admission sur le territoire.\n\nCordialement,\nMme Pilar Dom\u00ednguez\nAttach\u00e9e consulaire \u2014 Section visas\nConsulat g\u00e9n\u00e9ral de France \u00e0 Madrid",
+          "design_notes": {
+            "tone": "\u00c9vasif, conditionnel ('pourrions \u00e9ventuellement'), aucun engagement de d\u00e9lai",
+            "difficulty": "Pi\u00e8ces 1/2/4 imm\u00e9diatement disponibles. Pi\u00e8ce 3 n\u00e9cessite de penser programme ET h\u00f4tel. Pi\u00e8ce 5 impossible (Nathalie injoignable jusqu'\u00e0 11h)."
+          }
+        },
+        {
+          "event_id": "romain_from_car",
+          "type": "phone_call",
+          "actor": "romain",
+          "delay_after_phase_start": "130s",
+          "content": "Je suis en route pour l'a\u00e9roport. T'as eu un retour du consulat ? Claudia a remis un WhatsApp, elle demande si c'est r\u00e9gl\u00e9.",
+          "response_rules": [
+            {
+              "condition": "player_summarizes_clearly",
+              "line": "Ok, donc c'est en cours mais pas garanti. Je dis \u00e0 Claudia qu'on fait le maximum."
+            },
+            {
+              "condition": "player_panics",
+              "line": "Eh, un truc \u00e0 la fois. Le consulat d'abord, Claudia \u00e7a peut attendre 5 minutes."
+            },
+            {
+              "condition": "player_asks_what_to_tell_claudia",
+              "line": "Ben la v\u00e9rit\u00e9 : on est en contact avec le consulat, on attend leur retour, on g\u00e8re."
+            }
+          ]
+        }
+      ],
+
+      "player_inputs": [
+        {
+          "input_id": "reply_to_consulate",
+          "type": "rich_text",
+          "prompt": "R\u00e9dige la r\u00e9ponse au consulat avec les pi\u00e8ces demand\u00e9es"
+        },
+        {
+          "input_id": "message_for_claudia",
+          "type": "free_text",
+          "prompt": "Indique \u00e0 Romain ce qu'il doit dire \u00e0 Claudia"
+        }
+      ],
+
+      "scoring": {
+        "max_score": 6,
+        "criteria": [
+          {
+            "criterion_id": "responds_despite_uncertainty",
+            "description": "R\u00e9pond rapidement au consulat sans se d\u00e9courager face au ton \u00e9vasif",
+            "points": 1
+          },
+          {
+            "criterion_id": "sends_pieces_1_2_4",
+            "description": "Joint les pi\u00e8ces 1, 2 et 4 imm\u00e9diatement disponibles",
+            "points": 1,
+            "sets_flags": ["attached_passport_visa", "attached_invitation", "attached_return_flight"]
+          },
+          {
+            "criterion_id": "sends_piece_3_complete",
+            "description": "Pense \u00e0 inclure le programme ET la r\u00e9servation d'h\u00f4tel (pi\u00e8ce 3)",
+            "points": 1,
+            "sets_flag": "attached_programme_hotel"
+          },
+          {
+            "criterion_id": "handles_missing_piece_5",
+            "description": "Propose une solution cr\u00e9dible pour la pi\u00e8ce 5 (note de Nathalie d\u00e8s 11h)",
+            "points": 1,
+            "sets_flag": "proposed_hierarchy_note_later"
+          },
+          {
+            "criterion_id": "romain_communication",
+            "description": "G\u00e8re la communication avec Romain de mani\u00e8re claire et rassurante",
+            "points": 1,
+            "sets_flag": "communication_romain_clear"
+          },
+          {
+            "criterion_id": "claudia_message",
+            "description": "Formule un message honn\u00eate mais rassurant \u00e0 relayer \u00e0 Claudia",
+            "points": 1,
+            "sets_flag": "message_claudia_reassuring"
+          }
+        ]
+      },
+
+      "completion_rule": {
+        "type": "required_output",
+        "required": ["reply_to_consulate"]
+      },
+      "state_effects_on_complete": {
+        "replied_to_consulate": true
+      },
+      "next_phase": "phase_5_outcome"
+    },
+
+    {
+      "phase_id": "phase_5_outcome",
+      "title": "D\u00e9nouement",
+      "duration_target_min": 1,
+      "objective": "R\u00e9solution du sc\u00e9nario selon la performance cumul\u00e9e",
+
+      "outcome_rules": [
+        {
+          "ending_id": "success",
+          "label": "FIN A \u2014 Succ\u00e8s",
+          "conditions": {
+            "total_score_gte": 15,
+            "required_flags": [
+              "named_consulate_madrid",
+              "email_to_consulate_sent",
+              "replied_to_consulate",
+              "proposed_hierarchy_note_later"
+            ]
+          },
+          "narrative": {
+            "actor": "romain",
+            "channel": "phone",
+            "mood": "soulag\u00e9",
+            "content": "\u00c7a y est, ils sont pass\u00e9s ! La PAF avait re\u00e7u ton mail, plus la note du consulat est arriv\u00e9e entre temps. Ils ont fait un contr\u00f4le approfondi mais Jorge est pass\u00e9. Claudia te fait dire merci, elle \u00e9tait impressionn\u00e9e qu'on ait r\u00e9gl\u00e9 \u00e7a en une heure. Ah et Nathalie vient d'appeler, elle a eu ton message, elle dit que t'as bien g\u00e9r\u00e9. On se retrouve au bureau pour le d\u00e9brief avec la d\u00e9l\u00e9gation cet apr\u00e8s-midi."
+          }
+        },
+        {
+          "ending_id": "partial_success",
+          "label": "FIN B \u2014 Succ\u00e8s partiel",
+          "conditions": {
+            "total_score_gte": 9
+          },
+          "narrative": {
+            "actor": "romain",
+            "channel": "phone",
+            "mood": "tendu",
+            "content": "Bon, c'est compliqu\u00e9. La PAF a re\u00e7u ton mail mais ils disent que la note du consulat est pas encore arriv\u00e9e. Ils ont mis Jorge en zone d'attente, ils lui ont pas refus\u00e9 l'entr\u00e9e mais il est bloqu\u00e9 le temps qu'on r\u00e9gularise. Claudia et l'autre coll\u00e8gue sont pass\u00e9s, eux. Nathalie vient d'appeler, elle essaie de joindre le consulat de son c\u00f4t\u00e9. \u00c7a devrait se d\u00e9bloquer mais l\u00e0 on a perdu du temps. Le programme de cet apr\u00e8s-midi va \u00eatre d\u00e9cal\u00e9."
+          }
+        },
+        {
+          "ending_id": "failure",
+          "label": "FIN C \u2014 \u00c9chec",
+          "conditions": {
+            "fallback": true
+          },
+          "narrative": {
+            "actor": "romain",
+            "channel": "phone",
+            "mood": "d\u00e9pit\u00e9",
+            "content": "C'est la cata. La PAF n'avait rien re\u00e7u, aucune note, aucun mail. Ils ont refus\u00e9 l'entr\u00e9e \u00e0 Jorge, il est en proc\u00e9dure de r\u00e9acheminement vers Madrid. Claudia est furieuse, elle dit que c'est un incident diplomatique et que le Gouverneur d'Arequipa va \u00eatre inform\u00e9. Nathalie vient de m'appeler, elle veut un compte-rendu complet de ce qui s'est pass\u00e9 ce matin. On va devoir g\u00e9rer les retomb\u00e9es."
+          }
+        }
+      ]
+    }
+  ],
+
+  "scoring_summary": {
+    "max_total": 23,
+    "breakdown": {
+      "phase_1_comprehension": { "max": 5, "weight_label": "Compr\u00e9hension" },
+      "phase_2_strategy": { "max": 5, "weight_label": "Strat\u00e9gie" },
+      "phase_3_execution": { "max": 7, "weight_label": "Ex\u00e9cution" },
+      "phase_4_rebound": { "max": 6, "weight_label": "Rebond" }
+    },
+    "behavioral_dimensions": [
+      {
+        "dimension_id": "information_processing",
+        "label": "Compr\u00e9hension et traitement de l'information",
+        "description": "Le joueur parvient-il \u00e0 extraire l'information essentielle d'un message en langue \u00e9trang\u00e8re ? Identifie-t-il rapidement les \u00e9l\u00e9ments cl\u00e9s ?",
+        "mapped_criteria": ["identified_visa_expiry", "identified_mission_date_mismatch", "identified_border_risk", "identified_airline_boarding", "identified_others_ok"],
+        "feedback_high": "Tu rep\u00e8res vite les informations critiques, m\u00eame dans un contexte imparfait (barri\u00e8re linguistique, pression temporelle).",
+        "feedback_low": "L'extraction d'information en situation d\u00e9grad\u00e9e (langue \u00e9trang\u00e8re, urgence) reste \u00e0 travailler. Pense \u00e0 utiliser des outils de traduction et \u00e0 structurer ce que tu comprends avant de communiquer."
+      },
+      {
+        "dimension_id": "initiative",
+        "label": "Capacit\u00e9 d'initiative et construction d'une strat\u00e9gie",
+        "description": "Le joueur propose-t-il spontan\u00e9ment un plan d'action ou attend-il qu'on lui dise quoi faire ?",
+        "mapped_criteria": ["named_consulate_madrid", "chose_formal_email", "parallel_action", "strategy_without_help"],
+        "feedback_high": "Tu prends des d\u00e9cisions sans attendre une validation hi\u00e9rarchique impossible. Tu sais identifier le bon interlocuteur par raisonnement.",
+        "feedback_low": "Tu as tendance \u00e0 attendre qu'on te dise quoi faire. En situation d'urgence o\u00f9 ta hi\u00e9rarchie est absente, il faut oser proposer un plan m\u00eame imparfait."
+      },
+      {
+        "dimension_id": "professional_writing",
+        "label": "R\u00e9daction professionnelle sous pression",
+        "description": "Le courriel est-il structur\u00e9, clair, envoyable ? Le ton est-il adapt\u00e9 \u00e0 un interlocuteur consulaire ?",
+        "mapped_criteria": ["mail_clear_subject", "mail_structure", "mail_tone", "mail_attachments", "manager_mentioned"],
+        "feedback_high": "Tu sais produire un \u00e9crit professionnel utile sous pression : structur\u00e9, diplomatique et complet.",
+        "feedback_low": "La r\u00e9daction sous pression reste \u00e0 renforcer. Pense \u00e0 structurer (contexte \u2192 probl\u00e8me \u2192 demande) et \u00e0 v\u00e9rifier tes pi\u00e8ces jointes avant d'envoyer."
+      },
+      {
+        "dimension_id": "institutional_positioning",
+        "label": "Positionnement institutionnel",
+        "description": "Le joueur se situe-t-il correctement dans la cha\u00eene hi\u00e9rarchique ? \u00c9vite-t-il de s'engager au-del\u00e0 de ses pr\u00e9rogatives tout en restant proactif ?",
+        "mapped_criteria": ["manager_mentioned", "proposed_hierarchy_note_later"],
+        "feedback_high": "Tu te positionnes correctement : proactif sans outrepasser tes pr\u00e9rogatives, et tu sais anticiper le relais hi\u00e9rarchique.",
+        "feedback_low": "Attention au positionnement : mentionner l'absence de ta responsable et proposer un relais ult\u00e9rieur est essentiel pour cr\u00e9dibiliser ta d\u00e9marche aupr\u00e8s d'un interlocuteur institutionnel."
+      },
+      {
+        "dimension_id": "pressure_management",
+        "label": "Gestion des interactions et de la pression",
+        "description": "Comment le joueur r\u00e9agit-il aux sollicitations multiples, \u00e0 l'incertitude et aux interruptions ?",
+        "mapped_criteria": ["interrupt_decision", "responds_despite_uncertainty", "romain_communication", "claudia_message"],
+        "feedback_high": "Tu g\u00e8res bien la multiplicit\u00e9 des sollicitations : tu priorises, tu d\u00e9l\u00e8gues, tu rassures sans mentir.",
+        "feedback_low": "La multiplication des sollicitations tend \u00e0 te disperser. Travaille la hi\u00e9rarchisation : traite le plus urgent d'abord, d\u00e9l\u00e8gue ce qui peut l'\u00eatre, et communique un \u00e9tat d'avancement honn\u00eate aux parties prenantes."
+      }
+    ]
+  },
+
+  "debrief_template": {
+    "blocks": [
+      "Ce que tu as bien fait",
+      "Ce qui t'a mis en difficult\u00e9",
+      "Ce que cela sugg\u00e8re sur ton rapport au m\u00e9tier",
+      "Comp\u00e9tences \u00e0 renforcer"
+    ],
+    "generation_rules": "Pour chaque dimension comportementale, utiliser le feedback_high si le score des crit\u00e8res associ\u00e9s est sup\u00e9rieur ou \u00e9gal \u00e0 60% du max de la dimension, sinon utiliser feedback_low. Croiser les observations des diff\u00e9rentes phases pour un debrief coh\u00e9rent."
+  }
+}
