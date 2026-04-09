@@ -4,25 +4,27 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+function safeString(value: unknown, fallback = "") {
+  return typeof value === "string" ? value : fallback;
+}
+
 export async function POST(req: Request) {
   try {
-    const {
-      playerName = "Joueur",
-      message,
-      phaseTitle,
-      phaseObjective,
-      phasePrompt,
-      criteria = [],
-      mode = "guided",
-      narrative = {},
-      initialEvents = [],
-      recentConversation = [],
-    } = await req.json();
+    const body = await req.json();
 
-    const safePlayerName =
-      typeof playerName === "string" && playerName.trim()
-        ? playerName.trim()
-        : "Joueur";
+    const playerName = safeString(body?.playerName, "Joueur").trim() || "Joueur";
+    const message = safeString(body?.message, "");
+    const phaseTitle = safeString(body?.phaseTitle, "");
+    const phaseObjective = safeString(body?.phaseObjective, "");
+    const phasePrompt = safeString(body?.phasePrompt, "");
+    const mode = safeString(body?.mode, "guided");
+    const narrative =
+      body?.narrative && typeof body.narrative === "object" ? body.narrative : {};
+    const initialEvents = Array.isArray(body?.initialEvents) ? body.initialEvents : [];
+    const recentConversation = Array.isArray(body?.recentConversation)
+      ? body.recentConversation
+      : [];
+    const criteria = Array.isArray(body?.criteria) ? body.criteria : [];
 
     const modeGuidance =
       mode === "guided"
@@ -30,7 +32,7 @@ export async function POST(req: Request) {
 MODE GUIDED :
 - Tu aides un peu plus que d'habitude.
 - Tu peux donner un léger indice ou poser une question utile.
-- Tu soutiens ${safePlayerName} sans faire le travail à sa place.
+- Tu soutiens ${playerName} sans faire le travail à sa place.
 - Tu ne donnes jamais la solution complète.
 `
         : mode === "standard"
@@ -45,7 +47,7 @@ MODE STANDARD :
         : `
 MODE AUTONOMY :
 - Tu aides peu.
-- Tu considères que ${safePlayerName} doit construire seul son raisonnement.
+- Tu considères que ${playerName} doit construire seul son raisonnement.
 - Tu peux douter, recadrer, demander de préciser.
 - Tu ne souffles pas la réponse.
 `;
@@ -53,12 +55,12 @@ MODE AUTONOMY :
     const roleplayPrompt = `
 Tu incarnes UNIQUEMENT Romain Dufresne, collègue du joueur dans un serious game professionnel.
 
-Le joueur s'appelle : ${safePlayerName}
+Le joueur s'appelle : ${playerName}
 
 IMPORTANT :
-- Tu ne t'appelles pas ${safePlayerName}.
+- Tu ne t'appelles pas ${playerName}.
 - Tu t'appelles Romain Dufresne.
-- Si tu t'adresses au joueur par son prénom/nom, utilise ${safePlayerName}.
+- Si tu t'adresses au joueur par son prénom/nom, utilise ${playerName}.
 - Ne confonds jamais ton identité avec celle du joueur.
 - Tu réponds uniquement comme Romain, jamais comme un narrateur, un coach ou un évaluateur.
 
@@ -84,11 +86,11 @@ INTERDIT :
 - Tu ne parles pas à la place du consulat, de la PAF ou de Claudia, sauf si le scénario montre explicitement leur message.
 
 CONTEXTE DU SCÉNARIO :
-- Contexte : ${narrative.context || ""}
-- Mission : ${narrative.mission || ""}
-- Situation initiale : ${narrative.initial_situation || ""}
-- Déclencheur : ${narrative.trigger || ""}
-- Fait complémentaire : ${narrative.background_fact || ""}
+- Contexte : ${safeString(narrative?.context, "")}
+- Mission : ${safeString(narrative?.mission, "")}
+- Situation initiale : ${safeString(narrative?.initial_situation, "")}
+- Déclencheur : ${safeString(narrative?.trigger, "")}
+- Fait complémentaire : ${safeString(narrative?.background_fact, "")}
 
 ÉVÉNEMENTS INITIAUX :
 ${JSON.stringify(initialEvents, null, 2)}
@@ -103,13 +105,13 @@ ${modeGuidance}
 HISTORIQUE RÉCENT :
 ${JSON.stringify(recentConversation, null, 2)}
 
-DERNIER MESSAGE DU JOUEUR (${safePlayerName}) :
+DERNIER MESSAGE DU JOUEUR (${playerName}) :
 ${message}
 
 RÈGLES DE COMPORTEMENT :
 - Tu réponds comme un collègue humain crédible.
-- Si ${safePlayerName} est hors sujet, tu le recadres brièvement.
-- Si ${safePlayerName} dit une absurdité, tu montres ton incompréhension sans résoudre à sa place.
+- Si ${playerName} est hors sujet, tu le recadres brièvement.
+- Si ${playerName} dit une absurdité, tu montres ton incompréhension sans résoudre à sa place.
 - Tu peux poser une bonne question.
 - Tu peux rappeler l’urgence.
 - Tu peux exprimer un doute réaliste.
@@ -131,7 +133,7 @@ Réponds UNIQUEMENT avec la réplique de Romain, en texte brut.
 
     const reply =
       roleplayResponse.output_text?.trim() ||
-      `Je ne suis pas sûr de te suivre, ${safePlayerName}. Reprends-moi le problème clairement.`;
+      `Je ne suis pas sûr de te suivre, ${playerName}. Reprends-moi le problème clairement.`;
 
     const strictEvaluationPrompt = `
 Tu es un évaluateur TRÈS STRICT d'un serious game professionnel.
@@ -149,7 +151,7 @@ IMPORTANT :
 Tu ne dois PAS tenir compte :
 - de la réponse de Romain
 - de l'intention supposée du joueur
-- du fait que le joueur "semble avoir compris"
+- du fait que le joueur semble avoir compris
 - de l'historique si le dernier message n'est pas assez explicite
 
 PHASE :
@@ -220,38 +222,31 @@ Réponds STRICTEMENT au format JSON :
           )
         : {};
 
-    const scoreDelta = matchedCriteria.length;
+    const scoreDelta =
+      typeof evaluation.score_delta === "number"
+        ? evaluation.score_delta
+        : matchedCriteria.length;
 
-    return new Response(
-      JSON.stringify({
+    return Response.json(
+      {
         reply,
         matched_criteria: matchedCriteria,
         score_delta: scoreDelta,
         flags_to_set: flagsToSet,
-      }),
-      {
-        status: 200,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+      },
+      { status: 200 }
     );
   } catch (error: any) {
-    console.error("Erreur API chat :", error);
+    console.error("Erreur API chat:", error);
 
-    return new Response(
-      JSON.stringify({
-        error:
-          error?.error?.message ||
-          error?.message ||
-          "Erreur côté serveur IA",
-      }),
+    return Response.json(
       {
-        status: 500,
-        headers: {
-          "Content-Type": "application/json",
-        },
-      }
+        error:
+          safeString(error?.message) ||
+          safeString(error?.error?.message) ||
+          "Erreur côté serveur IA",
+      },
+      { status: 500 }
     );
   }
 }
