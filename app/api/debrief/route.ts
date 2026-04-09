@@ -1,9 +1,5 @@
 import OpenAI from "openai";
 
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
 type CompetencyItem = {
   competency: string;
   level: string;
@@ -81,33 +77,15 @@ function buildEvidence(sentMails: any[], actionLog: any[], flags: Record<string,
   const initialMail = sentMails.find((m) => m.kind === "consulate_initial");
   const replyMail = sentMails.find((m) => m.kind === "consulate_reply");
 
-  const initialMailHasBody = !!initialMail?.body?.trim();
-  const replyMailHasBody = !!replyMail?.body?.trim();
-
-  const initialAttachments = Array.isArray(initialMail?.attachments)
-    ? initialMail.attachments.length
-    : 0;
-  const replyAttachments = Array.isArray(replyMail?.attachments)
-    ? replyMail.attachments.length
-    : 0;
-
-  const totalChatSent = actionLog.filter(
-    (a) => a?.type === "chat_message_sent"
-  ).length;
-
-  const totalChatReceived = actionLog.filter(
-    (a) => a?.type === "chat_message_received"
-  ).length;
-
   return {
     initialMailExists: !!initialMail,
     replyMailExists: !!replyMail,
-    initialMailHasBody,
-    replyMailHasBody,
-    initialAttachments,
-    replyAttachments,
-    totalChatSent,
-    totalChatReceived,
+    initialMailHasBody: !!initialMail?.body?.trim(),
+    replyMailHasBody: !!replyMail?.body?.trim(),
+    initialAttachments: Array.isArray(initialMail?.attachments) ? initialMail.attachments.length : 0,
+    replyAttachments: Array.isArray(replyMail?.attachments) ? replyMail.attachments.length : 0,
+    totalChatSent: actionLog.filter((a) => a?.type === "chat_message_sent").length,
+    totalChatReceived: actionLog.filter((a) => a?.type === "chat_message_received").length,
     namedConsulateMadrid: !!flags?.named_consulate_madrid,
     identifiedBorderRisk: !!flags?.identified_border_risk,
     mailHasStructure: !!flags?.mail_has_structure,
@@ -120,6 +98,17 @@ function buildEvidence(sentMails: any[], actionLog: any[], flags: Record<string,
 
 export async function POST(req: Request) {
   try {
+    const apiKey = process.env.OPENAI_API_KEY;
+
+    if (!apiKey) {
+      return Response.json(
+        fallbackDebrief("OPENAI_API_KEY manquante côté serveur."),
+        { status: 200 }
+      );
+    }
+
+    const client = new OpenAI({ apiKey });
+
     const body = await req.json();
 
     const playerName =
@@ -185,13 +174,6 @@ ${JSON.stringify(evidence, null, 2)}
 COMPÉTENCES À ÉVALUER :
 ${JSON.stringify(competencies, null, 2)}
 
-CONSIGNES DE SORTIE :
-- Le résumé doit faire 5 à 8 phrases.
-- Les points forts et faibles doivent être concrets.
-- L’analyse par compétence doit s’appuyer sur des faits précis.
-- Si une compétence n’est pas suffisamment démontrée, tu peux mettre "moyen" ou "faible", mais tu dois expliquer pourquoi.
-- Ne renvoie RIEN d'autre que le JSON demandé.
-
 FORMAT DE SORTIE STRICT :
 {
   "summary": "texte",
@@ -218,15 +200,13 @@ FORMAT DE SORTIE STRICT :
     if (!parsed) {
       return Response.json(
         fallbackDebrief(
-          "Le débrief IA n’a pas pu être structuré correctement à partir de la réponse générée."
+          "Le débrief IA n’a pas pu être structuré correctement."
         ),
         { status: 200 }
       );
     }
 
-    const normalized = normalizeDebrief(parsed);
-
-    return Response.json(normalized, { status: 200 });
+    return Response.json(normalizeDebrief(parsed), { status: 200 });
   } catch (error: any) {
     console.error("Erreur debrief route:", error);
 
