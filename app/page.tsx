@@ -21,8 +21,9 @@ import {
 } from "./lib/runtime";
 
 const scenarioData = scenario as any;
-
 type TabKey = "chat" | "mail";
+
+const PHASE3_DELAYED_INTERRUPT_ID = "phase3_delayed_romain_interrupt";
 
 function cloneSession(prevSession: any) {
   return {
@@ -68,6 +69,40 @@ function saveDebriefToStorage(payload: any) {
   window.localStorage.setItem(latestKey, JSON.stringify(entry));
 }
 
+function playNotificationSound() {
+  if (typeof window === "undefined") return;
+
+  try {
+    const AudioContextClass =
+      window.AudioContext || (window as any).webkitAudioContext;
+
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const oscillator = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+
+    oscillator.type = "sine";
+    oscillator.frequency.setValueAtTime(880, ctx.currentTime);
+
+    gainNode.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+
+    oscillator.connect(gainNode);
+    gainNode.connect(ctx.destination);
+
+    oscillator.start();
+    oscillator.stop(ctx.currentTime + 0.18);
+
+    oscillator.onended = () => {
+      ctx.close().catch(() => {});
+    };
+  } catch {
+    // silence volontaire
+  }
+}
+
 export default function Home() {
   const router = useRouter();
 
@@ -77,6 +112,9 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<TabKey>("chat");
   const [loading, setLoading] = useState(false);
   const [debriefLoading, setDebriefLoading] = useState(false);
+  const [lastSeenInboxCount, setLastSeenInboxCount] = useState(0);
+  const previousChatCountRef = useRef(0);
+  const previousInboxCountRef = useRef(0);
 
   const conversationBoxRef = useRef<HTMLDivElement | null>(null);
 
@@ -163,6 +201,16 @@ export default function Home() {
     return false;
   }, [view, canSendMailNow, mailFormIsComplete, hasAttachments]);
 
+  const unreadInboxCount = useMemo(() => {
+    return Math.max(0, inboxMails.length - lastSeenInboxCount);
+  }, [inboxMails.length, lastSeenInboxCount]);
+
+  useEffect(() => {
+    if (activeTab === "mail") {
+      setLastSeenInboxCount(inboxMails.length);
+    }
+  }, [activeTab, inboxMails.length]);
+
   useEffect(() => {
     if (!session?.pendingTimedEvents?.length) return;
 
@@ -209,6 +257,26 @@ export default function Home() {
 
     return () => clearTimeout(timer);
   }, [view]);
+
+useEffect(() => {
+  if (!view) return;
+
+  const currentChatCount = chatMessages.length;
+  const currentInboxCount = inboxMails.length;
+
+  const hadPreviousValues =
+    previousChatCountRef.current !== 0 || previousInboxCountRef.current !== 0;
+
+  const hasNewChatMessage = currentChatCount > previousChatCountRef.current;
+  const hasNewInboxMail = currentInboxCount > previousInboxCountRef.current;
+
+  if (hadPreviousValues && (hasNewChatMessage || hasNewInboxMail)) {
+    playNotificationSound();
+  }
+
+  previousChatCountRef.current = currentChatCount;
+  previousInboxCountRef.current = currentInboxCount;
+}, [view, chatMessages.length, inboxMails.length]);
 
   useEffect(() => {
     const box = conversationBoxRef.current;
@@ -267,6 +335,55 @@ export default function Home() {
       return newSession;
     });
   }, [session?.currentPhaseIndex, session?.isFinished]);
+
+  // Interruption autonome de phase 3 :
+  // on la programme une seule fois au début de la phase, indépendamment des échanges.
+  useEffect(() => {
+    if (!session || !view) return;
+    if (view.phaseId !== "phase_3_execution") return;
+
+    const alreadyTriggered =
+      session.triggeredInterruptions?.includes(PHASE3_DELAYED_INTERRUPT_ID) ||
+      false;
+
+    const alreadyScheduled =
+      session.pendingTimedEvents?.some(
+        (e: any) => e.id === PHASE3_DELAYED_INTERRUPT_ID
+      ) || false;
+
+    if (alreadyTriggered || alreadyScheduled) return;
+
+    setSession((prevSession: any) => {
+      if (!prevSession) return prevSession;
+
+      const currentView = buildRuntimeView(prevSession);
+      if (currentView.phaseId !== "phase_3_execution") return prevSession;
+
+      const exists =
+        prevSession.triggeredInterruptions?.includes(
+          PHASE3_DELAYED_INTERRUPT_ID
+        ) ||
+        prevSession.pendingTimedEvents?.some(
+          (e: any) => e.id === PHASE3_DELAYED_INTERRUPT_ID
+        );
+
+      if (exists) return prevSession;
+
+      const newSession = cloneSession(prevSession);
+
+      newSession.pendingTimedEvents.push({
+        id: PHASE3_DELAYED_INTERRUPT_ID,
+        actor: "Romain",
+        content:
+          "Bon, tu en es où ? J'ai trouvé le numéro de la PAF Mérignac et je pars pour l'aéroport. Tu veux que je les appelle maintenant, ou j'attends ton feu vert ?",
+        dueAt: Date.now() + 150000,
+        phaseId: "phase_3_execution",
+        type: "chat",
+      });
+
+      return newSession;
+    });
+  }, [session, view]);
 
   async function sendMessage() {
     if (!session || !view) return;
@@ -332,7 +449,12 @@ export default function Home() {
       );
 
       updateAdaptiveMode(newSession);
-      scheduleInterruption(newSession);
+
+      // On laisse le runtime gérer les autres interruptions,
+      // mais pas celle de la phase 3, qui est maintenant pilotée par timer autonome.
+      if (view.phaseId !== "phase_3_execution") {
+        scheduleInterruption(newSession);
+      }
 
       setSession({ ...newSession });
     } catch (e) {
@@ -493,6 +615,7 @@ export default function Home() {
     setLoading(false);
     setActiveTab("chat");
     setDebriefLoading(false);
+    setLastSeenInboxCount(0);
   }
 
   if (!session || !view) {
@@ -506,7 +629,7 @@ export default function Home() {
           color: "#111",
         }}
       >
-        <p>Chargement…</p>
+        <p>Chargement...</p>
       </main>
     );
   }
@@ -665,9 +788,31 @@ export default function Home() {
                   background: activeTab === "mail" ? "#111" : "#f5f5f5",
                   color: activeTab === "mail" ? "#fff" : "#111",
                   cursor: "pointer",
+                  position: "relative",
                 }}
               >
                 Boîte mail
+                {unreadInboxCount > 0 ? (
+                  <span
+                    style={{
+                      position: "absolute",
+                      top: -8,
+                      right: -8,
+                      minWidth: 18,
+                      height: 18,
+                      padding: "0 5px",
+                      borderRadius: 999,
+                      background: "#d11a2a",
+                      color: "#fff",
+                      fontSize: 12,
+                      lineHeight: "18px",
+                      textAlign: "center",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {unreadInboxCount}
+                  </span>
+                ) : null}
               </button>
             </div>
 
@@ -734,20 +879,28 @@ export default function Home() {
                 {!view.isFinished ? (
                   <div style={{ marginTop: 14 }}>
                     <textarea
-                      value={input}
-                      onChange={(e) => setInput(e.target.value)}
-                      rows={6}
-                      placeholder="Écris ici ta réponse..."
-                      style={{
-                        width: "100%",
-                        padding: 12,
-                        borderRadius: 8,
-                        border: "1px solid #ccc",
-                        fontSize: 16,
-                        resize: "vertical",
-                        boxSizing: "border-box",
-                      }}
-                    />
+  value={input}
+  onChange={(e) => setInput(e.target.value)}
+  onKeyDown={(e) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      if (!loading && input.trim()) {
+        sendMessage();
+      }
+    }
+  }}
+  rows={6}
+  placeholder="Écris ici ta réponse..."
+  style={{
+    width: "100%",
+    padding: 12,
+    borderRadius: 8,
+    border: "1px solid #ccc",
+    fontSize: 16,
+    resize: "vertical",
+    boxSizing: "border-box",
+  }}
+/>
 
                     <div style={{ marginTop: 12 }}>
                       <button
