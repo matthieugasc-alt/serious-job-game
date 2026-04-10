@@ -198,7 +198,7 @@ const CONTACTS = [
   },
   {
     id: "superieure",
-    name: "Claire Morel",
+    name: "Nathalie Musik",
     role: "Responsable hiérarchique",
     preview: "Je suis en réunion jusqu’à 11h00.",
     color: "#0f766e",
