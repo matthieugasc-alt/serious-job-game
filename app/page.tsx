@@ -113,10 +113,21 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [debriefLoading, setDebriefLoading] = useState(false);
   const [lastSeenInboxCount, setLastSeenInboxCount] = useState(0);
+
   const previousChatCountRef = useRef(0);
   const previousInboxCountRef = useRef(0);
-
   const conversationBoxRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const stored = localStorage.getItem("playerName");
+
+    if (!stored) {
+      router.push("/introduction");
+      return;
+    }
+
+    setPlayerName(stored);
+  }, [router]);
 
   useEffect(() => {
     const s = initializeSession(scenarioData);
@@ -212,6 +223,26 @@ export default function Home() {
   }, [activeTab, inboxMails.length]);
 
   useEffect(() => {
+    if (!view) return;
+
+    const currentChatCount = chatMessages.length;
+    const currentInboxCount = inboxMails.length;
+
+    const hadPreviousValues =
+      previousChatCountRef.current !== 0 || previousInboxCountRef.current !== 0;
+
+    const hasNewChatMessage = currentChatCount > previousChatCountRef.current;
+    const hasNewInboxMail = currentInboxCount > previousInboxCountRef.current;
+
+    if (hadPreviousValues && (hasNewChatMessage || hasNewInboxMail)) {
+      playNotificationSound();
+    }
+
+    previousChatCountRef.current = currentChatCount;
+    previousInboxCountRef.current = currentInboxCount;
+  }, [view, chatMessages.length, inboxMails.length]);
+
+  useEffect(() => {
     if (!session?.pendingTimedEvents?.length) return;
 
     const nextDueAt = Math.min(
@@ -257,26 +288,6 @@ export default function Home() {
 
     return () => clearTimeout(timer);
   }, [view]);
-
-useEffect(() => {
-  if (!view) return;
-
-  const currentChatCount = chatMessages.length;
-  const currentInboxCount = inboxMails.length;
-
-  const hadPreviousValues =
-    previousChatCountRef.current !== 0 || previousInboxCountRef.current !== 0;
-
-  const hasNewChatMessage = currentChatCount > previousChatCountRef.current;
-  const hasNewInboxMail = currentInboxCount > previousInboxCountRef.current;
-
-  if (hadPreviousValues && (hasNewChatMessage || hasNewInboxMail)) {
-    playNotificationSound();
-  }
-
-  previousChatCountRef.current = currentChatCount;
-  previousInboxCountRef.current = currentInboxCount;
-}, [view, chatMessages.length, inboxMails.length]);
 
   useEffect(() => {
     const box = conversationBoxRef.current;
@@ -336,8 +347,6 @@ useEffect(() => {
     });
   }, [session?.currentPhaseIndex, session?.isFinished]);
 
-  // Interruption autonome de phase 3 :
-  // on la programme une seule fois au début de la phase, indépendamment des échanges.
   useEffect(() => {
     if (!session || !view) return;
     if (view.phaseId !== "phase_3_execution") return;
@@ -450,8 +459,6 @@ useEffect(() => {
 
       updateAdaptiveMode(newSession);
 
-      // On laisse le runtime gérer les autres interruptions,
-      // mais pas celle de la phase 3, qui est maintenant pilotée par timer autonome.
       if (view.phaseId !== "phase_3_execution") {
         scheduleInterruption(newSession);
       }
@@ -520,6 +527,11 @@ useEffect(() => {
     });
 
     setActiveTab("chat");
+  }
+
+  function handleRestartScenario() {
+    localStorage.removeItem("playerName");
+    router.push("/introduction");
   }
 
   async function generateDebriefAndOpenPage() {
@@ -607,17 +619,6 @@ useEffect(() => {
     }
   }
 
-  function resetGame() {
-    const freshSession = initializeSession(scenarioData);
-    injectPhaseEntryEvents(freshSession);
-    setSession(freshSession);
-    setInput("");
-    setLoading(false);
-    setActiveTab("chat");
-    setDebriefLoading(false);
-    setLastSeenInboxCount(0);
-  }
-
   if (!session || !view) {
     return (
       <main
@@ -644,63 +645,37 @@ useEffect(() => {
         color: "#111",
       }}
     >
-      <div style={{ marginBottom: 18 }}>
-        <h1 style={{ marginBottom: 6 }}>{view.title}</h1>
-        {view.subtitle ? (
-          <p style={{ marginTop: 0, color: "#555" }}>{view.subtitle}</p>
-        ) : null}
-      </div>
-
-      <section
+      <div
         style={{
-          border: "1px solid #ddd",
-          borderRadius: 12,
-          padding: 18,
           marginBottom: 18,
-          background: "#fff",
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "flex-start",
+          gap: 16,
+          flexWrap: "wrap",
         }}
       >
-        <div style={{ marginBottom: 14 }}>
-          <label
-            htmlFor="player-name"
-            style={{
-              display: "block",
-              fontWeight: 600,
-              marginBottom: 8,
-            }}
-          >
-            Ton prénom / nom dans le scénario
-          </label>
-          <input
-            id="player-name"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            placeholder="Ex. Matthieu"
-            style={{
-              width: "100%",
-              maxWidth: 320,
-              padding: "10px 12px",
-              borderRadius: 8,
-              border: "1px solid #ccc",
-              fontSize: 15,
-              boxSizing: "border-box",
-            }}
-          />
+        <div>
+          <h1 style={{ marginBottom: 6 }}>{view.title}</h1>
+          {view.subtitle ? (
+            <p style={{ marginTop: 0, color: "#555" }}>{view.subtitle}</p>
+          ) : null}
         </div>
 
         <button
-          onClick={resetGame}
+          onClick={handleRestartScenario}
           style={{
-            padding: "8px 12px",
+            padding: "10px 14px",
             borderRadius: 8,
             border: "1px solid #ccc",
             background: "#f5f5f5",
             cursor: "pointer",
+            whiteSpace: "nowrap",
           }}
         >
           Recommencer le scénario
         </button>
-      </section>
+      </div>
 
       {!view.isFinished ? (
         <section
@@ -879,28 +854,39 @@ useEffect(() => {
                 {!view.isFinished ? (
                   <div style={{ marginTop: 14 }}>
                     <textarea
-  value={input}
-  onChange={(e) => setInput(e.target.value)}
-  onKeyDown={(e) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-      e.preventDefault();
-      if (!loading && input.trim()) {
-        sendMessage();
-      }
-    }
-  }}
-  rows={6}
-  placeholder="Écris ici ta réponse..."
-  style={{
-    width: "100%",
-    padding: 12,
-    borderRadius: 8,
-    border: "1px solid #ccc",
-    fontSize: 16,
-    resize: "vertical",
-    boxSizing: "border-box",
-  }}
-/>
+                      value={input}
+                      onChange={(e) => setInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                          e.preventDefault();
+                          if (!loading && input.trim()) {
+                            sendMessage();
+                          }
+                        }
+                      }}
+                      rows={6}
+                      placeholder="Écris ici ta réponse..."
+                      style={{
+                        width: "100%",
+                        padding: 12,
+                        borderRadius: 8,
+                        border: "1px solid #ccc",
+                        fontSize: 16,
+                        resize: "vertical",
+                        boxSizing: "border-box",
+                      }}
+                    />
+
+                    <p
+                      style={{
+                        marginTop: 8,
+                        marginBottom: 0,
+                        fontSize: 13,
+                        color: "#666",
+                      }}
+                    >
+                      Raccourci : Cmd/Ctrl + Entrée pour envoyer
+                    </p>
 
                     <div style={{ marginTop: 12 }}>
                       <button
