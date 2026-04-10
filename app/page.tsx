@@ -1144,16 +1144,32 @@ export default function Home() {
               }}
             >
               <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-                <div style={avatarStyle("#5b5fc7", 42)}>R</div>
-                <div>
-                  <div style={{ fontWeight: 800, fontSize: 18 }}>
-                    Romain Dufresne
-                  </div>
-                  <div style={{ fontSize: 13, color: "#667085" }}>
-                    Collaborateur — conversation active
-                  </div>
-                </div>
-              </div>
+  {activeTab === "chat" ? (
+    <>
+      <div style={avatarStyle("#5b5fc7", 42)}>R</div>
+      <div>
+        <div style={{ fontWeight: 800, fontSize: 18 }}>
+          Romain Dufresne
+        </div>
+        <div style={{ fontSize: 13, color: "#667085" }}>
+          Collaborateur — conversation active
+        </div>
+      </div>
+    </>
+  ) : (
+    <>
+      <div style={avatarStyle("#1d4ed8", 42)}>✉</div>
+      <div>
+        <div style={{ fontWeight: 800, fontSize: 18 }}>
+          Boîte mail
+        </div>
+        <div style={{ fontSize: 13, color: "#667085" }}>
+          Rédaction et envoi des messages officiels
+        </div>
+      </div>
+    </>
+  )}
+</div>
 
               <div style={{ display: "flex", gap: 10 }}>
                 <button
