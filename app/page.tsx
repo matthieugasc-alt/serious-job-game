@@ -200,7 +200,7 @@ const CONTACTS = [
     id: "superieure",
     name: "Claire Morel",
     role: "Responsable hiérarchique",
-    preview: "Je suis en réunion jusqu’à 10h00.",
+    preview: "Je suis en réunion jusqu’à 11h00.",
     color: "#0f766e",
     status: "busy",
     clickable: false,
@@ -226,6 +226,7 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [debriefLoading, setDebriefLoading] = useState(false);
   const [lastSeenInboxCount, setLastSeenInboxCount] = useState(0);
+  const [lastSeenChatCount, setLastSeenChatCount] = useState(0);
   const [simulatedTime, setSimulatedTime] = useState<Date | null>(null);
 
   const previousChatCountRef = useRef(0);
@@ -308,9 +309,15 @@ export default function Home() {
   }, [mailDraft.attachments]);
 
   const canSendMailNow = useMemo(() => {
-    if (!view) return false;
-    return !!view.canSendMail;
-  }, [view]);
+  if (!view) return false;
+
+  // 🔥 Déblocage volontaire phase 3
+  if (view.phaseId === "phase_3_execution") {
+    return true;
+  }
+
+  return !!view.canSendMail;
+}, [view]);
 
   const sendMailLabel = useMemo(() => {
     if (!view) return "Envoyer";
@@ -330,24 +337,37 @@ export default function Home() {
   }, [mailDraft.attachments]);
 
   const canActuallySendMail = useMemo(() => {
-    if (!view) return false;
-    if (!canSendMailNow || !mailFormIsComplete) return false;
+  if (!view) return false;
 
-    if (view.phaseId === "phase_3_execution") return true;
-    if (view.phaseId === "phase_4_rebound") return hasAttachments;
+  // Phase 3 → uniquement besoin du contenu
+  if (view.phaseId === "phase_3_execution") {
+    return mailFormIsComplete;
+  }
 
-    return false;
-  }, [view, canSendMailNow, mailFormIsComplete, hasAttachments]);
+  // Phase 4 → pièces obligatoires
+  if (view.phaseId === "phase_4_rebound") {
+    return mailFormIsComplete && hasAttachments;
+  }
+
+  return false;
+}, [view, mailFormIsComplete, hasAttachments]);
 
   const unreadInboxCount = useMemo(() => {
     return Math.max(0, inboxMails.length - lastSeenInboxCount);
   }, [inboxMails.length, lastSeenInboxCount]);
+  const unreadChatCount = useMemo(() => {
+  return Math.max(0, chatMessages.length - lastSeenChatCount);
+}, [chatMessages.length, lastSeenChatCount]);
 
-  useEffect(() => {
-    if (activeTab === "mail") {
-      setLastSeenInboxCount(inboxMails.length);
-    }
-  }, [activeTab, inboxMails.length]);
+   useEffect(() => {
+  if (activeTab === "mail") {
+    setLastSeenInboxCount(inboxMails.length);
+  }
+
+  if (activeTab === "chat") {
+    setLastSeenChatCount(chatMessages.length);
+  }
+}, [activeTab, inboxMails.length, chatMessages.length]);
 
   useEffect(() => {
     if (!view) return;
@@ -993,8 +1013,10 @@ export default function Home() {
 
             <div style={{ padding: 10, display: "grid", gap: 8 }}>
               {CONTACTS.map((contact) => {
-                const isRomain = contact.id === "romain";
-                const isSelected = activeTab === "chat" && isRomain;
+  const isRomain = contact.id === "romain";
+  const isSelected = activeTab === "chat" && isRomain;
+  const showUnreadChatBadge =
+    isRomain && unreadChatCount > 0 && activeTab !== "chat";
 
                 return (
                   <div
@@ -1026,36 +1048,57 @@ export default function Home() {
 
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between",
-                            gap: 8,
-                            marginBottom: 4,
-                          }}
-                        >
-                          <div
-                            style={{
-                              fontWeight: 700,
-                              fontSize: 14,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {contact.name}
-                          </div>
+  style={{
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 4,
+  }}
+>
+  <div
+    style={{
+      fontWeight: 700,
+      fontSize: 14,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {contact.name}
+  </div>
 
-                          <span
-                            style={
-                              contact.status === "available"
-                                ? statusDot("#16a34a")
-                                : contact.status === "busy"
-                                ? statusDot("#f59e0b")
-                                : statusDot("#94a3b8")
-                            }
-                          />
-                        </div>
+  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    {showUnreadChatBadge ? (
+      <span
+        style={{
+          minWidth: 18,
+          height: 18,
+          padding: "0 5px",
+          borderRadius: 999,
+          background: "#d11a2a",
+          color: "#fff",
+          fontSize: 12,
+          lineHeight: "18px",
+          textAlign: "center",
+          fontWeight: 700,
+        }}
+      >
+        {unreadChatCount}
+      </span>
+    ) : null}
+
+    <span
+      style={
+        contact.status === "available"
+          ? statusDot("#16a34a")
+          : contact.status === "busy"
+          ? statusDot("#f59e0b")
+          : statusDot("#94a3b8")
+      }
+    />
+  </div>
+</div>
 
                         <div
                           style={{
@@ -1114,19 +1157,41 @@ export default function Home() {
 
               <div style={{ display: "flex", gap: 10 }}>
                 <button
-                  onClick={() => setActiveTab("chat")}
-                  style={{
-                    padding: "9px 14px",
-                    borderRadius: 10,
-                    border: "1px solid #cfd5df",
-                    background: activeTab === "chat" ? "#5b5fc7" : "#f5f7fb",
-                    color: activeTab === "chat" ? "#fff" : "#111",
-                    cursor: "pointer",
-                    fontWeight: 600,
-                  }}
-                >
-                  Messagerie
-                </button>
+  onClick={() => setActiveTab("chat")}
+  style={{
+    padding: "9px 14px",
+    borderRadius: 10,
+    border: "1px solid #cfd5df",
+    background: activeTab === "chat" ? "#5b5fc7" : "#f5f7fb",
+    color: activeTab === "chat" ? "#fff" : "#111",
+    cursor: "pointer",
+    fontWeight: 600,
+    position: "relative",
+  }}
+>
+  Messagerie
+  {unreadChatCount > 0 && activeTab !== "chat" ? (
+    <span
+      style={{
+        position: "absolute",
+        top: -8,
+        right: -8,
+        minWidth: 18,
+        height: 18,
+        padding: "0 5px",
+        borderRadius: 999,
+        background: "#d11a2a",
+        color: "#fff",
+        fontSize: 12,
+        lineHeight: "18px",
+        textAlign: "center",
+        fontWeight: 700,
+      }}
+    >
+      {unreadChatCount}
+    </span>
+  ) : null}
+</button>
 
                 <button
                   onClick={() => setActiveTab("mail")}
@@ -1545,16 +1610,23 @@ export default function Home() {
                         </div>
                       </div>
 
-                      {view.phaseId === "phase_4_rebound" &&
-                      !hasAttachments &&
-                      canSendMailNow ? (
-                        <p style={{ color: "#aa6b00", marginBottom: 0 }}>
-                          Pour cette phase, tu dois joindre au moins une pièce.
-                        </p>
-                      ) : null}
+                   {view.phaseId === "phase_4_rebound" &&
+!hasAttachments &&
+canSendMailNow ? (
+  <p style={{ color: "#aa6b00", marginBottom: 0 }}>
+    Pour cette phase, tu dois joindre au moins une pièce.
+  </p>
+) : null}
 
-                      {canSendMailNow ? (
-                        <div style={{ marginTop: 8 }}>
+{view.phaseId === "phase_3_execution" ? (
+  <p style={{ color: "#475467", marginBottom: 0 }}>
+    Tu peux envoyer ce mail directement si tu estimes le dossier prêt.
+    Romain n’a pas besoin de le valider avant envoi.
+  </p>
+) : null}
+
+{canSendMailNow ? (
+  <div style={{ marginTop: 8 }}>
                           <button
                             onClick={handleSendMail}
                             disabled={!canActuallySendMail}
