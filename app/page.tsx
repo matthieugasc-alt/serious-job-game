@@ -47,6 +47,35 @@ function cloneSession(prevSession: any) {
   };
 }
 
+function silentlyAdvanceToNextPhase(session: any) {
+  const currentPhase =
+    session.scenario.phases[session.currentPhaseIndex];
+
+  if (!currentPhase) return;
+  if (session.currentPhaseIndex >= session.scenario.phases.length - 1) return;
+
+  const currentPhaseId = currentPhase.phase_id || currentPhase.id;
+
+  if (!session.completedPhases.includes(currentPhaseId)) {
+    session.completedPhases.push(currentPhaseId);
+  }
+
+  session.currentPhaseIndex += 1;
+
+  const nextPhase =
+    session.scenario.phases[session.currentPhaseIndex];
+
+  if (!nextPhase) return;
+
+  const nextPhaseId = nextPhase.phase_id || nextPhase.id;
+
+  if (!session.unlockedPhases.includes(nextPhaseId)) {
+    session.unlockedPhases.push(nextPhaseId);
+  }
+
+  injectPhaseEntryEvents(session);
+}
+
 function saveDebriefToStorage(payload: any) {
   if (typeof window === "undefined") return;
 
@@ -564,12 +593,22 @@ export default function Home() {
     if (!input.trim() || loading || view.isFinished) return;
 
     const playerMessage = input;
-    const newSession = cloneSession(session);
+const newSession = cloneSession(session);
 
-    addPlayerMessage(newSession, playerMessage);
-    setInput("");
-    setSession(newSession);
-    setLoading(true);
+// 🔥 Si Romain a déjà donné l'explication correcte en phase 1,
+// alors le prochain message joueur doit être traité directement en phase 2.
+if (
+  view.phaseId === "phase_1_comprehension" &&
+  newSession.flags.phase1_understanding_provided_by_romain
+) {
+  silentlyAdvanceToNextPhase(newSession);
+  delete newSession.flags.phase1_understanding_provided_by_romain;
+}
+
+addPlayerMessage(newSession, playerMessage);
+setInput("");
+setSession(newSession);
+setLoading(true);
 
     try {
       const criteria = getCurrentPhaseCriteria(newSession);
@@ -614,29 +653,33 @@ export default function Home() {
       }
 
       addAIMessage(newSession, data.reply || "Pas de réponse.", "Romain");
-      const romainMessage = data.reply || "";
 
-// 🔥 Détection simple du mode "tu as les éléments"
-const shouldAutoAdvance =
+applyEvaluation(
+  newSession,
+  data.matched_criteria || [],
+  data.score_delta || 0,
+  data.flags_to_set || {}
+);
+
+// 🔥 Si Romain a déjà expliqué clairement le problème en phase 1,
+// on prépare une avance silencieuse vers la phase 2 au prochain message du joueur.
+const romainMessage = (data.reply || "").toLowerCase();
+
+const shouldPrepareSilentAdvance =
   view.phaseId === "phase_1_comprehension" &&
+  newSession.adaptiveMode === "guided" &&
   (
-    romainMessage.toLowerCase().includes("tu as les éléments") ||
-    romainMessage.toLowerCase().includes("tu as toutes les infos") ||
-    romainMessage.toLowerCase().includes("comment tu veux gérer")
+    romainMessage.includes("bonne lecture") ||
+    romainMessage.includes("c'est clairement le problème") ||
+    romainMessage.includes("comment tu veux gérer la situation") ||
+    romainMessage.includes("dis-moi comment tu veux gérer")
   );
 
-if (shouldAutoAdvance) {
-  completeCurrentPhaseAndAdvance(newSession);
+if (shouldPrepareSilentAdvance) {
+  newSession.flags.phase1_understanding_provided_by_romain = true;
 }
 
-      applyEvaluation(
-        newSession,
-        data.matched_criteria || [],
-        data.score_delta || 0,
-        data.flags_to_set || {}
-      );
-
-      updateAdaptiveMode(newSession);
+updateAdaptiveMode(newSession);
 
       if (view.phaseId !== "phase_3_execution") {
         scheduleInterruption(newSession);
@@ -668,6 +711,7 @@ if (shouldAutoAdvance) {
         prevSession.scenario.phases[prevSession.currentPhaseIndex]?.id;
 
       const newSession = cloneSession(prevSession);
+    
       updateMailDraft(newSession, phaseId, { [field]: value });
       return newSession;
     });
