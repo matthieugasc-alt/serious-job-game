@@ -847,6 +847,29 @@ export default function Home() {
                           </p>
                         </div>
                       ))}
+                      {loading && (
+  <div
+    style={{
+      padding: 10,
+      borderRadius: 8,
+      border: "1px solid #e5e5e5",
+      background: "#eef6ff",
+      width: "fit-content",
+      maxWidth: 120,
+    }}
+  >
+    <strong>Romain</strong>
+    <p
+      style={{
+        margin: "8px 0 0 0",
+        lineHeight: 1.6,
+        letterSpacing: 2,
+      }}
+    >
+      ...
+    </p>
+  </div>
+)}
                     </div>
                   )}
                 </div>
