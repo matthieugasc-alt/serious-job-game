@@ -614,6 +614,20 @@ export default function Home() {
       }
 
       addAIMessage(newSession, data.reply || "Pas de réponse.", "Romain");
+      const romainMessage = data.reply || "";
+
+// 🔥 Détection simple du mode "tu as les éléments"
+const shouldAutoAdvance =
+  view.phaseId === "phase_1_comprehension" &&
+  (
+    romainMessage.toLowerCase().includes("tu as les éléments") ||
+    romainMessage.toLowerCase().includes("tu as toutes les infos") ||
+    romainMessage.toLowerCase().includes("comment tu veux gérer")
+  );
+
+if (shouldAutoAdvance) {
+  completeCurrentPhaseAndAdvance(newSession);
+}
 
       applyEvaluation(
         newSession,
