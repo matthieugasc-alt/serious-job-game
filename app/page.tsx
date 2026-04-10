@@ -24,6 +24,10 @@ const scenarioData = scenario as any;
 type TabKey = "chat" | "mail";
 
 const PHASE3_DELAYED_INTERRUPT_ID = "phase3_delayed_romain_interrupt";
+const SIM_START_HOUR = 9;
+const SIM_START_MINUTE = 15;
+const SIM_SPEED_MULTIPLIER = 3;
+const PHASE4_TIME_JUMP_MINUTES = 15;
 
 function cloneSession(prevSession: any) {
   return {
@@ -103,6 +107,14 @@ function playNotificationSound() {
   }
 }
 
+function formatSimulatedTime(date: Date | null) {
+  if (!date) return "--:--";
+  return date.toLocaleTimeString("fr-FR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default function Home() {
   const router = useRouter();
 
@@ -113,10 +125,12 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [debriefLoading, setDebriefLoading] = useState(false);
   const [lastSeenInboxCount, setLastSeenInboxCount] = useState(0);
+  const [simulatedTime, setSimulatedTime] = useState<Date | null>(null);
 
   const previousChatCountRef = useRef(0);
   const previousInboxCountRef = useRef(0);
   const conversationBoxRef = useRef<HTMLDivElement | null>(null);
+  const phase4JumpDoneRef = useRef(false);
 
   useEffect(() => {
     const stored = localStorage.getItem("playerName");
@@ -133,7 +147,24 @@ export default function Home() {
     const s = initializeSession(scenarioData);
     injectPhaseEntryEvents(s);
     setSession(s);
+
+    const start = new Date();
+    start.setHours(SIM_START_HOUR, SIM_START_MINUTE, 0, 0);
+    setSimulatedTime(start);
   }, []);
+
+  useEffect(() => {
+    if (!simulatedTime) return;
+
+    const interval = setInterval(() => {
+      setSimulatedTime((prev) => {
+        if (!prev) return prev;
+        return new Date(prev.getTime() + 1000 * SIM_SPEED_MULTIPLIER);
+      });
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [simulatedTime]);
 
   const view = useMemo(() => {
     return session ? buildRuntimeView(session) : null;
@@ -293,7 +324,7 @@ export default function Home() {
     const box = conversationBoxRef.current;
     if (!box) return;
     box.scrollTop = box.scrollHeight;
-  }, [chatMessages.length]);
+  }, [chatMessages.length, loading]);
 
   useEffect(() => {
     if (!session || session.isFinished) return;
@@ -393,6 +424,25 @@ export default function Home() {
       return newSession;
     });
   }, [session, view]);
+
+  // Saut de temps automatique à l’entrée en phase 4
+  useEffect(() => {
+    if (!view || !simulatedTime) return;
+
+    if (view.phaseId !== "phase_4_rebound") {
+      phase4JumpDoneRef.current = false;
+      return;
+    }
+
+    if (phase4JumpDoneRef.current) return;
+
+    setSimulatedTime((prev) => {
+      if (!prev) return prev;
+      return new Date(prev.getTime() + PHASE4_TIME_JUMP_MINUTES * 60000);
+    });
+
+    phase4JumpDoneRef.current = true;
+  }, [view?.phaseId, simulatedTime]);
 
   async function sendMessage() {
     if (!session || !view) return;
@@ -677,6 +727,31 @@ export default function Home() {
         </button>
       </div>
 
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 12,
+          padding: "8px 12px",
+          border: "1px solid #e5e5e5",
+          borderRadius: 8,
+          background: "#fafafa",
+          fontSize: 14,
+        }}
+      >
+        <div>
+          ⏱️ Heure scénario :
+          <strong style={{ marginLeft: 6 }}>
+            {formatSimulatedTime(simulatedTime)}
+          </strong>
+        </div>
+
+        <div style={{ fontSize: 12, color: "#666" }}>
+          Accélération x{SIM_SPEED_MULTIPLIER}
+        </div>
+      </div>
+
       {!view.isFinished ? (
         <section
           style={{
@@ -847,29 +922,30 @@ export default function Home() {
                           </p>
                         </div>
                       ))}
+
                       {loading && (
-  <div
-    style={{
-      padding: 10,
-      borderRadius: 8,
-      border: "1px solid #e5e5e5",
-      background: "#eef6ff",
-      width: "fit-content",
-      maxWidth: 120,
-    }}
-  >
-    <strong>Romain</strong>
-    <p
-      style={{
-        margin: "8px 0 0 0",
-        lineHeight: 1.6,
-        letterSpacing: 2,
-      }}
-    >
-      ...
-    </p>
-  </div>
-)}
+                        <div
+                          style={{
+                            padding: 10,
+                            borderRadius: 8,
+                            border: "1px solid #e5e5e5",
+                            background: "#eef6ff",
+                            width: "fit-content",
+                            maxWidth: 120,
+                          }}
+                        >
+                          <strong>Romain</strong>
+                          <p
+                            style={{
+                              margin: "8px 0 0 0",
+                              lineHeight: 1.6,
+                              letterSpacing: 2,
+                            }}
+                          >
+                            ...
+                          </p>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
