@@ -115,6 +115,67 @@ function formatSimulatedTime(date: Date | null) {
   });
 }
 
+function initials(name: string) {
+  const parts = name.trim().split(" ").filter(Boolean);
+  if (parts.length === 0) return "J";
+  if (parts.length === 1) return parts[0].slice(0, 1).toUpperCase();
+  return `${parts[0][0] ?? ""}${parts[1][0] ?? ""}`.toUpperCase();
+}
+
+function avatarStyle(background: string, size = 38) {
+  return {
+    width: size,
+    height: size,
+    minWidth: size,
+    borderRadius: 999,
+    background,
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontWeight: 700 as const,
+    fontSize: size >= 38 ? 14 : 12,
+    boxShadow: "0 2px 8px rgba(0,0,0,0.12)",
+  };
+}
+
+function TypingDots() {
+  return (
+    <div style={{ display: "flex", gap: 5, alignItems: "center", height: 18 }}>
+      <span
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: 999,
+          background: "#5b5fc7",
+          display: "inline-block",
+          opacity: 0.55,
+        }}
+      />
+      <span
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: 999,
+          background: "#5b5fc7",
+          display: "inline-block",
+          opacity: 0.8,
+        }}
+      />
+      <span
+        style={{
+          width: 7,
+          height: 7,
+          borderRadius: 999,
+          background: "#5b5fc7",
+          display: "inline-block",
+          opacity: 1,
+        }}
+      />
+    </div>
+  );
+}
+
 export default function Home() {
   const router = useRouter();
 
@@ -425,7 +486,6 @@ export default function Home() {
     });
   }, [session, view]);
 
-  // Saut de temps automatique à l’entrée en phase 4
   useEffect(() => {
     if (!view || !simulatedTime) return;
 
@@ -674,7 +734,7 @@ export default function Home() {
       <main
         style={{
           padding: 20,
-          maxWidth: 1120,
+          maxWidth: 1180,
           margin: "0 auto",
           fontFamily: "Arial, sans-serif",
           color: "#111",
@@ -689,7 +749,7 @@ export default function Home() {
     <main
       style={{
         padding: 20,
-        maxWidth: 1120,
+        maxWidth: 1180,
         margin: "0 auto",
         fontFamily: "Arial, sans-serif",
         color: "#111",
@@ -697,69 +757,68 @@ export default function Home() {
     >
       <div
         style={{
-          marginBottom: 18,
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          marginBottom: 16,
+          padding: "12px 16px",
+          border: "1px solid #d8dbe3",
+          borderRadius: 14,
+          background:
+            "linear-gradient(90deg, rgba(255,248,230,0.98) 0%, rgba(255,243,214,0.98) 100%)",
+          boxShadow: "0 8px 20px rgba(0,0,0,0.08)",
+          backdropFilter: "blur(8px)",
           display: "flex",
           justifyContent: "space-between",
-          alignItems: "flex-start",
+          alignItems: "center",
           gap: 16,
           flexWrap: "wrap",
         }}
       >
-        <div>
-          <h1 style={{ marginBottom: 6 }}>{view.title}</h1>
-          {view.subtitle ? (
-            <p style={{ marginTop: 0, color: "#555" }}>{view.subtitle}</p>
-          ) : null}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span style={{ fontSize: 18 }}>⏱️</span>
+          <div>
+            <div style={{ fontSize: 12, color: "#6b7280", marginBottom: 2 }}>
+              Heure du scénario
+            </div>
+            <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: 0.4 }}>
+              {formatSimulatedTime(simulatedTime)}
+            </div>
+          </div>
         </div>
 
         <button
           onClick={handleRestartScenario}
           style={{
             padding: "10px 14px",
-            borderRadius: 8,
-            border: "1px solid #ccc",
-            background: "#f5f5f5",
+            borderRadius: 10,
+            border: "1px solid #cfd5df",
+            background: "#fff",
             cursor: "pointer",
             whiteSpace: "nowrap",
+            fontWeight: 600,
           }}
         >
           Recommencer le scénario
         </button>
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 12,
-          padding: "8px 12px",
-          border: "1px solid #e5e5e5",
-          borderRadius: 8,
-          background: "#fafafa",
-          fontSize: 14,
-        }}
-      >
-        <div>
-          ⏱️ Heure scénario :
-          <strong style={{ marginLeft: 6 }}>
-            {formatSimulatedTime(simulatedTime)}
-          </strong>
-        </div>
-
-        <div style={{ fontSize: 12, color: "#666" }}>
-          Accélération x{SIM_SPEED_MULTIPLIER}
-        </div>
+      <div style={{ marginBottom: 18 }}>
+        <h1 style={{ marginBottom: 6 }}>{view.title}</h1>
+        {view.subtitle ? (
+          <p style={{ marginTop: 0, color: "#555" }}>{view.subtitle}</p>
+        ) : null}
       </div>
 
       {!view.isFinished ? (
         <section
           style={{
             border: "1px solid #ddd",
-            borderRadius: 12,
+            borderRadius: 16,
             padding: 24,
             marginBottom: 18,
             background: "#fff",
+            boxShadow: "0 6px 18px rgba(0,0,0,0.04)",
           }}
         >
           <h2 style={{ marginTop: 0, marginBottom: 18 }}>Contexte</h2>
@@ -799,7 +858,7 @@ export default function Home() {
       <section
         style={{
           display: "grid",
-          gridTemplateColumns: "1.45fr 0.75fr",
+          gridTemplateColumns: "1.6fr 0.75fr",
           gap: 18,
           alignItems: "start",
         }}
@@ -807,23 +866,25 @@ export default function Home() {
         <div>
           <section
             style={{
-              border: "1px solid #ddd",
-              borderRadius: 12,
+              border: "1px solid #d9dde6",
+              borderRadius: 18,
               padding: 18,
               marginBottom: 18,
               background: "#fff",
+              boxShadow: "0 10px 24px rgba(0,0,0,0.06)",
             }}
           >
             <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
               <button
                 onClick={() => setActiveTab("chat")}
                 style={{
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  border: "1px solid #ccc",
-                  background: activeTab === "chat" ? "#111" : "#f5f5f5",
+                  padding: "9px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #cfd5df",
+                  background: activeTab === "chat" ? "#5b5fc7" : "#f5f7fb",
                   color: activeTab === "chat" ? "#fff" : "#111",
                   cursor: "pointer",
+                  fontWeight: 600,
                 }}
               >
                 Messagerie
@@ -832,13 +893,14 @@ export default function Home() {
               <button
                 onClick={() => setActiveTab("mail")}
                 style={{
-                  padding: "8px 12px",
-                  borderRadius: 8,
-                  border: "1px solid #ccc",
-                  background: activeTab === "mail" ? "#111" : "#f5f5f5",
+                  padding: "9px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #cfd5df",
+                  background: activeTab === "mail" ? "#5b5fc7" : "#f5f7fb",
                   color: activeTab === "mail" ? "#fff" : "#111",
                   cursor: "pointer",
                   position: "relative",
+                  fontWeight: 600,
                 }}
               >
                 Boîte mail
@@ -868,17 +930,34 @@ export default function Home() {
 
             {activeTab === "chat" ? (
               <>
-                <h2 style={{ marginTop: 0, marginBottom: 12 }}>Messagerie</h2>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    marginBottom: 14,
+                    paddingBottom: 12,
+                    borderBottom: "1px solid #edf0f5",
+                  }}
+                >
+                  <div style={avatarStyle("#5b5fc7", 40)}>R</div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 18 }}>Romain Dufresne</h2>
+                    <p style={{ margin: "4px 0 0 0", color: "#667085", fontSize: 13 }}>
+                      Collaborateur — discussion en direct
+                    </p>
+                  </div>
+                </div>
 
                 <div
                   ref={conversationBoxRef}
                   style={{
-                    height: view.isFinished ? 460 : 620,
+                    height: view.isFinished ? 520 : 680,
                     overflowY: "auto",
-                    border: "1px solid #eee",
-                    borderRadius: 10,
-                    padding: 12,
-                    background: "#fafafa",
+                    border: "1px solid #eceff5",
+                    borderRadius: 16,
+                    padding: 16,
+                    background: "#f8f9fc",
                   }}
                 >
                   {chatMessages.length === 0 ? (
@@ -886,64 +965,131 @@ export default function Home() {
                       Aucun échange pour l’instant.
                     </p>
                   ) : (
-                    <div style={{ display: "grid", gap: 10 }}>
-                      {chatMessages.map((msg: any, i: number) => (
-                        <div
-                          key={msg.id || i}
-                          style={{
-                            padding: 10,
-                            borderRadius: 8,
-                            border: "1px solid #e5e5e5",
-                            background:
-                              msg.role === "player"
-                                ? "#ffffff"
-                                : msg.role === "system"
-                                ? "#fff8e6"
-                                : msg.type === "interruption"
-                                ? "#ffeef0"
-                                : "#eef6ff",
-                          }}
-                        >
-                          <strong>
-                            {msg.role === "player"
-                              ? displayPlayerName
-                              : msg.role === "system"
-                              ? "Système"
-                              : msg.actor || "NPC"}
-                          </strong>
-                          <p
+                    <div style={{ display: "grid", gap: 14 }}>
+                      {chatMessages.map((msg: any, i: number) => {
+                        const isPlayer = msg.role === "player";
+                        const isSystem = msg.role === "system";
+                        const isInterruption = msg.type === "interruption";
+
+                        const authorLabel = isPlayer
+                          ? displayPlayerName
+                          : isSystem
+                          ? "Système"
+                          : msg.actor || "Romain";
+
+                        const authorAvatar = isPlayer ? (
+                          <div style={avatarStyle("#0f766e", 40)}>
+                            {initials(displayPlayerName)}
+                          </div>
+                        ) : isSystem ? (
+                          <div style={avatarStyle("#a16207", 40)}>!</div>
+                        ) : (
+                          <div style={avatarStyle(isInterruption ? "#be123c" : "#5b5fc7", 40)}>
+                            R
+                          </div>
+                        );
+
+                        return (
+                          <div
+                            key={msg.id || i}
                             style={{
-                              margin: "8px 0 0 0",
-                              whiteSpace: "pre-wrap",
-                              lineHeight: 1.6,
+                              display: "flex",
+                              gap: 10,
+                              alignItems: "flex-start",
                             }}
                           >
-                            {msg.content}
-                          </p>
-                        </div>
-                      ))}
+                            {authorAvatar}
+
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div
+                                style={{
+                                  display: "flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                  marginBottom: 6,
+                                }}
+                              >
+                                <strong style={{ fontSize: 14 }}>{authorLabel}</strong>
+                                <span
+                                  style={{
+                                    fontSize: 12,
+                                    color: "#667085",
+                                  }}
+                                >
+                                  {formatSimulatedTime(simulatedTime)}
+                                </span>
+                              </div>
+
+                              <div
+                                style={{
+                                  padding: "12px 14px",
+                                  borderRadius: isPlayer ? "16px 16px 6px 16px" : "16px 16px 16px 6px",
+                                  border: "1px solid #e4e7ec",
+                                  background: isPlayer
+                                    ? "#ffffff"
+                                    : isSystem
+                                    ? "#fff8e8"
+                                    : isInterruption
+                                    ? "#fff0f5"
+                                    : "#eef2ff",
+                                  color: "#111827",
+                                  boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
+                                }}
+                              >
+                                <p
+                                  style={{
+                                    margin: 0,
+                                    whiteSpace: "pre-wrap",
+                                    lineHeight: 1.65,
+                                  }}
+                                >
+                                  {msg.content}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
 
                       {loading && (
                         <div
                           style={{
-                            padding: 10,
-                            borderRadius: 8,
-                            border: "1px solid #e5e5e5",
-                            background: "#eef6ff",
-                            width: "fit-content",
-                            maxWidth: 120,
+                            display: "flex",
+                            gap: 10,
+                            alignItems: "flex-start",
                           }}
                         >
-                          <strong>Romain</strong>
-                          <p
-                            style={{
-                              margin: "8px 0 0 0",
-                              lineHeight: 1.6,
-                              letterSpacing: 2,
-                            }}
-                          >
-                            ...
-                          </p>
+                          <div style={avatarStyle("#5b5fc7", 40)}>R</div>
+
+                          <div style={{ flex: 1 }}>
+                            <div
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 8,
+                                marginBottom: 6,
+                              }}
+                            >
+                              <strong style={{ fontSize: 14 }}>Romain</strong>
+                              <span style={{ fontSize: 12, color: "#667085" }}>
+                                {formatSimulatedTime(simulatedTime)}
+                              </span>
+                            </div>
+
+                            <div
+                              style={{
+                                padding: "12px 14px",
+                                borderRadius: "16px 16px 16px 6px",
+                                border: "1px solid #e4e7ec",
+                                background: "#eef2ff",
+                                width: "fit-content",
+                                minWidth: 92,
+                                boxShadow: "0 2px 8px rgba(15,23,42,0.04)",
+                              }}
+                            >
+                              <TypingDots />
+                            </div>
+                          </div>
                         </div>
                       )}
                     </div>
@@ -967,38 +1113,49 @@ export default function Home() {
                       placeholder="Écris ici ta réponse..."
                       style={{
                         width: "100%",
-                        padding: 12,
-                        borderRadius: 8,
-                        border: "1px solid #ccc",
+                        padding: 14,
+                        borderRadius: 14,
+                        border: "1px solid #cfd5df",
                         fontSize: 16,
                         resize: "vertical",
                         boxSizing: "border-box",
+                        background: "#fff",
                       }}
                     />
 
-                    <p
+                    <div
                       style={{
-                        marginTop: 8,
-                        marginBottom: 0,
-                        fontSize: 13,
-                        color: "#666",
+                        display: "flex",
+                        justifyContent: "space-between",
+                        alignItems: "center",
+                        marginTop: 10,
+                        gap: 12,
+                        flexWrap: "wrap",
                       }}
                     >
-                      Raccourci : Cmd/Ctrl + Entrée pour envoyer
-                    </p>
+                      <p
+                        style={{
+                          margin: 0,
+                          fontSize: 13,
+                          color: "#667085",
+                        }}
+                      >
+                        Raccourci : Cmd/Ctrl + Entrée pour envoyer
+                      </p>
 
-                    <div style={{ marginTop: 12 }}>
                       <button
                         onClick={sendMessage}
                         disabled={loading || !input.trim()}
                         style={{
-                          padding: "10px 16px",
-                          borderRadius: 8,
-                          border: "1px solid #ccc",
-                          background: "#111",
+                          padding: "10px 18px",
+                          borderRadius: 12,
+                          border: "1px solid #4338ca",
+                          background: "#5b5fc7",
                           color: "#fff",
                           cursor:
                             loading || !input.trim() ? "not-allowed" : "pointer",
+                          fontWeight: 700,
+                          boxShadow: "0 8px 16px rgba(91,95,199,0.18)",
                         }}
                       >
                         Envoyer à Romain
@@ -1023,7 +1180,7 @@ export default function Home() {
                         style={{
                           width: "100%",
                           padding: "10px 12px",
-                          borderRadius: 8,
+                          borderRadius: 10,
                           border: "1px solid #ccc",
                           boxSizing: "border-box",
                         }}
@@ -1040,7 +1197,7 @@ export default function Home() {
                         style={{
                           width: "100%",
                           padding: "10px 12px",
-                          borderRadius: 8,
+                          borderRadius: 10,
                           border: "1px solid #ccc",
                           boxSizing: "border-box",
                         }}
@@ -1059,7 +1216,7 @@ export default function Home() {
                         style={{
                           width: "100%",
                           padding: "10px 12px",
-                          borderRadius: 8,
+                          borderRadius: 10,
                           border: "1px solid #ccc",
                           boxSizing: "border-box",
                         }}
@@ -1077,7 +1234,7 @@ export default function Home() {
                         style={{
                           width: "100%",
                           padding: 12,
-                          borderRadius: 8,
+                          borderRadius: 10,
                           border: "1px solid #ccc",
                           resize: "vertical",
                           fontSize: 15,
@@ -1100,7 +1257,7 @@ export default function Home() {
                               key={mail.id}
                               style={{
                                 border: "1px solid #e5e5e5",
-                                borderRadius: 8,
+                                borderRadius: 10,
                                 padding: 12,
                                 background: "#f7fbff",
                               }}
@@ -1148,7 +1305,7 @@ export default function Home() {
                                 gap: 8,
                                 padding: "8px 10px",
                                 border: "1px solid #e5e5e5",
-                                borderRadius: 8,
+                                borderRadius: 10,
                                 background: selected ? "#eef6ff" : "#fff",
                                 cursor: "pointer",
                               }}
@@ -1180,11 +1337,12 @@ export default function Home() {
                           disabled={!canActuallySendMail}
                           style={{
                             padding: "10px 16px",
-                            borderRadius: 8,
+                            borderRadius: 10,
                             border: "1px solid #ccc",
                             background: canActuallySendMail ? "#0b6b3a" : "#d7d7d7",
                             color: "#fff",
                             cursor: canActuallySendMail ? "pointer" : "not-allowed",
+                            fontWeight: 700,
                           }}
                         >
                           {sendMailLabel}
@@ -1208,7 +1366,7 @@ export default function Home() {
                             key={mail.id}
                             style={{
                               border: "1px solid #e5e5e5",
-                              borderRadius: 8,
+                              borderRadius: 10,
                               padding: 12,
                               background: "#fafafa",
                             }}
@@ -1253,10 +1411,11 @@ export default function Home() {
             <section
               style={{
                 border: "1px solid #ddd",
-                borderRadius: 12,
+                borderRadius: 16,
                 padding: 18,
                 marginBottom: 18,
                 background: "#fff",
+                boxShadow: "0 6px 18px rgba(0,0,0,0.04)",
               }}
             >
               <h3 style={{ marginTop: 0 }}>Documents disponibles</h3>
@@ -1279,9 +1438,10 @@ export default function Home() {
             <section
               style={{
                 border: "1px solid #ddd",
-                borderRadius: 12,
+                borderRadius: 16,
                 padding: 18,
                 background: "#fff",
+                boxShadow: "0 6px 18px rgba(0,0,0,0.04)",
               }}
             >
               <h2 style={{ marginTop: 0 }}>Dénouement</h2>
@@ -1298,11 +1458,12 @@ export default function Home() {
                   disabled={debriefLoading}
                   style={{
                     padding: "10px 16px",
-                    borderRadius: 8,
+                    borderRadius: 10,
                     border: "1px solid #ccc",
                     background: "#111",
                     color: "#fff",
                     cursor: debriefLoading ? "not-allowed" : "pointer",
+                    fontWeight: 700,
                   }}
                 >
                   {debriefLoading ? "Génération..." : "Voir le débrief complet"}
