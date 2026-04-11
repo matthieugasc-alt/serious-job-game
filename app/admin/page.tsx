@@ -34,7 +34,7 @@ export default function AdminPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userToken, setUserToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<"conversion" | "management">("conversion");
+  const [activeSection, setActiveSection] = useState<"conversion" | "management" | "editor">("conversion");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Conversion state
@@ -51,6 +51,15 @@ export default function AdminPage() {
   const [scenariosLoading, setScenariosLoading] = useState(false);
   const [editingConfigs, setEditingConfigs] = useState<Record<string, ScenarioConfig>>({});
   const [savingConfigs, setSavingConfigs] = useState<Record<string, boolean>>({});
+
+  // AI Editor state
+  const [editorScenarioId, setEditorScenarioId] = useState<string | null>(null);
+  const [editorInput, setEditorInput] = useState("");
+  const [editorMessages, setEditorMessages] = useState<Array<{ role: "user" | "assistant"; content: string }>>([]);
+  const [editorPendingChanges, setEditorPendingChanges] = useState<any[] | null>(null);
+  const [editorSending, setEditorSending] = useState(false);
+  const [editorApplying, setEditorApplying] = useState(false);
+  const editorChatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("user_role");
@@ -397,6 +406,22 @@ export default function AdminPage() {
             }}
           >
             ⚙️ Gestion des scénarios
+          </button>
+          <button
+            onClick={() => setActiveSection("editor")}
+            style={{
+              padding: "12px 0",
+              fontSize: 16,
+              fontWeight: activeSection === "editor" ? 700 : 500,
+              color: activeSection === "editor" ? "#a5a8ff" : "rgba(255,255,255,0.6)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              borderBottom: activeSection === "editor" ? "2px solid #5b5fc7" : "none",
+              transition: "all 0.2s",
+            }}
+          >
+            🤖 Éditeur IA
           </button>
         </div>
 
@@ -1000,7 +1025,227 @@ export default function AdminPage() {
             )}
           </div>
         )}
+
+        {/* ═══ AI EDITOR SECTION ═══ */}
+        {activeSection === "editor" && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+            <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, padding: 24, border: "1px solid rgba(255,255,255,0.08)" }}>
+              <h2 style={{ margin: "0 0 8px", fontSize: 20, fontWeight: 700, color: "#fff" }}>
+                Éditeur IA de scénarios
+              </h2>
+              <p style={{ margin: "0 0 16px", fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+                Sélectionnez un scénario verrouillé, puis discutez avec l'IA pour modifier les textes, objectifs, critères, prompts et dialogues. Les modifications structurelles ne sont pas autorisées.
+              </p>
+
+              {/* Scenario selector */}
+              <div style={{ marginBottom: 20 }}>
+                <label style={{ display: "block", fontSize: 13, fontWeight: 600, color: "#a5a8ff", marginBottom: 6 }}>
+                  Scénario à modifier
+                </label>
+                <select
+                  value={editorScenarioId || ""}
+                  onChange={(e) => {
+                    setEditorScenarioId(e.target.value || null);
+                    setEditorMessages([]);
+                    setEditorPendingChanges(null);
+                    setEditorInput("");
+                  }}
+                  style={{
+                    width: "100%", maxWidth: 400, padding: "10px 14px", borderRadius: 8,
+                    background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)",
+                    color: "#fff", fontSize: 14, outline: "none",
+                  }}
+                >
+                  <option value="" style={{ background: "#1a1a2e", color: "#fff" }}>-- Choisir un scénario --</option>
+                  {scenarios.map((s) => {
+                    const cfg = configs[s.scenario_id];
+                    const locked = cfg?.adminLocked;
+                    return (
+                      <option key={s.id} value={s.id} style={{ background: "#1a1a2e", color: "#fff" }}>
+                        {locked ? "🔒 " : ""}{s.title} ({s.id})
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+
+            {/* Chat area */}
+            {editorScenarioId && (
+              <div style={{ background: "rgba(255,255,255,0.06)", borderRadius: 14, border: "1px solid rgba(255,255,255,0.08)", display: "flex", flexDirection: "column", minHeight: 500 }}>
+
+                {/* Messages */}
+                <div style={{ flex: 1, padding: "20px 24px", overflowY: "auto", maxHeight: 500, display: "flex", flexDirection: "column", gap: 14 }}>
+                  {editorMessages.length === 0 && (
+                    <div style={{ textAlign: "center", padding: 40, color: "rgba(255,255,255,0.4)" }}>
+                      <div style={{ fontSize: 40, marginBottom: 12 }}>🤖</div>
+                      <p style={{ fontSize: 14 }}>
+                        Commencez à décrire les modifications souhaitées.
+                        Par exemple : "Change le titre de la phase 2 en ..." ou "Ajoute un critère de scoring sur la diplomatie"
+                      </p>
+                    </div>
+                  )}
+
+                  {editorMessages.map((msg, idx) => (
+                    <div key={idx} style={{
+                      display: "flex",
+                      justifyContent: msg.role === "user" ? "flex-end" : "flex-start",
+                    }}>
+                      <div style={{
+                        maxWidth: "80%",
+                        padding: "12px 16px",
+                        borderRadius: 14,
+                        borderTopRightRadius: msg.role === "user" ? 4 : 14,
+                        borderTopLeftRadius: msg.role === "user" ? 14 : 4,
+                        background: msg.role === "user" ? "#5b5fc7" : "rgba(255,255,255,0.1)",
+                        color: "#fff",
+                        fontSize: 14,
+                        lineHeight: 1.6,
+                        whiteSpace: "pre-wrap",
+                      }}>
+                        {msg.content}
+                      </div>
+                    </div>
+                  ))}
+
+                  {editorSending && (
+                    <div style={{ display: "flex", justifyContent: "flex-start" }}>
+                      <div style={{ padding: "12px 16px", background: "rgba(255,255,255,0.1)", borderRadius: 14, color: "rgba(255,255,255,0.6)", fontSize: 14 }}>
+                        Réflexion en cours...
+                      </div>
+                    </div>
+                  )}
+
+                  <div ref={editorChatEndRef} />
+                </div>
+
+                {/* Pending changes approval */}
+                {editorPendingChanges && editorPendingChanges.length > 0 && (
+                  <div style={{ padding: "16px 24px", borderTop: "1px solid rgba(255,255,255,0.08)", background: "rgba(91,95,199,0.1)" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                      <h4 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#a5a8ff" }}>
+                        {editorPendingChanges.length} modification{editorPendingChanges.length > 1 ? "s" : ""} proposée{editorPendingChanges.length > 1 ? "s" : ""}
+                      </h4>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => setEditorPendingChanges(null)}
+                          style={{
+                            padding: "8px 16px", borderRadius: 8, background: "rgba(255,255,255,0.1)",
+                            border: "none", color: "#fff", cursor: "pointer", fontSize: 13, fontWeight: 600,
+                          }}
+                        >
+                          Annuler
+                        </button>
+                        <button
+                          onClick={async () => {
+                            if (!userToken || !editorScenarioId || !editorPendingChanges) return;
+                            setEditorApplying(true);
+                            try {
+                              const res = await fetch("/api/admin/scenario-editor", {
+                                method: "PUT",
+                                headers: { "Content-Type": "application/json", Authorization: `Bearer ${userToken}` },
+                                body: JSON.stringify({ scenarioId: editorScenarioId, changes: editorPendingChanges }),
+                              });
+                              const data = await res.json();
+                              const msg = `✅ Modifications appliquées : ${(data.applied || []).length} réussie(s)${(data.failed || []).length > 0 ? `, ${data.failed.length} échouée(s)` : ""}`;
+                              setEditorMessages((prev) => [...prev, { role: "assistant", content: msg }]);
+                              setEditorPendingChanges(null);
+                            } catch (err) {
+                              setEditorMessages((prev) => [...prev, { role: "assistant", content: "❌ Erreur lors de l'application des modifications." }]);
+                            } finally {
+                              setEditorApplying(false);
+                            }
+                          }}
+                          disabled={editorApplying}
+                          style={{
+                            padding: "8px 20px", borderRadius: 8, background: "#16a34a",
+                            border: "none", color: "#fff", cursor: editorApplying ? "not-allowed" : "pointer",
+                            fontSize: 13, fontWeight: 700,
+                          }}
+                        >
+                          {editorApplying ? "Application..." : "Appliquer les modifications"}
+                        </button>
+                      </div>
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 6, maxHeight: 200, overflowY: "auto" }}>
+                      {editorPendingChanges.map((c: any, idx: number) => (
+                        <div key={idx} style={{ fontSize: 12, padding: "6px 10px", background: "rgba(255,255,255,0.05)", borderRadius: 6, color: "#ccc" }}>
+                          <strong style={{ color: "#a5a8ff" }}>{c.path}</strong>: {typeof c.new_value === "string" ? c.new_value.slice(0, 100) : JSON.stringify(c.new_value).slice(0, 100)}{(typeof c.new_value === "string" ? c.new_value.length : JSON.stringify(c.new_value).length) > 100 ? "..." : ""}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Input */}
+                <div style={{ padding: "16px 24px", borderTop: "1px solid rgba(255,255,255,0.08)", display: "flex", gap: 12 }}>
+                  <input
+                    value={editorInput}
+                    onChange={(e) => setEditorInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleEditorSend();
+                      }
+                    }}
+                    placeholder="Décrivez la modification souhaitée..."
+                    style={{
+                      flex: 1, padding: "12px 16px", borderRadius: 10,
+                      background: "rgba(255,255,255,0.08)", border: "1px solid rgba(255,255,255,0.15)",
+                      color: "#fff", fontSize: 14, outline: "none",
+                    }}
+                    disabled={editorSending}
+                  />
+                  <button
+                    onClick={handleEditorSend}
+                    disabled={editorSending || !editorInput.trim()}
+                    style={{
+                      padding: "12px 24px", borderRadius: 10, background: "#5b5fc7",
+                      border: "none", color: "#fff", cursor: editorSending ? "not-allowed" : "pointer",
+                      fontSize: 14, fontWeight: 700, opacity: editorSending || !editorInput.trim() ? 0.5 : 1,
+                    }}
+                  >
+                    Envoyer
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </main>
   );
+
+  async function handleEditorSend() {
+    if (!editorInput.trim() || !userToken || !editorScenarioId || editorSending) return;
+    const msg = editorInput.trim();
+    setEditorInput("");
+    setEditorMessages((prev) => [...prev, { role: "user", content: msg }]);
+    setEditorSending(true);
+    setEditorPendingChanges(null);
+
+    try {
+      const res = await fetch("/api/admin/scenario-editor", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${userToken}` },
+        body: JSON.stringify({
+          scenarioId: editorScenarioId,
+          message: msg,
+          conversationHistory: editorMessages,
+        }),
+      });
+
+      const data = await res.json();
+      setEditorMessages((prev) => [...prev, { role: "assistant", content: data.reply || data.rawReply || "Erreur de réponse" }]);
+
+      if (data.changes && data.changes.length > 0) {
+        setEditorPendingChanges(data.changes);
+      }
+    } catch (err) {
+      setEditorMessages((prev) => [...prev, { role: "assistant", content: "❌ Erreur de communication avec l'API." }]);
+    } finally {
+      setEditorSending(false);
+      setTimeout(() => editorChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
+    }
+  }
 }

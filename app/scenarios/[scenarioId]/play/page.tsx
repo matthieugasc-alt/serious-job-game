@@ -403,8 +403,22 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           ) || 0,
           phasesCompleted: session.completedPhases?.length || 0,
           totalPhases: scenario.phases?.length || 0,
-          debrief: debriefData,
+          debrief: { ...debriefData, scenarioCompetencies: scenario.meta?.competencies || [] },
+          jobFamily: scenario.meta?.job_family || "",
+          difficulty: scenario.meta?.difficulty || "junior",
         }),
+      }).then(async (res) => {
+        if (res && res.ok) {
+          const data = await res.json();
+          // Trigger async skill extraction
+          if (data.record?.id && token) {
+            fetch("/api/profile/extract-skills", {
+              method: "POST",
+              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+              body: JSON.stringify({ recordId: data.record.id }),
+            }).catch((err) => console.error("Skill extraction failed:", err));
+          }
+        }
       }).catch((err) => console.error("Failed to save game to server:", err));
     }
   }, [debriefData]);

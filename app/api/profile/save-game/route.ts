@@ -112,6 +112,8 @@ export async function POST(request: NextRequest) {
       phasesCompleted: body.phasesCompleted,
       totalPhases: body.totalPhases,
       debrief: body.debrief,
+      jobFamily: body.jobFamily || undefined,
+      difficulty: body.difficulty || undefined,
     };
 
     const savedRecord = saveRecord(user.id, recordData);
