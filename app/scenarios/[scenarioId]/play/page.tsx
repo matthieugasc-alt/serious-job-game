@@ -172,6 +172,21 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const debriefCalledRef = useRef(false);
   const debriefSavedRef = useRef(false);
 
+  // ── Voice mode state ──
+  const [isRecording, setIsRecording] = useState(false);
+  const [voiceTranscript, setVoiceTranscript] = useState("");
+  const [interimText, setInterimText] = useState("");
+  const [recordingElapsed, setRecordingElapsed] = useState(0);
+  const recordingStartRef = useRef<number | null>(null);
+  const recognitionRef2 = useRef<any>(null);
+  const voiceTranscriptRef = useRef("");
+  const [isSpeakingTTS, setIsSpeakingTTS] = useState(false);
+  const [speakingActorId, setSpeakingActorId] = useState<string | null>(null);
+  const spokenMsgIdsRef = useRef<Set<string>>(new Set());
+  const [raisedHands, setRaisedHands] = useState<string[]>([]);
+  const [qaWaiting, setQaWaiting] = useState(false);
+  const [presentationDone, setPresentationDone] = useState(false);
+
   // ── Refs ──
   const aiPromptRef = useRef("");
   const aiPromptsMapRef = useRef<Record<string, string>>({});
@@ -203,6 +218,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const simulatedTime = view?.simulatedTime ? fmtTime(view.simulatedTime) : "--:--";
   const actors = scenario?.actors || [];
   const visibleContacts = actors.filter((a: any) => a.visible_in_contacts || a.actor_id === "player");
+
+  // ── Interaction mode ──
+  const currentInteractionMode: string = scenario?.phases?.[session?.currentPhaseIndex]?.interaction_mode || "chat";
+  const currentPhaseConfig = scenario?.phases?.[session?.currentPhaseIndex];
 
   // Per-contact conversation filtering
   const filteredConversation = useMemo(() => {
@@ -512,6 +531,190 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       setSession(next);
     }
   }, [conversation.length]);
+
+  // ── Recording timer ──
+  useEffect(() => {
+    if (!isRecording || !recordingStartRef.current) return;
+    const iv = setInterval(() => {
+      setRecordingElapsed(Math.floor((Date.now() - (recordingStartRef.current || 0)) / 1000));
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [isRecording]);
+
+  // ── Children hand-raising (voice_qa mode) ──
+  useEffect(() => {
+    if (!session || !scenario) return;
+    const phase = scenario.phases[session.currentPhaseIndex] as any;
+    if (phase?.interaction_mode !== "voice_qa") return;
+    const config = phase?.voice_qa_config;
+    if (!config?.children_names) return;
+    const names: string[] = config.children_names;
+    const maxHands = config.max_simultaneous_hands || 3;
+    // Start with 2 raised hands
+    setRaisedHands(names.slice(0, 2));
+    const iv = setInterval(() => {
+      setRaisedHands(prev => {
+        const available = names.filter(n => !prev.includes(n));
+        const updated = [...prev];
+        // Randomly lower a hand (20% chance)
+        if (updated.length > 1 && Math.random() < 0.2) {
+          updated.splice(Math.floor(Math.random() * updated.length), 1);
+        }
+        // Randomly raise a hand (40% chance)
+        if (available.length > 0 && updated.length < maxHands && Math.random() < 0.4) {
+          updated.push(available[Math.floor(Math.random() * available.length)]);
+        }
+        return updated;
+      });
+    }, (config.hand_raise_interval_sec || 15) * 1000);
+    return () => clearInterval(iv);
+  }, [session?.currentPhaseIndex]);
+
+  // ── Auto-TTS for AI messages in voice_qa mode ──
+  useEffect(() => {
+    if (!session || !scenario) return;
+    const phase = scenario.phases[session.currentPhaseIndex] as any;
+    if (phase?.interaction_mode !== "voice_qa") return;
+    const lastMsg = conversation[conversation.length - 1];
+    if (!lastMsg || lastMsg.role === "player" || lastMsg.role === "system") return;
+    if (spokenMsgIdsRef.current.has(lastMsg.id)) return;
+    spokenMsgIdsRef.current.add(lastMsg.id);
+    const lang = lastMsg.actor === "yuki_tanaka" ? "en-US" : "fr-FR";
+    speakTTS(lastMsg.content, lang, lastMsg.actor);
+  }, [conversation.length, session?.currentPhaseIndex]);
+
+  // ── Auto-start mic in voice_qa mode ──
+  useEffect(() => {
+    if (!session || !scenario) return;
+    const phase = scenario.phases[session.currentPhaseIndex] as any;
+    if (phase?.interaction_mode === "voice_qa" && !isRecording && !presentationDone) {
+      // Small delay to let the phase transition settle
+      const t = setTimeout(() => startRecognition("fr-FR"), 1500);
+      return () => clearTimeout(t);
+    }
+  }, [session?.currentPhaseIndex]);
+
+  // ════════════════════════════════════════════════════════════════════
+  // SPEECH UTILITIES
+  // ════════════════════════════════════════════════════════════════════
+
+  // ── Speech Recognition (STT) ──
+  function startRecognition(lang: string) {
+    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      alert("Votre navigateur ne supporte pas la reconnaissance vocale. Utilisez Google Chrome.");
+      return;
+    }
+    const recognition = new SR();
+    recognition.lang = lang;
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    let accumulated = "";
+
+    recognition.onresult = (event: any) => {
+      let interim = "";
+      let finalChunk = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        if (event.results[i].isFinal) {
+          finalChunk += event.results[i][0].transcript + " ";
+        } else {
+          interim += event.results[i][0].transcript;
+        }
+      }
+      if (finalChunk) {
+        accumulated += finalChunk;
+        voiceTranscriptRef.current = accumulated;
+        setVoiceTranscript(accumulated);
+      }
+      setInterimText(interim);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error("Speech recognition error:", event.error);
+      if (event.error === "not-allowed") {
+        alert("Veuillez autoriser l'accès au microphone dans votre navigateur.");
+      }
+    };
+
+    recognition.onend = () => {
+      // Restart if still recording (Chrome stops after ~60s silence)
+      if (recognitionRef2.current === recognition && isRecording) {
+        try { recognition.start(); } catch {}
+      }
+    };
+
+    recognitionRef2.current = recognition;
+    recognition.start();
+    voiceTranscriptRef.current = "";
+    setVoiceTranscript("");
+    setInterimText("");
+    setIsRecording(true);
+    recordingStartRef.current = Date.now();
+    setRecordingElapsed(0);
+  }
+
+  function stopRecognition(): string {
+    if (recognitionRef2.current) {
+      recognitionRef2.current.onend = null;
+      try { recognitionRef2.current.stop(); } catch {}
+      recognitionRef2.current = null;
+    }
+    setIsRecording(false);
+    recordingStartRef.current = null;
+    setInterimText("");
+    return voiceTranscriptRef.current;
+  }
+
+  function speakTTS(text: string, lang: string, actorId?: string): Promise<void> {
+    return new Promise((resolve) => {
+      if (typeof window === "undefined" || !window.speechSynthesis) { resolve(); return; }
+      speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = lang;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
+      // Pick a voice
+      const voices = speechSynthesis.getVoices();
+      const langPrefix = lang.split("-")[0];
+      const preferred = voices.find(v => v.lang.startsWith(langPrefix) && (v.name.includes("Google") || v.name.includes("Microsoft")))
+        || voices.find(v => v.lang.startsWith(langPrefix));
+      if (preferred) utterance.voice = preferred;
+
+      if (actorId) setSpeakingActorId(actorId);
+      setIsSpeakingTTS(true);
+
+      utterance.onend = () => { setIsSpeakingTTS(false); setSpeakingActorId(null); resolve(); };
+      utterance.onerror = () => { setIsSpeakingTTS(false); setSpeakingActorId(null); resolve(); };
+      speechSynthesis.speak(utterance);
+    });
+  }
+
+  // Generate an NPC message without a player message (for triggering child questions)
+  async function generateNPCMessage(actorId: string, trigger: string): Promise<string> {
+    const activePrompt = aiPromptsMapRef.current[actorId] || aiPromptRef.current;
+    const res = await fetch("/api/chat", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: trigger,
+        playerName: displayPlayerName,
+        phaseTitle: view?.phaseTitle || "",
+        phaseObjective: view?.phaseObjective || "",
+        phasePrompt: view?.phasePrompt || "",
+        criteria: view?.criteria || [],
+        narrative: scenario?.narrative || {},
+        recentConversation: conversation.slice(-6).map((m: any) => ({
+          role: m.role === "player" ? "user" : "assistant",
+          content: m.content,
+        })),
+        roleplayPrompt: activePrompt,
+        mode: view?.adaptiveMode || "autonomy",
+      }),
+    });
+    const data = await res.json();
+    return data.reply || "";
+  }
 
   // ════════════════════════════════════════════════════════════════════
   // HANDLERS
@@ -1073,7 +1276,401 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       )}
 
       {/* ═══════ BODY ═══════ */}
-      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+      {currentInteractionMode === "presentation" ? (
+        /* ═══ PRESENTATION MODE ═══ */
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", overflow: "auto", background: "linear-gradient(180deg, #1a1a2e 0%, #16213e 100%)", padding: 40 }}>
+
+          {!presentationDone ? (
+            <div style={{ textAlign: "center", maxWidth: 700, width: "100%" }}>
+              {/* Instructions */}
+              <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 16, padding: "24px 32px", marginBottom: 32, textAlign: "left", border: "1px solid rgba(255,255,255,0.1)" }}>
+                <h2 style={{ color: "#7b7fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 12px" }}>
+                  🎤 Présentation orale
+                </h2>
+                <p style={{ color: "#e0e0e0", fontSize: 14, lineHeight: 1.7, margin: 0, whiteSpace: "pre-line" }}>
+                  {(currentPhaseConfig as any)?.presentation_config?.instructions || view?.phaseObjective || ""}
+                </p>
+              </div>
+
+              {/* Mic button */}
+              <div style={{ marginBottom: 24 }}>
+                <button
+                  onClick={() => {
+                    if (isRecording) {
+                      // Stop recording
+                      const transcript = stopRecognition();
+                      setPresentationDone(true);
+                      // Send transcript to AI for evaluation
+                      if (transcript.trim()) {
+                        const targetActor = (currentPhaseConfig as any)?.ai_actors?.[0] || "sophie_renard";
+                        const next = cloneSession(session);
+                        addPlayerMessage(next, transcript, targetActor);
+                        setSession(next);
+                        // Call AI for evaluation
+                        (async () => {
+                          setIsSending(true);
+                          try {
+                            const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
+                            const res = await fetch("/api/chat", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                playerName: displayPlayerName,
+                                message: `[TRANSCRIPTION DE LA PRÉSENTATION ORALE DU JOUEUR AUX ENFANTS]\n\n${transcript}`,
+                                phaseTitle: view?.phaseTitle,
+                                phaseObjective: view?.phaseObjective,
+                                phasePrompt: view?.phasePrompt,
+                                criteria: view?.criteria,
+                                mode: view?.adaptiveMode,
+                                narrative: scenario?.narrative,
+                                recentConversation: [],
+                                roleplayPrompt: activePrompt,
+                              }),
+                            });
+                            const data = await res.json();
+                            const final2 = cloneSession(next);
+                            addAIMessage(final2, data.reply, targetActor);
+                            applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+                            // Auto-advance after presentation evaluation
+                            completeCurrentPhaseAndAdvance(final2);
+                            injectPhaseEntryEvents(final2);
+                            const newPhase = scenario?.phases[final2.currentPhaseIndex];
+                            if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
+                            setSession(final2);
+                            setPresentationDone(false);
+                            setVoiceTranscript("");
+                          } catch (err) {
+                            console.error("Erreur évaluation présentation:", err);
+                          } finally {
+                            setIsSending(false);
+                          }
+                        })();
+                      }
+                    } else {
+                      // Start recording
+                      const lang = (currentPhaseConfig as any)?.presentation_config?.language || "fr-FR";
+                      startRecognition(lang);
+                    }
+                  }}
+                  style={{
+                    width: 120, height: 120, borderRadius: "50%",
+                    background: isRecording ? "#e94b3c" : "#5b5fc7",
+                    border: isRecording ? "4px solid rgba(233,75,60,0.3)" : "4px solid rgba(91,95,199,0.3)",
+                    color: "#fff", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 48, transition: "all .2s",
+                    boxShadow: isRecording ? "0 0 40px rgba(233,75,60,0.4)" : "0 0 30px rgba(91,95,199,0.3)",
+                  }}
+                >
+                  {isRecording ? "⏹" : "🎙️"}
+                </button>
+              </div>
+
+              {/* Status text */}
+              <div style={{ color: isRecording ? "#ff8a80" : "#7b7fff", fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+                {isRecording ? "Cliquez sur le micro pour terminer votre présentation" : "Cliquez sur le micro pour commencer"}
+              </div>
+
+              {/* Timer */}
+              {isRecording && (
+                <div style={{ color: "#fff", fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums", marginBottom: 24 }}>
+                  {Math.floor(recordingElapsed / 60).toString().padStart(2, "0")}:{(recordingElapsed % 60).toString().padStart(2, "0")}
+                  <span style={{ fontSize: 14, color: "#888", marginLeft: 12 }}>
+                    / {Math.floor(((currentPhaseConfig as any)?.presentation_config?.max_duration_sec || 300) / 60)}:00
+                  </span>
+                </div>
+              )}
+
+              {/* Live transcription */}
+              {(voiceTranscript || interimText) && (
+                <div style={{
+                  background: "rgba(255,255,255,0.05)", borderRadius: 12, padding: "16px 20px",
+                  maxHeight: 200, overflowY: "auto", textAlign: "left",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                }}>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: "#7b7fff", textTransform: "uppercase", letterSpacing: 1, marginBottom: 8 }}>
+                    Transcription en direct
+                  </div>
+                  <p style={{ margin: 0, fontSize: 13, color: "#ccc", lineHeight: 1.6 }}>
+                    {voiceTranscript}
+                    {interimText && <span style={{ color: "#888", fontStyle: "italic" }}>{interimText}</span>}
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            /* Processing state after recording */
+            <div style={{ textAlign: "center" }}>
+              <div style={{ width: 48, height: 48, border: "4px solid rgba(255,255,255,0.2)", borderTopColor: "#7b7fff", borderRadius: "50%", animation: "spin .8s linear infinite", margin: "0 auto 20px" }} />
+              <p style={{ color: "#e0e0e0", fontSize: 16, fontWeight: 600 }}>Analyse de votre présentation...</p>
+            </div>
+          )}
+        </div>
+
+      ) : currentInteractionMode === "voice_qa" ? (
+        /* ═══ VOICE Q&A MODE ═══ */
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "linear-gradient(180deg, #f8f9fc 0%, #eef0f5 100%)" }}>
+
+          {/* Children row */}
+          <div style={{ padding: "20px 24px 12px", flexShrink: 0 }}>
+            <div style={{ fontSize: 12, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+              🏫 Les enfants du CMJ
+            </div>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {((currentPhaseConfig as any)?.voice_qa_config?.children_names || []).map((childName: string) => {
+                const hasHand = raisedHands.includes(childName);
+                const childColors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7DC6F"];
+                const colorIdx = childName.charCodeAt(0) % childColors.length;
+                return (
+                  <button
+                    key={childName}
+                    onClick={async () => {
+                      if (!hasHand || qaWaiting || isSpeakingTTS) return;
+                      setQaWaiting(true);
+                      // Remove hand
+                      setRaisedHands(prev => prev.filter(n => n !== childName));
+                      try {
+                        // Generate child question
+                        const question = await generateNPCMessage(
+                          "enfants_cmj",
+                          `[L'enfant ${childName} est interrogé(e) et pose sa question à l'artiste ou au présentateur]`
+                        );
+                        // Add to conversation
+                        const next = cloneSession(session);
+                        addAIMessage(next, question, "enfants_cmj");
+                        setSession(next);
+                        // TTS will auto-trigger via the effect
+                      } catch (err) {
+                        console.error("Erreur génération question:", err);
+                      } finally {
+                        setQaWaiting(false);
+                      }
+                    }}
+                    disabled={!hasHand || qaWaiting || isSpeakingTTS}
+                    style={{
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                      padding: "8px 12px", borderRadius: 12,
+                      background: hasHand ? "#fff" : "#f0f0f0",
+                      border: hasHand ? "2px solid #5b5fc7" : "2px solid transparent",
+                      cursor: hasHand && !qaWaiting ? "pointer" : "default",
+                      opacity: hasHand ? 1 : 0.5,
+                      transition: "all .2s",
+                      boxShadow: hasHand ? "0 2px 8px rgba(91,95,199,0.15)" : "none",
+                      transform: hasHand ? "translateY(-2px)" : "none",
+                    }}
+                  >
+                    <div style={{
+                      width: 44, height: 44, borderRadius: "50%",
+                      background: childColors[colorIdx],
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 20, position: "relative",
+                    }}>
+                      <span style={{ fontWeight: 700, color: "#fff", fontSize: 16 }}>
+                        {childName[0]}
+                      </span>
+                      {hasHand && (
+                        <span style={{
+                          position: "absolute", top: -8, right: -8, fontSize: 20,
+                          animation: "handWave 1s ease-in-out infinite",
+                        }}>
+                          🙋
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ fontSize: 11, fontWeight: 600, color: hasHand ? "#333" : "#999" }}>
+                      {childName}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Interaction area */}
+          <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "0 24px", overflow: "auto" }}>
+
+            {/* Recent messages (spoken) */}
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, padding: "16px 0" }}>
+              {conversation.filter((m: any) => m.role !== "system").slice(-8).map((msg: any) => {
+                const isPlayer = msg.role === "player";
+                const actor = !isPlayer ? getActorInfo(msg.actor || "npc") : null;
+                const isCurrentlySpeaking = speakingActorId === msg.actor && isSpeakingTTS;
+                return (
+                  <div
+                    key={msg.id}
+                    style={{
+                      display: "flex", gap: 10, alignItems: "flex-start",
+                      flexDirection: isPlayer ? "row-reverse" : "row",
+                      maxWidth: "85%", alignSelf: isPlayer ? "flex-end" : "flex-start",
+                      opacity: isCurrentlySpeaking ? 1 : 0.8,
+                    }}
+                  >
+                    {!isPlayer && actor && (
+                      <Avatar initials={actor.initials} color={actor.color} size={36} status={actor.status} />
+                    )}
+                    {isPlayer && (
+                      <Avatar initials={getInitials(displayPlayerName)} color="#5b5fc7" size={36} />
+                    )}
+                    <div>
+                      <div style={{ fontSize: 11, color: "#888", marginBottom: 3, textAlign: isPlayer ? "right" : "left" }}>
+                        {isPlayer ? displayPlayerName : actor?.name}
+                        {isCurrentlySpeaking && <span style={{ marginLeft: 8, color: "#5b5fc7" }}>🔊 En train de parler...</span>}
+                      </div>
+                      <div style={{
+                        background: isPlayer ? "#5b5fc7" : msg.actor === "yuki_tanaka" ? "#C62828" : "#fff",
+                        color: isPlayer || msg.actor === "yuki_tanaka" ? "#fff" : "#333",
+                        padding: "10px 16px", borderRadius: 16,
+                        borderTopRightRadius: isPlayer ? 4 : 16,
+                        borderTopLeftRadius: isPlayer ? 16 : 4,
+                        fontSize: 14, lineHeight: 1.5,
+                        boxShadow: "0 1px 4px rgba(0,0,0,0.08)",
+                        border: !isPlayer && msg.actor !== "yuki_tanaka" ? "1px solid #e8e8e8" : "none",
+                      }}>
+                        {msg.content}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {qaWaiting && (
+                <div style={{ display: "flex", gap: 8, alignItems: "center", padding: "8px 0" }}>
+                  <div style={{ background: "#f0f0f0", borderRadius: 16, padding: "10px 16px" }}>
+                    <TypingDots />
+                  </div>
+                </div>
+              )}
+              <div ref={chatEndRef} />
+            </div>
+          </div>
+
+          {/* Yuki sidebar + mic area */}
+          <div style={{ padding: "12px 24px 20px", borderTop: "1px solid #e0e0e0", background: "#fff", flexShrink: 0 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+
+              {/* Yuki avatar */}
+              {(() => {
+                const yukiActor = actors.find((a: any) => a.actor_id === "yuki_tanaka");
+                if (!yukiActor) return null;
+                return (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <Avatar
+                      initials={yukiActor.avatar?.initials || "YT"}
+                      color={yukiActor.avatar?.color || "#C62828"}
+                      size={40}
+                      status={speakingActorId === "yuki_tanaka" ? "busy" : "available"}
+                    />
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>Yuki Tanaka</div>
+                      <div style={{ fontSize: 10, color: speakingActorId === "yuki_tanaka" ? "#C62828" : "#999" }}>
+                        {speakingActorId === "yuki_tanaka" ? "🔊 Speaking..." : "Ready"}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div style={{ flex: 1 }} />
+
+              {/* Mic indicator */}
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  background: isRecording ? "#fef2f2" : "#f0f0f0",
+                  padding: "8px 16px", borderRadius: 20,
+                  border: isRecording ? "1px solid #fca5a5" : "1px solid #ddd",
+                }}>
+                  <div style={{
+                    width: 12, height: 12, borderRadius: "50%",
+                    background: isRecording ? "#e94b3c" : "#999",
+                    animation: isRecording ? "micBlink 1s ease-in-out infinite" : "none",
+                  }} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: isRecording ? "#e94b3c" : "#999" }}>
+                    {isRecording ? "Micro actif — Parlez librement" : "Micro inactif"}
+                  </span>
+                </div>
+                <button
+                  onClick={() => {
+                    if (isRecording) {
+                      const transcript = stopRecognition();
+                      if (transcript.trim()) {
+                        // Send accumulated speech as a player message
+                        const targetActor = selectedContact || (currentPhaseConfig as any)?.ai_actors?.[0] || "enfants_cmj";
+                        const next = cloneSession(session);
+                        addPlayerMessage(next, transcript, targetActor);
+                        setSession(next);
+                        setVoiceTranscript("");
+                        // Get AI response
+                        (async () => {
+                          setIsSending(true);
+                          try {
+                            const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
+                            const recentConv = conversation.slice(-10).map((m: any) => ({
+                              role: m.role === "player" ? "user" : "assistant",
+                              content: m.content,
+                            }));
+                            const res = await fetch("/api/chat", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({
+                                playerName: displayPlayerName,
+                                message: transcript,
+                                phaseTitle: view?.phaseTitle,
+                                phaseObjective: view?.phaseObjective,
+                                phasePrompt: view?.phasePrompt,
+                                criteria: view?.criteria,
+                                mode: view?.adaptiveMode,
+                                narrative: scenario?.narrative,
+                                recentConversation: recentConv,
+                                roleplayPrompt: activePrompt,
+                              }),
+                            });
+                            const data = await res.json();
+                            playNotificationSound();
+                            const final2 = cloneSession(next);
+                            addAIMessage(final2, data.reply, targetActor);
+                            applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+                            setSession(final2);
+                          } catch (err) {
+                            console.error("Erreur chat vocal:", err);
+                          } finally {
+                            setIsSending(false);
+                          }
+                        })();
+                      }
+                      // Restart mic after a brief pause
+                      setTimeout(() => startRecognition("fr-FR"), 500);
+                    } else {
+                      startRecognition("fr-FR");
+                    }
+                  }}
+                  style={{
+                    width: 44, height: 44, borderRadius: "50%",
+                    background: isRecording ? "#e94b3c" : "#5b5fc7",
+                    border: "none", color: "#fff", cursor: "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 20, transition: "all .2s",
+                  }}
+                >
+                  {isRecording ? "⏸" : "🎙️"}
+                </button>
+              </div>
+            </div>
+
+            {/* Live transcription subtitle */}
+            {(voiceTranscript || interimText) && isRecording && (
+              <div style={{ marginTop: 10, padding: "8px 12px", background: "#f8f8ff", borderRadius: 8, border: "1px solid #e8e8ff" }}>
+                <span style={{ fontSize: 12, color: "#555", lineHeight: 1.4 }}>
+                  {voiceTranscript}
+                  {interimText && <span style={{ color: "#aaa", fontStyle: "italic" }}>{interimText}</span>}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+      ) : (
+        /* ═══ NORMAL CHAT/MAIL MODE (existing code) ═══ */
+        <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
         {/* ═══════ LEFT SIDEBAR — Nav + Contacts ═══════ */}
         <aside style={{ width: 240, flexShrink: 0, background: "#fff", borderRight: "1px solid #e0e0e0", display: "flex", flexDirection: "column", overflow: "hidden" }}>
@@ -1820,6 +2417,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           </div>
         </aside>
       </div>
+      )}
     </div>
   );
 }

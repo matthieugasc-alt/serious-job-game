@@ -411,6 +411,24 @@ export type PhaseDefinition = {
 
   /** Agent behavior overrides by adaptive mode */
   agent_behavior_by_mode?: any;
+
+  /** Interaction mode: "chat" (default text chat), "presentation" (mic recording), "voice_qa" (voice Q&A with TTS) */
+  interaction_mode?: "chat" | "presentation" | "voice_qa";
+
+  /** Config for presentation mode */
+  presentation_config?: {
+    min_duration_sec?: number;
+    max_duration_sec?: number;
+    language?: string;
+    instructions?: string;
+  };
+
+  /** Config for voice Q&A mode */
+  voice_qa_config?: {
+    children_names?: string[];
+    hand_raise_interval_sec?: number;
+    max_simultaneous_hands?: number;
+  };
 };
 
 /**

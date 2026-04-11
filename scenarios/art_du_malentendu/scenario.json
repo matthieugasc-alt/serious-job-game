@@ -305,6 +305,13 @@
       "objective": "Faire un exposé oral en français pour présenter l'artiste et l'exposition aux enfants du CMJ. Le joueur doit expliquer qui est Yuki Tanaka de manière adaptée aux enfants, présenter l'exposition et ses thèmes de manière positive et accessible, préparer les enfants au fait que l'artiste ne parle pas français, et donner envie aux enfants de poser des questions.",
       "active_channels": ["chat"],
       "ai_actors": ["enfants_cmj", "sophie_renard"],
+      "interaction_mode": "presentation",
+      "presentation_config": {
+        "min_duration_sec": 120,
+        "max_duration_sec": 300,
+        "language": "fr-FR",
+        "instructions": "Vous êtes devant les enfants du Conseil Municipal des Jeunes (7-10 ans). Présentez-leur Yuki Tanaka et son exposition 'Miroir Déformé'. Expliquez les œuvres de manière adaptée à leur âge, donnez-leur envie de poser des questions, et préparez-les au fait que l'artiste ne parle pas français.\n\nCliquez sur le micro pour commencer votre présentation. Cliquez à nouveau pour terminer."
+      },
 
       "player_input": {
         "type": "free_text",
@@ -354,6 +361,13 @@
       "objective": "Animer l'échange entre Yuki Tanaka et les enfants. Le joueur doit traduire les questions des enfants (français → anglais) pour l'artiste, traduire les réponses de l'artiste (anglais → français) pour les enfants, ADAPTER les réponses si elles contiennent des propos inappropriés, gérer les situations où l'artiste dit quelque chose de déplacé, et reformuler avec tact si nécessaire sans trahir l'esprit de l'artiste.",
       "active_channels": ["chat"],
       "ai_actors": ["yuki_tanaka", "enfants_cmj", "sophie_renard"],
+      "interaction_mode": "voice_qa",
+      "auto_advance_at": "visit_end",
+      "voice_qa_config": {
+        "children_names": ["Léa", "Hugo", "Inès", "Lucas", "Hana", "Théo", "Manon", "Kenji"],
+        "hand_raise_interval_sec": 15,
+        "max_simultaneous_hands": 3
+      },
 
       "player_input": {
         "type": "free_text",
