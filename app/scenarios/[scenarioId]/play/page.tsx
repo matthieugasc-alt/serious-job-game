@@ -1510,11 +1510,22 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "#333" }}>
                       📄 {selectedDoc.label}
                     </h3>
+                    {/* Image display */}
+                    {(selectedDoc as any).image_path && (
+                      <div style={{ marginBottom: 12, textAlign: "center" }}>
+                        <img
+                          src={(selectedDoc as any).image_path}
+                          alt={(selectedDoc as any).label}
+                          style={{ maxWidth: "100%", borderRadius: 8, border: "1px solid #e8e8e8", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+                        />
+                      </div>
+                    )}
+                    {/* Text content */}
                     {(selectedDoc as any).content ? (
                       <div style={{ fontSize: 12, lineHeight: 1.6, color: "#333", whiteSpace: "pre-wrap", background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #e8e8e8" }}>
                         {(selectedDoc as any).content}
                       </div>
-                    ) : (
+                    ) : !(selectedDoc as any).image_path ? (
                       <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>
                         Ce document est disponible dans votre dossier de travail.
                         {(selectedDoc as any).contains && (selectedDoc as any).contains.length > 0 && (
@@ -1523,7 +1534,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                           </div>
                         )}
                       </div>
-                    )}
+                    ) : null}
                     {((selectedDoc as any).usable_as_pj || (selectedDoc as any).usable_as_attachment) && (
                       <div style={{ marginTop: 10, fontSize: 11, color: "#44b553", fontWeight: 600 }}>
                         ✓ Joignable en pièce jointe
@@ -1536,6 +1547,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     {allDocuments.map((doc: any) => {
                       const hasPJ = doc.usable_as_pj || doc.usable_as_attachment;
                       const hasContent = !!(doc as any).content;
+                      const hasImage = !!(doc as any).image_path;
+                      const icon = hasImage ? "🖼️" : hasContent ? "📄" : "📋";
                       return (
                         <li
                           key={doc.doc_id}
@@ -1550,7 +1563,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                           onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#e8e8e8")}
                         >
                           <div style={{ fontSize: 13, fontWeight: 500, color: "#333", display: "flex", alignItems: "center", gap: 6 }}>
-                            <span>{hasContent ? "📄" : "📋"}</span>
+                            <span>{icon}</span>
                             {doc.label}
                           </div>
                           <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
@@ -1559,7 +1572,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                                 PJ
                               </span>
                             )}
-                            {hasContent && (
+                            {(hasContent || hasImage) && (
                               <span style={{ fontSize: 10, color: "#44b553", background: "#f0fff4", padding: "1px 6px", borderRadius: 8 }}>
                                 Consultable
                               </span>

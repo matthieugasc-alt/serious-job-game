@@ -12,6 +12,7 @@ import { spawn } from "child_process";
 import { writeFile, readFile, unlink } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
+import { getEnvVar } from "@/app/lib/getApiKey";
 
 // ── Extract text from PDF using pdftotext ────────────────────────
 async function extractPdfText(pdfBuffer: Buffer): Promise<string> {
@@ -291,10 +292,10 @@ STRUCTURE JSON ATTENDUE (respecte EXACTEMENT ce format) :
 // ── Main handler ─────────────────────────────────────────────────
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = getEnvVar("ANTHROPIC_API_KEY");
     if (!apiKey) {
       return Response.json(
-        { error: "ANTHROPIC_API_KEY not configured" },
+        { error: "ANTHROPIC_API_KEY not configured. Vérifiez votre fichier .env.local à la racine du projet." },
         { status: 500 }
       );
     }

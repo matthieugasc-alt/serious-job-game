@@ -9,6 +9,8 @@
  *  Falls back to OpenAI (OPENAI_API_KEY) if Anthropic key is absent.
  * ═══════════════════════════════════════════════════════════════════ */
 
+import { getEnvVar } from "@/app/lib/getApiKey";
+
 function sanitize(input: string): string {
   return input
     .replace(/[\u2018\u2019\u02BC]/g, "'")
@@ -298,8 +300,8 @@ async function callOpenAI(prompt: string, apiKey: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
-    const anthropicKey = process.env.ANTHROPIC_API_KEY;
-    const openaiKey = process.env.OPENAI_API_KEY;
+    const anthropicKey = getEnvVar("ANTHROPIC_API_KEY");
+    const openaiKey = getEnvVar("OPENAI_API_KEY");
 
     if (!anthropicKey && !openaiKey) {
       return Response.json(
