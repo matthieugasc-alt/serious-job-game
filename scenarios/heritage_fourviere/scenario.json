@@ -146,20 +146,31 @@
         "label": "Fiche descriptive du bien",
         "contains": ["surface", "localisation", "caractéristiques", "état"],
         "usable_as_pj": false,
+        "file_path": "/scenarios/heritage_fourviere/Fiche_Bien_Fourviere_T4_v2.pdf",
         "content": "FICHE DESCRIPTIVE DU BIEN\n\nAdresse : Quartier Fourvière, Lyon 5e\nSurface : 85 m²\nÉtage : 4e étage\nType : T3 (3 pièces)\nCaractéristiques : Parquet chêne massif, cheminée d'époque, vue sur la Saône\nStanding : Haut standing d'origine\nÉtat : Non rénové\nAnnée de construction : 1920\nDernière rénovation : 2022"
       },
       {
-        "doc_id": "photos_appartement",
-        "label": "Photos de l'appartement",
-        "contains": ["salon", "cuisine", "chambre", "salle de bain"],
+        "doc_id": "photo_salon",
+        "label": "Photo — Salon de l'appartement",
+        "contains": ["salon", "mobilier", "état"],
         "usable_as_pj": false,
-        "content": "PHOTOS DE L'APPARTEMENT\n\n1. Salon : Mobilier années 70-80, canapé fleuri, buffet en bois massif, tapis persan usé. Parquet chêne en bon état sous les meubles.\n2. Cuisine : Plaques de cuisson non sécurisées (anciennes plaques électriques sans protection), prises apparentes non conformes, plan de travail dégradé et fissuré, évier fonctionnel mais vétuste.\n3. Chambre : Meubles anciens (lit en bois sculpté, armoire normande), bon état général mais style très daté.\n4. Salle de bain : Équipée (baignoire, lavabo, WC séparé), fonctionnelle mais datée (carrelage années 80)."
+        "image_path": "/scenarios/heritage_fourviere/Salon.png",
+        "content": "PHOTO DU SALON\n\nMobilier années 70-80 : canapés usés (un beige, un vert olive), table basse en bois, tapis persan usé. Télévision cathodique ancienne sur un meuble en bois. Étagères avec livres et bibelots. Rideaux beige translucides. Murs défraîchis avec cadres anciens. L'ensemble donne une impression de pièce figée dans le temps, non rénovée depuis des décennies."
+      },
+      {
+        "doc_id": "photo_cuisine",
+        "label": "Photo — Cuisine de l'appartement",
+        "contains": ["cuisine", "sécurité", "normes"],
+        "usable_as_pj": false,
+        "image_path": "/scenarios/heritage_fourviere/Cuisine.png",
+        "content": "PHOTO DE LA CUISINE\n\nCuisine vétuste et potentiellement dangereuse. Cuisinière à gaz ancienne avec bouteille de gaz apparente (risque sécurité). Meubles en bois foncé vieillissants. Plan de travail usé. Réfrigérateur ancien. Évier fonctionnel mais vétuste. Prises et installations électriques visiblement non conformes aux normes actuelles. Sol en carrelage dégradé. Murs défraîchis. Cette cuisine nécessite impérativement une mise aux normes avant toute mise en location."
       },
       {
         "doc_id": "grille_loyers",
         "label": "Grille d'encadrement des loyers — Lyon Métropole 2025",
         "contains": ["loyer référence", "loyer majoré", "loyer minoré", "complément"],
         "usable_as_pj": false,
+        "file_path": "/scenarios/heritage_fourviere/Fiche_Loyers_Lyon_Pro_v2.pdf",
         "content": "GRILLE D'ENCADREMENT DES LOYERS — LYON MÉTROPOLE 2025\n\nZone : Fourvière (Lyon 5e)\nType de bien : T3, 85 m², haut standing\n\nLocation meublée :\n- Loyer de référence : 21,80 €/m² → 1 853 €/mois\n- Loyer majoré (plafond) : 26,10 €/m² → 2 218,50 €/mois\n- Loyer minoré : 15,60 €/m² → 1 326 €/mois\n\nLocation nue :\n- Loyer de référence : 17,50 €/m² → 1 487,50 €/mois\n- Loyer majoré (plafond) : 21,00 €/m² → 1 785 €/mois\n- Loyer minoré : 12,50 €/m² → 1 062,50 €/mois\n\nComplément de loyer possible si : vue exceptionnelle, prestations de standing, localisation premium."
       },
       {
@@ -167,6 +178,7 @@
         "label": "Guide des régimes fiscaux — Location immobilière",
         "contains": ["location nue", "LMNP", "LMP", "SCI", "micro-foncier"],
         "usable_as_pj": false,
+        "file_path": "/scenarios/heritage_fourviere/Guide_Fiscalite_Location_France.pdf",
         "content": "GUIDE DES RÉGIMES FISCAUX — LOCATION IMMOBILIÈRE\n\n1. LOCATION NUE\n- Micro-foncier : Revenus locatifs < 15 000 €/an, abattement 30%. Simple mais peu optimisé.\n- Régime réel : Déduction des charges réelles (travaux, intérêts, assurance). Plus complexe mais souvent plus avantageux si travaux.\n- Fiscalité : Revenus fonciers imposés au barème de l'IR + prélèvements sociaux (17,2%).\n- Avantage marché Lyon/Fourvière : Locataires stables, moins de vacance locative, baux longs.\n\n2. LMNP (Loueur Meublé Non Professionnel)\n- Condition : Revenus locatifs < 23 000 €/an ou < 50% des revenus du foyer.\n- Avantage : Amortissement du bien et des meubles, micro-BIC (abattement 50%).\n- Inconvénient : Locataires plus volatils (bail 1 an), turnover plus fréquent.\n\n3. LMP (Loueur Meublé Professionnel)\n- Condition : Revenus locatifs > 23 000 €/an ET > 50% des revenus du foyer.\n- Rarement adapté pour un seul bien.\n\n4. SCI (Société Civile Immobilière)\n- Adapté pour la gestion patrimoniale familiale à plusieurs associés.\n- Complexe et coûteux à mettre en place pour un seul bien.\n- Non recommandé pour un propriétaire unique héritier."
       },
       {
@@ -174,6 +186,7 @@
         "label": "Dossiers des 5 candidats locataires",
         "contains": ["revenus", "profession", "situation familiale", "garanties"],
         "usable_as_pj": true,
+        "file_path": "/scenarios/heritage_fourviere/Profils_Locataires_Fourviere_vfinale.pdf",
         "content": "DOSSIERS DES 5 CANDIDATS LOCATAIRES\n\n1. ISABELLE ET THOMAS MOREAU\n- Professions : Cadres supérieurs (directrice marketing / ingénieur R&D)\n- Revenus combinés : 6 200 €/mois nets\n- Contrats : CDI tous les deux\n- Crédits en cours : Aucun\n- Garants : Parents propriétaires (patrimoine immobilier solide)\n- Ratio revenus/loyer : 6 200 / 1 850 = 3,35x ✓\n- Statut : ÉLIGIBLE\n\n2. SANDRINE ET FABRICE LEBLANC\n- Professions : Enseignants (collège / lycée)\n- Revenus combinés : 5 100 €/mois nets\n- Contrats : CDI fonction publique (titulaires)\n- Crédits en cours : Aucun\n- Garantie : Caution Visale\n- Ratio revenus/loyer : 5 100 / 1 850 = 2,76x (limite mais Visale compense)\n- Statut : ÉLIGIBLE\n\n3. CLAIRE ET DAVID ROUSSEAU\n- Professions : Employée administrative / Auto-entrepreneur (graphiste)\n- Revenus combinés : 3 800 €/mois nets (irréguliers pour David : 1 200 à 2 500 €)\n- Contrats : CDI pour Claire / Auto-entrepreneur pour David\n- Crédits en cours : Aucun\n- Garants : Aucun\n- Ratio revenus/loyer : 3 800 / 1 850 = 2,05x ✗\n- Statut : NON ÉLIGIBLE (revenus insuffisants, irréguliers, pas de garant)\n\n4. STÉPHANE ET MÉLANIE FONTAINE\n- Professions : Technicien maintenance / Infirmière hospitalière\n- Revenus combinés : 4 900 €/mois nets\n- Contrats : CDI tous les deux\n- Crédits en cours : Crédit auto 150 €/mois\n- Garants : Parents des deux côtés (propriétaires)\n- Ratio revenus/loyer : (4 900 - 150) / 1 850 = 2,57x (juste, mais garants solides)\n- Statut : ÉLIGIBLE (juste)\n\n5. VALÉRIE ET MARC ROUSSEL\n- Professions : Commercial / Assistante de direction\n- Revenus combinés : 5 400 €/mois nets\n- Contrats : CDI tous les deux\n- Crédits en cours : Crédit consommation 450 €/mois\n- Garants : Aucun\n- Ratio revenus/loyer : (5 400 - 450) / 1 850 = 2,68x ✗\n- Statut : NON ÉLIGIBLE (ratio fragilisé après déduction crédit, pas de garant)"
       }
     ]
