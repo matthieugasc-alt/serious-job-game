@@ -36,12 +36,12 @@
       },
       {
         "title": "Le contexte",
-        "content": "<p>L'artiste Yuki Tanaka expose <strong>'Miroir Déformé : La France vue du Japon'</strong>.</p><p>Ses œuvres sont provocatrices et reposent sur des stéréotypes assumés sur la France.</p><p>Le public du jour : <strong>20 enfants de 7 à 10 ans</strong>. À vous de gérer la situation.</p>",
+        "content": "<p>L'artiste Yuki Tanaka expose <strong>'Miroir Déformé : La France vue du Japon'</strong>.</p><p>Ses œuvres sont provocatrices et reposent sur des stéréotypes assumés sur la France.</p><p>Le public du jour : <strong>20 enfants de 7 à 10 ans</strong>. Ils arrivent dans <strong>5 minutes</strong>. À vous de gérer la situation.</p>",
         "column": "right"
       },
       {
         "title": "Ce qui t'attend",
-        "content": "<p><strong>Phase 1</strong> — Briefer l'artiste par SMS (en anglais) depuis votre taxi.</p><p><strong>Phase 2</strong> — Présenter l'exposition aux enfants (exposé oral en français, 4-5 min).</p><p><strong>Phase 3</strong> — Traduire et médier l'échange entre l'artiste et les enfants.</p>",
+        "content": "<p><strong>Phase 1</strong> — Raisonner l'artiste en anglais avant l'arrivée des enfants (5 min).</p><p><strong>Phase 2</strong> — Présenter l'exposition aux enfants (exposé oral en français, 4-5 min).</p><p><strong>Phase 3</strong> — Traduire et médier l'échange entre l'artiste et les enfants.</p>",
         "column": "left"
       },
       {
@@ -55,17 +55,17 @@
   "narrative": {
     "context": "Vous êtes assistant(e) de coopération internationale au Ministère de la Culture, en poste depuis 8 mois. Votre service organise régulièrement des événements culturels impliquant des artistes étrangers. Aujourd'hui, vous êtes chargé(e) d'accompagner la visite d'une exposition par le Conseil Municipal des Jeunes (CMJ) du 7e arrondissement de Paris, un groupe d'une vingtaine d'enfants âgés de 7 à 10 ans.",
     "mission": "Assurer le bon déroulement de la visite de l'exposition de Mme Yuki Tanaka par le Conseil Municipal des Jeunes : briefer l'artiste en amont, présenter l'exposition aux enfants, puis traduire et médier l'échange entre l'artiste et les enfants.",
-    "initial_situation": "Mercredi 15 janvier 2025, 13h45. Vous êtes dans un taxi en route vers la Galerie Marguerite Duras (7e arrondissement) où l'exposition 'Miroir Déformé : La France vue du Japon' de l'artiste japonaise Yuki Tanaka est installée depuis une semaine. Les enfants du CMJ arrivent à 14h15. Vous avez lu le dossier de presse de l'artiste hier soir et vous avez réalisé avec inquiétude que ses œuvres et ses propos reposent sur des clichés assez provocateurs sur la France. Il faut absolument briefer Mme Tanaka AVANT l'arrivée des enfants.",
-    "trigger": "Vous envoyez un SMS en anglais à Yuki Tanaka pour la prévenir de votre arrivée imminente et commencer à la préparer.",
+    "initial_situation": "Mercredi 15 janvier 2025, 14h55. Vous venez d'arriver à la Galerie Marguerite Duras (7e arrondissement) où l'exposition 'Miroir Déformé : La France vue du Japon' de l'artiste japonaise Yuki Tanaka est installée depuis une semaine. Les enfants du CMJ arrivent dans 5 minutes, à 15h00. Vous avez lu le dossier de presse de l'artiste hier soir et vous avez réalisé avec inquiétude que ses œuvres et ses propos reposent sur des clichés assez provocateurs sur la France. Il faut absolument briefer Mme Tanaka DANS LES 5 PROCHAINES MINUTES avant l'arrivée des enfants.",
+    "trigger": "Yuki Tanaka vous envoie un SMS en anglais, toute excitée. C'est à vous de la raisonner avant l'arrivée des enfants.",
     "background_fact": "Dans le dossier de presse, l'artiste est décrite comme 'une voix provocatrice qui interroge les mythes nationaux à travers l'humour noir'. Plusieurs de ses déclarations précédentes en interview contiennent des stéréotypes appuyés sur les Français. Son agent vous a prévenu(e) qu'elle est 'très directe' et 'n'édulcore jamais ses propos'. Le 1-pager de présentation de l'artiste est disponible dans vos documents."
   },
 
   "timeline": {
-    "scenario_start": "2025-01-15T13:45:00",
-    "children_arrival": "2025-01-15T14:15:00",
-    "presentation_start": "2025-01-15T14:20:00",
-    "exchange_start": "2025-01-15T14:25:00",
-    "visit_end": "2025-01-15T14:32:00",
+    "scenario_start": "2025-01-15T14:55:00",
+    "children_arrival": "2025-01-15T15:00:00",
+    "presentation_start": "2025-01-15T15:05:00",
+    "exchange_start": "2025-01-15T15:10:00",
+    "visit_end": "2025-01-15T15:20:00",
     "sim_speed_multiplier": 1
   },
 
@@ -209,28 +209,46 @@
       "event_id": "nathalie_initial_msg",
       "type": "chat",
       "actor": "nathalie_morel",
-      "content": "Bonjour, je voulais juste te confirmer : le CMJ arrive à 14h15 à la galerie. Mme Renard m'a appelée ce matin, elle est très enthousiaste. Fais en sorte que tout se passe bien avec l'artiste. Je compte sur toi."
+      "content": "Les enfants arrivent dans 5 minutes. Mme Renard est déjà en route. Fais en sorte que tout se passe bien avec l'artiste. Je compte sur toi."
     },
     {
       "event_id": "system_notification",
       "type": "system_notification",
       "actor": "system",
-      "content": "Vous êtes dans le taxi, à 5 minutes de la Galerie Marguerite Duras. Il est 13h45. Vous avez le numéro de Mme Tanaka dans vos contacts. Les enfants du CMJ arrivent dans 30 minutes."
+      "content": "Vous venez d'arriver à la Galerie Marguerite Duras. Il est 14h55. Les enfants du CMJ arrivent dans 5 minutes. Yuki Tanaka vous attend à l'intérieur."
+    },
+    {
+      "event_id": "yuki_sms_1",
+      "type": "chat",
+      "actor": "yuki_tanaka",
+      "content": "Oh hi!! You must be from the Ministry! I saw you arrive through the window. Come in come in! I'm SO excited about today!"
+    },
+    {
+      "event_id": "yuki_sms_2",
+      "type": "chat",
+      "actor": "yuki_tanaka",
+      "content": "I've been preparing a SPECIAL introduction for the kids. I want to start with 'Le Coq Distrait' — you know, the painting about how French people are always late and obsessed with food? I think kids will LOVE it, it's so funny! 😂"
+    },
+    {
+      "event_id": "yuki_sms_3",
+      "type": "chat",
+      "actor": "yuki_tanaka",
+      "content": "And then I'll explain my concept — how France is basically a beautiful museum that fell asleep. The rooster sleeping while the world moves forward! I have great jokes about French arrogance and the beret obsession. Kids love humor, right? 🐓💤"
     }
   ],
 
   "phases": [
     {
       "phase_id": "phase_1_briefing_taxi",
-      "title": "Le briefing dans le taxi",
+      "title": "Briefing express avec Yuki",
       "duration_target_min": 5,
-      "objective": "Contacter l'artiste par SMS (en anglais), la prévenir de votre arrivée, et surtout la briefer pour qu'elle adapte ses propos au jeune public. Le joueur doit réussir à lui faire comprendre diplomatiquement que certains de ses clichés habituels ne sont pas appropriés devant des enfants de 7-10 ans.",
+      "objective": "Yuki Tanaka est surexcitée et vous bombarde de ses plans pour la visite. Elle compte utiliser ses clichés habituels sur la France devant les enfants. Le joueur doit la raisonner en anglais : lui faire comprendre diplomatiquement que ses propos provocateurs ne sont PAS appropriés devant des enfants de 7-10 ans, et obtenir qu'elle adapte son discours. Le temps presse : les enfants arrivent dans 5 minutes.",
       "active_channels": ["chat"],
       "ai_actors": ["yuki_tanaka"],
 
       "player_input": {
         "type": "free_text",
-        "prompt": "Vous êtes dans le taxi, à quelques minutes de la galerie. Envoyez un SMS en anglais à Yuki Tanaka pour la prévenir de votre arrivée et la préparer à la visite des enfants. Rappelez-lui que le public a entre 7 et 10 ans."
+        "prompt": "Yuki Tanaka vient de vous dévoiler ses plans pour la visite. Elle compte parler de 'French arrogance', de la France qui 's'endort', et faire des blagues sur les clichés français — devant des enfants de 7 à 10 ans. Les enfants arrivent dans 5 minutes. Raisonnez-la en anglais !"
       },
 
       "competencies": [
@@ -244,20 +262,40 @@
 
       "interruptions": [
         {
+          "interrupt_id": "yuki_encore_plus",
+          "actor": "yuki_tanaka",
+          "content": "Oh and I almost forgot! For 'Lost in Translation' I want to do a live demonstration — I'll ask a kid to try speaking English and show how bad French people are at it! It will be hilarious! The parents will laugh too! 😅",
+          "channel": "chat",
+          "trigger": {
+            "type": "after_delay",
+            "delay_ms": 60000
+          }
+        },
+        {
           "interrupt_id": "nathalie_info_enfants_japonais",
           "actor": "nathalie_morel",
           "content": "Au fait, Mme Renard m'a dit que 2 enfants du groupe sont d'origine japonaise. Ça peut être sympa pour l'artiste de le savoir !",
           "channel": "chat",
           "trigger": {
             "type": "after_delay",
-            "delay_ms": 120000
+            "delay_ms": 150000
+          }
+        },
+        {
+          "interrupt_id": "nathalie_pression",
+          "actor": "nathalie_morel",
+          "content": "Les enfants sont en bas de la galerie. Plus que 2 minutes.",
+          "channel": "chat",
+          "trigger": {
+            "type": "after_delay",
+            "delay_ms": 210000
           }
         }
       ],
 
       "auto_advance": false,
       "next_phase": "phase_2_presentation",
-      "time_jump_minutes": 15
+      "time_jump_minutes": 5
     },
 
     {

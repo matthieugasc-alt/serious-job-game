@@ -172,6 +172,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
   // ── Refs ──
   const aiPromptRef = useRef("");
+  const aiPromptsMapRef = useRef<Record<string, string>>({});
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevMailCountRef = useRef(0);
@@ -340,16 +341,29 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         setSession(s);
         setLoading(false);
 
-        // Load AI prompt
-        const aiActor = data.actors.find((a: any) => a.controlled_by === "ai" && a.prompt_file);
-        if (aiActor) {
-          try {
-            const pr = await fetch(`/api/scenarios/${scenarioId}/prompts/${aiActor.actor_id}`);
-            if (pr.ok) {
-              const pd = await pr.json();
-              aiPromptRef.current = pd.prompt || "";
-            }
-          } catch {}
+        // Load ALL AI actor prompts
+        const aiActors = data.actors.filter((a: any) => a.controlled_by === "ai" && a.prompt_file);
+        const promptMap: Record<string, string> = {};
+        await Promise.all(
+          aiActors.map(async (actor: any) => {
+            try {
+              const pr = await fetch(`/api/scenarios/${scenarioId}/prompts/${actor.actor_id}`);
+              if (pr.ok) {
+                const pd = await pr.json();
+                promptMap[actor.actor_id] = pd.prompt || "";
+              }
+            } catch {}
+          })
+        );
+        aiPromptsMapRef.current = promptMap;
+        // Set initial prompt to first phase's primary AI actor
+        const firstPhaseActor = data.phases[0]?.ai_actors?.[0];
+        if (firstPhaseActor && promptMap[firstPhaseActor]) {
+          aiPromptRef.current = promptMap[firstPhaseActor];
+        } else {
+          // Fallback: first AI actor found
+          const firstAI = aiActors[0];
+          if (firstAI) aiPromptRef.current = promptMap[firstAI.actor_id] || "";
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Erreur inconnue");
@@ -444,6 +458,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         content: m.content,
       }));
 
+      // Pick the right prompt for the current phase's primary AI actor
+      const currentPhaseActorId = scenario.phases[next.currentPhaseIndex]?.ai_actors?.[0] || "";
+      const activePrompt = aiPromptsMapRef.current[currentPhaseActorId] || aiPromptRef.current;
+
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -457,7 +475,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           mode: view.adaptiveMode,
           narrative: scenario.narrative,
           recentConversation: recentConv,
-          roleplayPrompt: aiPromptRef.current,
+          roleplayPrompt: activePrompt,
         }),
       });
 
@@ -862,6 +880,24 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             );
           })}
         </div>
+
+        <div style={{ height: 24, width: 1, background: "#555" }} />
+
+        {/* Briefing button — quick access to documents */}
+        <button
+          onClick={() => { setRightPanel("docs"); setSelectedDocId(null); }}
+          title="Consulter vos documents de travail"
+          style={{
+            background: rightPanel === "docs" ? "rgba(91,95,199,0.2)" : "none",
+            border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer",
+            fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 6,
+            display: "flex", alignItems: "center", gap: 5, transition: "all .15s",
+          }}
+          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(91,95,199,0.3)"}
+          onMouseLeave={(e) => e.currentTarget.style.background = rightPanel === "docs" ? "rgba(91,95,199,0.2)" : "none"}
+        >
+          📁 Briefing
+        </button>
 
         <div style={{ height: 24, width: 1, background: "#555" }} />
 

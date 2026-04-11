@@ -53,6 +53,7 @@ export default function IntroductionPage({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -277,6 +278,89 @@ export default function IntroductionPage({
               </div>
             </Card>
           </div>
+        </div>
+
+        {/* ═══════ DOCUMENTS SECTION ═══════ */}
+        {scenario.resources?.documents && scenario.resources.documents.length > 0 && (
+          <Card title="📁 Vos documents de travail" style={{ marginBottom: 24 }}>
+            <p style={{ margin: "0 0 12px", fontSize: 13, color: "#666" }}>
+              Consultez ces documents avant de commencer. Ils seront également accessibles pendant le jeu.
+            </p>
+
+            {selectedDocId ? (() => {
+              const doc = (scenario.resources?.documents || []).find((d: any) => d.doc_id === selectedDocId);
+              if (!doc) return null;
+              return (
+                <div>
+                  <button
+                    onClick={() => setSelectedDocId(null)}
+                    style={{ background: "none", border: "none", color: "#5b5fc7", cursor: "pointer", fontSize: 12, fontWeight: 600, marginBottom: 12, padding: 0 }}
+                  >
+                    ← Retour à la liste
+                  </button>
+                  <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "#1a3c6e" }}>
+                    {(doc as any).image_path ? "🖼️" : "📄"} {doc.label}
+                  </h3>
+                  {(doc as any).image_path && (
+                    <div style={{ marginBottom: 12, textAlign: "center" }}>
+                      <img
+                        src={(doc as any).image_path}
+                        alt={doc.label}
+                        style={{ maxWidth: "100%", maxHeight: 500, borderRadius: 8, border: "1px solid #e8e8e8", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+                      />
+                    </div>
+                  )}
+                  {(doc as any).content && (
+                    <div style={{ fontSize: 12, lineHeight: 1.6, color: "#333", whiteSpace: "pre-wrap", background: "#f9f9f9", padding: 14, borderRadius: 8, border: "1px solid #e8e8e8" }}>
+                      {(doc as any).content}
+                    </div>
+                  )}
+                </div>
+              );
+            })() : (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
+                {(scenario.resources?.documents || []).map((doc: any) => {
+                  const hasImage = !!doc.image_path;
+                  const hasContent = !!doc.content;
+                  return (
+                    <div
+                      key={doc.doc_id}
+                      onClick={() => setSelectedDocId(doc.doc_id)}
+                      style={{
+                        padding: 14, borderRadius: 10, cursor: "pointer",
+                        background: "#f8f9fc", border: "1px solid #e2e4ea",
+                        transition: "all .15s", display: "flex", flexDirection: "column", gap: 8,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(91,95,199,0.12)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e2e4ea"; e.currentTarget.style.boxShadow = "none"; }}
+                    >
+                      {hasImage && (
+                        <div style={{ height: 100, borderRadius: 6, overflow: "hidden", background: "#eee" }}>
+                          <img src={doc.image_path} alt={doc.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        </div>
+                      )}
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>{hasImage ? "🖼️" : hasContent ? "📄" : "📋"}</span>
+                        {doc.label}
+                      </div>
+                      {(hasContent || hasImage) && (
+                        <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>
+                          Cliquer pour consulter
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Card>
+        )}
+
+        {/* ═══════ TIP ═══════ */}
+        <div style={{ textAlign: "center", marginBottom: 16, padding: "10px 20px", background: "#f0f0ff", borderRadius: 10, border: "1px solid #e0e0f0" }}>
+          <p style={{ margin: 0, fontSize: 13, color: "#5b5fc7", fontWeight: 500 }}>
+            💡 Prenez le temps de lire les documents ci-dessus avant de commencer — vous pourrez y revenir pendant le jeu.
+          </p>
         </div>
 
         {/* ═══════ START BUTTON ═══════ */}
