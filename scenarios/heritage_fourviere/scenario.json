@@ -1,0 +1,434 @@
+{
+  "scenario_id": "heritage_fourviere",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+
+  "meta": {
+    "title": "L'Héritage de Fourvière",
+    "subtitle": "Accompagner un propriétaire attaché à son bien dans la mise en location",
+    "description": "Un client a hérité d'un appartement familial de 85 m² à Fourvière (Lyon). Il souhaite le louer tout en préservant son attachement sentimental. Le joueur doit le conseiller sur le loyer, l'état du bien, la fiscalité et la sélection des locataires.",
+    "job_family": "immobilier",
+    "difficulty": "junior",
+    "estimated_duration_min": 30,
+    "tags": ["immobilier", "location", "encadrement des loyers", "fiscalité", "sélection locataires", "Lyon"],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Appliquer l'encadrement des loyers lyonnais",
+      "Évaluer l'état d'un bien pour la location",
+      "Conseiller un régime fiscal adapté",
+      "Sélectionner des locataires sur critères objectifs",
+      "Gérer la pression d'un collègue aux avis subjectifs"
+    ]
+  },
+
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Agent immobilier",
+      "subtitle": "Accompagnez un propriétaire nostalgique dans la mise en location de son bien familial"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Vous êtes agent immobilier junior chez <strong>ImmoLyon Patrimoine</strong>. Vous gérez la mise en location de biens de standing sur Lyon. C'est votre premier dossier en autonomie.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p>M. Antoine Delvaux a hérité d'un appartement de <strong>85 m² à Fourvière</strong>. C'est le logement de son enfance, il y est très attaché. Il veut le louer, pas le vendre.</p><p>Mais l'appartement est resté dans son jus avec les meubles de sa mère.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Conseiller le loyer, évaluer l'état du bien, recommander un régime fiscal.</p><p><strong>Phase 2</strong> — Rédiger une annonce de location attractive et honnête.</p><p><strong>Phase 3</strong> — Sélectionner les locataires parmi 5 candidatures.</p><p><strong>Phase 4</strong> — Défendre votre choix face à votre collègue Julien.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles du jeu",
+        "content": "<p>Consultez vos documents : <strong>grille de loyers, fiches candidats, photos du bien, guide fiscal</strong>.</p><p>Justifiez vos recommandations. Restez professionnel et factuel, même quand votre collègue essaie de vous influencer.</p><p>Envoyez vos livrables par mail à Claire Beaumont pour valider.</p>",
+        "column": "right"
+      }
+    ]
+  },
+
+  "narrative": {
+    "context": "Vous êtes agent immobilier junior (moins de 2 ans d'expérience) au sein de l'agence ImmoLyon Patrimoine, spécialisée dans la gestion locative de biens de standing sur Lyon et sa métropole. Vous travaillez sous la responsabilité de Claire Beaumont, directrice d'agence. Votre collègue, Julien Marchand, est un agent confirmé présent depuis 6 ans dans l'agence.",
+    "mission": "Accompagner M. Antoine Delvaux, nouveau client propriétaire, dans la mise en location de son appartement hérité : déterminer le bon loyer, évaluer l'état du bien, conseiller un régime fiscal, puis sélectionner les locataires adaptés.",
+    "initial_situation": "Lundi 14 avril 2025, 9h30. Vous êtes à l'agence. M. Delvaux vous a contacté via la messagerie instantanée. Il se pose la question de mettre son bien en location via l'agence. Vous disposez de la fiche du bien (descriptif, surface, localisation, photos) dans vos documents.",
+    "trigger": "M. Delvaux vous envoie un message. Il explique sa situation : il a hérité de l'appartement de sa mère récemment décédée et souhaite le mettre en location. Il précise d'emblée qu'il est très attaché à ce bien et qu'il ne veut en aucun cas le vendre.",
+    "background_fact": "L'appartement est situé dans le quartier de Fourvière (Lyon 5e), un secteur où l'encadrement des loyers est en vigueur depuis 2022. M. Delvaux ne connaît pas cette réglementation. Les meubles de sa mère sont encore en place : mobilier années 70-80, cuisine vétuste et non aux normes de sécurité électrique."
+  },
+
+  "timeline": {
+    "scenario_start": "2025-04-14T09:30:00",
+    "sim_speed_multiplier": 2
+  },
+
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "(joueur)",
+      "role": "Agent immobilier junior chez ImmoLyon Patrimoine",
+      "interaction_mode": null,
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#548235",
+        "initials": "J"
+      }
+    },
+    {
+      "actor_id": "antoine_delvaux",
+      "name": "Antoine Delvaux",
+      "role": "Client propriétaire, héritier de l'appartement",
+      "personality": "Émotif et attaché au bien. Nostalgique. Pas du tout expert en immobilier. Fait confiance au joueur mais peut se braquer s'il sent qu'on ne respecte pas son attachement au bien. Veut louer mais ne veut surtout pas vendre. Ne connaît pas l'encadrement des loyers. A tendance à surestimer la valeur du bien par affection. Rationnel quand on lui explique calmement.",
+      "interaction_modes": ["chat"],
+      "controlled_by": "ai",
+      "prompt_file": "antoine_delvaux.md",
+      "availability": "Présent pendant tout le rendez-vous (Phases 1). Joignable par chat ensuite.",
+      "avatar": {
+        "color": "#1F4E79",
+        "initials": "AD"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne — attend vos conseils"
+    },
+    {
+      "actor_id": "julien_marchand",
+      "name": "Julien Marchand",
+      "role": "Agent immobilier confirmé (6 ans d'expérience), même agence",
+      "personality": "Sympa mais très subjectif dans ses jugements sur les candidats. A des avis tranchés sur les gens basés sur des impressions personnelles plutôt que sur des critères objectifs. Peut influencer le joueur avec ses opinions. Aime bien donner des conseils non sollicités.",
+      "interaction_modes": ["chat"],
+      "controlled_by": "ai",
+      "prompt_file": "julien_marchand.md",
+      "availability": "Disponible en Phase 4",
+      "avatar": {
+        "color": "#ED7D31",
+        "initials": "JM"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Au bureau — dispo si besoin"
+    },
+    {
+      "actor_id": "claire_beaumont",
+      "name": "Claire Beaumont",
+      "role": "Directrice d'agence ImmoLyon Patrimoine",
+      "personality": "Professionnelle, exigeante, bienveillante. Attend du joueur qu'il soit rigoureux et factuel. Envoie un message au joueur à chaque nouvelle phase pour lui rappeler les règles et objectifs.",
+      "interaction_modes": ["chat"],
+      "controlled_by": "ai",
+      "prompt_file": "claire_beaumont.md",
+      "availability": "Disponible si besoin, mais n'intervient pas spontanément sauf pour cadrer les phases",
+      "avatar": {
+        "color": "#7030A0",
+        "initials": "CB"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "busy",
+      "contact_preview": "En réunion — envoyez un message"
+    }
+  ],
+
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    }
+  ],
+
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "fiche_bien",
+        "label": "Fiche descriptive du bien",
+        "contains": ["surface", "localisation", "caractéristiques", "état"],
+        "usable_as_pj": false,
+        "content": "FICHE DESCRIPTIVE DU BIEN\n\nAdresse : Quartier Fourvière, Lyon 5e\nSurface : 85 m²\nÉtage : 4e étage\nType : T3 (3 pièces)\nCaractéristiques : Parquet chêne massif, cheminée d'époque, vue sur la Saône\nStanding : Haut standing d'origine\nÉtat : Non rénové\nAnnée de construction : 1920\nDernière rénovation : 2022"
+      },
+      {
+        "doc_id": "photos_appartement",
+        "label": "Photos de l'appartement",
+        "contains": ["salon", "cuisine", "chambre", "salle de bain"],
+        "usable_as_pj": false,
+        "content": "PHOTOS DE L'APPARTEMENT\n\n1. Salon : Mobilier années 70-80, canapé fleuri, buffet en bois massif, tapis persan usé. Parquet chêne en bon état sous les meubles.\n2. Cuisine : Plaques de cuisson non sécurisées (anciennes plaques électriques sans protection), prises apparentes non conformes, plan de travail dégradé et fissuré, évier fonctionnel mais vétuste.\n3. Chambre : Meubles anciens (lit en bois sculpté, armoire normande), bon état général mais style très daté.\n4. Salle de bain : Équipée (baignoire, lavabo, WC séparé), fonctionnelle mais datée (carrelage années 80)."
+      },
+      {
+        "doc_id": "grille_loyers",
+        "label": "Grille d'encadrement des loyers — Lyon Métropole 2025",
+        "contains": ["loyer référence", "loyer majoré", "loyer minoré", "complément"],
+        "usable_as_pj": false,
+        "content": "GRILLE D'ENCADREMENT DES LOYERS — LYON MÉTROPOLE 2025\n\nZone : Fourvière (Lyon 5e)\nType de bien : T3, 85 m², haut standing\n\nLocation meublée :\n- Loyer de référence : 21,80 €/m² → 1 853 €/mois\n- Loyer majoré (plafond) : 26,10 €/m² → 2 218,50 €/mois\n- Loyer minoré : 15,60 €/m² → 1 326 €/mois\n\nLocation nue :\n- Loyer de référence : 17,50 €/m² → 1 487,50 €/mois\n- Loyer majoré (plafond) : 21,00 €/m² → 1 785 €/mois\n- Loyer minoré : 12,50 €/m² → 1 062,50 €/mois\n\nComplément de loyer possible si : vue exceptionnelle, prestations de standing, localisation premium."
+      },
+      {
+        "doc_id": "guide_fiscal",
+        "label": "Guide des régimes fiscaux — Location immobilière",
+        "contains": ["location nue", "LMNP", "LMP", "SCI", "micro-foncier"],
+        "usable_as_pj": false,
+        "content": "GUIDE DES RÉGIMES FISCAUX — LOCATION IMMOBILIÈRE\n\n1. LOCATION NUE\n- Micro-foncier : Revenus locatifs < 15 000 €/an, abattement 30%. Simple mais peu optimisé.\n- Régime réel : Déduction des charges réelles (travaux, intérêts, assurance). Plus complexe mais souvent plus avantageux si travaux.\n- Fiscalité : Revenus fonciers imposés au barème de l'IR + prélèvements sociaux (17,2%).\n- Avantage marché Lyon/Fourvière : Locataires stables, moins de vacance locative, baux longs.\n\n2. LMNP (Loueur Meublé Non Professionnel)\n- Condition : Revenus locatifs < 23 000 €/an ou < 50% des revenus du foyer.\n- Avantage : Amortissement du bien et des meubles, micro-BIC (abattement 50%).\n- Inconvénient : Locataires plus volatils (bail 1 an), turnover plus fréquent.\n\n3. LMP (Loueur Meublé Professionnel)\n- Condition : Revenus locatifs > 23 000 €/an ET > 50% des revenus du foyer.\n- Rarement adapté pour un seul bien.\n\n4. SCI (Société Civile Immobilière)\n- Adapté pour la gestion patrimoniale familiale à plusieurs associés.\n- Complexe et coûteux à mettre en place pour un seul bien.\n- Non recommandé pour un propriétaire unique héritier."
+      },
+      {
+        "doc_id": "dossiers_candidats",
+        "label": "Dossiers des 5 candidats locataires",
+        "contains": ["revenus", "profession", "situation familiale", "garanties"],
+        "usable_as_pj": true,
+        "content": "DOSSIERS DES 5 CANDIDATS LOCATAIRES\n\n1. ISABELLE ET THOMAS MOREAU\n- Professions : Cadres supérieurs (directrice marketing / ingénieur R&D)\n- Revenus combinés : 6 200 €/mois nets\n- Contrats : CDI tous les deux\n- Crédits en cours : Aucun\n- Garants : Parents propriétaires (patrimoine immobilier solide)\n- Ratio revenus/loyer : 6 200 / 1 850 = 3,35x ✓\n- Statut : ÉLIGIBLE\n\n2. SANDRINE ET FABRICE LEBLANC\n- Professions : Enseignants (collège / lycée)\n- Revenus combinés : 5 100 €/mois nets\n- Contrats : CDI fonction publique (titulaires)\n- Crédits en cours : Aucun\n- Garantie : Caution Visale\n- Ratio revenus/loyer : 5 100 / 1 850 = 2,76x (limite mais Visale compense)\n- Statut : ÉLIGIBLE\n\n3. CLAIRE ET DAVID ROUSSEAU\n- Professions : Employée administrative / Auto-entrepreneur (graphiste)\n- Revenus combinés : 3 800 €/mois nets (irréguliers pour David : 1 200 à 2 500 €)\n- Contrats : CDI pour Claire / Auto-entrepreneur pour David\n- Crédits en cours : Aucun\n- Garants : Aucun\n- Ratio revenus/loyer : 3 800 / 1 850 = 2,05x ✗\n- Statut : NON ÉLIGIBLE (revenus insuffisants, irréguliers, pas de garant)\n\n4. STÉPHANE ET MÉLANIE FONTAINE\n- Professions : Technicien maintenance / Infirmière hospitalière\n- Revenus combinés : 4 900 €/mois nets\n- Contrats : CDI tous les deux\n- Crédits en cours : Crédit auto 150 €/mois\n- Garants : Parents des deux côtés (propriétaires)\n- Ratio revenus/loyer : (4 900 - 150) / 1 850 = 2,57x (juste, mais garants solides)\n- Statut : ÉLIGIBLE (juste)\n\n5. VALÉRIE ET MARC ROUSSEL\n- Professions : Commercial / Assistante de direction\n- Revenus combinés : 5 400 €/mois nets\n- Contrats : CDI tous les deux\n- Crédits en cours : Crédit consommation 450 €/mois\n- Garants : Aucun\n- Ratio revenus/loyer : (5 400 - 450) / 1 850 = 2,68x ✗\n- Statut : NON ÉLIGIBLE (ratio fragilisé après déduction crédit, pas de garant)"
+      }
+    ]
+  },
+
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "Le joueur ne peut pas engager l'agence sur un mandat sans validation de Claire Beaumont",
+    "diplomatic_tone_required": true,
+    "uncertainty": "Le joueur ne sait pas au départ que le client veut garder les anciens meubles",
+    "sensitive_audience": "Le client est en deuil récent, le ton doit être empathique et professionnel"
+  },
+
+  "initial_events": [
+    {
+      "event_id": "delvaux_intro",
+      "type": "chat",
+      "actor": "antoine_delvaux",
+      "content": "Bonjour, je suis Antoine Delvaux, on s'était parlé au téléphone la semaine dernière. Voilà, comme je vous l'ai dit, ma mère est décédée il y a quelques mois et j'ai hérité de son appartement à Fourvière. C'est un bel appartement, 85 mètres carrés, haut standing. J'y ai grandi, c'est... c'est un lieu très important pour moi. Je ne veux surtout pas le vendre, jamais. Mais j'aimerais le mettre en location pour qu'il vive, vous voyez ? J'ai gardé tous les meubles de maman, tout est encore en place. Je voudrais le louer comme ça."
+    },
+    {
+      "event_id": "claire_intro",
+      "type": "chat",
+      "actor": "claire_beaumont",
+      "content": "Tu as ton rendez-vous avec le nouveau client Delvaux ce matin ? Tiens-moi au courant de ce qui se décide, je veux valider avant qu'on signe quoi que ce soit."
+    }
+  ],
+
+  "phases": [
+    {
+      "phase_id": "phase_1_1",
+      "title": "Déterminer le loyer adapté",
+      "duration_target_min": 8,
+      "objective": "Conseiller un loyer conforme à l'encadrement des loyers lyonnais pour un T3 de 85 m² haut standing à Fourvière",
+      "active_channels": ["chat"],
+      "ai_actors": ["antoine_delvaux"],
+
+      "player_input": {
+        "type": "free_text",
+        "prompt": "M. Delvaux vous demande à quel loyer il peut espérer louer son appartement. Consultez la grille d'encadrement des loyers et conseillez-le."
+      },
+
+      "competencies": [
+        "Identifie que l'encadrement des loyers s'applique à Lyon et consulte la grille",
+        "Propose un loyer cohérent entre 1 700 € et 2 300 € pour 85 m² à Fourvière",
+        "Explique au client pourquoi ce loyer et non un autre (référence à la grille, au marché)",
+        "Prend en compte l'attachement émotionnel du client au bien sans le brusquer",
+        "Écoute les attentes du client avant de proposer un chiffre"
+      ],
+
+      "interruptions": [
+        {
+          "interrupt_id": "delvaux_impatient",
+          "actor": "antoine_delvaux",
+          "content": "Bon, et du coup, on le loue combien ? J'avais pensé à 3 000 € par mois, c'est un bel appartement quand même. Qu'est-ce que vous en pensez ?",
+          "channel": "chat",
+          "trigger": {
+            "type": "after_delay",
+            "delay_ms": 180000
+          }
+        }
+      ],
+
+      "auto_advance": false,
+      "next_phase": "phase_1_2"
+    },
+
+    {
+      "phase_id": "phase_1_2",
+      "title": "Évaluer l'état du bien pour la location",
+      "duration_target_min": 6,
+      "objective": "Évaluer si l'appartement est louable en l'état et conseiller les travaux nécessaires, notamment la cuisine non conforme aux normes de sécurité",
+      "active_channels": ["chat"],
+      "ai_actors": ["antoine_delvaux"],
+
+      "player_input": {
+        "type": "free_text",
+        "prompt": "M. Delvaux vous montre les photos de l'appartement. Les meubles de sa mère sont toujours en place. La cuisine est vétuste et potentiellement dangereuse. Conseillez-le sur ce qu'il faut faire avant de louer."
+      },
+
+      "competencies": [
+        "Identifie les problèmes visibles sur les photos (cuisine vétuste, normes électriques)",
+        "Sait que la cuisine doit être aux normes de sécurité pour louer",
+        "Adapte ses recommandations selon le type de location envisagé (meublé/nu)",
+        "Aborde le sujet des meubles avec tact, en respectant l'attachement émotionnel du client",
+        "Ne valide pas le maintien en l'état par complaisance"
+      ],
+
+      "interruptions": [],
+
+      "auto_advance": false,
+      "next_phase": "phase_1_3"
+    },
+
+    {
+      "phase_id": "phase_1_3",
+      "title": "Conseil sur le régime fiscal",
+      "duration_target_min": 6,
+      "objective": "Conseiller le régime fiscal le plus adapté à la situation du client en tenant compte du marché lyonnais",
+      "active_channels": ["chat"],
+      "ai_actors": ["antoine_delvaux"],
+
+      "player_input": {
+        "type": "free_text",
+        "prompt": "M. Delvaux vous demande quel régime fiscal serait le plus intéressant pour lui. Conseillez-le en tenant compte du marché lyonnais et de sa situation."
+      },
+
+      "competencies": [
+        "Distingue les différents régimes (location nue, LMP/LMNP, SCI, micro-foncier)",
+        "Identifie que la location nue a la meilleure adéquation avec le marché lyonnais (Fourvière, stabilité)",
+        "Mentionne que la location nue a une fiscalité plus lourde mais compensée par la stabilité",
+        "Adapte son conseil à la situation spécifique du client (bien familial, long terme)",
+        "Explique les avantages et inconvénients de manière claire et accessible"
+      ],
+
+      "interruptions": [],
+
+      "auto_advance": false,
+      "next_phase": "phase_2"
+    },
+
+    {
+      "phase_id": "phase_2",
+      "title": "Rédiger une annonce de location",
+      "duration_target_min": 8,
+      "objective": "Rédiger une annonce de location attractive et honnête pour le bien de M. Delvaux, en mettant en valeur les vrais points forts sans mentir",
+      "active_channels": ["chat"],
+      "ai_actors": ["claire_beaumont"],
+
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Votre responsable souhaite mettre en ligne l'annonce. Rédigez-la et envoyez-la à Claire Beaumont pour validation. Mettez en valeur les vrais atouts du bien (vue, parquet, cheminée, quartier) sans exagérer."
+      },
+
+      "competencies": [
+        "Rédige une annonce cohérente et professionnelle",
+        "Met en valeur le bien sans mentir ni exagérer",
+        "Intègre les informations clés (surface, localisation, loyer, caractéristiques)",
+        "Mentionne les points forts réels du bien (vue, parquet, cheminée, quartier)"
+      ],
+
+      "interruptions": [],
+
+      "auto_advance": false,
+      "next_phase": "phase_3"
+    },
+
+    {
+      "phase_id": "phase_3",
+      "title": "Sélection des profils locataires",
+      "duration_target_min": 8,
+      "objective": "Analyser les 5 dossiers de candidature et présélectionner les profils éligibles sur des critères objectifs (revenus, stabilité, garanties)",
+      "active_channels": ["chat"],
+      "ai_actors": ["antoine_delvaux", "claire_beaumont"],
+
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Vous avez reçu 5 dossiers de candidature. Analysez chacun et sélectionnez les profils éligibles à la location. Les dossiers sont dans vos documents. Envoyez votre synthèse à Claire Beaumont."
+      },
+
+      "competencies": [
+        "Examine les revenus, charges, stabilité professionnelle et garanties de chaque candidat",
+        "Applique le critère standard du ratio revenus/loyer (3x minimum)",
+        "Intègre les crédits en cours dans le calcul de solvabilité",
+        "Sélectionne sur des critères factuels et non sur des impressions",
+        "Ne discrimine pas sur des critères interdits (origine, situation familiale, etc.)"
+      ],
+
+      "interruptions": [
+        {
+          "interrupt_id": "claire_relance",
+          "actor": "claire_beaumont",
+          "content": "Tu avances sur les candidatures pour le bien Delvaux ? Le propriétaire me relance, il veut un retour rapide. On ne peut pas se permettre de traîner.",
+          "channel": "chat",
+          "trigger": {
+            "type": "after_delay",
+            "delay_ms": 240000
+          }
+        }
+      ],
+
+      "auto_advance": false,
+      "next_phase": "phase_4"
+    },
+
+    {
+      "phase_id": "phase_4",
+      "title": "Validation avec le collègue",
+      "duration_target_min": 8,
+      "objective": "Choisir le locataire final en discutant avec Julien Marchand, tout en gardant une approche objective face à ses avis subjectifs",
+      "active_channels": ["chat"],
+      "ai_actors": ["julien_marchand", "claire_beaumont"],
+
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Julien Marchand, votre collègue, a aussi vu les candidats lors des visites. Discutez avec lui pour arrêter le choix final du locataire. Puis envoyez votre décision finale à Claire Beaumont."
+      },
+
+      "competencies": [
+        "Ne se laisse pas influencer par les avis subjectifs de Julien sur les Moreau",
+        "Défend son choix avec des critères objectifs (revenus, garanties, stabilité)",
+        "Refuse de baser une décision sur des impressions personnelles",
+        "Maintient sa position face à un collègue plus expérimenté",
+        "Sait anticiper les critères de l'assurance loyer impayé"
+      ],
+
+      "interruptions": [
+        {
+          "interrupt_id": "julien_pression",
+          "actor": "julien_marchand",
+          "content": "Écoute, fais-moi confiance là-dessus, ça fait 6 ans que je fais ce métier. Les Moreau, c'est non. Point. Prends les Fontaine, ce sont des gens bien.",
+          "channel": "chat",
+          "trigger": {
+            "type": "after_exchanges",
+            "min_player_messages": 2
+          }
+        }
+      ],
+
+      "auto_advance": false
+    }
+  ],
+
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Succès",
+      "content": "Le joueur a proposé un loyer conforme à l'encadrement des loyers (~1 850 €), identifié les travaux nécessaires (au minimum la cuisine), recommandé la location nue, et sélectionné un locataire solvable accepté par l'assurance (Moreau ou Fontaine). L'appartement est loué, le propriétaire est satisfait, et la gestion est sereine. Claire Beaumont félicite le joueur."
+    },
+    {
+      "ending_id": "partial_success",
+      "label": "Succès partiel",
+      "content": "Le joueur a fait des choix globalement corrects mais avec des faiblesses. Exemples : loyer acceptable mais pas optimal, régime LMP (les locataires partiront au bout d'un an), ou hésitations prolongées sur la sélection. L'appartement est loué mais la situation n'est pas idéale sur le long terme. Claire Beaumont note des points d'amélioration."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "Le joueur a commis une erreur rédhibitoire : loyer hors encadrement (trop haut ou trop bas, le client est parti), recommandation de SCI ou micro-foncier, sélection d'un locataire refusé par l'assurance (Rousseau ou Roussel), ou validation de la location en l'état sans signaler les problèmes de sécurité de la cuisine."
+    }
+  ],
+
+  "competencies_evaluated": [
+    { "phase": "phase_1_1", "competency": "Connaissance de l'encadrement des loyers lyonnais" },
+    { "phase": "phase_1_1", "competency": "Capacité à proposer un loyer cohérent et argumenté" },
+    { "phase": "phase_1_1", "competency": "Écoute active et posture relationnelle empathique" },
+    { "phase": "phase_1_2", "competency": "Analyse de l'état d'un bien pour la mise en location" },
+    { "phase": "phase_1_2", "competency": "Connaissance des normes de sécurité (cuisine, électricité)" },
+    { "phase": "phase_1_2", "competency": "Distinction meublé / non meublé et leurs exigences" },
+    { "phase": "phase_1_3", "competency": "Connaissance des régimes fiscaux de la location" },
+    { "phase": "phase_1_3", "competency": "Adéquation du conseil avec le marché local" },
+    { "phase": "phase_2", "competency": "Annonce qui met en avant le bien sans mentir" },
+    { "phase": "phase_3", "competency": "Analyse objective de dossiers de candidature" },
+    { "phase": "phase_3", "competency": "Application du ratio revenus/loyer et prise en compte des charges" },
+    { "phase": "phase_4", "competency": "Résistance à l'influence subjective d'un collègue" },
+    { "phase": "phase_4", "competency": "Argumentation professionnelle et factuelle" },
+    { "phase": "phase_4", "competency": "Anticipation des critères d'assurance loyer impayé" }
+  ]
+}
