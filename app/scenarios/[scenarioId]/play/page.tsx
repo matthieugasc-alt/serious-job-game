@@ -893,19 +893,23 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // ════════════════════════════════════════════════════════════════════
 
   async function sendMessage() {
-    if (!playerInput.trim() || !session || !scenario || !view || isSending) return;
-    setIsSending(true);
+    if (!playerInput.trim() || !session || !scenario || !view) return;
     const text = playerInput;
     setPlayerInput("");
+    // Re-focus immediately so player can keep typing
+    setTimeout(() => inputRef.current?.focus(), 0);
 
+    // Determine which AI actor will respond
+    const targetActor = selectedContact || scenario.phases[session.currentPhaseIndex]?.ai_actors?.[0] || "npc";
+
+    // Add player message to session immediately (optimistic)
+    const next = cloneSession(session);
+    addPlayerMessage(next, text, targetActor);
+    setSession(next);
+
+    // Fire AI request in background — don't block input
+    setIsSending(true);
     try {
-      // Determine which AI actor will respond
-      const targetActor = selectedContact || scenario.phases[session.currentPhaseIndex]?.ai_actors?.[0] || "npc";
-
-      const next = cloneSession(session);
-      addPlayerMessage(next, text, targetActor);
-      setSession(next);
-
       // Use only messages from this conversation for context
       const relevantConv = conversation.filter((m: any) => {
         if (m.role === "player") return m.toActor === targetActor;
@@ -940,7 +944,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       const data = await res.json();
       playNotificationSound();
 
-      const final = cloneSession(next);
+      // Use sessionRef for latest state (player may have sent more messages since)
+      const latestSession = sessionRef.current || next;
+      const final = cloneSession(latestSession);
       addAIMessage(final, data.reply, targetActor);
       applyEvaluation(
         final,
@@ -951,7 +957,6 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       updateAdaptiveMode(final);
       scheduleInterruption(final);
       setSession(final);
-      inputRef.current?.focus();
     } catch (err) {
       console.error("Erreur chat:", err);
     } finally {
@@ -2009,9 +2014,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   type="text"
                   value={playerInput}
                   onChange={(e) => setPlayerInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter" && !isSending) sendMessage(); }}
+                  onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
                   placeholder="Votre message..."
-                  disabled={isSending}
                   style={{
                     flex: 1, padding: "10px 14px", border: "1px solid #ddd", borderRadius: 20,
                     fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff", color: "#111",
@@ -2019,11 +2023,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 />
                 <button
                   onClick={sendMessage}
-                  disabled={!playerInput.trim() || isSending}
+                  disabled={!playerInput.trim()}
                   style={{
                     padding: "8px 20px", borderRadius: 20, border: "none",
-                    background: playerInput.trim() && !isSending ? "#5b5fc7" : "#ccc",
-                    color: "#fff", cursor: playerInput.trim() && !isSending ? "pointer" : "not-allowed",
+                    background: playerInput.trim() ? "#5b5fc7" : "#ccc",
+                    color: "#fff", cursor: playerInput.trim() ? "pointer" : "not-allowed",
                     fontWeight: 600, fontSize: 13,
                   }}
                 >
