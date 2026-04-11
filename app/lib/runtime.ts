@@ -6,6 +6,8 @@ export type ChatMessage = {
   actor?: string;
   content: string;
   type?: string;
+  channel?: string;
+  toActor?: string;
   phaseId?: string;
   timestamp: number;
 };
@@ -322,7 +324,7 @@ export function getScenarioDocuments(session: SessionState) {
   return session.scenario.resources?.documents || [];
 }
 
-export function addPlayerMessage(session: SessionState, content: string) {
+export function addPlayerMessage(session: SessionState, content: string, toActor?: string) {
   const phaseId = getCurrentPhaseId(session);
 
   addChatMessageInternal(session, {
@@ -331,6 +333,7 @@ export function addPlayerMessage(session: SessionState, content: string) {
     content,
     type: "chat",
     phaseId,
+    toActor,
   });
 
   pushAction(session, {

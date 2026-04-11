@@ -161,6 +161,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
   const [showCompose, setShowCompose] = useState(false);
   const [rightPanel, setRightPanel] = useState<"info" | "docs">("info");
+  const [selectedContact, setSelectedContact] = useState<string | null>(null);
+  const [showBriefingOverlay, setShowBriefingOverlay] = useState(false);
   const [unreadMails, setUnreadMails] = useState(0);
   const [toasts, setToasts] = useState<Array<{ id: string; text: string; icon: string; type: "chat" | "mail" }>>([]);
   const [showContactPicker, setShowContactPicker] = useState<"to" | "cc" | null>(null);
@@ -201,6 +203,39 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const simulatedTime = view?.simulatedTime ? fmtTime(view.simulatedTime) : "--:--";
   const actors = scenario?.actors || [];
   const visibleContacts = actors.filter((a: any) => a.visible_in_contacts || a.actor_id === "player");
+
+  // Per-contact conversation filtering
+  const filteredConversation = useMemo(() => {
+    if (!selectedContact) return conversation;
+    return conversation.filter((msg: any) => {
+      if (msg.role === "system") return false; // system messages go to all
+      if (msg.role === "player") return msg.toActor === selectedContact;
+      if (msg.role === "npc") return msg.actor === selectedContact;
+      return false;
+    });
+  }, [conversation, selectedContact]);
+
+  // Track which contacts have unread messages (messages the player hasn't "seen" by clicking on them)
+  const lastSeenRef = useRef<Record<string, number>>({});
+  const contactUnreadCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const msg of conversation) {
+      if (msg.role !== "npc" || !msg.actor) continue;
+      const actorId = msg.actor;
+      const lastSeen = lastSeenRef.current[actorId] || 0;
+      if (msg.timestamp > lastSeen && actorId !== selectedContact) {
+        counts[actorId] = (counts[actorId] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [conversation, selectedContact]);
+
+  // Mark selected contact as read
+  useEffect(() => {
+    if (selectedContact) {
+      lastSeenRef.current[selectedContact] = Date.now();
+    }
+  }, [selectedContact, conversation.length]);
 
   const canActuallySendMail = (() => {
     if (!canComposeMail || !session || !scenario) return false;
@@ -341,6 +376,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         setSession(s);
         setLoading(false);
 
+        // Auto-select the first AI actor of phase 1 as the active conversation
+        const phase1Actor = data.phases[0]?.ai_actors?.[0];
+        if (phase1Actor) setSelectedContact(phase1Actor);
+
         // Load ALL AI actor prompts
         const aiActors = data.actors.filter((a: any) => a.controlled_by === "ai" && a.prompt_file);
         const promptMap: Record<string, string> = {};
@@ -408,6 +447,42 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     }
   }, [view?.canAdvance, view?.phaseId]);
 
+  // ── Time-based auto-advance (e.g., phase 1 ends at 15:00) ──
+  const timeAdvanceTriggeredRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!session || !scenario || !view) return;
+    const phase = scenario.phases[session.currentPhaseIndex];
+    const advanceAtKey = (phase as any)?.auto_advance_at;
+    if (!advanceAtKey) return;
+    const timeline = (scenario as any).timeline;
+    if (!timeline || !timeline[advanceAtKey]) return;
+    const deadlineIso = timeline[advanceAtKey];
+    const deadlineMs = new Date(deadlineIso).getTime();
+    const simMs = new Date(session.simulatedTime).getTime();
+    // Prevent re-triggering for same phase
+    const phaseId = phase?.phase_id || `phase_${session.currentPhaseIndex}`;
+    if (simMs >= deadlineMs && timeAdvanceTriggeredRef.current !== phaseId) {
+      timeAdvanceTriggeredRef.current = phaseId;
+      const next = cloneSession(session);
+      // Set simulated time to the exact deadline
+      next.simulatedTime = deadlineIso;
+      completeCurrentPhaseAndAdvance(next);
+      injectPhaseEntryEvents(next);
+      const newPhase = scenario.phases[next.currentPhaseIndex];
+      if (newPhase?.mail_config?.defaults) {
+        updateMailDraft(next, newPhase.phase_id, {
+          to: "", cc: "",
+          subject: newPhase.mail_config.defaults.subject || "",
+          body: "", attachments: [],
+        });
+      }
+      // Auto-select the first AI actor of the new phase
+      const newPhaseActor = newPhase?.ai_actors?.[0];
+      if (newPhaseActor) setSelectedContact(newPhaseActor);
+      setSession(next);
+    }
+  }, [session?.simulatedTime, session?.currentPhaseIndex]);
+
   // ── Flush timed events ──
   useEffect(() => {
     if (!session || !scenario) return;
@@ -425,7 +500,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // ── Auto-scroll chat ──
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [conversation.length]);
+  }, [filteredConversation.length]);
 
   // ── Schedule interruptions after each message ──
   useEffect(() => {
@@ -449,18 +524,26 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     setPlayerInput("");
 
     try {
+      // Determine which AI actor will respond
+      const targetActor = selectedContact || scenario.phases[session.currentPhaseIndex]?.ai_actors?.[0] || "npc";
+
       const next = cloneSession(session);
-      addPlayerMessage(next, text);
+      addPlayerMessage(next, text, targetActor);
       setSession(next);
 
-      const recentConv = conversation.slice(-10).map((m: any) => ({
+      // Use only messages from this conversation for context
+      const relevantConv = conversation.filter((m: any) => {
+        if (m.role === "player") return m.toActor === targetActor;
+        if (m.role === "npc") return m.actor === targetActor;
+        return false;
+      });
+      const recentConv = relevantConv.slice(-10).map((m: any) => ({
         role: m.role === "player" ? "user" : "assistant",
         content: m.content,
       }));
 
-      // Pick the right prompt for the current phase's primary AI actor
-      const currentPhaseActorId = scenario.phases[next.currentPhaseIndex]?.ai_actors?.[0] || "";
-      const activePrompt = aiPromptsMapRef.current[currentPhaseActorId] || aiPromptRef.current;
+      // Pick the right prompt for the target actor
+      const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
 
       const res = await fetch("/api/chat", {
         method: "POST",
@@ -483,8 +566,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       playNotificationSound();
 
       const final = cloneSession(next);
-      const aiActor = scenario.phases[final.currentPhaseIndex]?.ai_actors?.[0] || "npc";
-      addAIMessage(final, data.reply, aiActor);
+      addAIMessage(final, data.reply, targetActor);
       applyEvaluation(
         final,
         data.matched_criteria || [],
@@ -663,20 +745,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
               <div style={{ background: "#fff", borderRadius: 12, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,.05)", marginBottom: 20 }}>
                 <h2 style={{ fontSize: 16, fontWeight: 700, color: "#333", margin: "0 0 10px" }}>Résumé global</h2>
                 <p style={{ margin: 0, fontSize: 14, color: "#444", lineHeight: 1.7 }}>{debriefData.overall_summary}</p>
-                {/* Average score bar */}
-                <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12 }}>
-                  <span style={{ fontSize: 13, fontWeight: 600, color: "#666", minWidth: 80 }}>Score moyen</span>
-                  <div style={{ flex: 1, height: 8, background: "#e8e8e8", borderRadius: 4, overflow: "hidden" }}>
-                    <div style={{ height: "100%", width: `${avgScore}%`, background: endingColor, borderRadius: 4, transition: "width 1s" }} />
-                  </div>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: endingColor }}>{avgScore}%</span>
-                </div>
               </div>
             )}
 
             {/* Per-phase AI analysis */}
             {debriefData.phases?.map((phase: any, idx: number) => {
-              const scoreColor = phase.phase_score >= 70 ? "#16a34a" : phase.phase_score >= 40 ? "#d97706" : "#dc2626";
               return (
                 <div key={idx} style={{ background: "#fff", borderRadius: 12, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,.05)", marginBottom: 16 }}>
                   {/* Phase header */}
@@ -684,11 +757,6 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#333" }}>
                       Phase {idx + 1} — {phase.phase_title}
                     </h3>
-                    <span style={{ fontSize: 20, fontWeight: 800, color: scoreColor }}>{phase.phase_score}<span style={{ fontSize: 12, fontWeight: 400, color: "#999" }}>/100</span></span>
-                  </div>
-                  {/* Phase score bar */}
-                  <div style={{ height: 6, background: "#e8e8e8", borderRadius: 3, overflow: "hidden", marginBottom: 14 }}>
-                    <div style={{ height: "100%", width: `${phase.phase_score}%`, background: scoreColor, borderRadius: 3, transition: "width .8s" }} />
                   </div>
                   {/* Phase summary */}
                   {phase.phase_summary && (
@@ -883,18 +951,18 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
         <div style={{ height: 24, width: 1, background: "#555" }} />
 
-        {/* Briefing button — quick access to documents */}
+        {/* Briefing button — opens overlay with context + documents */}
         <button
-          onClick={() => { setRightPanel("docs"); setSelectedDocId(null); }}
-          title="Consulter vos documents de travail"
+          onClick={() => setShowBriefingOverlay(true)}
+          title="Consulter le briefing et vos documents"
           style={{
-            background: rightPanel === "docs" ? "rgba(91,95,199,0.2)" : "none",
+            background: showBriefingOverlay ? "rgba(91,95,199,0.3)" : "none",
             border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer",
             fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 6,
             display: "flex", alignItems: "center", gap: 5, transition: "all .15s",
           }}
           onMouseEnter={(e) => e.currentTarget.style.background = "rgba(91,95,199,0.3)"}
-          onMouseLeave={(e) => e.currentTarget.style.background = rightPanel === "docs" ? "rgba(91,95,199,0.2)" : "none"}
+          onMouseLeave={(e) => e.currentTarget.style.background = showBriefingOverlay ? "rgba(91,95,199,0.3)" : "none"}
         >
           📁 Briefing
         </button>
@@ -906,6 +974,103 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           {simulatedTime}
         </div>
       </header>
+
+      {/* ═══════ BRIEFING OVERLAY ═══════ */}
+      {showBriefingOverlay && (
+        <div
+          style={{
+            position: "fixed", inset: 0, zIndex: 10000,
+            background: "rgba(0,0,0,0.5)", display: "flex",
+            alignItems: "center", justifyContent: "center",
+            padding: 20,
+          }}
+          onClick={() => setShowBriefingOverlay(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "#fff", borderRadius: 14, maxWidth: 900,
+              width: "100%", maxHeight: "85vh", overflow: "hidden",
+              boxShadow: "0 8px 40px rgba(0,0,0,0.25)",
+              display: "flex", flexDirection: "column",
+            }}
+          >
+            {/* Overlay header */}
+            <div style={{
+              padding: "16px 24px", background: "#292929", color: "#fff",
+              display: "flex", alignItems: "center", justifyContent: "space-between",
+              borderRadius: "14px 14px 0 0", flexShrink: 0,
+            }}>
+              <div>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#7b7fff", textTransform: "uppercase", letterSpacing: 1 }}>Briefing</span>
+                <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 700 }}>{scenario.meta?.title}</h2>
+              </div>
+              <button
+                onClick={() => setShowBriefingOverlay(false)}
+                style={{ background: "none", border: "none", color: "#fff", fontSize: 24, cursor: "pointer", padding: "4px 8px" }}
+              >
+                ×
+              </button>
+            </div>
+
+            {/* Overlay body — scrollable */}
+            <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
+              {/* Narrative sections */}
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
+                {scenario.narrative?.context && (
+                  <div style={{ padding: 16, background: "#f8f9fc", borderRadius: 10, border: "1px solid #e2e4ea" }}>
+                    <h3 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "#1a3c6e" }}>Contexte</h3>
+                    <p style={{ margin: 0, fontSize: 13, color: "#444", lineHeight: 1.6 }}>{scenario.narrative.context}</p>
+                  </div>
+                )}
+                {scenario.narrative?.mission && (
+                  <div style={{ padding: 16, background: "#f8f9fc", borderRadius: 10, border: "1px solid #e2e4ea" }}>
+                    <h3 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "#1a3c6e" }}>Mission</h3>
+                    <p style={{ margin: 0, fontSize: 13, color: "#444", lineHeight: 1.6 }}>{scenario.narrative.mission}</p>
+                  </div>
+                )}
+              </div>
+              {scenario.narrative?.initial_situation && (
+                <div style={{ padding: 16, background: "#fffbeb", borderRadius: 10, border: "1px solid #fde68a", marginBottom: 24 }}>
+                  <h3 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "#92400e" }}>Situation initiale</h3>
+                  <p style={{ margin: 0, fontSize: 13, color: "#78350f", lineHeight: 1.6 }}>{scenario.narrative.initial_situation}</p>
+                </div>
+              )}
+
+              {/* Documents */}
+              <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "#1a3c6e" }}>📁 Documents de travail</h3>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
+                {allDocuments.map((doc: any) => {
+                  const hasImage = !!doc.image_path;
+                  return (
+                    <div
+                      key={doc.doc_id}
+                      onClick={() => { setSelectedDocId(doc.doc_id); setRightPanel("docs"); setShowBriefingOverlay(false); }}
+                      style={{
+                        padding: 14, borderRadius: 10, cursor: "pointer",
+                        background: "#fff", border: "1px solid #e2e4ea",
+                        transition: "all .15s", display: "flex", flexDirection: "column", gap: 8,
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(91,95,199,0.12)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e2e4ea"; e.currentTarget.style.boxShadow = "none"; }}
+                    >
+                      {hasImage && (
+                        <div style={{ height: 100, borderRadius: 6, overflow: "hidden", background: "#eee" }}>
+                          <img src={doc.image_path} alt={doc.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
+                        </div>
+                      )}
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>
+                        {hasImage ? "🖼️" : "📄"} {doc.label}
+                      </div>
+                      <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>Cliquer pour consulter →</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ═══════ BODY ═══════ */}
       <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
@@ -947,27 +1112,48 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
               Contacts
             </h3>
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-              {visibleContacts.map((actor: any) => {
-                const isPlayer = actor.actor_id === "player";
+              {visibleContacts.filter((a: any) => a.actor_id !== "player").map((actor: any) => {
                 const status = actor.contact_status || (actor.interaction_modes?.includes("unreachable") ? "offline" : "available");
-                const color = actor.avatar?.color || (isPlayer ? "#5b5fc7" : "#666");
+                const color = actor.avatar?.color || "#666";
                 const ini = actor.avatar?.initials || getInitials(actor.name);
+                const isSelected = selectedContact === actor.actor_id;
+                const unread = contactUnreadCounts[actor.actor_id] || 0;
+                // Last message preview
+                const lastMsg = [...conversation].reverse().find((m: any) => m.actor === actor.actor_id && m.role === "npc");
+                const preview = lastMsg ? (lastMsg.content.length > 40 ? lastMsg.content.slice(0, 40) + "..." : lastMsg.content) : (actor.contact_preview || "");
                 return (
                   <li
                     key={actor.actor_id}
+                    onClick={() => setSelectedContact(actor.actor_id)}
                     style={{
                       display: "flex", alignItems: "center", gap: 10,
-                      padding: "8px 6px", borderRadius: 6,
-                      marginBottom: 2, cursor: "default",
+                      padding: "10px 8px", borderRadius: 8,
+                      marginBottom: 2, cursor: "pointer",
+                      background: isSelected ? "#f0f0ff" : "transparent",
+                      borderLeft: isSelected ? "3px solid #5b5fc7" : "3px solid transparent",
+                      transition: "all .1s",
                     }}
+                    onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "#f8f8fb"; }}
+                    onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
                   >
-                    <Avatar initials={ini} color={color} size={32} status={status} />
+                    <div style={{ position: "relative" }}>
+                      <Avatar initials={ini} color={color} size={36} status={status} />
+                      {unread > 0 && (
+                        <span style={{
+                          position: "absolute", top: -2, right: -4,
+                          background: "#e94b3c", color: "#fff", borderRadius: 10,
+                          fontSize: 10, fontWeight: 700, padding: "1px 5px", minWidth: 16, textAlign: "center",
+                        }}>
+                          {unread}
+                        </span>
+                      )}
+                    </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {isPlayer ? `${displayPlayerName} (vous)` : actor.name}
+                      <div style={{ fontSize: 13, fontWeight: isSelected ? 700 : 600, color: isSelected ? "#5b5fc7" : "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {actor.name}
                       </div>
-                      <div style={{ fontSize: 11, color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {actor.role}
+                      <div style={{ fontSize: 11, color: "#999", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {preview}
                       </div>
                     </div>
                   </li>
@@ -1005,12 +1191,26 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             <>
               {/* Chat header */}
               <div style={{ padding: "10px 16px", borderBottom: "1px solid #e8e8e8", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                <span style={{ fontSize: 15, fontWeight: 600, color: "#333" }}>💬 Messagerie — {phaseTitle}</span>
+                {(() => {
+                  if (selectedContact) {
+                    const contactActor = actors.find((a: any) => a.actor_id === selectedContact);
+                    const cColor = contactActor?.avatar?.color || "#666";
+                    const cIni = contactActor?.avatar?.initials || getInitials(contactActor?.name || "");
+                    return (
+                      <>
+                        <Avatar initials={cIni} color={cColor} size={28} status={contactActor?.contact_status || "available"} />
+                        <span style={{ fontSize: 15, fontWeight: 600, color: "#333" }}>{contactActor?.name || selectedContact}</span>
+                        <span style={{ fontSize: 12, color: "#999" }}>— {phaseTitle}</span>
+                      </>
+                    );
+                  }
+                  return <span style={{ fontSize: 15, fontWeight: 600, color: "#333" }}>💬 Messagerie — {phaseTitle}</span>;
+                })()}
               </div>
 
               {/* Messages */}
               <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
-                {conversation.map((msg: any) => {
+                {filteredConversation.map((msg: any) => {
                   const isPlayer = msg.role === "player";
                   const isSystem = msg.role === "system";
                   const actor = !isPlayer && !isSystem ? getActorInfo(msg.actor || "npc") : null;
@@ -1523,11 +1723,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   </div>
                 )}
 
-                {/* Score */}
-                <div style={{ padding: 10, background: "#f0f0ff", borderRadius: 6 }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase", marginBottom: 4 }}>Score</div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: "#333" }}>{view.totalScore}</div>
-                </div>
+                {/* Score hidden globally */}
               </div>
             )}
 

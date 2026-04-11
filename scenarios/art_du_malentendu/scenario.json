@@ -180,7 +180,7 @@
         "label": "Œuvre 1 : 'Le Coq Distrait'",
         "contains": ["reproduction_oeuvre", "description_artiste"],
         "usable_as_pj": false,
-        "image_path": "/scenarios/art_du_malentendu/oeuvre_coq_distrait.jpg",
+        "image_path": "/scenarios/art_du_malentendu/oeuvre_coq_distrait.png",
         "content": "LE COQ DISTRAIT — Huile sur toile, 120x80cm, 2024\n\nUn coq aux couleurs du drapeau français regarde un croissant géant pendant qu'une horloge derrière lui indique une heure de retard. Des personnages avec des bérets et des baguettes de pain dansent autour de lui sans remarquer que le coq s'endort.\n\nDescription de l'artiste (en anglais) :\n'The French rooster is always late and always distracted by food. This painting shows how France sleeps while the world moves forward. The beret people represent the French obsession with their own culture while ignoring everything else.'"
       },
       {
@@ -188,7 +188,7 @@
         "label": "Œuvre 2 : 'Lost in Translation'",
         "contains": ["reproduction_oeuvre", "description_artiste"],
         "usable_as_pj": false,
-        "image_path": "/scenarios/art_du_malentendu/oeuvre_lost_in_translation.jpg",
+        "image_path": "/scenarios/art_du_malentendu/oeuvre_lost_in_translation.png",
         "content": "LOST IN TRANSLATION — Technique mixte, 150x100cm, 2024\n\nUn touriste japonais tente de demander son chemin à un Parisien qui lui répond en faisant de grands gestes incompréhensibles. Des bulles de dialogue montrent des symboles confus. Le Parisien a un air hautain, le touriste a l'air perdu. En arrière-plan, la Tour Eiffel penche légèrement.\n\nDescription de l'artiste (en anglais) :\n'French people refuse to speak English. It is not that they cannot — they choose not to. This arrogance is what makes Paris both fascinating and infuriating. The leaning tower shows that France itself is off-balance but won't admit it.'"
       }
     ]
@@ -221,19 +221,19 @@
       "event_id": "yuki_sms_1",
       "type": "chat",
       "actor": "yuki_tanaka",
-      "content": "Oh hi!! You must be from the Ministry! I saw you arrive through the window. Come in come in! I'm SO excited about today!"
+      "content": "hey! you must be from the Ministry right? i just saw you through the window. come in! i'm so excited about today"
     },
     {
       "event_id": "yuki_sms_2",
       "type": "chat",
       "actor": "yuki_tanaka",
-      "content": "I've been preparing a SPECIAL introduction for the kids. I want to start with 'Le Coq Distrait' — you know, the painting about how French people are always late and obsessed with food? I think kids will LOVE it, it's so funny! 😂"
+      "content": "ok so i've been thinking about what to show the kids. i want to start with Le Coq Distrait — the one about how french people are always late and obsessed with food. i think they'll find it hilarious 😂"
     },
     {
       "event_id": "yuki_sms_3",
       "type": "chat",
       "actor": "yuki_tanaka",
-      "content": "And then I'll explain my concept — how France is basically a beautiful museum that fell asleep. The rooster sleeping while the world moves forward! I have great jokes about French arrogance and the beret obsession. Kids love humor, right? 🐓💤"
+      "content": "and then i'll get into the whole concept — france as this beautiful museum that kind of fell asleep. the rooster dozing off while the world moves on. i've got some great jokes lined up about french arrogance and the beret thing. kids love that stuff right?"
     }
   ],
 
@@ -264,7 +264,7 @@
         {
           "interrupt_id": "yuki_encore_plus",
           "actor": "yuki_tanaka",
-          "content": "Oh and I almost forgot! For 'Lost in Translation' I want to do a live demonstration — I'll ask a kid to try speaking English and show how bad French people are at it! It will be hilarious! The parents will laugh too! 😅",
+          "content": "oh and i almost forgot — for Lost in Translation i want to do a live demo. like i'll ask one of the kids to try speaking english and we can all see how bad french people are at it lol. it'll be so funny. the parents will love it too 😅",
           "channel": "chat",
           "trigger": {
             "type": "after_delay",
@@ -294,8 +294,8 @@
       ],
 
       "auto_advance": false,
-      "next_phase": "phase_2_presentation",
-      "time_jump_minutes": 5
+      "auto_advance_at": "children_arrival",
+      "next_phase": "phase_2_presentation"
     },
 
     {

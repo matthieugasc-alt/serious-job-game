@@ -394,6 +394,12 @@ export type PhaseDefinition = {
    */
   auto_advance: boolean;
 
+  /**
+   * Key in the scenario timeline that triggers auto-advance when simulated time reaches it.
+   * Example: "children_arrival" means this phase ends when simulatedTime >= timeline.children_arrival.
+   */
+  auto_advance_at?: string;
+
   /** Adaptive difficulty modes available in this phase (e.g., autonomy, guided) */
   adaptive_modes?: Record<string, { description: string }>;
 
@@ -681,6 +687,9 @@ export type ChatMessage = {
 
   /** Which channel this message belongs to */
   channel?: string;
+
+  /** For player messages: which actor the message is addressed to */
+  toActor?: string;
 
   /** Phase ID when message was sent (for filtering/analysis) */
   phaseId?: string;
