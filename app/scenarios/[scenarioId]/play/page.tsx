@@ -609,38 +609,34 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         const targetActor = (currentPhaseConfig as any)?.ai_actors?.[0] || "sophie_renard";
         const next = cloneSession(session);
         addPlayerMessage(next, transcript, targetActor);
+        // Advance to next phase IMMEDIATELY — don't wait for AI evaluation
+        addAIMessage(next, "Présentation terminée. Passons à la suite !", targetActor);
+        completeCurrentPhaseAndAdvance(next);
+        injectPhaseEntryEvents(next);
+        const newPhase = scenario?.phases[next.currentPhaseIndex];
+        if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
         setSession(next);
-        (async () => {
-          setIsSending(true);
-          try {
-            const res = await fetch("/api/evaluate-presentation", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                transcript,
-                phaseTitle: view?.phaseTitle,
-                phaseObjective: view?.phaseObjective,
-                criteria: view?.criteria,
-              }),
-            });
-            const data = await res.json();
-            const final2 = cloneSession(next);
-            addAIMessage(final2, data.reply || "Présentation évaluée.", targetActor);
-            applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-            completeCurrentPhaseAndAdvance(final2);
-            injectPhaseEntryEvents(final2);
-            const newPhase = scenario?.phases[final2.currentPhaseIndex];
-            if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
-            setSession(final2);
-            setPresentationDone(false);
-            setVoiceTranscript("");
-            presentationAutoStoppedRef.current = false;
-          } catch (err) {
-            console.error("Erreur évaluation présentation auto-stop:", err);
-          } finally {
-            setIsSending(false);
-          }
-        })();
+        setPresentationDone(false);
+        setVoiceTranscript("");
+        presentationAutoStoppedRef.current = false;
+        // Evaluate in background — fire and forget
+        fetch("/api/evaluate-presentation", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            transcript,
+            phaseTitle: view?.phaseTitle,
+            phaseObjective: view?.phaseObjective,
+            criteria: view?.criteria,
+          }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            const updated = cloneSession(sessionRef.current);
+            applyEvaluation(updated, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+            setSession(updated);
+          })
+          .catch(err => console.error("Background eval (auto-stop):", err));
       }
     }
   }, [recordingElapsed, currentInteractionMode]);
@@ -1477,44 +1473,37 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       // Stop recording
                       const transcript = stopRecognition();
                       setPresentationDone(true);
-                      // Send transcript to AI for evaluation
+                      // Advance to next phase IMMEDIATELY — evaluate in background
                       if (transcript.trim()) {
                         const targetActor = (currentPhaseConfig as any)?.ai_actors?.[0] || "sophie_renard";
                         const next = cloneSession(session);
                         addPlayerMessage(next, transcript, targetActor);
+                        addAIMessage(next, "Présentation terminée. Passons à la suite !", targetActor);
+                        completeCurrentPhaseAndAdvance(next);
+                        injectPhaseEntryEvents(next);
+                        const newPhase = scenario?.phases[next.currentPhaseIndex];
+                        if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
                         setSession(next);
-                        // Call fast evaluation endpoint (no roleplay needed)
-                        (async () => {
-                          setIsSending(true);
-                          try {
-                            const res = await fetch("/api/evaluate-presentation", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                transcript,
-                                phaseTitle: view?.phaseTitle,
-                                phaseObjective: view?.phaseObjective,
-                                criteria: view?.criteria,
-                              }),
-                            });
-                            const data = await res.json();
-                            const final2 = cloneSession(next);
-                            addAIMessage(final2, data.reply || "Présentation évaluée.", targetActor);
-                            applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-                            // Auto-advance after presentation evaluation
-                            completeCurrentPhaseAndAdvance(final2);
-                            injectPhaseEntryEvents(final2);
-                            const newPhase = scenario?.phases[final2.currentPhaseIndex];
-                            if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
-                            setSession(final2);
-                            setPresentationDone(false);
-                            setVoiceTranscript("");
-                          } catch (err) {
-                            console.error("Erreur évaluation présentation:", err);
-                          } finally {
-                            setIsSending(false);
-                          }
-                        })();
+                        setPresentationDone(false);
+                        setVoiceTranscript("");
+                        // Background evaluation — fire and forget
+                        fetch("/api/evaluate-presentation", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            transcript,
+                            phaseTitle: view?.phaseTitle,
+                            phaseObjective: view?.phaseObjective,
+                            criteria: view?.criteria,
+                          }),
+                        })
+                          .then(res => res.json())
+                          .then(data => {
+                            const updated = cloneSession(sessionRef.current);
+                            applyEvaluation(updated, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+                            setSession(updated);
+                          })
+                          .catch(err => console.error("Background eval (manual stop):", err));
                       }
                     } else {
                       // Start recording
