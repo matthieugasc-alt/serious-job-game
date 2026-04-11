@@ -8,10 +8,10 @@ export const runtime = 'nodejs';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { recordId: string } },
+  { params }: { params: Promise<{ recordId: string }> },
 ) {
   try {
-    const { recordId } = params;
+    const { recordId } = await params;
 
     // Extract token from Authorization header
     const authHeader = request.headers.get('authorization');
