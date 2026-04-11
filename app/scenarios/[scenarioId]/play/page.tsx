@@ -186,6 +186,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [raisedHands, setRaisedHands] = useState<string[]>([]);
   const [qaWaiting, setQaWaiting] = useState(false);
   const [presentationDone, setPresentationDone] = useState(false);
+  const autoSendTimerRef = useRef<any>(null);
+  const lastSentTranscriptRef = useRef("");
+  const isSendingRef = useRef(false);
+
+  // ── Refs for auto-send closures ──
+  const sessionRef = useRef<any>(null);
+  const scenarioRef = useRef<any>(null);
+  const viewRef = useRef<any>(null);
 
   // ── Refs ──
   const aiPromptRef = useRef("");
@@ -218,6 +226,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const simulatedTime = view?.simulatedTime ? fmtTime(view.simulatedTime) : "--:--";
   const actors = scenario?.actors || [];
   const visibleContacts = actors.filter((a: any) => a.visible_in_contacts || a.actor_id === "player");
+
+  // ── Keep refs in sync for closures ──
+  sessionRef.current = session;
+  scenarioRef.current = scenario;
+  viewRef.current = view;
+  isSendingRef.current = isSending;
 
   // ── Interaction mode ──
   const currentInteractionMode: string = scenario?.phases?.[session?.currentPhaseIndex]?.interaction_mode || "chat";
@@ -345,7 +359,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       });
   }, [view?.isFinished]);
 
-  // ── Save debrief to game history (once only) ──
+  // ── Save debrief to game history (once only) — localStorage + server ──
   useEffect(() => {
     if (!debriefData || debriefSavedRef.current || !scenario) return;
     debriefSavedRef.current = true;
@@ -359,6 +373,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           )
         : 0;
 
+    // Save to localStorage (legacy)
     saveGameRecord({
       scenarioId: scenarioId as string,
       scenarioTitle: scenario.meta?.title || "Scenario",
@@ -367,6 +382,31 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       avgScore,
       debrief: debriefData,
     });
+
+    // Save to server (for profile/history/PDF)
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    if (token) {
+      fetch("/api/profile/save-game", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          scenarioId: scenarioId as string,
+          scenarioTitle: scenario.meta?.title || "Scenario",
+          playerName: displayPlayerName,
+          ending: debriefData.ending || "failure",
+          avgScore,
+          durationMin: Math.round(
+            (Date.now() - new Date(session.simulatedTime || Date.now()).getTime()) / 60000
+          ) || 0,
+          phasesCompleted: session.completedPhases?.length || 0,
+          totalPhases: scenario.phases?.length || 0,
+          debrief: debriefData,
+        }),
+      }).catch((err) => console.error("Failed to save game to server:", err));
+    }
   }, [debriefData]);
 
   // ════════════════════════════════════════════════════════════════════
@@ -541,6 +581,63 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     return () => clearInterval(iv);
   }, [isRecording]);
 
+  // ── Auto-stop presentation when max_duration_sec reached ──
+  const presentationAutoStoppedRef = useRef(false);
+  useEffect(() => {
+    if (!isRecording || currentInteractionMode !== "presentation") return;
+    const maxSec = (currentPhaseConfig as any)?.presentation_config?.max_duration_sec || 300;
+    if (recordingElapsed >= maxSec && !presentationAutoStoppedRef.current) {
+      presentationAutoStoppedRef.current = true;
+      // Simulate clicking the stop button — stop recording and send for evaluation
+      const transcript = stopRecognition();
+      setPresentationDone(true);
+      if (transcript.trim() && session && scenario && view) {
+        const targetActor = (currentPhaseConfig as any)?.ai_actors?.[0] || "sophie_renard";
+        const next = cloneSession(session);
+        addPlayerMessage(next, transcript, targetActor);
+        setSession(next);
+        (async () => {
+          setIsSending(true);
+          try {
+            const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
+            const res = await fetch("/api/chat", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                playerName: displayPlayerName,
+                message: `[TRANSCRIPTION DE LA PRÉSENTATION ORALE DU JOUEUR AUX ENFANTS]\n\n${transcript}`,
+                phaseTitle: view?.phaseTitle,
+                phaseObjective: view?.phaseObjective,
+                phasePrompt: view?.phasePrompt,
+                criteria: view?.criteria,
+                mode: view?.adaptiveMode,
+                narrative: scenario?.narrative,
+                recentConversation: [],
+                roleplayPrompt: activePrompt,
+              }),
+            });
+            const data = await res.json();
+            const final2 = cloneSession(next);
+            addAIMessage(final2, data.reply, targetActor);
+            applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+            completeCurrentPhaseAndAdvance(final2);
+            injectPhaseEntryEvents(final2);
+            const newPhase = scenario?.phases[final2.currentPhaseIndex];
+            if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
+            setSession(final2);
+            setPresentationDone(false);
+            setVoiceTranscript("");
+            presentationAutoStoppedRef.current = false;
+          } catch (err) {
+            console.error("Erreur évaluation présentation auto-stop:", err);
+          } finally {
+            setIsSending(false);
+          }
+        })();
+      }
+    }
+  }, [recordingElapsed, currentInteractionMode]);
+
   // ── Children hand-raising (voice_qa mode) ──
   useEffect(() => {
     if (!session || !scenario) return;
@@ -589,7 +686,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     const phase = scenario.phases[session.currentPhaseIndex] as any;
     if (phase?.interaction_mode === "voice_qa" && !isRecording && !presentationDone) {
       // Small delay to let the phase transition settle
-      const t = setTimeout(() => startRecognition("fr-FR"), 1500);
+      const t = setTimeout(() => startRecognition("fr-FR", true), 1500);
       return () => clearTimeout(t);
     }
   }, [session?.currentPhaseIndex]);
@@ -599,7 +696,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // ════════════════════════════════════════════════════════════════════
 
   // ── Speech Recognition (STT) ──
-  function startRecognition(lang: string) {
+  function startRecognition(lang: string, autoSendMode: boolean = false) {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) {
       alert("Votre navigateur ne supporte pas la reconnaissance vocale. Utilisez Google Chrome.");
@@ -626,6 +723,72 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         accumulated += finalChunk;
         voiceTranscriptRef.current = accumulated;
         setVoiceTranscript(accumulated);
+
+        // ── Auto-send on speech pause in voice_qa mode ──
+        if (autoSendMode) {
+          // Clear previous pause timer
+          if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
+          // Set new 2-second silence timer
+          autoSendTimerRef.current = setTimeout(() => {
+            const newText = accumulated.slice(lastSentTranscriptRef.current.length).trim();
+            if (!newText || isSendingRef.current) return;
+            // Mark what we've sent
+            lastSentTranscriptRef.current = accumulated;
+            // Send to AI
+            const sess = sessionRef.current;
+            const scen = scenarioRef.current;
+            const v = viewRef.current;
+            if (!sess || !scen || !v) return;
+            const targetActor = scen.phases[sess.currentPhaseIndex]?.ai_actors?.[0] || "enfants_cmj";
+            const next = cloneSession(sess);
+            addPlayerMessage(next, newText, targetActor);
+            setSession(next);
+            // Clear displayed transcript since it was sent
+            voiceTranscriptRef.current = "";
+            accumulated = "";
+            lastSentTranscriptRef.current = "";
+            setVoiceTranscript("");
+            // Get AI response
+            (async () => {
+              setIsSending(true);
+              try {
+                const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
+                const convNow = v.conversation || [];
+                const recentConv = convNow.slice(-10).map((m: any) => ({
+                  role: m.role === "player" ? "user" : "assistant",
+                  content: m.content,
+                }));
+                const res = await fetch("/api/chat", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    playerName: displayPlayerName,
+                    message: newText,
+                    phaseTitle: v.phaseTitle,
+                    phaseObjective: v.phaseObjective,
+                    phasePrompt: v.phasePrompt,
+                    criteria: v.criteria,
+                    mode: v.adaptiveMode,
+                    narrative: scen.narrative,
+                    recentConversation: recentConv,
+                    roleplayPrompt: activePrompt,
+                  }),
+                });
+                const data = await res.json();
+                playNotificationSound();
+                const final2 = cloneSession(next);
+                addAIMessage(final2, data.reply, targetActor);
+                applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+                setSession(final2);
+                // TTS will auto-trigger via existing effect
+              } catch (err) {
+                console.error("Erreur auto-send vocal:", err);
+              } finally {
+                setIsSending(false);
+              }
+            })();
+          }, 2000);
+        }
       }
       setInterimText(interim);
     };
@@ -649,6 +812,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     voiceTranscriptRef.current = "";
     setVoiceTranscript("");
     setInterimText("");
+    lastSentTranscriptRef.current = "";
+    if (autoSendTimerRef.current) { clearTimeout(autoSendTimerRef.current); autoSendTimerRef.current = null; }
     setIsRecording(true);
     recordingStartRef.current = Date.now();
     setRecordingElapsed(0);
@@ -1571,7 +1736,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
               <div style={{ flex: 1 }} />
 
-              {/* Mic indicator */}
+              {/* Mic indicator + mute toggle */}
               <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
                 <div style={{
                   display: "flex", alignItems: "center", gap: 8,
@@ -1585,62 +1750,18 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     animation: isRecording ? "micBlink 1s ease-in-out infinite" : "none",
                   }} />
                   <span style={{ fontSize: 12, fontWeight: 600, color: isRecording ? "#e94b3c" : "#999" }}>
-                    {isRecording ? "Micro actif — Parlez librement" : "Micro inactif"}
+                    {isRecording ? (isSending ? "Analyse en cours..." : "Micro actif — Parlez librement") : "Micro coupé"}
                   </span>
                 </div>
                 <button
                   onClick={() => {
                     if (isRecording) {
-                      const transcript = stopRecognition();
-                      if (transcript.trim()) {
-                        // Send accumulated speech as a player message
-                        const targetActor = selectedContact || (currentPhaseConfig as any)?.ai_actors?.[0] || "enfants_cmj";
-                        const next = cloneSession(session);
-                        addPlayerMessage(next, transcript, targetActor);
-                        setSession(next);
-                        setVoiceTranscript("");
-                        // Get AI response
-                        (async () => {
-                          setIsSending(true);
-                          try {
-                            const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
-                            const recentConv = conversation.slice(-10).map((m: any) => ({
-                              role: m.role === "player" ? "user" : "assistant",
-                              content: m.content,
-                            }));
-                            const res = await fetch("/api/chat", {
-                              method: "POST",
-                              headers: { "Content-Type": "application/json" },
-                              body: JSON.stringify({
-                                playerName: displayPlayerName,
-                                message: transcript,
-                                phaseTitle: view?.phaseTitle,
-                                phaseObjective: view?.phaseObjective,
-                                phasePrompt: view?.phasePrompt,
-                                criteria: view?.criteria,
-                                mode: view?.adaptiveMode,
-                                narrative: scenario?.narrative,
-                                recentConversation: recentConv,
-                                roleplayPrompt: activePrompt,
-                              }),
-                            });
-                            const data = await res.json();
-                            playNotificationSound();
-                            const final2 = cloneSession(next);
-                            addAIMessage(final2, data.reply, targetActor);
-                            applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-                            setSession(final2);
-                          } catch (err) {
-                            console.error("Erreur chat vocal:", err);
-                          } finally {
-                            setIsSending(false);
-                          }
-                        })();
-                      }
-                      // Restart mic after a brief pause
-                      setTimeout(() => startRecognition("fr-FR"), 500);
+                      // Mute — just stop recognition, no send (auto-send handles it)
+                      if (autoSendTimerRef.current) { clearTimeout(autoSendTimerRef.current); autoSendTimerRef.current = null; }
+                      stopRecognition();
                     } else {
-                      startRecognition("fr-FR");
+                      // Unmute — restart with auto-send
+                      startRecognition("fr-FR", true);
                     }
                   }}
                   style={{
@@ -1651,7 +1772,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     fontSize: 20, transition: "all .2s",
                   }}
                 >
-                  {isRecording ? "⏸" : "🎙️"}
+                  {isRecording ? "🔇" : "🎙️"}
                 </button>
               </div>
             </div>
@@ -1663,6 +1784,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   {voiceTranscript}
                   {interimText && <span style={{ color: "#aaa", fontStyle: "italic" }}>{interimText}</span>}
                 </span>
+                {voiceTranscript && !isSending && (
+                  <span style={{ fontSize: 10, color: "#7b7fff", marginLeft: 8 }}>
+                    (envoi auto apres une pause)
+                  </span>
+                )}
               </div>
             )}
           </div>

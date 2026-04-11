@@ -9,10 +9,32 @@ import { useRouter } from "next/navigation";
 
 type Step = "idle" | "uploading" | "extracting" | "converting" | "done" | "error";
 
+interface ScenarioConfig {
+  id: string;
+  scenario_id: string;
+  adminLocked?: boolean;
+  lockMessage?: string;
+  prerequisites?: string[];
+  categoryOverride?: string;
+  sortOrder?: number;
+  featured?: boolean;
+}
+
+interface Scenario {
+  id: string;
+  scenario_id: string;
+  title: string;
+  subtitle: string;
+  difficulty: string;
+  job_family?: string;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userToken, setUserToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeSection, setActiveSection] = useState<"conversion" | "management">("conversion");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Conversion state
@@ -23,9 +45,17 @@ export default function AdminPage() {
   const [saving, setSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  // Scenario management state
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [configs, setConfigs] = useState<Record<string, ScenarioConfig>>({});
+  const [scenariosLoading, setScenariosLoading] = useState(false);
+  const [editingConfigs, setEditingConfigs] = useState<Record<string, ScenarioConfig>>({});
+  const [savingConfigs, setSavingConfigs] = useState<Record<string, boolean>>({});
+
   useEffect(() => {
     const role = localStorage.getItem("user_role");
     const name = localStorage.getItem("user_name");
+    const token = localStorage.getItem("auth_token");
     if (!name || !role) {
       router.push("/login");
       return;
@@ -36,8 +66,48 @@ export default function AdminPage() {
       return;
     }
     setUserRole(role);
+    setUserToken(token);
     setLoading(false);
+    loadScenarios();
   }, []);
+
+  const loadScenarios = async () => {
+    try {
+      setScenariosLoading(true);
+      const [scenariosRes, configsRes] = await Promise.all([
+        fetch("/api/scenarios"),
+        fetch("/api/admin/scenario-config"),
+      ]);
+
+      if (scenariosRes.ok) {
+        const data = await scenariosRes.json();
+        setScenarios(data.scenarios || []);
+      }
+
+      if (configsRes.ok) {
+        const data = await configsRes.json();
+        const configMap: Record<string, ScenarioConfig> = {};
+        (data.configs || []).forEach((cfg: any) => {
+          const mapped: ScenarioConfig = {
+            id: cfg.scenarioId || cfg.scenario_id,
+            scenario_id: cfg.scenarioId || cfg.scenario_id,
+            adminLocked: cfg.adminLocked,
+            lockMessage: cfg.lockMessage,
+            prerequisites: cfg.prerequisites,
+            categoryOverride: cfg.category,
+            sortOrder: cfg.order,
+            featured: cfg.featured,
+          };
+          configMap[mapped.scenario_id] = mapped;
+        });
+        setConfigs(configMap);
+      }
+    } catch (err: any) {
+      console.error("Failed to load scenarios:", err);
+    } finally {
+      setScenariosLoading(false);
+    }
+  };
 
   // ── File upload handler ────────────────────────────────────────
   const handleFile = useCallback(async (file: File) => {
@@ -143,6 +213,76 @@ export default function AdminPage() {
     URL.revokeObjectURL(url);
   };
 
+  // ── Scenario config management ──────────────────────────────────
+  const getEditingConfig = (scenarioId: string): ScenarioConfig => {
+    return (
+      editingConfigs[scenarioId] || {
+        id: scenarioId,
+        scenario_id: scenarioId,
+        adminLocked: false,
+        lockMessage: "",
+        prerequisites: [],
+        categoryOverride: "",
+        sortOrder: 0,
+        featured: false,
+      }
+    );
+  };
+
+  const handleConfigChange = (
+    scenarioId: string,
+    field: keyof ScenarioConfig,
+    value: any
+  ) => {
+    const current = getEditingConfig(scenarioId);
+    setEditingConfigs((prev) => ({
+      ...prev,
+      [scenarioId]: { ...current, [field]: value },
+    }));
+  };
+
+  const handleSaveConfig = async (scenarioId: string) => {
+    if (!userToken) return;
+
+    setSavingConfigs((prev) => ({ ...prev, [scenarioId]: true }));
+    try {
+      const config = getEditingConfig(scenarioId);
+      const res = await fetch("/api/admin/scenario-config", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${userToken}`,
+        },
+        body: JSON.stringify({
+          scenarioId: config.scenario_id,
+          adminLocked: config.adminLocked ?? false,
+          lockMessage: config.lockMessage,
+          prerequisites: config.prerequisites,
+          category: config.categoryOverride,
+          order: config.sortOrder,
+          featured: config.featured,
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error("Erreur lors de la sauvegarde");
+      }
+
+      // Update local configs
+      setConfigs((prev) => ({ ...prev, [scenarioId]: config }));
+      setEditingConfigs((prev) => {
+        const next = { ...prev };
+        delete next[scenarioId];
+        return next;
+      });
+    } catch (err: any) {
+      console.error("Save config error:", err);
+      alert("Erreur lors de la sauvegarde de la configuration");
+    } finally {
+      setSavingConfigs((prev) => ({ ...prev, [scenarioId]: false }));
+    }
+  };
+
   // ── Loading / Auth guard ───────────────────────────────────────
   if (loading) {
     return (
@@ -170,11 +310,11 @@ export default function AdminPage() {
         minHeight: "100vh",
         background: "linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
         padding: "28px 20px 40px",
-        fontFamily: "Arial, sans-serif",
+        fontFamily: "Segoe UI, sans-serif",
         color: "#fff",
       }}
     >
-      <div style={{ maxWidth: 960, margin: "0 auto" }}>
+      <div style={{ maxWidth: 1200, margin: "0 auto" }}>
         {/* Header */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 40 }}>
           <div>
@@ -196,7 +336,7 @@ export default function AdminPage() {
             </div>
             <h1 style={{ margin: 0, fontSize: 28, fontWeight: 700 }}>Espace Administrateur</h1>
             <p style={{ margin: "6px 0 0", fontSize: 14, color: "rgba(255,255,255,0.6)" }}>
-              Creez et gerez vos scenarios de jeu serieux
+              Créez et gérez vos scénarios de jeu sérieux
             </p>
           </div>
           <button
@@ -213,12 +353,58 @@ export default function AdminPage() {
               transition: "all 0.2s",
             }}
           >
-            Retour a l'accueil
+            Retour à l'accueil
           </button>
         </div>
 
-        {/* Two column layout */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 32 }}>
+        {/* Navigation tabs */}
+        <div
+          style={{
+            display: "flex",
+            gap: 24,
+            borderBottom: "1px solid rgba(255,255,255,0.1)",
+            marginBottom: 32,
+          }}
+        >
+          <button
+            onClick={() => setActiveSection("conversion")}
+            style={{
+              padding: "12px 0",
+              fontSize: 16,
+              fontWeight: activeSection === "conversion" ? 700 : 500,
+              color: activeSection === "conversion" ? "#a5a8ff" : "rgba(255,255,255,0.6)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              borderBottom: activeSection === "conversion" ? "2px solid #5b5fc7" : "none",
+              transition: "all 0.2s",
+            }}
+          >
+            📄 Conversion PDF
+          </button>
+          <button
+            onClick={() => setActiveSection("management")}
+            style={{
+              padding: "12px 0",
+              fontSize: 16,
+              fontWeight: activeSection === "management" ? 700 : 500,
+              color: activeSection === "management" ? "#a5a8ff" : "rgba(255,255,255,0.6)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              borderBottom: activeSection === "management" ? "2px solid #5b5fc7" : "none",
+              transition: "all 0.2s",
+            }}
+          >
+            ⚙️ Gestion des scénarios
+          </button>
+        </div>
+
+        {/* Conversion Section */}
+        {activeSection === "conversion" && (
+          <>
+            {/* Two column layout */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24, marginBottom: 32 }}>
           {/* ── Guide Card ── */}
           <div
             style={{
@@ -481,6 +667,337 @@ export default function AdminPage() {
             >
               {JSON.stringify(scenarioJson, null, 2)}
             </div>
+          </div>
+        )}
+          </>
+        )}
+
+        {/* Management Section */}
+        {activeSection === "management" && (
+          <div>
+            {scenariosLoading ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", color: "rgba(255,255,255,0.6)" }}>
+                Chargement des scénarios...
+              </div>
+            ) : scenarios.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "60px 20px", color: "rgba(255,255,255,0.6)" }}>
+                Aucun scénario disponible
+              </div>
+            ) : (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))",
+                  gap: 24,
+                }}
+              >
+                {scenarios.map((scenario) => {
+                  const config = getEditingConfig(scenario.scenario_id);
+                  const isSaving = savingConfigs[scenario.scenario_id];
+
+                  return (
+                    <div
+                      key={scenario.scenario_id}
+                      style={{
+                        background: "rgba(255,255,255,0.06)",
+                        borderRadius: 16,
+                        padding: 24,
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 16,
+                      }}
+                    >
+                      {/* Header */}
+                      <div>
+                        <h3 style={{ margin: "0 0 6px", fontSize: 18, fontWeight: 700 }}>
+                          {scenario.title}
+                        </h3>
+                        <p
+                          style={{
+                            margin: 0,
+                            fontSize: 13,
+                            color: "rgba(255,255,255,0.6)",
+                          }}
+                        >
+                          {scenario.subtitle}
+                        </p>
+                        <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              padding: "3px 8px",
+                              background: "rgba(91,95,199,0.2)",
+                              color: "#a5a8ff",
+                              borderRadius: 4,
+                            }}
+                          >
+                            {scenario.job_family || "Autre"}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              padding: "3px 8px",
+                              background: "rgba(255,255,255,0.1)",
+                              color: "rgba(255,255,255,0.7)",
+                              borderRadius: 4,
+                            }}
+                          >
+                            {scenario.difficulty}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Status */}
+                      <div
+                        style={{
+                          padding: 12,
+                          background: "rgba(0,0,0,0.2)",
+                          borderRadius: 8,
+                          fontSize: 12,
+                          color: "rgba(255,255,255,0.7)",
+                        }}
+                      >
+                        {config.adminLocked ? (
+                          <div>
+                            🔧 <strong>Verrouillé</strong> - En cours de développement
+                          </div>
+                        ) : config.prerequisites && config.prerequisites.length > 0 ? (
+                          <div>
+                            🔒 {config.prerequisites.length} prérequis
+                          </div>
+                        ) : (
+                          <div>✅ Accessible</div>
+                        )}
+                      </div>
+
+                      {/* Lock toggle */}
+                      <div>
+                        <label
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            fontSize: 13,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={config.adminLocked || false}
+                            onChange={(e) =>
+                              handleConfigChange(
+                                scenario.scenario_id,
+                                "adminLocked",
+                                e.target.checked
+                              )
+                            }
+                            style={{
+                              width: 18,
+                              height: 18,
+                              cursor: "pointer",
+                              accentColor: "#5b5fc7",
+                            }}
+                          />
+                          Verrouiller ce scénario
+                        </label>
+                        {config.adminLocked && (
+                          <input
+                            type="text"
+                            placeholder="Message de verrouillage (optionnel)"
+                            value={config.lockMessage || ""}
+                            onChange={(e) =>
+                              handleConfigChange(
+                                scenario.scenario_id,
+                                "lockMessage",
+                                e.target.value
+                              )
+                            }
+                            style={{
+                              width: "100%",
+                              marginTop: 8,
+                              padding: "8px 12px",
+                              borderRadius: 6,
+                              border: "1px solid rgba(255,255,255,0.2)",
+                              background: "rgba(255,255,255,0.05)",
+                              color: "#fff",
+                              fontSize: 12,
+                            }}
+                          />
+                        )}
+                      </div>
+
+                      {/* Featured toggle */}
+                      <label
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 8,
+                          fontSize: 13,
+                          cursor: "pointer",
+                        }}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={config.featured || false}
+                          onChange={(e) =>
+                            handleConfigChange(
+                              scenario.scenario_id,
+                              "featured",
+                              e.target.checked
+                            )
+                          }
+                          style={{
+                            width: 18,
+                            height: 18,
+                            cursor: "pointer",
+                            accentColor: "#5b5fc7",
+                          }}
+                        />
+                        Scénario en vedette
+                      </label>
+
+                      {/* Sort order */}
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            fontSize: 12,
+                            color: "rgba(255,255,255,0.6)",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Ordre de tri
+                        </label>
+                        <input
+                          type="number"
+                          value={config.sortOrder || 0}
+                          onChange={(e) =>
+                            handleConfigChange(
+                              scenario.scenario_id,
+                              "sortOrder",
+                              parseInt(e.target.value, 10)
+                            )
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "8px 12px",
+                            borderRadius: 6,
+                            border: "1px solid rgba(255,255,255,0.2)",
+                            background: "rgba(255,255,255,0.05)",
+                            color: "#fff",
+                            fontSize: 12,
+                          }}
+                        />
+                      </div>
+
+                      {/* Category override */}
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            fontSize: 12,
+                            color: "rgba(255,255,255,0.6)",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Catégorie (remplace la par défaut)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder={scenario.job_family || "Catégorie personnalisée"}
+                          value={config.categoryOverride || ""}
+                          onChange={(e) =>
+                            handleConfigChange(
+                              scenario.scenario_id,
+                              "categoryOverride",
+                              e.target.value
+                            )
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "8px 12px",
+                            borderRadius: 6,
+                            border: "1px solid rgba(255,255,255,0.2)",
+                            background: "rgba(255,255,255,0.05)",
+                            color: "#fff",
+                            fontSize: 12,
+                          }}
+                        />
+                      </div>
+
+                      {/* Prerequisites */}
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            fontSize: 12,
+                            color: "rgba(255,255,255,0.6)",
+                            marginBottom: 4,
+                          }}
+                        >
+                          Prérequis (IDs séparés par des virgules)
+                        </label>
+                        <input
+                          type="text"
+                          placeholder="ID1, ID2, ID3"
+                          value={(config.prerequisites || []).join(", ")}
+                          onChange={(e) =>
+                            handleConfigChange(
+                              scenario.scenario_id,
+                              "prerequisites",
+                              e.target.value
+                                .split(",")
+                                .map((s) => s.trim())
+                                .filter(Boolean)
+                            )
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "8px 12px",
+                            borderRadius: 6,
+                            border: "1px solid rgba(255,255,255,0.2)",
+                            background: "rgba(255,255,255,0.05)",
+                            color: "#fff",
+                            fontSize: 12,
+                          }}
+                        />
+                      </div>
+
+                      {/* Save button */}
+                      <button
+                        onClick={() => handleSaveConfig(scenario.scenario_id)}
+                        disabled={isSaving}
+                        style={{
+                          padding: "10px 16px",
+                          background: isSaving ? "rgba(255,255,255,0.1)" : "#5b5fc7",
+                          color: "#fff",
+                          border: "none",
+                          borderRadius: 8,
+                          cursor: isSaving ? "not-allowed" : "pointer",
+                          fontWeight: 600,
+                          fontSize: 13,
+                          transition: "all 0.2s",
+                          opacity: isSaving ? 0.6 : 1,
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isSaving) {
+                            e.currentTarget.style.background = "#4a4aaa";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isSaving) {
+                            e.currentTarget.style.background = "#5b5fc7";
+                          }
+                        }}
+                      >
+                        {isSaving ? "Sauvegarde..." : "Enregistrer"}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
       </div>

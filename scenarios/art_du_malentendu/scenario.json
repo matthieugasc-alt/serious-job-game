@@ -307,15 +307,15 @@
       "ai_actors": ["enfants_cmj", "sophie_renard"],
       "interaction_mode": "presentation",
       "presentation_config": {
-        "min_duration_sec": 120,
-        "max_duration_sec": 300,
+        "min_duration_sec": 30,
+        "max_duration_sec": 75,
         "language": "fr-FR",
-        "instructions": "Vous êtes devant les enfants du Conseil Municipal des Jeunes (7-10 ans). Présentez-leur Yuki Tanaka et son exposition 'Miroir Déformé'. Expliquez les œuvres de manière adaptée à leur âge, donnez-leur envie de poser des questions, et préparez-les au fait que l'artiste ne parle pas français.\n\nCliquez sur le micro pour commencer votre présentation. Cliquez à nouveau pour terminer."
+        "instructions": "Vous êtes devant les enfants du CMJ (7-10 ans). Pitchez en 1 minute chrono : qui est Yuki Tanaka, ce qu'on va voir, et pourquoi c'est intéressant.\n\nAdaptez votre discours à l'âge des enfants. Préparez-les au fait que l'artiste ne parle pas français.\n\nCliquez sur le micro, parlez, puis cliquez à nouveau pour terminer."
       },
 
       "player_input": {
         "type": "free_text",
-        "prompt": "Les enfants du CMJ sont installés devant vous dans la salle d'exposition. Mme Renard vous fait signe que vous pouvez commencer. Yuki Tanaka est un peu en retrait. C'est à vous : présentez l'artiste et l'exposition aux enfants. Parlez en continu pendant 4-5 minutes. Vous êtes debout face au groupe."
+        "prompt": "Les enfants du CMJ sont installés devant vous. Pitchez l'artiste et l'exposition en 1 minute maximum. Soyez clair, enthousiaste et adapté à leur âge."
       },
 
       "competencies": [
