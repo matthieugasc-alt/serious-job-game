@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
+/* ── Force light mode everywhere — game UI is light-themed ── */
 :root {
+  color-scheme: light !important;
   --background: #ffffff;
   --foreground: #171717;
 }
@@ -12,10 +14,11 @@
   --font-mono: var(--font-geist-mono);
 }
 
+/* Kill dark mode completely */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #ffffff !important;
+    --foreground: #171717 !important;
   }
 }
 
@@ -23,4 +26,12 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Default dark text on form inputs — overridable by inline styles */
+input, textarea, select {
+  color: #111;
+}
+input::placeholder, textarea::placeholder {
+  color: #999;
 }

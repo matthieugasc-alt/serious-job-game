@@ -613,26 +613,19 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         (async () => {
           setIsSending(true);
           try {
-            const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
-            const res = await fetch("/api/chat", {
+            const res = await fetch("/api/evaluate-presentation", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                playerName: displayPlayerName,
-                message: `[TRANSCRIPTION DE LA PRÉSENTATION ORALE DU JOUEUR AUX ENFANTS]\n\n${transcript}`,
+                transcript,
                 phaseTitle: view?.phaseTitle,
                 phaseObjective: view?.phaseObjective,
-                phasePrompt: view?.phasePrompt,
                 criteria: view?.criteria,
-                mode: view?.adaptiveMode,
-                narrative: scenario?.narrative,
-                recentConversation: [],
-                roleplayPrompt: activePrompt,
               }),
             });
             const data = await res.json();
             const final2 = cloneSession(next);
-            addAIMessage(final2, data.reply, targetActor);
+            addAIMessage(final2, data.reply || "Présentation évaluée.", targetActor);
             applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
             completeCurrentPhaseAndAdvance(final2);
             injectPhaseEntryEvents(final2);
@@ -1485,30 +1478,23 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         const next = cloneSession(session);
                         addPlayerMessage(next, transcript, targetActor);
                         setSession(next);
-                        // Call AI for evaluation
+                        // Call fast evaluation endpoint (no roleplay needed)
                         (async () => {
                           setIsSending(true);
                           try {
-                            const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
-                            const res = await fetch("/api/chat", {
+                            const res = await fetch("/api/evaluate-presentation", {
                               method: "POST",
                               headers: { "Content-Type": "application/json" },
                               body: JSON.stringify({
-                                playerName: displayPlayerName,
-                                message: `[TRANSCRIPTION DE LA PRÉSENTATION ORALE DU JOUEUR AUX ENFANTS]\n\n${transcript}`,
+                                transcript,
                                 phaseTitle: view?.phaseTitle,
                                 phaseObjective: view?.phaseObjective,
-                                phasePrompt: view?.phasePrompt,
                                 criteria: view?.criteria,
-                                mode: view?.adaptiveMode,
-                                narrative: scenario?.narrative,
-                                recentConversation: [],
-                                roleplayPrompt: activePrompt,
                               }),
                             });
                             const data = await res.json();
                             const final2 = cloneSession(next);
-                            addAIMessage(final2, data.reply, targetActor);
+                            addAIMessage(final2, data.reply || "Présentation évaluée.", targetActor);
                             applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
                             // Auto-advance after presentation evaluation
                             completeCurrentPhaseAndAdvance(final2);
@@ -2028,7 +2014,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   disabled={isSending}
                   style={{
                     flex: 1, padding: "10px 14px", border: "1px solid #ddd", borderRadius: 20,
-                    fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff",
+                    fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff", color: "#111",
                   }}
                 />
                 <button
