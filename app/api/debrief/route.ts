@@ -1,6 +1,14 @@
-import OpenAI from "openai";
+/** ═══════════════════════════════════════════════════════════════════
+ *  /api/debrief — AI-powered debrief using Claude (Anthropic API)
+ *
+ *  Receives the full game session data and asks Claude to evaluate
+ *  the player's performance phase-by-phase against competencies.
+ *  Returns a structured debrief with per-phase analysis + overall verdict.
+ *
+ *  Requires ANTHROPIC_API_KEY in .env.local
+ *  Falls back to OpenAI (OPENAI_API_KEY) if Anthropic key is absent.
+ * ═══════════════════════════════════════════════════════════════════ */
 
-/** Replace problematic Unicode characters that can break ByteString encoding. */
 function sanitize(input: string): string {
   return input
     .replace(/[\u2018\u2019\u02BC]/g, "'")
@@ -11,25 +19,38 @@ function sanitize(input: string): string {
     .replace(/[\u200B-\u200F\uFEFF]/g, "");
 }
 
-type CompetencyItem = {
-  competency: string;
-  level: string;
-  justification: string;
+// ── Types ──────────────────────────────────────────────────────────
+
+export type PhaseEvaluation = {
+  phase_title: string;
+  competencies: Array<{
+    name: string;
+    rating: "non_acquis" | "en_cours" | "acquis" | "maitrise";
+    justification: string;
+  }>;
+  phase_summary: string;
+  phase_score: number; // 0-100
 };
 
-type DebriefResponse = {
-  summary: string;
+export type DebriefResponse = {
+  overall_summary: string;
+  ending: "success" | "partial_success" | "failure";
+  ending_narrative: string;
+  phases: PhaseEvaluation[];
   strengths: string[];
-  weaknesses: string[];
-  competency_analysis: CompetencyItem[];
+  improvements: string[];
+  pedagogical_advice: string;
 };
 
 function fallbackDebrief(message: string): DebriefResponse {
   return {
-    summary: message,
+    overall_summary: message,
+    ending: "failure",
+    ending_narrative: "",
+    phases: [],
     strengths: [],
-    weaknesses: [],
-    competency_analysis: [],
+    improvements: [],
+    pedagogical_advice: "",
   };
 }
 
@@ -45,174 +66,265 @@ function extractJson(raw: string) {
   const direct = tryParseJson(raw);
   if (direct) return direct;
 
+  // Try to find JSON object in text
   const start = raw.indexOf("{");
   const end = raw.lastIndexOf("}");
-
   if (start !== -1 && end !== -1 && end > start) {
     return tryParseJson(raw.slice(start, end + 1));
   }
-
   return null;
 }
 
 function normalizeDebrief(data: any): DebriefResponse {
+  const validEndings = ["success", "partial_success", "failure"];
   return {
-    summary:
-      typeof data?.summary === "string" && data.summary.trim()
-        ? data.summary.trim()
-        : "Le débrief n’a pas pu être généré correctement.",
+    overall_summary:
+      typeof data?.overall_summary === "string" && data.overall_summary.trim()
+        ? data.overall_summary.trim()
+        : "Le débrief n'a pas pu être généré correctement.",
+    ending: validEndings.includes(data?.ending) ? data.ending : "failure",
+    ending_narrative:
+      typeof data?.ending_narrative === "string"
+        ? data.ending_narrative.trim()
+        : "",
+    phases: Array.isArray(data?.phases)
+      ? data.phases.map((p: any) => ({
+          phase_title: String(p?.phase_title || "Phase"),
+          competencies: Array.isArray(p?.competencies)
+            ? p.competencies.map((c: any) => ({
+                name: String(c?.name || ""),
+                rating: ["non_acquis", "en_cours", "acquis", "maitrise"].includes(
+                  c?.rating
+                )
+                  ? c.rating
+                  : "non_acquis",
+                justification: String(c?.justification || ""),
+              }))
+            : [],
+          phase_summary: String(p?.phase_summary || ""),
+          phase_score: typeof p?.phase_score === "number" ? p.phase_score : 0,
+        }))
+      : [],
     strengths: Array.isArray(data?.strengths)
-      ? data.strengths.filter((x: any) => typeof x === "string" && x.trim())
+      ? data.strengths.filter((s: any) => typeof s === "string" && s.trim())
       : [],
-    weaknesses: Array.isArray(data?.weaknesses)
-      ? data.weaknesses.filter((x: any) => typeof x === "string" && x.trim())
+    improvements: Array.isArray(data?.improvements)
+      ? data.improvements.filter((s: any) => typeof s === "string" && s.trim())
       : [],
-    competency_analysis: Array.isArray(data?.competency_analysis)
-      ? data.competency_analysis
-          .filter(
-            (item: any) =>
-              item &&
-              typeof item === "object" &&
-              typeof item.competency === "string"
-          )
-          .map((item: any) => ({
-            competency: String(item.competency || "").trim(),
-            level: String(item.level || "non évalué").trim(),
-            justification: String(item.justification || "").trim(),
-          }))
-      : [],
+    pedagogical_advice:
+      typeof data?.pedagogical_advice === "string"
+        ? data.pedagogical_advice.trim()
+        : "",
   };
 }
 
-function buildEvidence(sentMails: any[], actionLog: any[], flags: Record<string, any>) {
-  const initialMail = sentMails.find((m) => m.kind === "consulate_initial");
-  const replyMail = sentMails.find((m) => m.kind === "consulate_reply");
+// ── Build the evaluation prompt ────────────────────────────────────
 
-  return {
-    initialMailExists: !!initialMail,
-    replyMailExists: !!replyMail,
-    initialMailHasBody: !!initialMail?.body?.trim(),
-    replyMailHasBody: !!replyMail?.body?.trim(),
-    initialAttachments: Array.isArray(initialMail?.attachments) ? initialMail.attachments.length : 0,
-    replyAttachments: Array.isArray(replyMail?.attachments) ? replyMail.attachments.length : 0,
-    totalChatSent: actionLog.filter((a) => a?.type === "chat_message_sent").length,
-    totalChatReceived: actionLog.filter((a) => a?.type === "chat_message_received").length,
-    namedConsulateMadrid: !!flags?.named_consulate_madrid,
-    identifiedBorderRisk: !!flags?.identified_border_risk,
-    mailHasStructure: !!flags?.mail_has_structure,
-    mailToneDiplomatic: !!flags?.mail_tone_diplomatic,
-    proposedHierarchyNoteLater: !!flags?.proposed_hierarchy_note_later,
-    repliedToConsulate: !!flags?.replied_to_consulate,
-    emailToConsulateSent: !!flags?.email_to_consulate_sent,
-  };
+function buildPrompt(body: any): string {
+  const playerName = body?.playerName || "Joueur";
+  const scenarioTitle = body?.scenarioTitle || "Scénario";
+
+  // Extract phases with their competencies from scenario definition
+  const phases = Array.isArray(body?.phases) ? body.phases : [];
+  const phasesForEval = phases.map((p: any) => ({
+    title: p.title,
+    objective: p.objective,
+    competencies: Array.isArray(p.competencies)
+      ? p.competencies
+      : (p.scoring?.criteria || []).map((c: any) => c.description),
+  }));
+
+  // Conversation history
+  const conversation = Array.isArray(body?.conversation) ? body.conversation : [];
+  const convSummary = conversation
+    .map((m: any) => {
+      const role = m.role === "player" ? playerName : m.actor || "PNJ";
+      const type = m.type && m.type !== "chat" ? ` [${m.type}]` : "";
+      return `[${role}${type}]: ${m.content}`;
+    })
+    .join("\n");
+
+  // Sent mails
+  const sentMails = Array.isArray(body?.sentMails) ? body.sentMails : [];
+  const mailsSummary = sentMails
+    .map(
+      (m: any) =>
+        `--- MAIL ENVOYÉ ---\nÀ: ${m.to}\nCc: ${m.cc || ""}\nObjet: ${m.subject}\nCorps:\n${m.body}\nPJ: ${(m.attachments || []).map((a: any) => a.label).join(", ") || "aucune"}\n--- FIN MAIL ---`
+    )
+    .join("\n\n");
+
+  // Inbox mails (received)
+  const inboxMails = Array.isArray(body?.inboxMails) ? body.inboxMails : [];
+  const inboxSummary = inboxMails
+    .map(
+      (m: any) =>
+        `[De: ${m.from}] Objet: ${m.subject} — ${(m.body || "").slice(0, 200)}`
+    )
+    .join("\n");
+
+  // Endings defined in scenario
+  const endings = Array.isArray(body?.endings) ? body.endings : [];
+  const defaultEnding = body?.defaultEnding || null;
+
+  return sanitize(`Tu es un évaluateur pédagogique expert pour un serious game professionnel.
+
+SCENARIO : "${scenarioTitle}"
+JOUEUR : ${playerName}
+
+═══ PHASES ET COMPÉTENCES À ÉVALUER ═══
+${JSON.stringify(phasesForEval, null, 2)}
+
+═══ CONVERSATION COMPLÈTE (chat/messages) ═══
+${convSummary || "(aucune conversation)"}
+
+═══ MAILS ENVOYÉS PAR LE JOUEUR ═══
+${mailsSummary || "(aucun mail envoyé)"}
+
+═══ MAILS REÇUS ═══
+${inboxSummary || "(aucun mail reçu)"}
+
+═══ FINS POSSIBLES ═══
+${JSON.stringify(
+  endings.map((e: any) => ({
+    id: e.ending_id,
+    label: e.label,
+    description: e.content,
+  })),
+  null,
+  2
+)}
+${defaultEnding ? `Fin par défaut (échec) : ${defaultEnding.label} — ${defaultEnding.content}` : ""}
+
+═══ INSTRUCTIONS ═══
+
+Analyse la performance du joueur phase par phase. Pour chaque phase :
+1. Évalue CHAQUE compétence listée (les descriptions textuelles) selon 4 niveaux :
+   - "non_acquis" : Le joueur n'a pas du tout abordé cette compétence
+   - "en_cours" : Le joueur a effleuré le sujet mais de manière incomplète ou imprécise
+   - "acquis" : Le joueur a clairement démontré cette compétence
+   - "maitrise" : Le joueur a excellé, avec une compréhension fine et des actions précises
+
+2. Pour chaque compétence, donne une justification CONCRÈTE basée sur ce que le joueur a réellement dit ou fait (cite des éléments précis de la conversation ou des mails).
+
+3. Donne un score de 0 à 100 pour la phase.
+
+4. Rédige un court résumé de la performance sur cette phase.
+
+Ensuite, détermine la fin appropriée :
+- "success" si le joueur a globalement bien géré la crise (majorité de compétences acquises/maîtrisées, mails envoyés et pertinents)
+- "partial_success" si le joueur a fait des choses correctes mais avec des lacunes significatives
+- "failure" si le joueur n'a pas réussi à gérer la situation
+
+Rédige un récit de fin personnalisé qui reflète EXACTEMENT ce que le joueur a fait (pas un texte générique).
+
+IMPORTANT :
+- Ne valide PAS une compétence si le joueur ne l'a pas démontrée concrètement.
+- Sois exigeant mais juste. Un joueur qui a envoyé les bons mails avec les bonnes PJ et a bien communiqué mérite un succès.
+- Évalue aussi les MAILS ENVOYÉS, pas uniquement le chat. Le mail au consulat est un élément central.
+- Tiens compte du contexte : si le joueur a bien identifié le problème, proposé une stratégie, rédigé un mail structuré et répondu au consulat, c'est un bon parcours.
+- Réponds UNIQUEMENT en français.
+
+FORMAT JSON STRICT (pas de texte avant ou après) :
+{
+  "overall_summary": "Résumé global de la performance du joueur en 2-3 phrases",
+  "ending": "success | partial_success | failure",
+  "ending_narrative": "Récit personnalisé de la fin du scénario (3-5 phrases) qui reflète les actions concrètes du joueur",
+  "phases": [
+    {
+      "phase_title": "Nom de la phase",
+      "competencies": [
+        {
+          "name": "La description textuelle de la compétence (reprise telle quelle de la liste)",
+          "rating": "non_acquis | en_cours | acquis | maitrise",
+          "justification": "Explication précise basée sur les actions du joueur"
+        }
+      ],
+      "phase_summary": "Résumé court de la performance sur cette phase",
+      "phase_score": 85
+    }
+  ],
+  "strengths": ["Point fort 1", "Point fort 2"],
+  "improvements": ["Axe d'amélioration 1", "Axe d'amélioration 2"],
+  "pedagogical_advice": "Conseil pédagogique personnalisé pour progresser"
+}`);
 }
+
+// ── Call Anthropic (Claude) API directly via fetch ─────────────────
+
+async function callClaude(prompt: string, apiKey: string): Promise<string> {
+  const res = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: 4096,
+      messages: [
+        {
+          role: "user",
+          content: prompt,
+        },
+      ],
+    }),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Anthropic API error ${res.status}: ${errorText}`);
+  }
+
+  const data = await res.json();
+  // Extract text from the response
+  const textBlock = data.content?.find((b: any) => b.type === "text");
+  return textBlock?.text || "";
+}
+
+// ── Fallback: call OpenAI if Anthropic key not available ──────────
+
+async function callOpenAI(prompt: string, apiKey: string): Promise<string> {
+  const OpenAI = (await import("openai")).default;
+  const client = new OpenAI({ apiKey });
+  const response = await client.responses.create({
+    model: "gpt-4.1-mini",
+    input: prompt,
+  });
+  return response.output_text || "";
+}
+
+// ── Route handler ──────────────────────────────────────────────────
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.OPENAI_API_KEY;
+    const anthropicKey = process.env.ANTHROPIC_API_KEY;
+    const openaiKey = process.env.OPENAI_API_KEY;
 
-    if (!apiKey) {
+    if (!anthropicKey && !openaiKey) {
       return Response.json(
-        fallbackDebrief("OPENAI_API_KEY manquante côté serveur."),
+        fallbackDebrief("Aucune clé API configurée (ANTHROPIC_API_KEY ou OPENAI_API_KEY)."),
         { status: 200 }
       );
     }
 
-    const client = new OpenAI({ apiKey });
-
     const body = await req.json();
+    const prompt = buildPrompt(body);
 
-    const playerName =
-      typeof body?.playerName === "string" && body.playerName.trim()
-        ? body.playerName.trim()
-        : "Joueur";
+    let raw: string;
 
-    const actionLog = Array.isArray(body?.actionLog) ? body.actionLog : [];
-    const sentMails = Array.isArray(body?.sentMails) ? body.sentMails : [];
-    const flags =
-      body?.flags && typeof body.flags === "object" ? body.flags : {};
-    const scores =
-      body?.scores && typeof body.scores === "object" ? body.scores : {};
-    const totalScore =
-      typeof body?.totalScore === "number" ? body.totalScore : 0;
-    const competencies = Array.isArray(body?.competencies)
-      ? body.competencies
-      : [];
-
-    const evidence = buildEvidence(sentMails, actionLog, flags);
-
-    const prompt = sanitize(`
-Tu es un évaluateur expert de serious game professionnel.
-
-Tu dois produire un débrief PERSONNALISÉ, FACTUEL, EXIGEANT et CRÉDIBLE.
-Tu évalues la performance de ${playerName} à partir des traces réelles de session.
-
-IMPORTANT :
-- Tu ne dois PAS inventer d'actions non présentes dans les données.
-- Tu ne dois PAS féliciter le joueur pour quelque chose qui n'est pas démontré.
-- Tu dois distinguer :
-  1. la qualité du raisonnement oral / messagerie,
-  2. la qualité des mails rédigés,
-  3. la qualité documentaire / pièces jointes,
-  4. la qualité de coordination dans le temps.
-- Si le joueur a oublié les pièces jointes dans le mail de phase 4, cela doit être signalé comme une faiblesse importante.
-- Si le joueur a bien raisonné à l’oral mais mal exécuté à l’écrit, il faut l’écrire clairement.
-- Si le joueur a envoyé un mail de phase 3 sans PJ, ce n’est PAS en soi une faute critique.
-- Si le joueur a envoyé un mail de phase 4 sans PJ, c’est une faiblesse majeure.
-- Tu dois être spécifique, pas générique.
-
-JOUEUR :
-${playerName}
-
-SCORES PAR PHASE :
-${JSON.stringify(scores, null, 2)}
-
-SCORE TOTAL :
-${JSON.stringify(totalScore, null, 2)}
-
-FLAGS :
-${JSON.stringify(flags, null, 2)}
-
-ACTION LOG :
-${JSON.stringify(actionLog, null, 2)}
-
-MAILS ENVOYÉS :
-${JSON.stringify(sentMails, null, 2)}
-
-FAITS DÉJÀ CALCULÉS :
-${JSON.stringify(evidence, null, 2)}
-
-COMPÉTENCES À ÉVALUER :
-${JSON.stringify(competencies, null, 2)}
-
-FORMAT DE SORTIE STRICT :
-{
-  "summary": "texte",
-  "strengths": ["point fort 1", "point fort 2"],
-  "weaknesses": ["point faible 1", "point faible 2"],
-  "competency_analysis": [
-    {
-      "competency": "nom de la compétence",
-      "level": "faible | moyen | bon | excellent",
-      "justification": "justification précise"
+    if (anthropicKey) {
+      raw = await callClaude(prompt, anthropicKey);
+    } else {
+      raw = await callOpenAI(prompt, openaiKey!);
     }
-  ]
-}
-`);
 
-    const response = await client.responses.create({
-      model: "gpt-4.1-mini",
-      input: prompt,
-    });
-
-    const raw = response.output_text || "";
     const parsed = extractJson(raw);
 
     if (!parsed) {
+      console.error("Failed to parse debrief JSON. Raw output:", raw.slice(0, 500));
       return Response.json(
-        fallbackDebrief(
-          "Le débrief IA n’a pas pu être structuré correctement."
-        ),
+        fallbackDebrief("Le débrief IA n'a pas pu être structuré correctement."),
         { status: 200 }
       );
     }
@@ -223,9 +335,7 @@ FORMAT DE SORTIE STRICT :
 
     return Response.json(
       fallbackDebrief(
-        error?.message ||
-          error?.error?.message ||
-          "Erreur lors de la génération du débrief."
+        error?.message || "Erreur lors de la génération du débrief."
       ),
       { status: 200 }
     );

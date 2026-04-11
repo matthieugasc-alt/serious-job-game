@@ -140,6 +140,11 @@ export type SessionState = {
   pendingTimedEvents: TimedEvent[];
 
   mailDrafts: Record<string, MailDraft>;
+
+  /** Simulated in-game time (ISO string from scenario_start, advanced by sim_speed_multiplier) */
+  simulatedTime: string;
+  /** Speed multiplier for time progression */
+  simSpeedMultiplier: number;
 };
 
 function makeId(prefix: string) {
@@ -151,17 +156,7 @@ function normalize(value: string | undefined) {
 }
 
 function looksLikeMailEvent(msg: any) {
-  const actor = normalize(msg?.source_actor || msg?.actor);
-  const type = normalize(msg?.channel || msg?.type);
-
-  if (type.includes("mail") || type.includes("email")) return true;
-  if (actor.includes("consulat")) return true;
-  if (actor.includes("pilar")) return true;
-  if (actor.includes("domínguez")) return true;
-  if (actor.includes("dominguez")) return true;
-  if (actor.includes("section visas")) return true;
-
-  return false;
+  return normalize(msg?.channel || msg?.type).includes("mail");
 }
 
 function pushAction(session: SessionState, action: SessionAction) {
@@ -250,6 +245,9 @@ export function initializeSession(scenario: any): SessionState {
     injectedPhaseEntryEvents: [],
     pendingTimedEvents: [],
     mailDrafts: {},
+
+    simulatedTime: scenario?.timeline?.scenario_start || new Date().toISOString(),
+    simSpeedMultiplier: scenario?.timeline?.sim_speed_multiplier || 1,
   };
 
   if (Array.isArray(scenario.initial_events)) {
@@ -419,43 +417,59 @@ export function updateAdaptiveMode(session: SessionState) {
   }
 }
 
-function isCurrentPhaseValidatedByRules(session: SessionState) {
+function isCurrentPhaseValidatedByRules(session: SessionState): boolean {
   const phase = getCurrentPhase(session);
   const phaseId = getCurrentPhaseId(session);
 
-  if (!phase) return false;
+  if (!phase || !phaseId) return false;
 
-  const phaseScore = session.scores[phaseId] || 0;
+  const completionRules = phase.completion_rules;
 
-  if (phaseId === "phase_1_comprehension") {
-    return phaseScore >= 2;
+  // If completion_rules are defined, use them
+  if (completionRules) {
+    // Check min_score: validate if phase score >= threshold
+    if (completionRules.min_score !== undefined) {
+      const phaseScore = session.scores[phaseId] || 0;
+      if (phaseScore >= completionRules.min_score) {
+        return true;
+      }
+    }
+
+    // Check any_flags: validate if any of the listed flags are true
+    if (Array.isArray(completionRules.any_flags)) {
+      if (completionRules.any_flags.some((flag: string) => !!session.flags[flag])) {
+        return true;
+      }
+    }
+
+    // Check all_flags: validate if all listed flags are true
+    if (Array.isArray(completionRules.all_flags)) {
+      if (
+        completionRules.all_flags.length > 0 &&
+        completionRules.all_flags.every((flag: string) => !!session.flags[flag])
+      ) {
+        return true;
+      }
+    }
+
+    // Check max_exchanges: validate if message count exceeds threshold
+    if (completionRules.max_exchanges !== undefined) {
+      const phaseConversation = getPhaseConversation(session);
+      const exchangeCount = phaseConversation.length;
+      if (exchangeCount >= completionRules.max_exchanges) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
-  if (phaseId === "phase_2_strategy") {
-    return (
-      !!session.flags.named_consulate_madrid ||
-      !!session.flags.chose_formal_email ||
-      phaseScore >= 1
-    );
-  }
-
-  if (phaseId === "phase_3_execution") {
-    return (
-      phaseScore >= 3 ||
-      !!session.flags.mail_has_structure ||
-      !!session.flags.mail_tone_diplomatic
-    );
-  }
-
-  if (phaseId === "phase_4_rebound") {
-    return (
-      phaseScore >= 2 ||
-      !!session.flags.proposed_hierarchy_note_later ||
-      !!session.flags.responds_despite_uncertainty
-    );
-  }
-
-  return phaseScore > 0;
+  // No completion_rules defined: auto-validate after player has sent enough messages
+  // (for phases that rely on AI evaluation at the end rather than flag-based progression)
+  const phaseConversation = getPhaseConversation(session);
+  const playerMessages = phaseConversation.filter((m) => m.role === "player").length;
+  const minPlayerMessages = phase.min_player_messages || 2;
+  return playerMessages >= minPlayerMessages;
 }
 
 export function unlockCurrentPhase(session: SessionState) {
@@ -492,72 +506,131 @@ function countRequiredAttachments(sentMails: SentMail[]) {
 }
 
 export function computeEnding(session: SessionState): EndingResult {
-  const successCoreFlags = [
-    "identified_border_risk",
-    "named_consulate_madrid",
-    "mail_has_structure",
-    "mail_tone_diplomatic",
-    "proposed_hierarchy_note_later",
-  ];
+  const scenario = session.scenario;
 
-  const executionFlags = [
-    "email_to_consulate_sent",
-    "replied_to_consulate",
-    "mail_sent",
-    "response_sent",
-  ];
-
-  const coreCount = countTrueFlags(session, successCoreFlags);
-  const executionCount = countTrueFlags(session, executionFlags);
-  const sentMailCount = session.sentMails.length;
-
-  const initialMail = session.sentMails.find(
-    (mail) => mail.kind === "consulate_initial"
-  );
-  const replyMail = session.sentMails.find(
-    (mail) => mail.kind === "consulate_reply"
-  );
-
-  const phase3HasBody = !!initialMail?.body?.trim();
-  const phase4HasBody = !!replyMail?.body?.trim();
-  const phase4HasAttachments = (replyMail?.attachments?.length || 0) > 0;
-
-  if (
-    session.totalScore >= 8 &&
-    coreCount >= 3 &&
-    executionCount >= 2 &&
-    sentMailCount >= 2 &&
-    phase3HasBody &&
-    phase4HasBody &&
-    phase4HasAttachments
-  ) {
+  // If no endings defined, return default
+  if (!Array.isArray(scenario.endings)) {
     return {
-      id: "success",
-      label: "FIN A — Succès",
-      content:
-        "La coordination a été suffisamment solide pour éviter le pire. Les bons interlocuteurs ont été activés, les échanges ont été formalisés à temps et la situation a pu être sécurisée à l’arrivée. La mission est sauvée, même si le climat est resté tendu.",
+      id: "default",
+      label: "Fin",
+      content: "Scénario terminé.",
     };
   }
 
-  if (
-    session.totalScore >= 5 &&
-    executionCount >= 1 &&
-    sentMailCount >= 1 &&
-    phase3HasBody
-  ) {
+  // Sort endings by priority (descending), then check each ending's conditions
+  const sortedEndings = [...scenario.endings].sort(
+    (a: any, b: any) => (b.priority ?? 0) - (a.priority ?? 0)
+  );
+
+  for (const ending of sortedEndings) {
+    const conditions = ending.conditions;
+    if (!conditions) continue;
+
+    let conditionsMet = true;
+
+    // Check min_score
+    if (conditions.min_score !== undefined) {
+      if (session.totalScore < conditions.min_score) {
+        conditionsMet = false;
+      }
+    }
+
+    // Check min_core_flags: count of true flags from core_flags list >= value
+    // core_flags list can be on the conditions object or at scenario level
+    if (
+      conditionsMet &&
+      conditions.min_core_flags !== undefined
+    ) {
+      const coreFlagsList = Array.isArray(conditions.core_flags)
+        ? conditions.core_flags
+        : Array.isArray(scenario.core_flags)
+          ? scenario.core_flags
+          : [];
+      if (coreFlagsList.length > 0) {
+        const coreFlagCount = countTrueFlags(session, coreFlagsList);
+        if (coreFlagCount < conditions.min_core_flags) {
+          conditionsMet = false;
+        }
+      }
+    }
+
+    // Check min_execution_flags: count of true flags from execution_flags list >= value
+    // execution_flags list can be on the conditions object or at scenario level
+    if (
+      conditionsMet &&
+      conditions.min_execution_flags !== undefined
+    ) {
+      const execFlagsList = Array.isArray(conditions.execution_flags)
+        ? conditions.execution_flags
+        : Array.isArray(scenario.execution_flags)
+          ? scenario.execution_flags
+          : [];
+      if (execFlagsList.length > 0) {
+        const executionFlagCount = countTrueFlags(session, execFlagsList);
+        if (executionFlagCount < conditions.min_execution_flags) {
+          conditionsMet = false;
+        }
+      }
+    }
+
+    // Check min_mails_sent
+    if (
+      conditionsMet &&
+      conditions.min_mails_sent !== undefined
+    ) {
+      if (session.sentMails.length < conditions.min_mails_sent) {
+        conditionsMet = false;
+      }
+    }
+
+    // Check mail_checks: array of checks like {type: "mail_has_body", mail_kind: "consulate_initial"}
+    if (
+      conditionsMet &&
+      Array.isArray(conditions.mail_checks)
+    ) {
+      for (const check of conditions.mail_checks) {
+        const mail = session.sentMails.find(
+          (m) => m.kind === check.mail_kind
+        );
+
+        if (check.type === "mail_has_body") {
+          if (!mail || !mail.body?.trim()) {
+            conditionsMet = false;
+            break;
+          }
+        } else if (check.type === "mail_has_attachments") {
+          if (!mail || !mail.attachments || mail.attachments.length === 0) {
+            conditionsMet = false;
+            break;
+          }
+        }
+      }
+    }
+
+    // If all conditions pass, that's the ending
+    if (conditionsMet) {
+      return {
+        id: ending.id || "ending",
+        label: ending.label || "Fin",
+        content: ending.content || "Scénario terminé.",
+      };
+    }
+  }
+
+  // If none match, use scenario.default_ending
+  if (scenario.default_ending) {
     return {
-      id: "partial_success",
-      label: "FIN B — Succès partiel",
-      content:
-        "Tu as posé plusieurs bonnes actions et évité l’effondrement total de la situation, mais la coordination est restée partielle ou incomplète. La délégation poursuit difficilement la mission, avec une forte perte de temps et une tension institutionnelle réelle.",
+      id: scenario.default_ending.id || "default",
+      label: scenario.default_ending.label || "Fin",
+      content: scenario.default_ending.content || "Scénario terminé.",
     };
   }
 
+  // Fallback ending
   return {
-    id: "failure",
-    label: "FIN C — Échec",
-    content:
-      "La situation n’a pas été suffisamment sécurisée. Les interlocuteurs n’ont pas reçu des éléments exploitables à temps ou la coordination n’a pas permis d’anticiper correctement l’arrivée. L’incident devient politique et la gestion de crise prend le dessus sur la mission.",
+    id: "default",
+    label: "Fin",
+    content: "Scénario terminé.",
   };
 }
 
@@ -572,82 +645,10 @@ export function openDebrief(session: SessionState) {
 }
 
 export function buildDebrief(session: SessionState) {
-  const strengths: string[] = [];
-  const weaknesses: string[] = [];
-
-  if (
-    session.flags.identified_visa_expiry ||
-    session.flags.identified_border_risk
-  ) {
-    strengths.push(
-      "Tu repères correctement les éléments critiques et les risques immédiats."
-    );
-  } else {
-    weaknesses.push(
-      "L’identification des signaux critiques reste trop tardive ou incomplète."
-    );
-  }
-
-  if (session.flags.named_consulate_madrid) {
-    strengths.push(
-      "Tu identifies le bon interlocuteur institutionnel dans un contexte sous contrainte."
-    );
-  } else {
-    weaknesses.push(
-      "Le ciblage institutionnel n’est pas encore assez précis ni assez rapide."
-    );
-  }
-
-  const professionallyWrittenMails = session.sentMails.filter((mail) => {
-    const body = normalize(mail.body);
-    return (
-      body.length > 120 &&
-      (body.includes("madame") || body.includes("bonjour")) &&
-      (body.includes("cordialement") || body.includes("bien cordialement"))
-    );
-  });
-
-  if (
-    session.flags.mail_has_structure ||
-    session.flags.mail_tone_diplomatic ||
-    professionallyWrittenMails.length > 0
-  ) {
-    strengths.push(
-      "Tu sais produire un écrit professionnel utile et diplomatiquement exploitable."
-    );
-  } else {
-    weaknesses.push(
-      "La qualité de rédaction opérationnelle sous pression doit encore progresser."
-    );
-  }
-
-  if (
-    session.flags.proposed_hierarchy_note_later ||
-    session.flags.communication_romain_clear
-  ) {
-    strengths.push(
-      "Tu gardes un cap opérationnel malgré l’incertitude et la pression temporelle."
-    );
-  } else {
-    weaknesses.push(
-      "La coordination en temps contraint et la hiérarchisation des actions restent fragiles."
-    );
-  }
-
-  if (session.sentMails.length >= 2 && countRequiredAttachments(session.sentMails) > 0) {
-    strengths.push(
-      "Tu exploites la messagerie écrite et les pièces jointes comme de vrais leviers opérationnels."
-    );
-  } else {
-    weaknesses.push(
-      "La gestion documentaire et la transmission des pièces restent insuffisamment sécurisées."
-    );
-  }
-
   return {
     totalScore: session.totalScore,
-    strengths,
-    weaknesses,
+    strengths: [],
+    weaknesses: [],
   };
 }
 
@@ -676,34 +677,6 @@ function getAllInterruptionsForPhase(phase: any) {
   return interruptions;
 }
 
-function buildFallbackInterruptionsForPhase(phaseId: string) {
-  if (phaseId === "phase_3_execution") {
-    return [
-      {
-        interrupt_id: "fallback_phase3_romain_call",
-        actor: "romain",
-        content:
-          "Bon, tu en es où ? J'ai trouvé le numéro de la PAF Mérignac. Est-ce que je les appelle maintenant pour les prévenir, ou j'attends que ton mail soit parti ?",
-        kind: "chat",
-      },
-    ];
-  }
-
-  if (phaseId === "phase_4_rebound") {
-    return [
-      {
-        interrupt_id: "fallback_phase4_romain_call",
-        actor: "romain",
-        content:
-          "Je suis en route pour l'aéroport. T'as eu un retour du consulat ? Claudia a remis un WhatsApp, elle demande si c'est réglé.",
-        kind: "chat",
-      },
-    ];
-  }
-
-  return [];
-}
-
 function getPhaseConversation(session: SessionState) {
   const phaseId = getCurrentPhaseId(session);
   return session.chatMessages.filter((msg) => msg.phaseId === phaseId);
@@ -725,11 +698,7 @@ export function scheduleInterruption(session: SessionState) {
     (msg) => msg.role === "npc" && msg.type === "chat"
   ).length;
 
-  const jsonInterruptions = getAllInterruptionsForPhase(phase);
-  const interruptions =
-    jsonInterruptions.length > 0
-      ? jsonInterruptions
-      : buildFallbackInterruptionsForPhase(phaseId);
+  const interruptions = getAllInterruptionsForPhase(phase);
 
   if (!interruptions.length) return;
 
@@ -746,28 +715,66 @@ export function scheduleInterruption(session: SessionState) {
   if (!nextInterruption) return;
 
   const interruptId =
-    nextInterruption.interrupt_id || nextInterruption.event_id || nextInterruption.id;
+    nextInterruption.interrupt_id ||
+    nextInterruption.event_id ||
+    nextInterruption.id;
 
-  // Phase 3 : on attend un vrai échange puis on déclenche UNE interruption chat
-  if (phaseId === "phase_3_execution") {
-    if (playerMessagesInPhase >= 1 && npcChatMessagesInPhase >= 1) {
+  // Read trigger from interruption definition
+  const trigger = nextInterruption.trigger;
+
+  if (!trigger) return;
+
+  // after_exchanges: schedule when min_player_messages AND min_npc_messages met, with delay_ms
+  if (trigger.type === "after_exchanges") {
+    const minPlayerMessages = trigger.min_player_messages || 1;
+    const minNpcMessages = trigger.min_npc_messages || 1;
+    const delayMs = trigger.delay_ms || 0;
+
+    if (
+      playerMessagesInPhase >= minPlayerMessages &&
+      npcChatMessagesInPhase >= minNpcMessages
+    ) {
       session.pendingTimedEvents.push({
         id: interruptId,
         actor:
           nextInterruption.actor ||
           nextInterruption.source_actor ||
-          "romain",
+          "unknown",
         content: nextInterruption.content || "Interruption",
-        dueAt: Date.now() + 12000,
+        dueAt: Date.now() + delayMs,
         phaseId,
-        type: "chat",
+        type: nextInterruption.type || "chat",
       });
     }
-    return;
   }
-
-  if (phaseId === "phase_4_rebound") {
-    return;
+  // after_delay: schedule with delay_ms from phase entry
+  else if (trigger.type === "after_delay") {
+    const delayMs = trigger.delay_ms || 0;
+    session.pendingTimedEvents.push({
+      id: interruptId,
+      actor:
+        nextInterruption.actor ||
+        nextInterruption.source_actor ||
+        "unknown",
+      content: nextInterruption.content || "Interruption",
+      dueAt: Date.now() + delayMs,
+      phaseId,
+      type: nextInterruption.type || "chat",
+    });
+  }
+  // on_phase_entry: immediate
+  else if (trigger.type === "on_phase_entry") {
+    session.pendingTimedEvents.push({
+      id: interruptId,
+      actor:
+        nextInterruption.actor ||
+        nextInterruption.source_actor ||
+        "unknown",
+      content: nextInterruption.content || "Interruption",
+      dueAt: Date.now(),
+      phaseId,
+      type: nextInterruption.type || "chat",
+    });
   }
 }
 
@@ -847,142 +854,94 @@ export function injectPhaseEntryEvents(session: SessionState) {
     session.injectedPhaseEntryEvents.push(introKey);
   }
 
-  const incomingMessages: any[] = [];
+  const entryEvents: any[] = [];
+
+  if (Array.isArray(phase.entry_events)) {
+    entryEvents.push(...phase.entry_events);
+  }
 
   if (Array.isArray(phase.system_messages)) {
-    incomingMessages.push(...phase.system_messages);
+    entryEvents.push(...phase.system_messages);
   }
 
   if (Array.isArray(phase.incoming)) {
-    incomingMessages.push(...phase.incoming);
+    entryEvents.push(...phase.incoming);
   }
 
   if (Array.isArray(phase.trigger_events)) {
-    incomingMessages.push(...phase.trigger_events);
+    entryEvents.push(...phase.trigger_events);
   }
 
-  if (phaseId === "phase_4_rebound" && incomingMessages.length > 0) {
-    incomingMessages.forEach((msg, index) => {
-      const msgId =
-        msg.message_id || msg.event_id || msg.id || `${phaseId}::${index}`;
-      const key = `${phaseId}::${msgId}`;
-
-      if (session.injectedPhaseEntryEvents.includes(key)) return;
-
-      const actor = msg.source_actor || msg.actor || "system";
-      const content = msg.content || "Événement";
-      const attachments = Array.isArray(msg.attachments)
-        ? msg.attachments.map((a: any, idx: number) => ({
-            id: a.id || `${msgId}_att_${idx}`,
-            label: a.label || a.name || `Pièce jointe ${idx + 1}`,
-          }))
-        : [];
-      const subject =
-        msg.subject ||
-        msg.title ||
-        "Réponse du consulat";
-
-      // Les messages type consulat arrivent en boîte mail
-      if (looksLikeMailEvent(msg)) {
-        if (index === 0) {
-          addInboxMail(session, {
-            from: actor,
-            subject,
-            body: content,
-            attachments,
-            phaseId,
-          });
-        } else {
-          session.pendingTimedEvents.push({
-            id: key,
-            actor,
-            content,
-            dueAt: Date.now() + 3000,
-            phaseId,
-            type: "mail",
-            subject,
-            attachments,
-          });
-        }
-      } else {
-        if (index === 0) {
-          addChatMessageInternal(session, {
-            role: "npc",
-            actor,
-            content,
-            type: msg.channel || msg.type || "incoming",
-            phaseId,
-          });
-
-          pushAction(session, {
-            type: "chat_message_received",
-            phaseId,
-            actor,
-            content,
-            timestamp: Date.now(),
-          });
-        } else {
-          session.pendingTimedEvents.push({
-            id: key,
-            actor,
-            content,
-            dueAt: Date.now() + 3000,
-            phaseId,
-            type: "chat",
-          });
-        }
-      }
-
-      session.injectedPhaseEntryEvents.push(key);
-    });
-
-    return;
-  }
-
-  for (const msg of incomingMessages) {
-    const msgId =
-      msg.message_id || msg.event_id || msg.id || `${phaseId}::${msg.content}`;
-    const key = `${phaseId}::${msgId}`;
+  for (const event of entryEvents) {
+    const eventId =
+      event.message_id || event.event_id || event.id || `${phaseId}::${event.content}`;
+    const key = `${phaseId}::${eventId}`;
 
     if (session.injectedPhaseEntryEvents.includes(key)) continue;
 
-    const actor = msg.source_actor || msg.actor || "system";
-    const content = msg.content || "Événement";
-    const attachments = Array.isArray(msg.attachments)
-      ? msg.attachments.map((a: any, idx: number) => ({
-          id: a.id || `${msgId}_att_${idx}`,
+    const actor = event.source_actor || event.actor || "system";
+    const content = event.content || "Événement";
+    const attachments = Array.isArray(event.attachments)
+      ? event.attachments.map((a: any, idx: number) => ({
+          id: a.id || `${eventId}_att_${idx}`,
           label: a.label || a.name || `Pièce jointe ${idx + 1}`,
         }))
       : [];
     const subject =
-      msg.subject ||
-      msg.title ||
-      "Nouveau message";
+      event.subject || event.title || "Nouveau message";
 
-    if (looksLikeMailEvent(msg)) {
-      addInboxMail(session, {
-        from: actor,
-        subject,
-        body: content,
-        attachments,
-        phaseId,
-      });
+    const delayMs = event.delay_ms || 0;
+    const useDelay = delayMs > 0;
+
+    // Determine if this is a mail or chat event
+    if (looksLikeMailEvent(event)) {
+      if (useDelay) {
+        session.pendingTimedEvents.push({
+          id: key,
+          actor,
+          content,
+          dueAt: Date.now() + delayMs,
+          phaseId,
+          type: "mail",
+          subject,
+          attachments,
+        });
+      } else {
+        addInboxMail(session, {
+          from: actor,
+          subject,
+          body: content,
+          attachments,
+          phaseId,
+        });
+      }
     } else {
-      addChatMessageInternal(session, {
-        role: "npc",
-        actor,
-        content,
-        type: msg.channel || msg.type || "incoming",
-        phaseId,
-      });
+      if (useDelay) {
+        session.pendingTimedEvents.push({
+          id: key,
+          actor,
+          content,
+          dueAt: Date.now() + delayMs,
+          phaseId,
+          type: "chat",
+        });
+      } else {
+        addChatMessageInternal(session, {
+          role: "npc",
+          actor,
+          content,
+          type: event.channel || event.type || "incoming",
+          phaseId,
+        });
 
-      pushAction(session, {
-        type: "chat_message_received",
-        phaseId,
-        actor,
-        content,
-        timestamp: Date.now(),
-      });
+        pushAction(session, {
+          type: "chat_message_received",
+          phaseId,
+          actor,
+          content,
+          timestamp: Date.now(),
+        });
+      }
     }
 
     session.injectedPhaseEntryEvents.push(key);
@@ -1033,9 +992,10 @@ export function toggleMailAttachment(
 
 export function sendCurrentPhaseMail(
   session: SessionState,
-  kind: "consulate_initial" | "consulate_reply"
+  kind: string
 ) {
   const phaseId = getCurrentPhaseId(session);
+  const phase = getCurrentPhase(session);
   const draft = session.mailDrafts[phaseId] || {
     to: "",
     cc: "",
@@ -1053,7 +1013,7 @@ export function sendCurrentPhaseMail(
     body: draft.body,
     attachments: draft.attachments,
     sentAt: Date.now(),
-    kind,
+    kind: (kind as any) || "other",
   };
 
   session.sentMails.push(mail);
@@ -1069,24 +1029,17 @@ export function sendCurrentPhaseMail(
     timestamp: mail.sentAt,
   });
 
-  if (kind === "consulate_initial") {
-    session.flags.email_to_consulate_sent = true;
-    session.flags.mail_sent = true;
-    session.flags.communication_romain_clear = true;
+  // Apply flags from mail_config if available
+  const mailConfig = phase?.mail_config;
+  if (mailConfig && mailConfig.on_send_flags) {
+    // on_send_flags is Record<string, boolean>
+    for (const [flag, value] of Object.entries(mailConfig.on_send_flags)) {
+      session.flags[flag] = value as boolean;
+    }
   }
 
-  if (kind === "consulate_reply") {
-    session.flags.replied_to_consulate = true;
-    session.flags.response_sent = true;
-    session.flags.proposed_hierarchy_note_later = true;
-  }
-
-  addSystemMessage(
-    session,
-    kind === "consulate_initial"
-      ? "Mail envoyé au consulat."
-      : "Réponse envoyée au consulat."
-  );
+  // Generic system message
+  addSystemMessage(session, `Mail envoyé.`);
 }
 
 export function completeCurrentPhaseAndAdvance(session: SessionState) {
@@ -1119,16 +1072,14 @@ export function completeCurrentPhaseAndAdvance(session: SessionState) {
   const nextPhase = session.scenario.phases[nextPhaseIndex];
   const nextPhaseId = nextPhase?.phase_id || nextPhase?.id;
 
-  if (nextPhaseId === "phase_5_outcome") {
-    finishScenario(session);
-    addSystemMessage(
-      session,
-      "Le scénario est terminé. Consulte le dénouement."
-    );
-    return;
-  }
-
   session.currentPhaseIndex = nextPhaseIndex;
+
+  // Apply time_jump_minutes if defined on the new phase
+  if (nextPhase?.time_jump_minutes) {
+    const jumpMs = nextPhase.time_jump_minutes * 60 * 1000;
+    const current = new Date(session.simulatedTime);
+    session.simulatedTime = new Date(current.getTime() + jumpMs).toISOString();
+  }
 
   addSystemMessage(
     session,
@@ -1156,6 +1107,10 @@ export function buildRuntimeView(session: SessionState) {
       attachments: [],
     };
 
+  const mailConfig = phase?.mail_config;
+  const canSendMail = mailConfig?.enabled && !session.flags[mailConfig?.sent_flag || ""];
+  const sendMailLabel = mailConfig?.send_label || "";
+
   return {
     title:
       session.scenario.meta?.title ||
@@ -1172,7 +1127,7 @@ export function buildRuntimeView(session: SessionState) {
       phase?.player_inputs?.[0]?.label ||
       "Réponds à la situation.",
     phaseId,
-    criteria: phase?.scoring?.criteria || [],
+    criteria: phase?.competencies || phase?.scoring?.criteria || [],
     conversation: session.chatMessages,
     inboxMails: session.inboxMails,
     documents: getScenarioDocuments(session),
@@ -1188,17 +1143,19 @@ export function buildRuntimeView(session: SessionState) {
     debrief: buildDebrief(session),
     showDebrief: session.showDebrief,
     pendingTimedEvents: session.pendingTimedEvents,
-    canSendMail:
-      (phaseId === "phase_3_execution" &&
-        isCurrentPhaseValidated(session) &&
-        !session.flags.email_to_consulate_sent) ||
-      (phaseId === "phase_4_rebound" &&
-        !session.flags.replied_to_consulate),
-    sendMailLabel:
-      phaseId === "phase_3_execution"
-        ? "Envoyer le mail au consulat"
-        : phaseId === "phase_4_rebound"
-        ? "Envoyer la réponse au consulat"
-        : "",
+    canSendMail,
+    sendMailLabel,
+    simulatedTime: session.simulatedTime,
+    simSpeedMultiplier: session.simSpeedMultiplier,
   };
+}
+
+/**
+ * Advance simulated clock by the given real-time delta (in ms).
+ * Call this from a setInterval on the client side.
+ */
+export function tickSimulatedTime(session: SessionState, realDeltaMs: number) {
+  const simDelta = realDeltaMs * session.simSpeedMultiplier;
+  const current = new Date(session.simulatedTime);
+  session.simulatedTime = new Date(current.getTime() + simDelta).toISOString();
 }

@@ -1,0 +1,458 @@
+{
+  "scenario_id": "ci_atterrissage_45min_v3",
+  "version": "3.0.0",
+  "locale": "fr-FR",
+
+  "meta": {
+    "title": "Atterrissage dans 45 minutes",
+    "subtitle": "Serious game interactif - Exercice de rédaction en situation d'urgence",
+    "description": "Gérez une crise diplomatique impliquant un visa expiré, une délégation péruvienne et une coordination sous pression avec le consulat de France à Madrid.",
+    "job_family": "assistant_cooperation_internationale",
+    "difficulty": "junior",
+    "estimated_duration_min": 20,
+    "tags": ["diplomatie", "urgence", "rédaction", "coordination"],
+    "show_objective": false,
+    "show_background_fact": false,
+    "pedagogical_goals": [
+      "Comprendre rapidement une information critique en langue étrangère",
+      "Construire une stratégie institutionnelle sous contrainte de temps",
+      "Rédiger un courriel diplomatique et exploitable",
+      "Gérer l'incertitude, les interruptions et la coordination"
+    ]
+  },
+
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Assistant(e) en collaboration internationale",
+      "subtitle": "Tu vas gérer une situation diplomatique et logistique sous contrainte de temps, avec plusieurs interlocuteurs, des informations partielles et un niveau d'autonomie élevé."
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Tu incarnes un(e) assistant(e) en collaboration internationale.</p><p>Ta mission est de gérer une situation de crise impliquant des partenaires externes, des autorités, des documents sensibles et une forte pression temporelle.</p><p>On attend de toi que tu saches :</p><ul><li>comprendre rapidement les enjeux,</li><li>prendre des initiatives crédibles,</li><li>communiquer clairement,</li><li>coordonner sans te faire porter par les autres,</li><li>agir malgré l'incertitude.</li></ul>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p>Tu travailles depuis 8 mois à la Direction des Relations Internationales (DRI) de la Région Nouvelle-Aquitaine. Une délégation péruvienne (3 personnes) arrive ce matin pour une mission de 5 jours.</p><p>C'est mardi 7 avril, 9h15. Ta responsable est à Paris jusqu'à 11h. Ton collègue Romain doit chercher la délégation à l'aéroport à 11h.</p><p>À 9h20, Romain reçoit un message urgent en espagnol de la cheffe de délégation. Problème : son visa expire... aujourd'hui.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Tu dois comprendre rapidement le message en espagnol et l'expliquer à Romain.</p><p><strong>Phase 2</strong> — Tu dois proposer un plan d'action crédible.</p><p><strong>Phase 3</strong> — Tu dois rédiger un courriel au consulat de France à Madrid et négocier avec Romain.</p><p><strong>Phase 4</strong> — Tu dois réagir à une réponse évasive du consulat et gérer la pression.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles du jeu",
+        "content": "<p><strong>Tu n'es pas seul(e)</strong> : Romain est ton collègue, tu peux compter sur lui, mais c'est toi qui pilotes.</p><p><strong>Pas de manuel</strong> : Tu découvres le métier en faisant. Les erreurs sont pédagogiques.</p><p><strong>L'incertitude est réelle</strong> : Le consulat ne s'engage pas à 100%. Les autorités sont opaques. Il faut avancer malgré tout.</p><p><strong>La communication compte</strong> : C'est pas juste la réponse, c'est comment tu la trouves et comment tu la formules.</p>",
+        "column": "right"
+      }
+    ]
+  },
+
+  "narrative": {
+    "context": "Tu es assistant·e de coopération internationale depuis 8 mois au sein de la Direction des Relations Internationales (DRI) de la Région Nouvelle-Aquitaine. La Région entretient un partenariat de coopération décentralisée avec la Región Arequipa (Pérou) sur un programme d'appui à la gestion durable de l'eau.",
+    "mission": "Une délégation péruvienne de 3 personnes arrive à Bordeaux pour une mission de travail de 5 jours : visites techniques, ateliers avec les services régionaux et signature d'un avenant au protocole de coopération.",
+    "initial_situation": "Mardi 7 avril, 9h15. Tu arrives au bureau. Ta responsable Nathalie Musik, cheffe du pôle Amériques, est en déplacement à Paris pour une réunion au Ministère de l'Europe et des Affaires étrangères. Elle est injoignable jusqu'à 11h. Le programme de la semaine est calé depuis trois semaines. L'accueil à l'aéroport de Bordeaux-Mérignac est prévu à 11h00 (vol Lima → Madrid → Bordeaux, référence IB 8764). Ton collègue Romain Dufresne, chargé de mission, doit aller chercher la délégation.",
+    "trigger": "À 9h20, Romain t'appelle, stressé : il a reçu un message WhatsApp en espagnol de Claudia Vargas Ríos, la cheffe de la délégation péruvienne, envoyé depuis l'escale à Madrid. Il ne comprend pas l'espagnol et te transfère le message.",
+    "background_fact": "Tu vérifies dans le dossier : la copie scannée du visa de Jorge Huamán Quispe indique bien une date de validité au 7 avril (aujourd'hui), alors que la mission dure jusqu'au 12. La lettre d'invitation officielle, signée par le Président de Région, mentionne les dates du 7 au 12 avril pour les trois membres de la délégation. Il s'agit probablement d'une erreur de saisie lors de la demande de visa."
+  },
+
+  "timeline": {
+    "scenario_start": "2025-04-07T09:20:00",
+    "email_deadline": "2025-04-07T09:45:00",
+    "flight_arrival": "2025-04-07T11:00:00",
+    "border_control_window": "2025-04-07T11:20:00/2025-04-07T11:30:00",
+    "manager_available_at": "2025-04-07T11:00:00",
+    "sim_speed_multiplier": 3
+  },
+
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "(joueur)",
+      "role": "Assistant·e coopération internationale, DRI",
+      "interaction_mode": null,
+      "controlled_by": "player"
+    },
+    {
+      "actor_id": "romain",
+      "name": "Romain Dufresne",
+      "role": "Chargé de mission, collègue",
+      "personality": "Pressé, opérationnel, stressé mais coopératif. Ne comprend pas l'espagnol. Pas force de proposition mais réactif aux idées du joueur.",
+      "interaction_modes": ["phone", "in_person"],
+      "controlled_by": "ai",
+      "prompt_file": "romain.md",
+      "availability": "Disponible jusqu'à ~9h50 en personne, puis part à l'aéroport et n'est joignable que par téléphone",
+      "avatar": {
+        "color": "#5b5fc7",
+        "initials": "R"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Je t'ai transféré le message de Claudia."
+    },
+    {
+      "actor_id": "nathalie",
+      "name": "Nathalie Musik",
+      "role": "Cheffe du pôle Amériques, responsable hiérarchique du joueur",
+      "interaction_modes": ["unreachable"],
+      "controlled_by": "system",
+      "availability": "Injoignable jusqu'à 11h (réunion au MEAE à Paris)",
+      "avatar": {
+        "color": "#e94b3c",
+        "initials": "N"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "away"
+    },
+    {
+      "actor_id": "claudia",
+      "name": "Claudia Vargas Ríos",
+      "role": "Cheffe de la délégation péruvienne",
+      "interaction_modes": ["whatsapp"],
+      "controlled_by": "system",
+      "availability": "Dans l'avion Madrid → Bordeaux, communication limitée",
+      "avatar": {
+        "color": "#f18f01",
+        "initials": "C"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "busy"
+    },
+    {
+      "actor_id": "jorge",
+      "name": "Jorge Huamán Quispe",
+      "role": "Ingénieur hydraulique, Gouvernement régional d'Arequipa",
+      "interaction_modes": [],
+      "controlled_by": "system",
+      "availability": "Dans l'avion, visa problématique",
+      "avatar": {
+        "color": "#06a77d",
+        "initials": "J"
+      }
+    },
+    {
+      "actor_id": "consulat_madrid",
+      "name": "Consulat général de France à Madrid",
+      "role": "Service des visas",
+      "personality": "Formel, prudent, bureaucratique. Utilise le conditionnel. Ne s'engage pas clairement.",
+      "interaction_modes": ["email"],
+      "controlled_by": "system",
+      "avatar": {
+        "color": "#1f77b4",
+        "initials": "CG"
+      }
+    },
+    {
+      "actor_id": "paf_bordeaux",
+      "name": "PAF Bordeaux-Mérignac",
+      "role": "Police aux frontières",
+      "interaction_modes": ["phone", "email"],
+      "controlled_by": "system",
+      "availability": "Joignable par téléphone (via Romain) et par email",
+      "avatar": {
+        "color": "#555555",
+        "initials": "PAF"
+      }
+    }
+  ],
+
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "lettre_invitation",
+        "label": "Lettre d'invitation officielle du Président de Région",
+        "contains": ["dates_7_12_avril", "trois_noms_delegation", "objet_mission_eau"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "programme_mission",
+        "label": "Programme détaillé de la mission (5 jours)",
+        "contains": ["visites_techniques", "ateliers", "signature_avenant"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "reservation_hotel",
+        "label": "Réservation d'hôtel de la délégation",
+        "contains": ["prise_en_charge_hebergement", "dates_sejour"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "scans_passeports_delegation",
+        "label": "Copies scannées couleur des trois passeports",
+        "contains": ["pages_identite_trois_membres"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "scans_visas_delegation",
+        "label": "Copies scannées couleur des trois visas Schengen",
+        "contains": ["visa_jorge_expire_7_avril", "visa_claudia_valide", "visa_troisieme_valide"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "reservation_vol_retour",
+        "label": "Réservation du vol retour",
+        "contains": ["numero_reservation", "date_retour_12_avril"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "convention_cooperation",
+        "label": "Référence de la convention de coopération Région Nouvelle-Aquitaine / Región Arequipa",
+        "contains": ["numero_convention", "cadre_institutionnel"],
+        "usable_as_pj": false
+      },
+      {
+        "doc_id": "coord_consulat_madrid",
+        "label": "Coordonnées email du service des visas du consulat à Madrid",
+        "contains": ["email_service_visas"],
+        "usable_as_pj": false,
+        "content": "Consulat général de France à Madrid\nService des visas\n\nEmail : visas.madrid-fslt@diplomatie.gouv.fr\nTéléphone : +34 91 423 89 00 (standard)\nAdresse : Calle de Marqués de la Ensenada, 10, 28004 Madrid\n\nHoraires d'ouverture : lundi-vendredi 9h00-13h00\nUrgences consulaires : +34 91 423 89 50"
+      },
+      {
+        "doc_id": "coord_paf_bordeaux",
+        "label": "Coordonnées de la PAF Bordeaux-Mérignac",
+        "contains": ["telephone_standard", "email"],
+        "usable_as_pj": false,
+        "content": "Police aux Frontières (PAF)\nAéroport de Bordeaux-Mérignac\n\nTéléphone : 05 56 34 88 12 (poste de contrôle)\nEmail : paf-bordeaux-merignac@interieur.gouv.fr\nFax : 05 56 34 88 15\n\nChef de poste : Commandant Éric Faure\nPoste opérationnel 24h/24"
+      },
+      {
+        "doc_id": "numero_vol",
+        "label": "Numéro de vol IB 8764, arrivée Bordeaux 11h00",
+        "contains": ["reference_vol", "horaire_arrivee"],
+        "usable_as_pj": false
+      }
+    ]
+  },
+
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "Le joueur n'est pas habilité à engager officiellement la Région. Il mentionne que sa responsable confirmera dès 11h.",
+    "diplomatic_tone_required": true,
+    "uncertainty": "Le joueur ne sait pas si le consulat va répondre, ni si la PAF acceptera. Le consulat n'est pas responsable de l'erreur.",
+    "input_language": "es",
+    "output_language": "fr"
+  },
+
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+
+  "initial_events": [
+    {
+      "event_id": "romain_initial_call",
+      "type": "phone_call",
+      "actor": "romain",
+      "content": "Eh, j'ai un message de Claudia Vargas sur WhatsApp, la cheffe de la délégation péruvienne. Elle m'a écrit depuis Madrid mais c'est en espagnol, je comprends rien. Ça a l'air urgent vu les points d'exclamation. Je te transfère."
+    },
+    {
+      "event_id": "whatsapp_claudia",
+      "type": "whatsapp_message",
+      "actor": "claudia",
+      "language": "es",
+      "content": "Romain, tenemos un problema. En el mostrador de facturación en Madrid, la aerolínea nos informó que la visa Schengen de nuestro colega Jorge Huamán Quispe (ingeniero hidráulico del Gobierno Regional de Arequipa) vence hoy a medianoche. La aerolínea aceptó embarcarlo, pero nos advirtió que la policía de fronteras en Burdeos podría rechazarlo porque la fecha de salida del territorio (domingo 12 de abril) supera la validez de su visa. Los otros dos pasaportes están en regla. ¿Qué hacemos? Aterrizamos en 1h40."
+    }
+  ],
+
+  "phases": [
+    {
+      "phase_id": "phase_1_comprehension",
+      "title": "Compréhension",
+      "duration_target_min": 3,
+      "objective": "Comprendre le message en espagnol et transmettre l'information essentielle à Romain",
+      "active_channels": ["chat"],
+      "ai_actors": ["romain"],
+
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Romain attend que tu lui expliques ce que dit le message."
+      },
+
+      "competencies": [
+        "Identifie que le visa de Jorge Huamán Quispe expire aujourd'hui (7 avril)",
+        "Comprend que la mission dure jusqu'au 12 avril, au-delà de la validité du visa",
+        "Note que la compagnie aérienne l'a laissé embarquer malgré tout",
+        "Identifie le risque concret : refoulement par la PAF à Bordeaux",
+        "Remarque que les deux autres membres de la délégation sont en règle"
+      ],
+      "auto_advance": true,
+      "next_phase": "phase_2_strategy"
+    },
+
+    {
+      "phase_id": "phase_2_strategy",
+      "title": "Stratégie",
+      "duration_target_min": 5,
+      "objective": "Proposer un plan d'action crédible. C'est le joueur qui doit amener l'idée de contacter la bonne autorité.",
+      "active_channels": ["chat"],
+      "ai_actors": ["romain"],
+
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Qu'est-ce que tu proposes de faire maintenant ?"
+      },
+
+      "competencies": [
+        "Identifie le consulat de France à Madrid comme interlocuteur pertinent",
+        "Propose d'écrire un courriel formel (pas seulement un appel)",
+        "Pense à mettre la PAF en copie",
+        "Envisage une action parallèle (appel PAF + mail consulat)",
+        "Arrive à la stratégie sans aide directionnelle forte de Romain"
+      ],
+      "auto_advance": true,
+      "next_phase": "phase_3_execution"
+    },
+
+    {
+      "phase_id": "phase_3_execution",
+      "title": "Exécution",
+      "duration_target_min": 10,
+      "objective": "Structurer son approche puis rédiger le courriel au consulat",
+      "active_channels": ["chat", "mail"],
+      "ai_actors": ["romain"],
+
+      "player_input": {
+        "type": "rich_text",
+        "prompt": "Rédige le courriel au consulat."
+      },
+
+      "competencies": [
+        "Corps du mail structuré : contexte, problème, demande, disponibilité",
+        "Ton diplomatique adapté (sollicitation, pas exigence)",
+        "Mentionne les pièces jointes pertinentes (lettre d'invitation, copie visa, programme)",
+        "Décrit sa méthode avant de rédiger (destinataire, copie, PJ, plan du mail)",
+        "Objet du courriel explicite et professionnel",
+        "Mentionne l'absence de sa responsable et sa disponibilité à 11h",
+        "Prend une décision claire face à l'interruption de Romain (appel PAF)"
+      ],
+
+      "interruptions": [
+        {
+          "interrupt_id": "phase3_romain_paf_call",
+          "actor": "romain",
+          "content": "Bon, tu en es où ? J'ai trouvé le numéro de la PAF Mérignac et je pars pour l'aéroport. Tu veux que je les appelle maintenant, ou j'attends ton feu vert ?",
+          "channel": "chat",
+          "trigger": {
+            "type": "after_delay",
+            "delay_ms": 150000
+          }
+        }
+      ],
+
+      "mail_config": {
+        "enabled": true,
+        "kind": "consulate_initial",
+        "defaults": {
+          "to": "consulat-madrid@exemple.fr",
+          "cc": "paf-bordeaux@exemple.fr",
+          "subject": "Demande urgente relative à l'arrivée de la délégation péruvienne"
+        },
+        "require_attachments": false,
+        "on_send_flags": {
+          "email_to_consulate_sent": true,
+          "mail_sent": true,
+          "communication_romain_clear": true
+        },
+        "send_label": "Envoyer le mail au consulat",
+        "send_advances_phase": true
+      },
+
+      "auto_advance": false,
+      "next_phase": "phase_4_rebound"
+    },
+
+    {
+      "phase_id": "phase_4_rebound",
+      "title": "Rebond",
+      "duration_target_min": 5,
+      "objective": "Répondre efficacement à une réponse évasive du consulat tout en gérant la pression de Romain et Claudia",
+      "active_channels": ["chat", "mail"],
+      "ai_actors": ["romain"],
+      "time_jump_minutes": 15,
+
+      "entry_events": [
+        {
+          "event_id": "consulate_reply",
+          "type": "mail",
+          "channel": "mail",
+          "actor": "consulat_madrid",
+          "delay_ms": 5000,
+          "subject": "RE : URGENT — Visa expirant — Délégation officielle Región Arequipa — Vol IB 8764",
+          "content": "Madame, Monsieur,\n\nNous accusons réception de votre message. Nous vous informons que le service des visas du Consulat général de France à Madrid n'est pas compétent pour modifier ou prolonger un visa délivré par un autre poste (en l'occurrence l'Ambassade de France à Lima).\n\nCependant, sous réserve de la transmission d'un dossier complet, nous pourrions éventuellement émettre une note à l'attention des services de contrôle aux frontières.\n\nMerci de nous faire parvenir :\n1. Copie couleur du passeport de l'intéressé (page d'identité et page du visa)\n2. Lettre d'invitation originale mentionnant les dates et l'objet du séjour\n3. Justificatif de prise en charge (hébergement, programme)\n4. Confirmation du vol retour\n5. Note de votre hiérarchie confirmant le caractère officiel de la mission\n\nNous attirons votre attention sur le fait que cette démarche ne constitue en aucun cas une garantie d'admission sur le territoire.\n\nCordialement,\nMme Pilar Domínguez\nAttachée consulaire — Section visas\nConsulat général de France à Madrid"
+        },
+        {
+          "event_id": "romain_from_car",
+          "type": "chat",
+          "channel": "chat",
+          "actor": "romain",
+          "delay_ms": 12000,
+          "content": "Je suis en route pour l'aéroport. T'as eu un retour du consulat ? Claudia a remis un WhatsApp, elle demande si c'est réglé."
+        }
+      ],
+
+      "player_input": {
+        "type": "rich_text",
+        "prompt": "Rédige la réponse au consulat avec les pièces demandées"
+      },
+
+      "competencies": [
+        "Répond rapidement au consulat sans se décourager face au ton évasif",
+        "Joint les pièces 1, 2 et 4 immédiatement disponibles",
+        "Pense à inclure le programme ET la réservation d'hôtel (pièce 3)",
+        "Propose une solution crédible pour la pièce 5 (note de Nathalie dès 11h)",
+        "Gère la communication avec Romain de manière claire et rassurante",
+        "Formule un message honnête mais rassurant à relayer à Claudia"
+      ],
+
+      "mail_config": {
+        "enabled": true,
+        "kind": "consulate_reply",
+        "defaults": {
+          "to": "consulat-madrid@exemple.fr",
+          "cc": "paf-bordeaux@exemple.fr",
+          "subject": "Transmission des pièces complémentaires – dossier Jorge Huamán Quispe"
+        },
+        "require_attachments": true,
+        "on_send_flags": {
+          "replied_to_consulate": true,
+          "response_sent": true,
+          "proposed_hierarchy_note_later": true
+        },
+        "send_label": "Envoyer la réponse au consulat",
+        "send_advances_phase": true
+      },
+
+      "auto_advance": false
+    }
+  ],
+
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Succès",
+      "content": "La coordination a été suffisamment solide pour permettre au consulat d'émettre une note en temps utile. Jorge a pu passer les contrôles de frontière, la délégation est arrivée en retard mais sans refoulement."
+    },
+    {
+      "ending_id": "partial_success",
+      "label": "Succès partiel",
+      "content": "Tu as posé plusieurs bonnes actions, mais la timeline n'a pas joué en ta faveur. Le consulat a tardé à envoyer sa note, et Jorge a été mis en zone d'attente. La délégation est arrivée partiellement, le programme a dû être réajusté."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "La situation n'a pas été suffisamment sécurisée. Jorge s'est fait refouler à Bordeaux. Claudia a protesté, il y a eu un incident diplomatique. Le partenariat régional est compromis."
+    }
+  ]
+}

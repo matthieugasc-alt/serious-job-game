@@ -1,0 +1,1580 @@
+"use client";
+
+import { useEffect, useMemo, useRef, useState, use } from "react";
+import { useRouter } from "next/navigation";
+import { saveGameRecord } from "@/app/lib/gameHistory";
+import {
+  initializeSession,
+  buildRuntimeView,
+  addPlayerMessage,
+  addAIMessage,
+  applyEvaluation,
+  updateAdaptiveMode,
+  scheduleInterruption,
+  flushDueTimedEvents,
+  tickSimulatedTime,
+  injectPhaseEntryEvents,
+  completeCurrentPhaseAndAdvance,
+  updateMailDraft,
+  toggleMailAttachment,
+  sendCurrentPhaseMail,
+} from "@/app/lib/runtime";
+import type { ScenarioDefinition } from "@/app/lib/types";
+
+// ════════════════════════════════════════════════════════════════════
+// CONSTANTS & HELPERS
+// ════════════════════════════════════════════════════════════════════
+
+type MainView = "chat" | "mail" | "docs" | "context";
+
+const STATUS_COLORS: Record<string, string> = {
+  available: "#44b553",
+  busy: "#e94b3c",
+  away: "#f5a623",
+  offline: "#999",
+};
+
+function cloneSession(prev: any) {
+  return {
+    ...prev,
+    chatMessages: [...prev.chatMessages],
+    inboxMails: [...prev.inboxMails],
+    sentMails: [...prev.sentMails],
+    actionLog: [...prev.actionLog],
+    scores: { ...prev.scores },
+    flags: { ...prev.flags },
+    completedPhases: [...prev.completedPhases],
+    unlockedPhases: [...prev.unlockedPhases],
+    triggeredInterruptions: [...prev.triggeredInterruptions],
+    injectedPhaseEntryEvents: [...prev.injectedPhaseEntryEvents],
+    pendingTimedEvents: prev.pendingTimedEvents.map((e: any) => ({ ...e })),
+    mailDrafts: JSON.parse(JSON.stringify(prev.mailDrafts || {})),
+  };
+}
+
+function playNotificationSound() {
+  if (typeof window === "undefined") return;
+  try {
+    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!Ctx) return;
+    const ctx = new Ctx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = "sine";
+    osc.frequency.setValueAtTime(880, ctx.currentTime);
+    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.18);
+    osc.onended = () => ctx.close().catch(() => {});
+  } catch {}
+}
+
+function fmtTime(iso: string | null) {
+  if (!iso) return "--:--";
+  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0][0].toUpperCase();
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+}
+
+// ════════════════════════════════════════════════════════════════════
+// SUB-COMPONENTS
+// ════════════════════════════════════════════════════════════════════
+
+function TypingDots() {
+  return (
+    <span style={{ display: "inline-flex", gap: 3, marginLeft: 6 }}>
+      {[0, 1, 2].map((i) => (
+        <span
+          key={i}
+          style={{
+            width: 5, height: 5, borderRadius: "50%", background: "#888",
+            animation: "dotPulse 1.4s infinite", animationDelay: `${i * 0.2}s`,
+          }}
+        />
+      ))}
+      <style>{`@keyframes dotPulse{0%,80%,100%{opacity:.3}40%{opacity:1}}`}</style>
+    </span>
+  );
+}
+
+/** Small colored circle for contact status */
+function StatusDot({ status }: { status: string }) {
+  return (
+    <span
+      style={{
+        width: 10, height: 10, borderRadius: "50%",
+        background: STATUS_COLORS[status] || STATUS_COLORS.offline,
+        border: "2px solid #fff",
+        position: "absolute", bottom: -1, right: -1,
+        boxShadow: "0 0 0 1px #e0e0e0",
+      }}
+    />
+  );
+}
+
+/** Avatar circle */
+function Avatar({ initials, color, size = 36, status }: {
+  initials: string; color: string; size?: number; status?: string;
+}) {
+  return (
+    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
+      <div
+        style={{
+          width: size, height: size, borderRadius: "50%", background: color,
+          color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
+          fontWeight: 700, fontSize: size > 32 ? 13 : 11, userSelect: "none",
+        }}
+      >
+        {initials}
+      </div>
+      {status && <StatusDot status={status} />}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MAIN PAGE COMPONENT
+// ════════════════════════════════════════════════════════════════════
+
+export default function PlayPage({ params }: { params: Promise<{ scenarioId: string }> }) {
+  const router = useRouter();
+  const { scenarioId } = use(params);
+
+  // ── State ──
+  const [scenario, setScenario] = useState<ScenarioDefinition | null>(null);
+  const [session, setSession] = useState<any>(null);
+  const [mainView, setMainView] = useState<MainView>("chat");
+  const [playerInput, setPlayerInput] = useState("");
+  const [isSending, setIsSending] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [selectedMailId, setSelectedMailId] = useState<string | null>(null);
+  const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+  const [showCompose, setShowCompose] = useState(false);
+  const [rightPanel, setRightPanel] = useState<"info" | "docs">("info");
+  const [unreadMails, setUnreadMails] = useState(0);
+  const [toasts, setToasts] = useState<Array<{ id: string; text: string; icon: string; type: "chat" | "mail" }>>([]);
+  const [showContactPicker, setShowContactPicker] = useState<"to" | "cc" | null>(null);
+  const [debriefData, setDebriefData] = useState<any>(null);
+  const [debriefLoading, setDebriefLoading] = useState(false);
+  const [debriefError, setDebriefError] = useState<string | null>(null);
+  const debriefCalledRef = useRef(false);
+  const debriefSavedRef = useRef(false);
+
+  // ── Refs ──
+  const aiPromptRef = useRef("");
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const prevMailCountRef = useRef(0);
+  const prevChatCountRef = useRef(0);
+
+  // ── Runtime view ──
+  const view = useMemo(
+    () => (session && scenario ? buildRuntimeView(session) : null),
+    [session, scenario]
+  );
+
+  // ── Derived values ──
+  const displayPlayerName =
+    typeof window !== "undefined"
+      ? localStorage.getItem(`sjg_playerName_${scenarioId}`) || "Joueur"
+      : "Joueur";
+
+  const allDocuments = scenario?.resources?.documents || [];
+  const attachableDocs = allDocuments.filter(
+    (d: any) => d.usable_as_attachment || d.usable_as_pj
+  );
+  const inboxMails = view?.inboxMails || [];
+  const conversation = view?.conversation || [];
+  const currentMailDraft = view?.currentMailDraft || { to: "", cc: "", subject: "", body: "", attachments: [] };
+  const canComposeMail = view?.canSendMail;
+  const simulatedTime = view?.simulatedTime ? fmtTime(view.simulatedTime) : "--:--";
+  const actors = scenario?.actors || [];
+  const visibleContacts = actors.filter((a: any) => a.visible_in_contacts || a.actor_id === "player");
+
+  const canActuallySendMail = (() => {
+    if (!canComposeMail || !session || !scenario) return false;
+    const d = currentMailDraft;
+    if (!d.to.trim() || !d.subject.trim() || !d.body.trim()) return false;
+    const phase = scenario.phases[session.currentPhaseIndex];
+    if (phase?.mail_config?.require_attachments && (!d.attachments || d.attachments.length === 0)) return false;
+    return true;
+  })();
+
+  // ── Toast helper ──
+  function addToast(text: string, icon: string, type: "chat" | "mail") {
+    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
+    setToasts((prev) => [...prev, { id, text, icon, type }]);
+    playNotificationSound();
+    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
+  }
+
+  // ── Track new mails for unread badge + notification ──
+  useEffect(() => {
+    if (inboxMails.length > prevMailCountRef.current && prevMailCountRef.current > 0) {
+      const newCount = inboxMails.length - prevMailCountRef.current;
+      setUnreadMails((u) => u + newCount);
+      // Show toast for each new mail
+      const newMails = inboxMails.slice(-newCount);
+      for (const mail of newMails) {
+        const senderInfo = getActorInfo(mail.from);
+        addToast(`${senderInfo.name} : ${mail.subject}`, "📧", "mail");
+      }
+    }
+    prevMailCountRef.current = inboxMails.length;
+  }, [inboxMails.length]);
+
+  // ── Track new chat messages for notification ──
+  useEffect(() => {
+    const nonPlayerMsgs = conversation.filter((m: any) => m.role !== "player" && m.role !== "system");
+    if (nonPlayerMsgs.length > prevChatCountRef.current && prevChatCountRef.current > 0) {
+      const newCount = nonPlayerMsgs.length - prevChatCountRef.current;
+      const newMsgs = nonPlayerMsgs.slice(-newCount);
+      for (const msg of newMsgs) {
+        const actorInfo = getActorInfo(msg.actor || "npc");
+        const typeBadge: Record<string, string> = { phone_call: "📞", whatsapp_message: "📱", sms: "📱", visio: "📹", interruption: "⚡" };
+        const icon = typeBadge[msg.type || ""] || "💬";
+        const preview = msg.content.length > 60 ? msg.content.slice(0, 57) + "..." : msg.content;
+        // Only notify if not on chat tab
+        if (mainView !== "chat") {
+          addToast(`${actorInfo.name} : ${preview}`, icon, "chat");
+        }
+      }
+    }
+    prevChatCountRef.current = nonPlayerMsgs.length;
+  }, [conversation.length]);
+
+  // Clear unread when viewing mail
+  useEffect(() => {
+    if (mainView === "mail") setUnreadMails(0);
+  }, [mainView]);
+
+  // ── Call AI debrief when game finishes (once only) ──
+  useEffect(() => {
+    if (!view?.isFinished || !scenario || !session || debriefCalledRef.current) return;
+    debriefCalledRef.current = true;
+    setDebriefLoading(true);
+    setDebriefError(null);
+
+    fetch("/api/debrief", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        playerName: displayPlayerName,
+        scenarioTitle: scenario.meta?.title || "Scénario",
+        phases: scenario.phases,
+        conversation: session.chatMessages,
+        sentMails: session.sentMails,
+        inboxMails: session.inboxMails,
+        endings: scenario.endings || [],
+        defaultEnding: (scenario as any).default_ending || null,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        setDebriefData(data);
+        setDebriefLoading(false);
+      })
+      .catch((err) => {
+        setDebriefError(err.message || "Erreur lors du débrief");
+        setDebriefLoading(false);
+      });
+  }, [view?.isFinished]);
+
+  // ── Save debrief to game history (once only) ──
+  useEffect(() => {
+    if (!debriefData || debriefSavedRef.current || !scenario) return;
+    debriefSavedRef.current = true;
+
+    const phases = debriefData.phases || [];
+    const avgScore =
+      phases.length > 0
+        ? Math.round(
+            phases.reduce((s: number, p: any) => s + (p.phase_score || 0), 0) /
+              phases.length
+          )
+        : 0;
+
+    saveGameRecord({
+      scenarioId: scenarioId as string,
+      scenarioTitle: scenario.meta?.title || "Scenario",
+      playerName: displayPlayerName,
+      ending: debriefData.ending || "failure",
+      avgScore,
+      debrief: debriefData,
+    });
+  }, [debriefData]);
+
+  // ════════════════════════════════════════════════════════════════════
+  // INITIALIZATION
+  // ════════════════════════════════════════════════════════════════════
+
+  useEffect(() => {
+    async function init() {
+      try {
+        const res = await fetch(`/api/scenarios/${scenarioId}`);
+        if (!res.ok) throw new Error("Impossible de charger le scénario");
+        const data: ScenarioDefinition = await res.json();
+        setScenario(data);
+
+        const s = initializeSession(data);
+        const p1 = data.phases[0];
+        if (p1?.mail_config?.defaults) {
+          updateMailDraft(s, p1.phase_id, {
+            to: "",
+            cc: "",
+            subject: p1.mail_config.defaults.subject || "",
+            body: "",
+            attachments: [],
+          });
+        }
+        setSession(s);
+        setLoading(false);
+
+        // Load AI prompt
+        const aiActor = data.actors.find((a: any) => a.controlled_by === "ai" && a.prompt_file);
+        if (aiActor) {
+          try {
+            const pr = await fetch(`/api/scenarios/${scenarioId}/prompts/${aiActor.actor_id}`);
+            if (pr.ok) {
+              const pd = await pr.json();
+              aiPromptRef.current = pd.prompt || "";
+            }
+          } catch {}
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Erreur inconnue");
+        setLoading(false);
+      }
+    }
+    init();
+  }, [scenarioId]);
+
+  // ── Simulated clock ──
+  useEffect(() => {
+    if (!session || !scenario) return;
+    const iv = setInterval(() => {
+      setSession((prev: any) => {
+        if (!prev) return prev;
+        const next = cloneSession(prev);
+        tickSimulatedTime(next, 1000);
+        return next;
+      });
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [!!session, !!scenario]);
+
+  // ── Auto-advance ──
+  useEffect(() => {
+    if (!session || !scenario || !view) return;
+    const phase = scenario.phases[session.currentPhaseIndex];
+    if (phase?.auto_advance && view.canAdvance) {
+      const next = cloneSession(session);
+      completeCurrentPhaseAndAdvance(next);
+      injectPhaseEntryEvents(next);
+      const newPhase = scenario.phases[next.currentPhaseIndex];
+      if (newPhase?.mail_config?.defaults) {
+        updateMailDraft(next, newPhase.phase_id, {
+          to: "",
+          cc: "",
+          subject: newPhase.mail_config.defaults.subject || "",
+          body: "", attachments: [],
+        });
+      }
+      setSession(next);
+    }
+  }, [view?.canAdvance, view?.phaseId]);
+
+  // ── Flush timed events ──
+  useEffect(() => {
+    if (!session || !scenario) return;
+    const iv = setInterval(() => {
+      setSession((prev: any) => {
+        if (!prev) return prev;
+        const next = cloneSession(prev);
+        const changed = flushDueTimedEvents(next);
+        return changed ? next : prev;
+      });
+    }, 500);
+    return () => clearInterval(iv);
+  }, [!!session, !!scenario]);
+
+  // ── Auto-scroll chat ──
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [conversation.length]);
+
+  // ── Schedule interruptions after each message ──
+  useEffect(() => {
+    if (!session || !scenario) return;
+    const next = cloneSession(session);
+    scheduleInterruption(next);
+    // Only update if pending events changed
+    if (next.pendingTimedEvents.length !== session.pendingTimedEvents.length) {
+      setSession(next);
+    }
+  }, [conversation.length]);
+
+  // ════════════════════════════════════════════════════════════════════
+  // HANDLERS
+  // ════════════════════════════════════════════════════════════════════
+
+  async function sendMessage() {
+    if (!playerInput.trim() || !session || !scenario || !view || isSending) return;
+    setIsSending(true);
+    const text = playerInput;
+    setPlayerInput("");
+
+    try {
+      const next = cloneSession(session);
+      addPlayerMessage(next, text);
+      setSession(next);
+
+      const recentConv = conversation.slice(-10).map((m: any) => ({
+        role: m.role === "player" ? "user" : "assistant",
+        content: m.content,
+      }));
+
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          playerName: displayPlayerName,
+          message: text,
+          phaseTitle: view.phaseTitle,
+          phaseObjective: view.phaseObjective,
+          phasePrompt: view.phasePrompt,
+          criteria: view.criteria,
+          mode: view.adaptiveMode,
+          narrative: scenario.narrative,
+          recentConversation: recentConv,
+          roleplayPrompt: aiPromptRef.current,
+        }),
+      });
+
+      const data = await res.json();
+      playNotificationSound();
+
+      const final = cloneSession(next);
+      const aiActor = scenario.phases[final.currentPhaseIndex]?.ai_actors?.[0] || "npc";
+      addAIMessage(final, data.reply, aiActor);
+      applyEvaluation(
+        final,
+        data.matched_criteria || [],
+        data.score_delta || 0,
+        data.flags_to_set || {}
+      );
+      updateAdaptiveMode(final);
+      scheduleInterruption(final);
+      setSession(final);
+      inputRef.current?.focus();
+    } catch (err) {
+      console.error("Erreur chat:", err);
+    } finally {
+      setIsSending(false);
+    }
+  }
+
+  function handleSendMail() {
+    if (!session || !scenario || !view || !canActuallySendMail) return;
+    const phase = scenario.phases[session.currentPhaseIndex];
+    const next = cloneSession(session);
+    sendCurrentPhaseMail(next, phase?.mail_config?.kind || "other");
+    playNotificationSound();
+
+    if (phase?.mail_config?.send_advances_phase) {
+      completeCurrentPhaseAndAdvance(next);
+      injectPhaseEntryEvents(next);
+      const newPhase = scenario.phases[next.currentPhaseIndex];
+      if (newPhase?.mail_config?.defaults) {
+        updateMailDraft(next, newPhase.phase_id, {
+          to: "",
+          cc: "",
+          subject: newPhase.mail_config.defaults.subject || "",
+          body: "", attachments: [],
+        });
+      }
+    }
+    setSession(next);
+    setShowCompose(false);
+  }
+
+  function updateDraft(patch: any) {
+    if (!session || !view) return;
+    const next = cloneSession(session);
+    updateMailDraft(next, view.phaseId, { ...currentMailDraft, ...patch });
+    setSession(next);
+  }
+
+  function handleToggleAttachment(docId: string, label: string) {
+    if (!session || !view) return;
+    const next = cloneSession(session);
+    toggleMailAttachment(next, view.phaseId, { id: docId, label });
+    setSession(next);
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // RENDER HELPERS
+  // ════════════════════════════════════════════════════════════════════
+
+  function getActorInfo(actorId: string) {
+    const a = actors.find((x: any) => x.actor_id === actorId);
+    return {
+      name: a?.name || actorId,
+      color: a?.avatar?.color || "#666",
+      initials: a?.avatar?.initials || getInitials(a?.name || actorId),
+      status: (a as any)?.contact_status || "offline",
+    };
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // LOADING / ERROR
+  // ════════════════════════════════════════════════════════════════════
+
+  if (loading) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#f3f2f1", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ width: 40, height: 40, border: "3px solid #e0e0e0", borderTopColor: "#5b5fc7", borderRadius: "50%", animation: "spin .8s linear infinite", margin: "0 auto 16px" }} />
+          <p style={{ color: "#666", fontSize: 14 }}>Chargement du scénario...</p>
+          <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !scenario || !session || !view) {
+    return (
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100vh", background: "#f3f2f1", fontFamily: "'Segoe UI', system-ui, sans-serif" }}>
+        <div style={{ background: "#fff", padding: 32, borderRadius: 8, boxShadow: "0 2px 12px rgba(0,0,0,.1)", textAlign: "center" }}>
+          <p style={{ color: "#e94b3c", fontWeight: 600, marginBottom: 12 }}>Erreur</p>
+          <p style={{ color: "#666", fontSize: 14 }}>{error || "Impossible de charger le scénario"}</p>
+          <button onClick={() => router.push("/")} style={{ marginTop: 16, padding: "8px 24px", background: "#5b5fc7", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600 }}>
+            Retour à l'accueil
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // ENDING SCREEN
+  // ════════════════════════════════════════════════════════════════════
+
+  if (view.isFinished) {
+    // ── Rating badge helper ──
+    const ratingConfig: Record<string, { label: string; color: string; bg: string; icon: string }> = {
+      maitrise: { label: "Maîtrisé", color: "#1a7f37", bg: "#dcfce7", icon: "★" },
+      acquis: { label: "Acquis", color: "#2563eb", bg: "#dbeafe", icon: "●" },
+      en_cours: { label: "En cours", color: "#b45309", bg: "#fef3c7", icon: "◐" },
+      non_acquis: { label: "Non acquis", color: "#991b1b", bg: "#fee2e2", icon: "○" },
+    };
+
+    // ── Determine ending from AI debrief or fallback ──
+    const aiEnding = debriefData?.ending || "failure";
+    const endingColor = aiEnding === "success" ? "#16a34a" : aiEnding === "partial_success" ? "#d97706" : "#dc2626";
+    const endingEmoji = aiEnding === "success" ? "🎉" : aiEnding === "partial_success" ? "⚠️" : "💡";
+    const endingLabel = aiEnding === "success" ? "Succès" : aiEnding === "partial_success" ? "Succès partiel" : "Échec";
+
+    // ── Loading state ──
+    if (debriefLoading) {
+      return (
+        <div style={{ minHeight: "100vh", background: "#f3f2f1", fontFamily: "'Segoe UI', system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ textAlign: "center", maxWidth: 400 }}>
+            <div style={{ width: 48, height: 48, border: "4px solid #e0e0e0", borderTopColor: "#5b5fc7", borderRadius: "50%", animation: "spin .8s linear infinite", margin: "0 auto 20px" }} />
+            <h2 style={{ fontSize: 18, fontWeight: 700, color: "#333", marginBottom: 8 }}>Analyse en cours...</h2>
+            <p style={{ fontSize: 14, color: "#888", lineHeight: 1.5 }}>
+              L'IA évalue ta performance phase par phase. Cela peut prendre quelques secondes.
+            </p>
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
+          </div>
+        </div>
+      );
+    }
+
+    // ── Error state (show basic ending) ──
+    if (debriefError && !debriefData) {
+      return (
+        <div style={{ minHeight: "100vh", background: "#f3f2f1", fontFamily: "'Segoe UI', system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ background: "#fff", padding: 40, borderRadius: 12, boxShadow: "0 4px 24px rgba(0,0,0,.12)", maxWidth: 500, textAlign: "center" }}>
+            <h2 style={{ fontSize: 18, color: "#333", marginBottom: 8 }}>Scénario terminé</h2>
+            <p style={{ fontSize: 14, color: "#888", marginBottom: 20 }}>Le débrief IA n'a pas pu être généré : {debriefError}</p>
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              <button onClick={() => router.push(`/scenarios/${scenarioId}`)} style={{ padding: "10px 24px", background: "#5b5fc7", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
+                Rejouer
+              </button>
+              <button onClick={() => router.push("/")} style={{ padding: "10px 24px", background: "#fff", color: "#666", border: "1px solid #ddd", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
+                Accueil
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ── AI Debrief screen ──
+    if (debriefData) {
+      const avgScore = debriefData.phases?.length > 0
+        ? Math.round(debriefData.phases.reduce((s: number, p: any) => s + (p.phase_score || 0), 0) / debriefData.phases.length)
+        : 0;
+
+      return (
+        <div style={{ minHeight: "100vh", background: "#f3f2f1", fontFamily: "'Segoe UI', system-ui, sans-serif", overflowY: "auto" }}>
+          {/* Header banner */}
+          <div style={{ background: endingColor, padding: "36px 24px", textAlign: "center", color: "#fff" }}>
+            <div style={{ fontSize: 44, marginBottom: 8 }}>{endingEmoji}</div>
+            <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>{endingLabel}</h1>
+            <p style={{ fontSize: 15, opacity: 0.92, maxWidth: 650, margin: "0 auto", lineHeight: 1.6 }}>
+              {debriefData.ending_narrative || debriefData.overall_summary}
+            </p>
+          </div>
+
+          <div style={{ maxWidth: 820, margin: "0 auto", padding: "28px 20px" }}>
+
+            {/* Global summary */}
+            {debriefData.overall_summary && (
+              <div style={{ background: "#fff", borderRadius: 12, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,.05)", marginBottom: 20 }}>
+                <h2 style={{ fontSize: 16, fontWeight: 700, color: "#333", margin: "0 0 10px" }}>Résumé global</h2>
+                <p style={{ margin: 0, fontSize: 14, color: "#444", lineHeight: 1.7 }}>{debriefData.overall_summary}</p>
+                {/* Average score bar */}
+                <div style={{ marginTop: 16, display: "flex", alignItems: "center", gap: 12 }}>
+                  <span style={{ fontSize: 13, fontWeight: 600, color: "#666", minWidth: 80 }}>Score moyen</span>
+                  <div style={{ flex: 1, height: 8, background: "#e8e8e8", borderRadius: 4, overflow: "hidden" }}>
+                    <div style={{ height: "100%", width: `${avgScore}%`, background: endingColor, borderRadius: 4, transition: "width 1s" }} />
+                  </div>
+                  <span style={{ fontSize: 14, fontWeight: 700, color: endingColor }}>{avgScore}%</span>
+                </div>
+              </div>
+            )}
+
+            {/* Per-phase AI analysis */}
+            {debriefData.phases?.map((phase: any, idx: number) => {
+              const scoreColor = phase.phase_score >= 70 ? "#16a34a" : phase.phase_score >= 40 ? "#d97706" : "#dc2626";
+              return (
+                <div key={idx} style={{ background: "#fff", borderRadius: 12, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,.05)", marginBottom: 16 }}>
+                  {/* Phase header */}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#333" }}>
+                      Phase {idx + 1} — {phase.phase_title}
+                    </h3>
+                    <span style={{ fontSize: 20, fontWeight: 800, color: scoreColor }}>{phase.phase_score}<span style={{ fontSize: 12, fontWeight: 400, color: "#999" }}>/100</span></span>
+                  </div>
+                  {/* Phase score bar */}
+                  <div style={{ height: 6, background: "#e8e8e8", borderRadius: 3, overflow: "hidden", marginBottom: 14 }}>
+                    <div style={{ height: "100%", width: `${phase.phase_score}%`, background: scoreColor, borderRadius: 3, transition: "width .8s" }} />
+                  </div>
+                  {/* Phase summary */}
+                  {phase.phase_summary && (
+                    <p style={{ margin: "0 0 14px", fontSize: 13, color: "#555", lineHeight: 1.6, fontStyle: "italic" }}>{phase.phase_summary}</p>
+                  )}
+                  {/* Competencies */}
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {phase.competencies?.map((comp: any, ci: number) => {
+                      const cfg = ratingConfig[comp.rating] || ratingConfig.non_acquis;
+                      return (
+                        <div key={ci} style={{ padding: "10px 14px", background: "#fafafa", borderRadius: 8, borderLeft: `3px solid ${cfg.color}` }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
+                            <span style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{comp.name}</span>
+                            <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "2px 10px", borderRadius: 12 }}>
+                              {cfg.icon} {cfg.label}
+                            </span>
+                          </div>
+                          <p style={{ margin: 0, fontSize: 12, color: "#666", lineHeight: 1.5 }}>{comp.justification}</p>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Strengths & Improvements side by side */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
+              {debriefData.strengths?.length > 0 && (
+                <div style={{ background: "#f0fdf4", borderRadius: 12, padding: 20, border: "1px solid #bbf7d0" }}>
+                  <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "#16a34a" }}>Points forts</h3>
+                  {debriefData.strengths.map((s: string, i: number) => (
+                    <p key={i} style={{ margin: "0 0 6px", fontSize: 13, color: "#333", lineHeight: 1.5 }}>• {s}</p>
+                  ))}
+                </div>
+              )}
+              {debriefData.improvements?.length > 0 && (
+                <div style={{ background: "#fffbeb", borderRadius: 12, padding: 20, border: "1px solid #fde68a" }}>
+                  <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "#b45309" }}>Axes d'amélioration</h3>
+                  {debriefData.improvements.map((s: string, i: number) => (
+                    <p key={i} style={{ margin: "0 0 6px", fontSize: 13, color: "#333", lineHeight: 1.5 }}>• {s}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Pedagogical advice */}
+            {debriefData.pedagogical_advice && (
+              <div style={{ background: "#f0f0ff", borderRadius: 12, padding: 20, border: "1px solid #c7d2fe", marginBottom: 24 }}>
+                <h3 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "#5b5fc7" }}>Conseil pédagogique</h3>
+                <p style={{ margin: 0, fontSize: 13, color: "#444", lineHeight: 1.6 }}>{debriefData.pedagogical_advice}</p>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", paddingBottom: 40 }}>
+              <button
+                onClick={() => router.push(`/scenarios/${scenarioId}`)}
+                style={{ padding: "12px 28px", background: "#5b5fc7", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14, boxShadow: "0 2px 8px rgba(91,95,199,.3)" }}
+              >
+                Rejouer le scénario
+              </button>
+              <button
+                onClick={() => router.push("/history")}
+                style={{ padding: "12px 28px", background: "#fff", color: "#5b5fc7", border: "1px solid #5b5fc7", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14 }}
+              >
+                Historique
+              </button>
+              <button
+                onClick={() => router.push("/")}
+                style={{ padding: "12px 28px", background: "#fff", color: "#666", border: "1px solid #ddd", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14 }}
+              >
+                Retour à l'accueil
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // Waiting for debrief to start (brief moment)
+    return null;
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // MAIN RENDER
+  // ════════════════════════════════════════════════════════════════════
+
+  const phaseTitle = view.phaseTitle;
+  const phaseObjective = view.phaseObjective;
+  const selectedMail = inboxMails.find((m: any) => m.id === selectedMailId);
+  const selectedDoc = allDocuments.find((d: any) => d.doc_id === selectedDocId);
+  const phases = scenario.phases || [];
+  const currentPhaseIndex = session.currentPhaseIndex;
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#f3f2f1", overflow: "hidden" }}>
+
+      {/* ═══════ TOAST NOTIFICATIONS ═══════ */}
+      {toasts.length > 0 && (
+        <div style={{ position: "fixed", top: 60, right: 20, zIndex: 9999, display: "flex", flexDirection: "column", gap: 8 }}>
+          {toasts.map((toast) => (
+            <div
+              key={toast.id}
+              onClick={() => {
+                setMainView(toast.type);
+                setToasts((prev) => prev.filter((t) => t.id !== toast.id));
+              }}
+              style={{
+                background: "#fff",
+                border: "1px solid #e0e0e0",
+                borderLeft: `4px solid ${toast.type === "mail" ? "#f5a623" : "#5b5fc7"}`,
+                borderRadius: 8,
+                padding: "10px 16px",
+                boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                minWidth: 280,
+                maxWidth: 360,
+                cursor: "pointer",
+                animation: "toastSlideIn 0.3s ease-out",
+              }}
+            >
+              <span style={{ fontSize: 20, flexShrink: 0 }}>{toast.icon}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                  {toast.text}
+                </div>
+                <div style={{ fontSize: 10, color: "#999", marginTop: 2 }}>
+                  {toast.type === "mail" ? "Cliquez pour voir l'email" : "Cliquez pour voir le message"}
+                </div>
+              </div>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setToasts((prev) => prev.filter((t) => t.id !== toast.id));
+                }}
+                style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 16, padding: "0 4px", flexShrink: 0 }}
+              >
+                ×
+              </button>
+            </div>
+          ))}
+          <style>{`@keyframes toastSlideIn{from{opacity:0;transform:translateX(100px)}to{opacity:1;transform:translateX(0)}}`}</style>
+        </div>
+      )}
+
+      {/* ═══════ TOP BAR ═══════ */}
+      <header style={{ display: "flex", alignItems: "center", height: 48, background: "#292929", color: "#fff", padding: "0 16px", gap: 16, flexShrink: 0 }}>
+        {/* Home button */}
+        <button
+          onClick={() => router.push("/")}
+          title="Retour à l'accueil"
+          style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 18, padding: "4px 8px", borderRadius: 4, display: "flex", alignItems: "center", gap: 6 }}
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+        </button>
+
+        <div style={{ height: 24, width: 1, background: "#555" }} />
+
+        {/* Title + phase */}
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>
+            {scenario.meta?.title || "Scénario"}
+          </span>
+        </div>
+
+        {/* Phase progression */}
+        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
+          {phases.map((p: any, i: number) => {
+            const pid = p.phase_id || p.id;
+            const done = session.completedPhases.includes(pid);
+            const current = i === currentPhaseIndex;
+            return (
+              <div
+                key={pid}
+                title={p.title}
+                style={{
+                  width: current ? "auto" : 8, height: 8, borderRadius: current ? 10 : "50%",
+                  background: done ? "#44b553" : current ? "#5b5fc7" : "#555",
+                  padding: current ? "2px 10px" : 0,
+                  color: "#fff", fontSize: 11, fontWeight: 600,
+                  display: "flex", alignItems: "center", transition: "all .2s",
+                }}
+              >
+                {current ? p.title : ""}
+              </div>
+            );
+          })}
+        </div>
+
+        <div style={{ height: 24, width: 1, background: "#555" }} />
+
+        {/* Clock */}
+        <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "#7b7fff", minWidth: 52, textAlign: "right" }}>
+          {simulatedTime}
+        </div>
+      </header>
+
+      {/* ═══════ BODY ═══════ */}
+      <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+
+        {/* ═══════ LEFT SIDEBAR — Nav + Contacts ═══════ */}
+        <aside style={{ width: 240, flexShrink: 0, background: "#fff", borderRight: "1px solid #e0e0e0", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+          {/* Navigation tabs */}
+          <nav style={{ display: "flex", borderBottom: "1px solid #e8e8e8", flexShrink: 0 }}>
+            {([
+              { key: "chat" as MainView, icon: "💬", label: "Chat" },
+              { key: "mail" as MainView, icon: "📧", label: "Email", badge: unreadMails },
+            ]).map((tab) => (
+              <button
+                key={tab.key}
+                onClick={() => setMainView(tab.key)}
+                style={{
+                  flex: 1, padding: "10px 4px", border: "none", cursor: "pointer",
+                  background: mainView === tab.key ? "#f0f0ff" : "#fff",
+                  borderBottom: mainView === tab.key ? "2px solid #5b5fc7" : "2px solid transparent",
+                  fontSize: 12, fontWeight: mainView === tab.key ? 700 : 500,
+                  color: mainView === tab.key ? "#5b5fc7" : "#666",
+                  position: "relative",
+                }}
+              >
+                {tab.icon} {tab.label}
+                {tab.badge ? (
+                  <span style={{ position: "absolute", top: 4, right: 8, background: "#e94b3c", color: "#fff", borderRadius: 10, fontSize: 10, fontWeight: 700, padding: "1px 5px", minWidth: 16, textAlign: "center" }}>
+                    {tab.badge}
+                  </span>
+                ) : null}
+              </button>
+            ))}
+          </nav>
+
+          {/* Contacts section */}
+          <div style={{ padding: "12px", flex: 1, overflowY: "auto" }}>
+            <h3 style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.5px" }}>
+              Contacts
+            </h3>
+            <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+              {visibleContacts.map((actor: any) => {
+                const isPlayer = actor.actor_id === "player";
+                const status = actor.contact_status || (actor.interaction_modes?.includes("unreachable") ? "offline" : "available");
+                const color = actor.avatar?.color || (isPlayer ? "#5b5fc7" : "#666");
+                const ini = actor.avatar?.initials || getInitials(actor.name);
+                return (
+                  <li
+                    key={actor.actor_id}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 10,
+                      padding: "8px 6px", borderRadius: 6,
+                      marginBottom: 2, cursor: "default",
+                    }}
+                  >
+                    <Avatar initials={ini} color={color} size={32} status={status} />
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {isPlayer ? `${displayPlayerName} (vous)` : actor.name}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {actor.role}
+                      </div>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+
+            {/* Phase objective — hidden if show_objective is false at scenario or phase level */}
+            {(() => {
+              const phase = scenario.phases[session.currentPhaseIndex];
+              const globalShow = (scenario.meta as any).show_objective !== false;
+              const phaseShow = (phase as any).show_objective;
+              // Phase-level overrides global: if phase defines it, use it; otherwise fall back to global
+              const shouldShow = phaseShow !== undefined ? phaseShow !== false : globalShow;
+              if (!shouldShow) return null;
+              return (
+                <div style={{ marginTop: 16, padding: "10px", background: "#f8f8ff", borderRadius: 8, borderLeft: "3px solid #5b5fc7" }}>
+                  <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase" }}>
+                    Objectif
+                  </h4>
+                  <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.4 }}>
+                    {phaseObjective}
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+        </aside>
+
+        {/* ═══════ CENTER — Main content ═══════ */}
+        <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#fff" }}>
+
+          {/* ─── CHAT VIEW ─── */}
+          {mainView === "chat" && (
+            <>
+              {/* Chat header */}
+              <div style={{ padding: "10px 16px", borderBottom: "1px solid #e8e8e8", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: "#333" }}>💬 Messagerie — {phaseTitle}</span>
+              </div>
+
+              {/* Messages */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
+                {conversation.map((msg: any) => {
+                  const isPlayer = msg.role === "player";
+                  const isSystem = msg.role === "system";
+                  const actor = !isPlayer && !isSystem ? getActorInfo(msg.actor || "npc") : null;
+                  const msgType = msg.type || "";
+
+                  if (isSystem) {
+                    return (
+                      <div key={msg.id} style={{ textAlign: "center", padding: "6px 0" }}>
+                        <span style={{ background: "#f0f0f0", color: "#888", fontSize: 11, padding: "4px 12px", borderRadius: 12 }}>
+                          {msg.content}
+                        </span>
+                      </div>
+                    );
+                  }
+
+                  // Type badge for non-chat messages
+                  const typeBadgeMap: Record<string, string> = { phone_call: "📞 Appel", whatsapp_message: "📱 WhatsApp", sms: "📱 SMS", visio: "📹 Visio" };
+                  const typeBadge = typeBadgeMap[msgType] || null;
+
+                  return (
+                    <div
+                      key={msg.id}
+                      style={{
+                        display: "flex", gap: 8, alignItems: "flex-start",
+                        flexDirection: isPlayer ? "row-reverse" : "row",
+                        maxWidth: "85%", alignSelf: isPlayer ? "flex-end" : "flex-start",
+                      }}
+                    >
+                      {!isPlayer && actor && (
+                        <Avatar initials={actor.initials} color={actor.color} size={32} status={actor.status} />
+                      )}
+                      {isPlayer && (
+                        <Avatar initials={getInitials(displayPlayerName)} color="#5b5fc7" size={32} />
+                      )}
+                      <div>
+                        {/* Sender name */}
+                        <div style={{ fontSize: 11, color: "#888", marginBottom: 2, textAlign: isPlayer ? "right" : "left" }}>
+                          {isPlayer ? displayPlayerName : actor?.name}
+                          {typeBadge && <span style={{ marginLeft: 6, fontSize: 10, color: "#5b5fc7" }}>{typeBadge}</span>}
+                        </div>
+                        {/* Bubble */}
+                        <div
+                          style={{
+                            background: isPlayer ? "#5b5fc7" : "#f3f2f1",
+                            color: isPlayer ? "#fff" : "#333",
+                            padding: "8px 14px", borderRadius: 12,
+                            borderTopRightRadius: isPlayer ? 4 : 12,
+                            borderTopLeftRadius: isPlayer ? 12 : 4,
+                            fontSize: 13, lineHeight: 1.5, wordBreak: "break-word",
+                            whiteSpace: "pre-wrap",
+                          }}
+                        >
+                          {msg.content}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+                {isSending && (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#ddd", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <TypingDots />
+                    </div>
+                  </div>
+                )}
+                <div ref={chatEndRef} />
+              </div>
+
+              {/* Input bar */}
+              <div style={{ padding: "10px 16px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0, background: "#fafafa" }}>
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={playerInput}
+                  onChange={(e) => setPlayerInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !isSending) sendMessage(); }}
+                  placeholder="Votre message..."
+                  disabled={isSending}
+                  style={{
+                    flex: 1, padding: "10px 14px", border: "1px solid #ddd", borderRadius: 20,
+                    fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff",
+                  }}
+                />
+                <button
+                  onClick={sendMessage}
+                  disabled={!playerInput.trim() || isSending}
+                  style={{
+                    padding: "8px 20px", borderRadius: 20, border: "none",
+                    background: playerInput.trim() && !isSending ? "#5b5fc7" : "#ccc",
+                    color: "#fff", cursor: playerInput.trim() && !isSending ? "pointer" : "not-allowed",
+                    fontWeight: 600, fontSize: 13,
+                  }}
+                >
+                  Envoyer
+                </button>
+              </div>
+            </>
+          )}
+
+          {/* ─── MAIL VIEW ─── */}
+          {mainView === "mail" && (
+            <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
+              {/* Mail list sidebar */}
+              <div style={{ width: 280, borderRight: "1px solid #e8e8e8", display: "flex", flexDirection: "column", overflowY: "auto", flexShrink: 0 }}>
+                <div style={{ padding: "12px 14px", borderBottom: "1px solid #e8e8e8", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>📧 Boîte de réception</h3>
+                  {canComposeMail && (
+                    <button
+                      onClick={() => { setShowCompose(true); setSelectedMailId(null); }}
+                      style={{
+                        padding: "4px 12px", background: "#5b5fc7", color: "#fff",
+                        border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 600,
+                      }}
+                    >
+                      + Nouveau
+                    </button>
+                  )}
+                </div>
+
+                {inboxMails.length === 0 && !showCompose && (
+                  <div style={{ padding: 20, textAlign: "center", color: "#999", fontSize: 13 }}>
+                    Aucun email reçu pour le moment
+                  </div>
+                )}
+
+                {inboxMails.map((mail: any) => {
+                  const sender = getActorInfo(mail.from);
+                  const isActive = selectedMailId === mail.id && !showCompose;
+                  return (
+                    <div
+                      key={mail.id}
+                      onClick={() => { setSelectedMailId(mail.id); setShowCompose(false); }}
+                      style={{
+                        padding: "10px 14px", cursor: "pointer",
+                        background: isActive ? "#f0f0ff" : "#fff",
+                        borderBottom: "1px solid #f0f0f0",
+                        borderLeft: isActive ? "3px solid #5b5fc7" : "3px solid transparent",
+                      }}
+                    >
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#333", marginBottom: 2 }}>
+                        {sender.name}
+                      </div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {mail.subject}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#999", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                        {mail.body.slice(0, 60)}...
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Sent mails */}
+                {view.sentMails && view.sentMails.length > 0 && (
+                  <>
+                    <div style={{ padding: "10px 14px", borderBottom: "1px solid #e8e8e8", borderTop: "1px solid #e8e8e8", marginTop: 8 }}>
+                      <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#999", textTransform: "uppercase" }}>Envoyés</h4>
+                    </div>
+                    {view.sentMails.map((mail: any) => (
+                      <div key={mail.id} style={{ padding: "8px 14px", borderBottom: "1px solid #f0f0f0", opacity: 0.7 }}>
+                        <div style={{ fontSize: 11, color: "#888" }}>→ {mail.to}</div>
+                        <div style={{ fontSize: 12, color: "#555", fontWeight: 600 }}>{mail.subject}</div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              {/* Mail content / compose */}
+              <div style={{ flex: 1, overflowY: "auto", padding: 0 }}>
+
+                {/* Reading a mail */}
+                {selectedMail && !showCompose && (
+                  <div style={{ padding: 24 }}>
+                    <h2 style={{ fontSize: 18, color: "#333", marginBottom: 16 }}>{selectedMail.subject}</h2>
+                    <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #e8e8e8" }}>
+                      <Avatar initials={getActorInfo(selectedMail.from).initials} color={getActorInfo(selectedMail.from).color} size={36} />
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{getActorInfo(selectedMail.from).name}</div>
+                        <div style={{ fontSize: 11, color: "#888" }}>
+                          À : {selectedMail.to || displayPlayerName}
+                          {selectedMail.cc && <span> — Cc : {selectedMail.cc}</span>}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ fontSize: 13, lineHeight: 1.7, color: "#333", whiteSpace: "pre-wrap" }}>
+                      {selectedMail.body}
+                    </div>
+                    {selectedMail.attachments && selectedMail.attachments.length > 0 && (
+                      <div style={{ marginTop: 16, padding: 12, background: "#f8f8f8", borderRadius: 6 }}>
+                        <strong style={{ fontSize: 12 }}>Pièces jointes :</strong>
+                        {selectedMail.attachments.map((a: any) => (
+                          <div key={a.id} style={{ fontSize: 12, color: "#5b5fc7", marginTop: 4 }}>📎 {a.label}</div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Reply All button if mail is enabled */}
+                    {canComposeMail && (
+                      <button
+                        onClick={() => {
+                          // Reply All: pre-fill To with sender, Cc from mail_config defaults + original Cc
+                          const senderEmail = (() => {
+                            const a = actors.find((x: any) => x.actor_id === selectedMail.from);
+                            return (a as any)?.email || getActorInfo(selectedMail.from).name;
+                          })();
+                          // Gather Cc: original mail cc + phase mail_config defaults cc
+                          const ccParts: string[] = [];
+                          if (selectedMail.cc) ccParts.push(selectedMail.cc);
+                          const currentPhase = scenario.phases[session.currentPhaseIndex];
+                          const defaultCc = currentPhase?.mail_config?.defaults?.cc || "";
+                          if (defaultCc && !ccParts.includes(defaultCc)) ccParts.push(defaultCc);
+                          const reSubject = selectedMail.subject.startsWith("Re:") ? selectedMail.subject : `Re: ${selectedMail.subject}`;
+                          updateDraft({ to: senderEmail, cc: ccParts.join(", "), subject: reSubject });
+                          setShowCompose(true);
+                        }}
+                        style={{ marginTop: 20, padding: "8px 20px", background: "#5b5fc7", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 13 }}
+                      >
+                        Répondre à tous
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* Compose form */}
+                {showCompose && canComposeMail && (
+                  <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12, height: "100%" }}>
+                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#333" }}>
+                      {view.sendMailLabel || "Nouveau message"}
+                    </h3>
+
+                    {/* To */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+                      <label style={{ width: 40, fontSize: 12, fontWeight: 600, color: "#666" }}>À :</label>
+                      <input
+                        type="text" value={currentMailDraft.to}
+                        onChange={(e) => updateDraft({ to: e.target.value })}
+                        placeholder="Saisissez ou choisissez un contact"
+                        style={{ flex: 1, padding: "8px 10px", border: "1px solid #ddd", borderRadius: 4, fontSize: 13, fontFamily: "inherit" }}
+                      />
+                      <button
+                        onClick={() => setShowContactPicker(showContactPicker === "to" ? null : "to")}
+                        title="Répertoire de contacts"
+                        style={{
+                          background: showContactPicker === "to" ? "#5b5fc7" : "#f0f0f0",
+                          color: showContactPicker === "to" ? "#fff" : "#555",
+                          border: "1px solid #ddd", borderRadius: 4, padding: "6px 10px",
+                          cursor: "pointer", fontSize: 16, lineHeight: 1, flexShrink: 0,
+                        }}
+                      >
+                        📇
+                      </button>
+                      {showContactPicker === "to" && (
+                        <div style={{
+                          position: "absolute", top: "100%", right: 0, marginTop: 4, zIndex: 100,
+                          background: "#fff", border: "1px solid #ddd", borderRadius: 8,
+                          boxShadow: "0 4px 16px rgba(0,0,0,.12)", width: 260, maxHeight: 240, overflowY: "auto",
+                        }}>
+                          <div style={{ padding: "8px 12px", borderBottom: "1px solid #eee", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase" }}>
+                            Contacts disponibles
+                          </div>
+                          {actors
+                            .filter((a: any) => a.actor_id !== "player" && a.interaction_modes?.some((m: string) => /mail|email/i.test(m)))
+                            .map((a: any) => (
+                              <div
+                                key={a.actor_id}
+                                onClick={() => {
+                                  const name = a.email || a.name;
+                                  const existing = currentMailDraft.to.trim();
+                                  updateDraft({ to: existing ? `${existing}, ${name}` : name });
+                                  setShowContactPicker(null);
+                                }}
+                                style={{
+                                  padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+                                  borderBottom: "1px solid #f5f5f5", transition: "background .1s",
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0ff")}
+                                onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+                              >
+                                <Avatar initials={a.avatar?.initials || getInitials(a.name)} color={a.avatar?.color || "#666"} size={28} />
+                                <div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{a.name}</div>
+                                  <div style={{ fontSize: 11, color: "#888" }}>{a.email || a.role}</div>
+                                </div>
+                              </div>
+                            ))}
+                          {actors.filter((a: any) => a.actor_id !== "player" && a.interaction_modes?.some((m: string) => /mail|email/i.test(m))).length === 0 && (
+                            <div style={{ padding: "12px", fontSize: 12, color: "#999", textAlign: "center" }}>Aucun contact email</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {/* Cc */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
+                      <label style={{ width: 40, fontSize: 12, fontWeight: 600, color: "#666" }}>Cc :</label>
+                      <input
+                        type="text" value={currentMailDraft.cc}
+                        onChange={(e) => updateDraft({ cc: e.target.value })}
+                        placeholder="Copie (optionnel)"
+                        style={{ flex: 1, padding: "8px 10px", border: "1px solid #ddd", borderRadius: 4, fontSize: 13, fontFamily: "inherit" }}
+                      />
+                      <button
+                        onClick={() => setShowContactPicker(showContactPicker === "cc" ? null : "cc")}
+                        title="Répertoire de contacts"
+                        style={{
+                          background: showContactPicker === "cc" ? "#5b5fc7" : "#f0f0f0",
+                          color: showContactPicker === "cc" ? "#fff" : "#555",
+                          border: "1px solid #ddd", borderRadius: 4, padding: "6px 10px",
+                          cursor: "pointer", fontSize: 16, lineHeight: 1, flexShrink: 0,
+                        }}
+                      >
+                        📇
+                      </button>
+                      {showContactPicker === "cc" && (
+                        <div style={{
+                          position: "absolute", top: "100%", right: 0, marginTop: 4, zIndex: 100,
+                          background: "#fff", border: "1px solid #ddd", borderRadius: 8,
+                          boxShadow: "0 4px 16px rgba(0,0,0,.12)", width: 260, maxHeight: 240, overflowY: "auto",
+                        }}>
+                          <div style={{ padding: "8px 12px", borderBottom: "1px solid #eee", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase" }}>
+                            Contacts disponibles
+                          </div>
+                          {actors
+                            .filter((a: any) => a.actor_id !== "player" && a.interaction_modes?.some((m: string) => /mail|email/i.test(m)))
+                            .map((a: any) => (
+                              <div
+                                key={a.actor_id}
+                                onClick={() => {
+                                  const name = a.email || a.name;
+                                  const existing = currentMailDraft.cc.trim();
+                                  updateDraft({ cc: existing ? `${existing}, ${name}` : name });
+                                  setShowContactPicker(null);
+                                }}
+                                style={{
+                                  padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+                                  borderBottom: "1px solid #f5f5f5", transition: "background .1s",
+                                }}
+                                onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0ff")}
+                                onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+                              >
+                                <Avatar initials={a.avatar?.initials || getInitials(a.name)} color={a.avatar?.color || "#666"} size={28} />
+                                <div>
+                                  <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{a.name}</div>
+                                  <div style={{ fontSize: 11, color: "#888" }}>{a.email || a.role}</div>
+                                </div>
+                              </div>
+                            ))}
+                          {actors.filter((a: any) => a.actor_id !== "player" && a.interaction_modes?.some((m: string) => /mail|email/i.test(m))).length === 0 && (
+                            <div style={{ padding: "12px", fontSize: 12, color: "#999", textAlign: "center" }}>Aucun contact email</div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    {/* Subject */}
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <label style={{ width: 40, fontSize: 12, fontWeight: 600, color: "#666" }}>Objet :</label>
+                      <input
+                        type="text" value={currentMailDraft.subject}
+                        onChange={(e) => updateDraft({ subject: e.target.value })}
+                        style={{ flex: 1, padding: "8px 10px", border: "1px solid #ddd", borderRadius: 4, fontSize: 13, fontFamily: "inherit" }}
+                      />
+                    </div>
+                    {/* Body */}
+                    <textarea
+                      value={currentMailDraft.body}
+                      onChange={(e) => updateDraft({ body: e.target.value })}
+                      placeholder="Rédigez votre message ici..."
+                      style={{ flex: 1, padding: 12, border: "1px solid #ddd", borderRadius: 4, fontSize: 13, fontFamily: "inherit", resize: "none", minHeight: 180 }}
+                    />
+
+                    {/* Attachments */}
+                    {attachableDocs.length > 0 && (
+                      <div style={{ padding: 10, background: "#fafafa", borderRadius: 6, border: "1px solid #eee" }}>
+                        <strong style={{ fontSize: 12, color: "#555" }}>📎 Pièces jointes :</strong>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
+                          {attachableDocs.map((doc: any) => {
+                            const isAttached = currentMailDraft.attachments.some((a: any) => a.id === doc.doc_id);
+                            return (
+                              <label
+                                key={doc.doc_id}
+                                style={{
+                                  display: "flex", alignItems: "center", gap: 6,
+                                  padding: "4px 10px", borderRadius: 16, cursor: "pointer",
+                                  background: isAttached ? "#e8e5ff" : "#f0f0f0",
+                                  border: isAttached ? "1px solid #5b5fc7" : "1px solid #ddd",
+                                  fontSize: 12, color: isAttached ? "#5b5fc7" : "#555",
+                                  fontWeight: isAttached ? 600 : 400,
+                                  transition: "all .15s",
+                                }}
+                              >
+                                <input
+                                  type="checkbox" checked={isAttached}
+                                  onChange={() => handleToggleAttachment(doc.doc_id, doc.label)}
+                                  style={{ display: "none" }}
+                                />
+                                {isAttached ? "✓" : "+"} {doc.label}
+                              </label>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Send */}
+                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                      <button
+                        onClick={() => setShowCompose(false)}
+                        style={{ padding: "8px 16px", background: "#f0f0f0", color: "#666", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 13 }}
+                      >
+                        Annuler
+                      </button>
+                      <button
+                        onClick={handleSendMail}
+                        disabled={!canActuallySendMail}
+                        style={{
+                          padding: "8px 24px", borderRadius: 4, border: "none",
+                          background: canActuallySendMail ? "#5b5fc7" : "#ccc",
+                          color: "#fff", cursor: canActuallySendMail ? "pointer" : "not-allowed",
+                          fontWeight: 600, fontSize: 13,
+                        }}
+                      >
+                        {view.sendMailLabel || "Envoyer"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty state */}
+                {!selectedMail && !showCompose && (
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#999", fontSize: 14 }}>
+                    {inboxMails.length > 0
+                      ? "Sélectionnez un email pour le lire"
+                      : canComposeMail
+                        ? "Cliquez sur « + Nouveau » pour rédiger un email"
+                        : "Aucun email pour le moment"
+                    }
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </main>
+
+        {/* ═══════ RIGHT PANEL ═══════ */}
+        <aside style={{ width: 280, flexShrink: 0, background: "#fafafa", borderLeft: "1px solid #e0e0e0", display: "flex", flexDirection: "column", overflow: "hidden" }}>
+
+          {/* Panel tabs */}
+          <div style={{ display: "flex", borderBottom: "1px solid #e8e8e8", flexShrink: 0 }}>
+            <button
+              onClick={() => setRightPanel("info")}
+              style={{
+                flex: 1, padding: "10px", border: "none", cursor: "pointer",
+                background: rightPanel === "info" ? "#fff" : "transparent",
+                borderBottom: rightPanel === "info" ? "2px solid #5b5fc7" : "2px solid transparent",
+                fontSize: 12, fontWeight: rightPanel === "info" ? 700 : 500,
+                color: rightPanel === "info" ? "#5b5fc7" : "#666",
+              }}
+            >
+              📋 Contexte
+            </button>
+            <button
+              onClick={() => setRightPanel("docs")}
+              style={{
+                flex: 1, padding: "10px", border: "none", cursor: "pointer",
+                background: rightPanel === "docs" ? "#fff" : "transparent",
+                borderBottom: rightPanel === "docs" ? "2px solid #5b5fc7" : "2px solid transparent",
+                fontSize: 12, fontWeight: rightPanel === "docs" ? 700 : 500,
+                color: rightPanel === "docs" ? "#5b5fc7" : "#666",
+              }}
+            >
+              📁 Documents ({allDocuments.length})
+            </button>
+          </div>
+
+          {/* Panel content */}
+          <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
+
+            {/* ── Context panel ── */}
+            {rightPanel === "info" && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                {/* Narrative sections */}
+                {scenario.narrative?.context && (
+                  <div>
+                    <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase" }}>Contexte</h4>
+                    <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.5 }}>{scenario.narrative.context}</p>
+                  </div>
+                )}
+                {scenario.narrative?.mission && (
+                  <div>
+                    <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase" }}>Mission</h4>
+                    <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.5 }}>{scenario.narrative.mission}</p>
+                  </div>
+                )}
+                {scenario.narrative?.initial_situation && (
+                  <div>
+                    <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase" }}>Situation initiale</h4>
+                    <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.5 }}>{scenario.narrative.initial_situation}</p>
+                  </div>
+                )}
+                {scenario.narrative?.trigger && (
+                  <div>
+                    <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase" }}>Déclencheur</h4>
+                    <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.5 }}>{scenario.narrative.trigger}</p>
+                  </div>
+                )}
+                {scenario.narrative?.background_fact && (scenario.meta as any).show_background_fact !== false && (
+                  <div style={{ padding: 10, background: "#fff8e6", borderRadius: 6, border: "1px solid #f5d680" }}>
+                    <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#b8860b", textTransform: "uppercase" }}>Info vérifiée</h4>
+                    <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.5 }}>{scenario.narrative.background_fact}</p>
+                  </div>
+                )}
+
+                {/* Score */}
+                <div style={{ padding: 10, background: "#f0f0ff", borderRadius: 6 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase", marginBottom: 4 }}>Score</div>
+                  <div style={{ fontSize: 20, fontWeight: 700, color: "#333" }}>{view.totalScore}</div>
+                </div>
+              </div>
+            )}
+
+            {/* ── Documents panel ── */}
+            {rightPanel === "docs" && (
+              <div>
+                {selectedDoc ? (
+                  /* Document detail view */
+                  <div>
+                    <button
+                      onClick={() => setSelectedDocId(null)}
+                      style={{ background: "none", border: "none", color: "#5b5fc7", cursor: "pointer", fontSize: 12, fontWeight: 600, marginBottom: 12, padding: 0 }}
+                    >
+                      ← Retour à la liste
+                    </button>
+                    <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "#333" }}>
+                      📄 {selectedDoc.label}
+                    </h3>
+                    {(selectedDoc as any).content ? (
+                      <div style={{ fontSize: 12, lineHeight: 1.6, color: "#333", whiteSpace: "pre-wrap", background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #e8e8e8" }}>
+                        {(selectedDoc as any).content}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>
+                        Ce document est disponible dans votre dossier de travail.
+                        {(selectedDoc as any).contains && (selectedDoc as any).contains.length > 0 && (
+                          <div style={{ marginTop: 8, color: "#666" }}>
+                            Contient : {(selectedDoc as any).contains.join(", ")}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                    {((selectedDoc as any).usable_as_pj || (selectedDoc as any).usable_as_attachment) && (
+                      <div style={{ marginTop: 10, fontSize: 11, color: "#44b553", fontWeight: 600 }}>
+                        ✓ Joignable en pièce jointe
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  /* Document list */
+                  <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                    {allDocuments.map((doc: any) => {
+                      const hasPJ = doc.usable_as_pj || doc.usable_as_attachment;
+                      const hasContent = !!(doc as any).content;
+                      return (
+                        <li
+                          key={doc.doc_id}
+                          onClick={() => setSelectedDocId(doc.doc_id)}
+                          style={{
+                            padding: "10px", marginBottom: 4, borderRadius: 6,
+                            cursor: "pointer", background: "#fff",
+                            border: "1px solid #e8e8e8",
+                            transition: "all .1s",
+                          }}
+                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#5b5fc7")}
+                          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#e8e8e8")}
+                        >
+                          <div style={{ fontSize: 13, fontWeight: 500, color: "#333", display: "flex", alignItems: "center", gap: 6 }}>
+                            <span>{hasContent ? "📄" : "📋"}</span>
+                            {doc.label}
+                          </div>
+                          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                            {hasPJ && (
+                              <span style={{ fontSize: 10, color: "#5b5fc7", background: "#f0f0ff", padding: "1px 6px", borderRadius: 8 }}>
+                                PJ
+                              </span>
+                            )}
+                            {hasContent && (
+                              <span style={{ fontSize: 10, color: "#44b553", background: "#f0fff4", padding: "1px 6px", borderRadius: 8 }}>
+                                Consultable
+                              </span>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                )}
+              </div>
+            )}
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
