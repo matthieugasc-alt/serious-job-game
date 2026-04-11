@@ -1418,6 +1418,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
                 {allDocuments.map((doc: any) => {
                   const hasImage = !!doc.image_path;
+                  const hasPDF = !!doc.file_path && doc.file_path.endsWith(".pdf");
+                  const docIcon = hasImage ? "🖼️" : hasPDF ? "📑" : "📄";
                   return (
                     <div
                       key={doc.doc_id}
@@ -1436,7 +1438,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         </div>
                       )}
                       <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>
-                        {hasImage ? "🖼️" : "📄"} {doc.label}
+                        {docIcon} {doc.label}
                       </div>
                       <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>Cliquer pour consulter →</span>
                     </div>
@@ -2468,12 +2470,22 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         />
                       </div>
                     )}
+                    {/* PDF display */}
+                    {(selectedDoc as any).file_path && (selectedDoc as any).file_path.endsWith(".pdf") && (
+                      <div style={{ marginBottom: 12 }}>
+                        <iframe
+                          src={(selectedDoc as any).file_path}
+                          style={{ width: "100%", height: 400, border: "1px solid #e8e8e8", borderRadius: 8 }}
+                          title={(selectedDoc as any).label}
+                        />
+                      </div>
+                    )}
                     {/* Text content */}
                     {(selectedDoc as any).content ? (
                       <div style={{ fontSize: 12, lineHeight: 1.6, color: "#333", whiteSpace: "pre-wrap", background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #e8e8e8" }}>
                         {(selectedDoc as any).content}
                       </div>
-                    ) : !(selectedDoc as any).image_path ? (
+                    ) : !(selectedDoc as any).image_path && !(selectedDoc as any).file_path ? (
                       <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>
                         Ce document est disponible dans votre dossier de travail.
                         {(selectedDoc as any).contains && (selectedDoc as any).contains.length > 0 && (
@@ -2483,6 +2495,25 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         )}
                       </div>
                     ) : null}
+                    {/* Download button for files */}
+                    {((selectedDoc as any).file_path || (selectedDoc as any).image_path) && (
+                      <div style={{ marginTop: 10 }}>
+                        <a
+                          href={(selectedDoc as any).file_path || (selectedDoc as any).image_path}
+                          download
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          style={{
+                            display: "inline-flex", alignItems: "center", gap: 6,
+                            padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                            background: "#5b5fc7", color: "#fff", textDecoration: "none",
+                            cursor: "pointer", border: "none",
+                          }}
+                        >
+                          ⬇ Télécharger / Ouvrir
+                        </a>
+                      </div>
+                    )}
                     {((selectedDoc as any).usable_as_pj || (selectedDoc as any).usable_as_attachment) && (
                       <div style={{ marginTop: 10, fontSize: 11, color: "#44b553", fontWeight: 600 }}>
                         ✓ Joignable en pièce jointe
@@ -2496,7 +2527,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       const hasPJ = doc.usable_as_pj || doc.usable_as_attachment;
                       const hasContent = !!(doc as any).content;
                       const hasImage = !!(doc as any).image_path;
-                      const icon = hasImage ? "🖼️" : hasContent ? "📄" : "📋";
+                      const hasPDF = !!(doc as any).file_path && (doc as any).file_path.endsWith(".pdf");
+                      const icon = hasImage ? "🖼️" : hasPDF ? "📑" : hasContent ? "📄" : "📋";
                       return (
                         <li
                           key={doc.doc_id}
