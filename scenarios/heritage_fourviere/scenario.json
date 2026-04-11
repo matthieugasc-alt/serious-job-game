@@ -250,7 +250,8 @@
         }
       ],
 
-      "auto_advance": false,
+      "completion_rules": { "min_score": 2 },
+      "auto_advance": true,
       "next_phase": "phase_1_2"
     },
 
@@ -277,7 +278,8 @@
 
       "interruptions": [],
 
-      "auto_advance": false,
+      "completion_rules": { "min_score": 2 },
+      "auto_advance": true,
       "next_phase": "phase_1_3"
     },
 
@@ -304,7 +306,8 @@
 
       "interruptions": [],
 
-      "auto_advance": false,
+      "completion_rules": { "min_score": 2 },
+      "auto_advance": true,
       "next_phase": "phase_2"
     },
 
@@ -330,7 +333,8 @@
 
       "interruptions": [],
 
-      "auto_advance": false,
+      "completion_rules": { "min_score": 2 },
+      "auto_advance": true,
       "next_phase": "phase_3"
     },
 
@@ -344,7 +348,8 @@
 
       "player_input": {
         "type": "free_text",
-        "prompt": "Vous avez reçu 5 dossiers de candidature. Analysez chacun et sélectionnez les profils éligibles à la location. Les dossiers sont dans vos documents. Envoyez votre synthèse à Claire Beaumont."
+        "prompt": "Vous avez reçu 5 dossiers de candidature. Analysez chacun et sélectionnez les profils éligibles à la location. Les dossiers sont dans vos documents. Envoyez votre synthèse à Claire Beaumont.",
+        "resources_hint": "Consultez le document 'Dossiers des 5 candidats locataires' dans vos documents de travail."
       },
 
       "competencies": [
@@ -368,7 +373,8 @@
         }
       ],
 
-      "auto_advance": false,
+      "completion_rules": { "min_score": 2 },
+      "auto_advance": true,
       "next_phase": "phase_4"
     },
 
@@ -406,7 +412,8 @@
         }
       ],
 
-      "auto_advance": false
+      "completion_rules": { "min_score": 2 },
+      "auto_advance": true
     }
   ],
 
