@@ -1420,7 +1420,26 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   const hasImage = !!doc.image_path;
                   const hasPDF = !!doc.file_path && doc.file_path.endsWith(".pdf");
                   const docIcon = hasImage ? "🖼️" : hasPDF ? "📑" : "📄";
-                  return (
+                  return hasPDF ? (
+                    <a
+                      key={doc.doc_id}
+                      href={doc.file_path}
+                      download
+                      style={{
+                        padding: 14, borderRadius: 10, cursor: "pointer",
+                        background: "#fff", border: "1px solid #e2e4ea",
+                        transition: "all .15s", display: "flex", flexDirection: "column", gap: 8,
+                        textDecoration: "none", color: "inherit",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(91,95,199,0.12)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e2e4ea"; e.currentTarget.style.boxShadow = "none"; }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>
+                        📑 {doc.label}
+                      </div>
+                      <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>⬇ Cliquer pour télécharger</span>
+                    </a>
+                  ) : (
                     <div
                       key={doc.doc_id}
                       onClick={() => { setSelectedDocId(doc.doc_id); setRightPanel("docs"); setShowBriefingOverlay(false); }}
@@ -2517,7 +2536,21 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       const hasImage = !!(doc as any).image_path;
                       const hasPDF = !!(doc as any).file_path && (doc as any).file_path.endsWith(".pdf");
                       const icon = hasImage ? "🖼️" : hasPDF ? "📑" : hasContent ? "📄" : "📋";
-                      return (
+                      return hasPDF ? (
+                        <li key={doc.doc_id} style={{ padding: "10px", marginBottom: 4, borderRadius: 6, background: "#fff", border: "1px solid #e8e8e8" }}>
+                          <a
+                            href={(doc as any).file_path}
+                            download
+                            style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 8, color: "#333" }}
+                          >
+                            <span style={{ fontSize: 22 }}>📑</span>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 13, fontWeight: 500 }}>{doc.label}</div>
+                              <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>⬇ Cliquez pour télécharger</span>
+                            </div>
+                          </a>
+                        </li>
+                      ) : (
                         <li
                           key={doc.doc_id}
                           onClick={() => setSelectedDocId(doc.doc_id)}
