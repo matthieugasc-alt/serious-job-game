@@ -13,7 +13,10 @@ export async function GET() {
     // GET is publicly accessible — players need to see locked/prerequisite info
     const configs = getAllScenarioConfigs();
 
-    return NextResponse.json({ configs }, { status: 200 });
+    return NextResponse.json({ configs }, {
+      status: 200,
+      headers: { "Cache-Control": "no-store, no-cache, must-revalidate" },
+    });
   } catch (error) {
     console.error('Failed to retrieve scenario configs:', error);
     return NextResponse.json(

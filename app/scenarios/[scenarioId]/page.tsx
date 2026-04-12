@@ -290,6 +290,7 @@ export default function IntroductionPage({
             {selectedDocId ? (() => {
               const doc = (scenario.resources?.documents || []).find((d: any) => d.doc_id === selectedDocId);
               if (!doc) return null;
+              const isPDF = !!(doc as any).file_path && (doc as any).file_path.endsWith(".pdf");
               return (
                 <div>
                   <button
@@ -299,21 +300,36 @@ export default function IntroductionPage({
                     ← Retour à la liste
                   </button>
                   <h3 style={{ margin: "0 0 12px", fontSize: 15, fontWeight: 600, color: "#1a3c6e" }}>
-                    {(doc as any).image_path ? "🖼️" : "📄"} {doc.label}
+                    {(doc as any).image_path ? "🖼️" : isPDF ? "📑" : "📄"} {doc.label}
                   </h3>
-                  {(doc as any).image_path && (
-                    <div style={{ marginBottom: 12, textAlign: "center" }}>
-                      <img
-                        src={(doc as any).image_path}
-                        alt={doc.label}
-                        style={{ maxWidth: "100%", maxHeight: 500, borderRadius: 8, border: "1px solid #e8e8e8", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
-                      />
-                    </div>
-                  )}
-                  {(doc as any).content && (
-                    <div style={{ fontSize: 12, lineHeight: 1.6, color: "#333", whiteSpace: "pre-wrap", background: "#f9f9f9", padding: 14, borderRadius: 8, border: "1px solid #e8e8e8" }}>
-                      {(doc as any).content}
-                    </div>
+                  {isPDF ? (
+                    <a
+                      href={`/api/download?file=${encodeURIComponent((doc as any).file_path)}`}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 8,
+                        padding: "12px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+                        background: "#5b5fc7", color: "#fff", textDecoration: "none",
+                      }}
+                    >
+                      ⬇ Télécharger le PDF
+                    </a>
+                  ) : (
+                    <>
+                      {(doc as any).image_path && (
+                        <div style={{ marginBottom: 12, textAlign: "center" }}>
+                          <img
+                            src={(doc as any).image_path}
+                            alt={doc.label}
+                            style={{ maxWidth: "100%", maxHeight: 500, borderRadius: 8, border: "1px solid #e8e8e8", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+                          />
+                        </div>
+                      )}
+                      {(doc as any).content && (
+                        <div style={{ fontSize: 12, lineHeight: 1.6, color: "#333", whiteSpace: "pre-wrap", background: "#f9f9f9", padding: 14, borderRadius: 8, border: "1px solid #e8e8e8" }}>
+                          {(doc as any).content}
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
               );
@@ -321,8 +337,27 @@ export default function IntroductionPage({
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
                 {(scenario.resources?.documents || []).map((doc: any) => {
                   const hasImage = !!doc.image_path;
-                  const hasContent = !!doc.content;
-                  return (
+                  const hasPDF = !!doc.file_path && doc.file_path.endsWith(".pdf");
+                  return hasPDF ? (
+                    <a
+                      key={doc.doc_id}
+                      href={`/api/download?file=${encodeURIComponent(doc.file_path)}`}
+                      style={{
+                        padding: 14, borderRadius: 10, cursor: "pointer",
+                        background: "#f8f9fc", border: "1px solid #e2e4ea",
+                        transition: "all .15s", display: "flex", flexDirection: "column", gap: 8,
+                        textDecoration: "none", color: "inherit",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(91,95,199,0.12)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e2e4ea"; e.currentTarget.style.boxShadow = "none"; }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", display: "flex", alignItems: "center", gap: 6 }}>
+                        <span>📑</span>
+                        {doc.label}
+                      </div>
+                      <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>⬇ Cliquez pour télécharger</span>
+                    </a>
+                  ) : (
                     <div
                       key={doc.doc_id}
                       onClick={() => setSelectedDocId(doc.doc_id)}
@@ -340,14 +375,10 @@ export default function IntroductionPage({
                         </div>
                       )}
                       <div style={{ fontSize: 13, fontWeight: 600, color: "#333", display: "flex", alignItems: "center", gap: 6 }}>
-                        <span>{hasImage ? "🖼️" : hasContent ? "📄" : "📋"}</span>
+                        <span>{hasImage ? "🖼️" : "📄"}</span>
                         {doc.label}
                       </div>
-                      {(hasContent || hasImage) && (
-                        <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>
-                          Cliquer pour consulter
-                        </span>
-                      )}
+                      <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>Cliquer pour consulter</span>
                     </div>
                   );
                 })}

@@ -296,7 +296,7 @@ export default function ScenarioSelectionPage() {
 
         // Fetch scenario configs
         try {
-          const configsRes = await fetch("/api/admin/scenario-config");
+          const configsRes = await fetch("/api/admin/scenario-config", { cache: "no-store" });
           if (configsRes.ok) {
             const configsData = await configsRes.json();
             const configMap: Record<string, ScenarioConfig> = {};
