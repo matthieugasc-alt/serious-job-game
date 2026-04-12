@@ -1420,26 +1420,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   const hasImage = !!doc.image_path;
                   const hasPDF = !!doc.file_path && doc.file_path.endsWith(".pdf");
                   const docIcon = hasImage ? "🖼️" : hasPDF ? "📑" : "📄";
-                  return hasPDF ? (
-                    <a
-                      key={doc.doc_id}
-                      href={doc.file_path}
-                      download
-                      style={{
-                        padding: 14, borderRadius: 10, cursor: "pointer",
-                        background: "#fff", border: "1px solid #e2e4ea",
-                        transition: "all .15s", display: "flex", flexDirection: "column", gap: 8,
-                        textDecoration: "none", color: "inherit",
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(91,95,199,0.12)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e2e4ea"; e.currentTarget.style.boxShadow = "none"; }}
-                    >
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>
-                        📑 {doc.label}
-                      </div>
-                      <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>⬇ Cliquer pour télécharger</span>
-                    </a>
-                  ) : (
+                  return (
                     <div
                       key={doc.doc_id}
                       onClick={() => { setSelectedDocId(doc.doc_id); setRightPanel("docs"); setShowBriefingOverlay(false); }}
@@ -1459,7 +1440,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>
                         {docIcon} {doc.label}
                       </div>
-                      <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>Cliquer pour consulter →</span>
+                      <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>{hasPDF ? "📑 Consulter / Télécharger" : "Cliquer pour consulter →"}</span>
                     </div>
                   );
                 })}
@@ -2479,34 +2460,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "#333" }}>
                       📄 {selectedDoc.label}
                     </h3>
-                    {/* Image display */}
-                    {(selectedDoc as any).image_path && (
-                      <div style={{ marginBottom: 12, textAlign: "center" }}>
-                        <img
-                          src={(selectedDoc as any).image_path}
-                          alt={(selectedDoc as any).label}
-                          style={{ maxWidth: "100%", borderRadius: 8, border: "1px solid #e8e8e8", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+                    {/* PDF: embed + download first, abstract below */}
+                    {(selectedDoc as any).file_path && (selectedDoc as any).file_path.endsWith(".pdf") ? (
+                      <>
+                        <iframe
+                          src={(selectedDoc as any).file_path}
+                          style={{ width: "100%", height: 450, border: "1px solid #e8e8e8", borderRadius: 8, marginBottom: 10 }}
+                          title={(selectedDoc as any).label}
                         />
-                      </div>
-                    )}
-                    {/* Text content */}
-                    {(selectedDoc as any).content ? (
-                      <div style={{ fontSize: 12, lineHeight: 1.6, color: "#333", whiteSpace: "pre-wrap", background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #e8e8e8" }}>
-                        {(selectedDoc as any).content}
-                      </div>
-                    ) : !(selectedDoc as any).image_path && !(selectedDoc as any).file_path ? (
-                      <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>
-                        Ce document est disponible dans votre dossier de travail.
-                        {(selectedDoc as any).contains && (selectedDoc as any).contains.length > 0 && (
-                          <div style={{ marginTop: 8, color: "#666" }}>
-                            Contient : {(selectedDoc as any).contains.join(", ")}
-                          </div>
-                        )}
-                      </div>
-                    ) : null}
-                    {/* Download button for PDF files */}
-                    {(selectedDoc as any).file_path && (
-                      <div style={{ marginTop: 10 }}>
                         <a
                           href={(selectedDoc as any).file_path}
                           download
@@ -2514,12 +2475,43 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                             display: "inline-flex", alignItems: "center", gap: 6,
                             padding: "8px 16px", borderRadius: 6, fontSize: 13, fontWeight: 600,
                             background: "#5b5fc7", color: "#fff", textDecoration: "none",
-                            cursor: "pointer", border: "none",
+                            marginBottom: 10,
                           }}
                         >
-                          ⬇ Télécharger le document
+                          ⬇ Télécharger le PDF
                         </a>
-                      </div>
+                        {(selectedDoc as any).content && (
+                          <details style={{ marginTop: 8 }}>
+                            <summary style={{ fontSize: 12, color: "#666", cursor: "pointer" }}>Résumé du document</summary>
+                            <div style={{ fontSize: 12, lineHeight: 1.6, color: "#555", whiteSpace: "pre-wrap", padding: "8px 0" }}>
+                              {(selectedDoc as any).content}
+                            </div>
+                          </details>
+                        )}
+                      </>
+                    ) : (
+                      <>
+                        {/* Image display */}
+                        {(selectedDoc as any).image_path && (
+                          <div style={{ marginBottom: 12, textAlign: "center" }}>
+                            <img
+                              src={(selectedDoc as any).image_path}
+                              alt={(selectedDoc as any).label}
+                              style={{ maxWidth: "100%", borderRadius: 8, border: "1px solid #e8e8e8", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
+                            />
+                          </div>
+                        )}
+                        {/* Text content */}
+                        {(selectedDoc as any).content ? (
+                          <div style={{ fontSize: 12, lineHeight: 1.6, color: "#333", whiteSpace: "pre-wrap", background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #e8e8e8" }}>
+                            {(selectedDoc as any).content}
+                          </div>
+                        ) : !(selectedDoc as any).image_path ? (
+                          <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>
+                            Ce document est disponible dans votre dossier de travail.
+                          </div>
+                        ) : null}
+                      </>
                     )}
                     {((selectedDoc as any).usable_as_pj || (selectedDoc as any).usable_as_attachment) && (
                       <div style={{ marginTop: 10, fontSize: 11, color: "#44b553", fontWeight: 600 }}>
