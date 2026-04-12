@@ -1420,7 +1420,26 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   const hasImage = !!doc.image_path;
                   const hasPDF = !!doc.file_path && doc.file_path.endsWith(".pdf");
                   const docIcon = hasImage ? "🖼️" : hasPDF ? "📑" : "📄";
-                  return (
+                  return hasPDF ? (
+                    <a
+                      key={doc.doc_id}
+                      href={doc.file_path}
+                      download
+                      style={{
+                        padding: 14, borderRadius: 10, cursor: "pointer",
+                        background: "#fff", border: "1px solid #e2e4ea",
+                        transition: "all .15s", display: "flex", flexDirection: "column", gap: 8,
+                        textDecoration: "none", color: "inherit",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(91,95,199,0.12)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e2e4ea"; e.currentTarget.style.boxShadow = "none"; }}
+                    >
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>
+                        {docIcon} {doc.label}
+                      </div>
+                      <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>⬇ Cliquez pour télécharger</span>
+                    </a>
+                  ) : (
                     <div
                       key={doc.doc_id}
                       onClick={() => { setSelectedDocId(doc.doc_id); setRightPanel("docs"); setShowBriefingOverlay(false); }}
@@ -1440,7 +1459,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>
                         {docIcon} {doc.label}
                       </div>
-                      <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>{hasPDF ? "📑 Consulter / Télécharger" : "Cliquer pour consulter →"}</span>
+                      <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>Cliquer pour consulter →</span>
                     </div>
                   );
                 })}
@@ -2460,35 +2479,19 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "#333" }}>
                       📄 {selectedDoc.label}
                     </h3>
-                    {/* PDF: embed + download first, abstract below */}
+                    {/* PDF: direct download only — no iframe, no abstract */}
                     {(selectedDoc as any).file_path && (selectedDoc as any).file_path.endsWith(".pdf") ? (
-                      <>
-                        <iframe
-                          src={(selectedDoc as any).file_path}
-                          style={{ width: "100%", height: 450, border: "1px solid #e8e8e8", borderRadius: 8, marginBottom: 10 }}
-                          title={(selectedDoc as any).label}
-                        />
-                        <a
-                          href={(selectedDoc as any).file_path}
-                          download
-                          style={{
-                            display: "inline-flex", alignItems: "center", gap: 6,
-                            padding: "8px 16px", borderRadius: 6, fontSize: 13, fontWeight: 600,
-                            background: "#5b5fc7", color: "#fff", textDecoration: "none",
-                            marginBottom: 10,
-                          }}
-                        >
-                          ⬇ Télécharger le PDF
-                        </a>
-                        {(selectedDoc as any).content && (
-                          <details style={{ marginTop: 8 }}>
-                            <summary style={{ fontSize: 12, color: "#666", cursor: "pointer" }}>Résumé du document</summary>
-                            <div style={{ fontSize: 12, lineHeight: 1.6, color: "#555", whiteSpace: "pre-wrap", padding: "8px 0" }}>
-                              {(selectedDoc as any).content}
-                            </div>
-                          </details>
-                        )}
-                      </>
+                      <a
+                        href={(selectedDoc as any).file_path}
+                        download
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 8,
+                          padding: "12px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600,
+                          background: "#5b5fc7", color: "#fff", textDecoration: "none",
+                        }}
+                      >
+                        ⬇ Télécharger le PDF
+                      </a>
                     ) : (
                       <>
                         {/* Image display */}
