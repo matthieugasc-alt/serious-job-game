@@ -1423,8 +1423,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   return hasPDF ? (
                     <a
                       key={doc.doc_id}
-                      href={doc.file_path}
-                      download
+                      href={`/api/download?file=${encodeURIComponent(doc.file_path)}`}
                       style={{
                         padding: 14, borderRadius: 10, cursor: "pointer",
                         background: "#fff", border: "1px solid #e2e4ea",
@@ -2482,8 +2481,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     {/* PDF: direct download only — no iframe, no abstract */}
                     {(selectedDoc as any).file_path && (selectedDoc as any).file_path.endsWith(".pdf") ? (
                       <a
-                        href={(selectedDoc as any).file_path}
-                        download
+                        href={`/api/download?file=${encodeURIComponent((selectedDoc as any).file_path)}`}
                         style={{
                           display: "inline-flex", alignItems: "center", gap: 8,
                           padding: "12px 20px", borderRadius: 8, fontSize: 14, fontWeight: 600,
@@ -2534,8 +2532,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       return hasPDF ? (
                         <li key={doc.doc_id} style={{ padding: "10px", marginBottom: 4, borderRadius: 6, background: "#fff", border: "1px solid #e8e8e8" }}>
                           <a
-                            href={(doc as any).file_path}
-                            download
+                            href={`/api/download?file=${encodeURIComponent((doc as any).file_path)}`}
                             style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 8, color: "#333" }}
                           >
                             <span style={{ fontSize: 22 }}>📑</span>
