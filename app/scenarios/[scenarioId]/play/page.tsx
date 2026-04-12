@@ -2470,16 +2470,6 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         />
                       </div>
                     )}
-                    {/* PDF display */}
-                    {(selectedDoc as any).file_path && (selectedDoc as any).file_path.endsWith(".pdf") && (
-                      <div style={{ marginBottom: 12 }}>
-                        <iframe
-                          src={(selectedDoc as any).file_path}
-                          style={{ width: "100%", height: 400, border: "1px solid #e8e8e8", borderRadius: 8 }}
-                          title={(selectedDoc as any).label}
-                        />
-                      </div>
-                    )}
                     {/* Text content */}
                     {(selectedDoc as any).content ? (
                       <div style={{ fontSize: 12, lineHeight: 1.6, color: "#333", whiteSpace: "pre-wrap", background: "#fff", padding: 12, borderRadius: 6, border: "1px solid #e8e8e8" }}>
@@ -2495,22 +2485,20 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         )}
                       </div>
                     ) : null}
-                    {/* Download button for files */}
-                    {((selectedDoc as any).file_path || (selectedDoc as any).image_path) && (
+                    {/* Download button for PDF files */}
+                    {(selectedDoc as any).file_path && (
                       <div style={{ marginTop: 10 }}>
                         <a
-                          href={(selectedDoc as any).file_path || (selectedDoc as any).image_path}
+                          href={(selectedDoc as any).file_path}
                           download
-                          target="_blank"
-                          rel="noopener noreferrer"
                           style={{
                             display: "inline-flex", alignItems: "center", gap: 6,
-                            padding: "6px 14px", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                            padding: "8px 16px", borderRadius: 6, fontSize: 13, fontWeight: 600,
                             background: "#5b5fc7", color: "#fff", textDecoration: "none",
                             cursor: "pointer", border: "none",
                           }}
                         >
-                          ⬇ Télécharger / Ouvrir
+                          ⬇ Télécharger le document
                         </a>
                       </div>
                     )}

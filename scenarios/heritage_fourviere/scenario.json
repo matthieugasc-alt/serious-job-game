@@ -182,6 +182,14 @@
         "content": "GUIDE DES RÉGIMES FISCAUX — LOCATION IMMOBILIÈRE\n\n1. LOCATION NUE\n- Micro-foncier : Revenus locatifs < 15 000 €/an, abattement 30%. Simple mais peu optimisé.\n- Régime réel : Déduction des charges réelles (travaux, intérêts, assurance). Plus complexe mais souvent plus avantageux si travaux.\n- Fiscalité : Revenus fonciers imposés au barème de l'IR + prélèvements sociaux (17,2%).\n- Avantage marché Lyon/Fourvière : Locataires stables, moins de vacance locative, baux longs.\n\n2. LMNP (Loueur Meublé Non Professionnel)\n- Condition : Revenus locatifs < 23 000 €/an ou < 50% des revenus du foyer.\n- Avantage : Amortissement du bien et des meubles, micro-BIC (abattement 50%).\n- Inconvénient : Locataires plus volatils (bail 1 an), turnover plus fréquent.\n\n3. LMP (Loueur Meublé Professionnel)\n- Condition : Revenus locatifs > 23 000 €/an ET > 50% des revenus du foyer.\n- Rarement adapté pour un seul bien.\n\n4. SCI (Société Civile Immobilière)\n- Adapté pour la gestion patrimoniale familiale à plusieurs associés.\n- Complexe et coûteux à mettre en place pour un seul bien.\n- Non recommandé pour un propriétaire unique héritier."
       },
       {
+        "doc_id": "grille_ali",
+        "label": "Grille d'éligibilité ALI (Assurance Loyer Impayé)",
+        "contains": ["critères ALI", "ratio revenus", "garanties", "éligibilité"],
+        "usable_as_pj": false,
+        "file_path": "/scenarios/heritage_fourviere/ALI_grille_eligibilite.pdf",
+        "content": ""
+      },
+      {
         "doc_id": "dossiers_candidats",
         "label": "Dossiers des 5 candidats locataires",
         "contains": ["revenus", "profession", "situation familiale", "garanties"],
@@ -205,7 +213,7 @@
       "event_id": "delvaux_intro",
       "type": "chat",
       "actor": "antoine_delvaux",
-      "content": "Bonjour, je suis Antoine Delvaux, on s'était parlé au téléphone la semaine dernière. Voilà, comme je vous l'ai dit, ma mère est décédée il y a quelques mois et j'ai hérité de son appartement à Fourvière. C'est un bel appartement, 85 mètres carrés, haut standing. J'y ai grandi, c'est... c'est un lieu très important pour moi. Je ne veux surtout pas le vendre, jamais. Mais j'aimerais le mettre en location pour qu'il vive, vous voyez ? J'ai gardé tous les meubles de maman, tout est encore en place. Je voudrais le louer comme ça."
+      "content": "Bonjour, je suis Antoine Delvaux. J'ai hérité d'un appartement à Fourvière suite au décès de ma mère. Je souhaiterais le mettre en location. Je n'y connais pas grand-chose, c'est pour ça que je viens vous voir."
     },
     {
       "event_id": "claire_intro",
@@ -250,7 +258,7 @@
         }
       ],
 
-      "completion_rules": { "min_score": 2 },
+      "completion_rules": { "min_score": 1 },
       "auto_advance": true,
       "next_phase": "phase_1_2"
     },
@@ -278,7 +286,7 @@
 
       "interruptions": [],
 
-      "completion_rules": { "min_score": 2 },
+      "completion_rules": { "min_score": 1 },
       "auto_advance": true,
       "next_phase": "phase_1_3"
     },
@@ -306,7 +314,7 @@
 
       "interruptions": [],
 
-      "completion_rules": { "min_score": 2 },
+      "completion_rules": { "min_score": 1 },
       "auto_advance": true,
       "next_phase": "phase_2"
     },
@@ -333,7 +341,7 @@
 
       "interruptions": [],
 
-      "completion_rules": { "min_score": 2 },
+      "completion_rules": { "min_score": 1 },
       "auto_advance": true,
       "next_phase": "phase_3"
     },
@@ -373,7 +381,7 @@
         }
       ],
 
-      "completion_rules": { "min_score": 2 },
+      "completion_rules": { "min_score": 1 },
       "auto_advance": true,
       "next_phase": "phase_4"
     },
@@ -412,7 +420,7 @@
         }
       ],
 
-      "completion_rules": { "min_score": 2 },
+      "completion_rules": { "min_score": 1 },
       "auto_advance": true
     }
   ],
