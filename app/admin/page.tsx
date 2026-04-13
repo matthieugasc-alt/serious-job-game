@@ -1611,13 +1611,29 @@ export default function AdminPage() {
       });
 
       const data = await res.json();
-      setEditorMessages((prev) => [...prev, { role: "assistant", content: data.reply || data.rawReply || "Erreur de réponse" }]);
+
+      if (!res.ok) {
+        const errMsg = data.error || `Erreur serveur (${res.status})`;
+        const detail = data.detail ? `\n${data.detail}` : "";
+        console.error("[Éditeur IA] Erreur API:", res.status, data);
+        setEditorMessages((prev) => [...prev, { role: "assistant", content: `❌ ${errMsg}${detail}` }]);
+        return;
+      }
+
+      if (!data.reply && !data.rawReply) {
+        console.error("[Éditeur IA] Réponse vide:", data);
+        setEditorMessages((prev) => [...prev, { role: "assistant", content: "❌ Réponse vide de l'IA. Vérifiez la clé API et les logs serveur." }]);
+        return;
+      }
+
+      setEditorMessages((prev) => [...prev, { role: "assistant", content: data.reply || data.rawReply }]);
 
       if (data.changes && data.changes.length > 0) {
         setEditorPendingChanges(data.changes);
       }
     } catch (err) {
-      setEditorMessages((prev) => [...prev, { role: "assistant", content: "❌ Erreur de communication avec l'API." }]);
+      console.error("[Éditeur IA] Erreur réseau:", err);
+      setEditorMessages((prev) => [...prev, { role: "assistant", content: `❌ Erreur de communication avec l'API : ${err instanceof Error ? err.message : "Connexion échouée"}` }]);
     } finally {
       setEditorSending(false);
       setTimeout(() => editorChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);

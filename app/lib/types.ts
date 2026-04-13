@@ -331,6 +331,9 @@ export type PhaseDefinition = {
   /** Learning objective for this phase */
   objective: string;
 
+  /** Strict scope constraint injected into AI prompt to prevent topic drift */
+  phase_focus?: string;
+
   /** Optional introductory message shown when entering the phase */
   intro_message?: string;
 

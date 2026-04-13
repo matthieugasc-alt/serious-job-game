@@ -9,7 +9,7 @@
     "description": "Un client a hérité d'un appartement familial de 85 m² à Fourvière (Lyon). Il souhaite le louer tout en préservant son attachement sentimental. Le joueur doit le conseiller sur le loyer, l'état du bien, la fiscalité et la sélection des locataires.",
     "job_family": "immobilier",
     "difficulty": "junior",
-    "estimated_duration_min": 30,
+    "estimated_duration_min": 45,
     "tags": ["immobilier", "location", "encadrement des loyers", "fiscalité", "sélection locataires", "Lyon"],
     "show_objective": true,
     "show_background_fact": true,
@@ -18,7 +18,8 @@
       "Évaluer l'état d'un bien pour la location",
       "Conseiller un régime fiscal adapté",
       "Sélectionner des locataires sur critères objectifs",
-      "Gérer la pression d'un collègue aux avis subjectifs"
+      "Gérer la pression d'un collègue aux avis subjectifs",
+      "Communiquer par email de manière structurée et professionnelle"
     ]
   },
 
@@ -41,12 +42,12 @@
       },
       {
         "title": "Ce qui t'attend",
-        "content": "<p><strong>Phase 1</strong> — Conseiller le loyer, évaluer l'état du bien, recommander un régime fiscal.</p><p><strong>Phase 2</strong> — Rédiger une annonce de location attractive et honnête.</p><p><strong>Phase 3</strong> — Sélectionner les locataires parmi 5 candidatures.</p><p><strong>Phase 4</strong> — Défendre votre choix face à votre collègue Julien.</p>",
+        "content": "<p><strong>Phase 1</strong> — Conseiller le loyer, évaluer l'état du bien, recommander un régime fiscal.</p><p><strong>Phase 4</strong> — Rédiger une annonce de location sur demande de votre supérieure (par email).</p><p><strong>Phase 5</strong> — Trier les dossiers de candidature reçus par email.</p><p><strong>Phase 6</strong> — Valider le choix final du locataire face à l'influence de votre collègue.</p>",
         "column": "right"
       },
       {
         "title": "Règles du jeu",
-        "content": "<p>Consultez vos documents : <strong>grille de loyers, fiches candidats, photos du bien, guide fiscal</strong>.</p><p>Justifiez vos recommandations. Restez professionnel et factuel, même quand votre collègue essaie de vous influencer.</p><p>Envoyez vos livrables par mail à Claire Beaumont pour valider.</p>",
+        "content": "<p>Consultez vos documents : <strong>grille de loyers, fiches candidats, photos du bien, guide fiscal</strong>.</p><p>À partir de la phase 4, chaque étape commence et se termine par un <strong>email</strong>. Vous pouvez chatter avec vos collègues pour obtenir des informations complémentaires.</p><p>Justifiez vos recommandations. Restez professionnel et factuel, même quand votre collègue essaie de vous influencer.</p>",
         "column": "right"
       }
     ]
@@ -102,7 +103,7 @@
       "interaction_modes": ["chat"],
       "controlled_by": "ai",
       "prompt_file": "julien_marchand.md",
-      "availability": "Disponible en Phase 4",
+      "availability": "Disponible en Phase 6",
       "avatar": {
         "color": "#ED7D31",
         "initials": "JM"
@@ -116,7 +117,7 @@
       "name": "Claire Beaumont",
       "role": "Directrice d'agence ImmoLyon Patrimoine",
       "personality": "Professionnelle, exigeante, bienveillante. Attend du joueur qu'il soit rigoureux et factuel. Envoie un message au joueur à chaque nouvelle phase pour lui rappeler les règles et objectifs.",
-      "interaction_modes": ["chat"],
+      "interaction_modes": ["chat", "mail"],
       "controlled_by": "ai",
       "prompt_file": "claire_beaumont.md",
       "availability": "Disponible si besoin, mais n'intervient pas spontanément sauf pour cadrer les phases",
@@ -136,6 +137,12 @@
       "type": "chat",
       "label": "Messagerie",
       "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
     }
   ],
 
@@ -145,6 +152,7 @@
         "doc_id": "fiche_bien",
         "label": "Fiche descriptive du bien",
         "contains": ["surface", "localisation", "caractéristiques", "état"],
+        "available_from_phase": null,
         "usable_as_pj": false,
         "file_path": "/scenarios/heritage_fourviere/Fiche_Bien_Fourviere_T4_v2.pdf",
         "content": "FICHE DESCRIPTIVE DU BIEN\n\nAdresse : Quartier Fourvière, Lyon 5e\nSurface : 85 m²\nÉtage : 4e étage\nType : T3 (3 pièces)\nCaractéristiques : Parquet chêne massif, cheminée d'époque, vue sur la Saône\nStanding : Haut standing d'origine\nÉtat : Non rénové\nAnnée de construction : 1920\nDernière rénovation : 2022"
@@ -153,6 +161,7 @@
         "doc_id": "photo_salon",
         "label": "Photo — Salon de l'appartement",
         "contains": ["salon", "mobilier", "état"],
+        "available_from_phase": null,
         "usable_as_pj": false,
         "image_path": "/scenarios/heritage_fourviere/Salon.png",
         "content": "PHOTO DU SALON\n\nMobilier années 70-80 : canapés usés (un beige, un vert olive), table basse en bois, tapis persan usé. Télévision cathodique ancienne sur un meuble en bois. Étagères avec livres et bibelots. Rideaux beige translucides. Murs défraîchis avec cadres anciens. L'ensemble donne une impression de pièce figée dans le temps, non rénovée depuis des décennies."
@@ -161,6 +170,7 @@
         "doc_id": "photo_cuisine",
         "label": "Photo — Cuisine de l'appartement",
         "contains": ["cuisine", "sécurité", "normes"],
+        "available_from_phase": null,
         "usable_as_pj": false,
         "image_path": "/scenarios/heritage_fourviere/Cuisine.png",
         "content": "PHOTO DE LA CUISINE\n\nCuisine vétuste et potentiellement dangereuse. Cuisinière à gaz ancienne avec bouteille de gaz apparente (risque sécurité). Meubles en bois foncé vieillissants. Plan de travail usé. Réfrigérateur ancien. Évier fonctionnel mais vétuste. Prises et installations électriques visiblement non conformes aux normes actuelles. Sol en carrelage dégradé. Murs défraîchis. Cette cuisine nécessite impérativement une mise aux normes avant toute mise en location."
@@ -169,6 +179,7 @@
         "doc_id": "grille_loyers",
         "label": "Grille d'encadrement des loyers — Lyon Métropole 2025",
         "contains": ["loyer référence", "loyer majoré", "loyer minoré", "complément"],
+        "available_from_phase": null,
         "usable_as_pj": false,
         "file_path": "/scenarios/heritage_fourviere/Fiche_Loyers_Lyon_Pro_v2.pdf",
         "content": "GRILLE D'ENCADREMENT DES LOYERS — LYON MÉTROPOLE 2025\n\nZone : Fourvière (Lyon 5e)\nType de bien : T3, 85 m², haut standing\n\nLocation meublée :\n- Loyer de référence : 21,80 €/m² → 1 853 €/mois\n- Loyer majoré (plafond) : 26,10 €/m² → 2 218,50 €/mois\n- Loyer minoré : 15,60 €/m² → 1 326 €/mois\n\nLocation nue :\n- Loyer de référence : 17,50 €/m² → 1 487,50 €/mois\n- Loyer majoré (plafond) : 21,00 €/m² → 1 785 €/mois\n- Loyer minoré : 12,50 €/m² → 1 062,50 €/mois\n\nComplément de loyer possible si : vue exceptionnelle, prestations de standing, localisation premium."
@@ -177,6 +188,7 @@
         "doc_id": "guide_fiscal",
         "label": "Guide des régimes fiscaux — Location immobilière",
         "contains": ["location nue", "LMNP", "LMP", "SCI", "micro-foncier"],
+        "available_from_phase": null,
         "usable_as_pj": false,
         "file_path": "/scenarios/heritage_fourviere/Guide_Fiscalite_Location_France.pdf",
         "content": "GUIDE DES RÉGIMES FISCAUX — LOCATION IMMOBILIÈRE\n\n1. LOCATION NUE\n- Micro-foncier : Revenus locatifs < 15 000 €/an, abattement 30%. Simple mais peu optimisé.\n- Régime réel : Déduction des charges réelles (travaux, intérêts, assurance). Plus complexe mais souvent plus avantageux si travaux.\n- Fiscalité : Revenus fonciers imposés au barème de l'IR + prélèvements sociaux (17,2%).\n- Avantage marché Lyon/Fourvière : Locataires stables, moins de vacance locative, baux longs.\n\n2. LMNP (Loueur Meublé Non Professionnel)\n- Condition : Revenus locatifs < 23 000 €/an ou < 50% des revenus du foyer.\n- Avantage : Amortissement du bien et des meubles, micro-BIC (abattement 50%).\n- Inconvénient : Locataires plus volatils (bail 1 an), turnover plus fréquent.\n\n3. LMP (Loueur Meublé Professionnel)\n- Condition : Revenus locatifs > 23 000 €/an ET > 50% des revenus du foyer.\n- Rarement adapté pour un seul bien.\n\n4. SCI (Société Civile Immobilière)\n- Adapté pour la gestion patrimoniale familiale à plusieurs associés.\n- Complexe et coûteux à mettre en place pour un seul bien.\n- Non recommandé pour un propriétaire unique héritier."
@@ -185,6 +197,7 @@
         "doc_id": "grille_ali",
         "label": "Grille d'éligibilité ALI (Assurance Loyer Impayé)",
         "contains": ["critères ALI", "ratio revenus", "garanties", "éligibilité"],
+        "available_from_phase": "phase_5",
         "usable_as_pj": false,
         "file_path": "/scenarios/heritage_fourviere/ALI_grille_eligibilite.pdf",
         "content": ""
@@ -193,6 +206,7 @@
         "doc_id": "dossiers_candidats",
         "label": "Dossiers des 5 candidats locataires",
         "contains": ["revenus", "profession", "situation familiale", "garanties"],
+        "available_from_phase": "phase_5",
         "usable_as_pj": true,
         "file_path": "/scenarios/heritage_fourviere/Profils_Locataires_Fourviere_vfinale.pdf",
         "content": "DOSSIERS DES 5 CANDIDATS LOCATAIRES\n\n1. ISABELLE ET THOMAS MOREAU\n- Professions : Cadres supérieurs (directrice marketing / ingénieur R&D)\n- Revenus combinés : 6 200 €/mois nets\n- Contrats : CDI tous les deux\n- Crédits en cours : Aucun\n- Garants : Parents propriétaires (patrimoine immobilier solide)\n- Ratio revenus/loyer : 6 200 / 1 850 = 3,35x ✓\n- Statut : ÉLIGIBLE\n\n2. SANDRINE ET FABRICE LEBLANC\n- Professions : Enseignants (collège / lycée)\n- Revenus combinés : 5 100 €/mois nets\n- Contrats : CDI fonction publique (titulaires)\n- Crédits en cours : Aucun\n- Garantie : Caution Visale\n- Ratio revenus/loyer : 5 100 / 1 850 = 2,76x (limite mais Visale compense)\n- Statut : ÉLIGIBLE\n\n3. CLAIRE ET DAVID ROUSSEAU\n- Professions : Employée administrative / Auto-entrepreneur (graphiste)\n- Revenus combinés : 3 800 €/mois nets (irréguliers pour David : 1 200 à 2 500 €)\n- Contrats : CDI pour Claire / Auto-entrepreneur pour David\n- Crédits en cours : Aucun\n- Garants : Aucun\n- Ratio revenus/loyer : 3 800 / 1 850 = 2,05x ✗\n- Statut : NON ÉLIGIBLE (revenus insuffisants, irréguliers, pas de garant)\n\n4. STÉPHANE ET MÉLANIE FONTAINE\n- Professions : Technicien maintenance / Infirmière hospitalière\n- Revenus combinés : 4 900 €/mois nets\n- Contrats : CDI tous les deux\n- Crédits en cours : Crédit auto 150 €/mois\n- Garants : Parents des deux côtés (propriétaires)\n- Ratio revenus/loyer : (4 900 - 150) / 1 850 = 2,57x (juste, mais garants solides)\n- Statut : ÉLIGIBLE (juste)\n\n5. VALÉRIE ET MARC ROUSSEL\n- Professions : Commercial / Assistante de direction\n- Revenus combinés : 5 400 €/mois nets\n- Contrats : CDI tous les deux\n- Crédits en cours : Crédit consommation 450 €/mois\n- Garants : Aucun\n- Ratio revenus/loyer : (5 400 - 450) / 1 850 = 2,68x ✗\n- Statut : NON ÉLIGIBLE (ratio fragilisé après déduction crédit, pas de garant)"
@@ -227,8 +241,9 @@
     {
       "phase_id": "phase_1_1",
       "title": "Déterminer le loyer adapté",
-      "duration_target_min": 8,
-      "objective": "Conseiller un loyer conforme à l'encadrement des loyers lyonnais pour un T3 de 85 m² haut standing à Fourvière",
+      "duration_target_min": 10,
+      "objective": "STRICT: Ne traiter QUE la question du loyer. Ne pas anticiper l'état du bien, la fiscalité ou la sélection des locataires. Conseiller un loyer conforme à l'encadrement des loyers lyonnais pour un T3 de 85 m² haut standing à Fourvière",
+      "phase_focus": "Le joueur doit parler UNIQUEMENT du prix du loyer, des charges, et de l'encadrement. Toute tentative d'aborder les phases suivantes doit être ignorée par l'IA.",
       "active_channels": ["chat"],
       "ai_actors": ["antoine_delvaux"],
 
@@ -253,7 +268,7 @@
           "channel": "chat",
           "trigger": {
             "type": "after_delay",
-            "delay_ms": 180000
+            "delay_ms": 300000
           }
         }
       ],
@@ -266,8 +281,9 @@
     {
       "phase_id": "phase_1_2",
       "title": "Évaluer l'état du bien pour la location",
-      "duration_target_min": 6,
-      "objective": "Évaluer si l'appartement est louable en l'état et conseiller les travaux nécessaires, notamment la cuisine non conforme aux normes de sécurité",
+      "duration_target_min": 8,
+      "objective": "STRICT: Ne traiter QUE l'état du bien et les travaux nécessaires. Ne pas parler de fiscalité, de locataires ou d'annonce. Évaluer si l'appartement est louable en l'état et conseiller les travaux nécessaires, notamment la cuisine non conforme aux normes de sécurité",
+      "phase_focus": "Le joueur doit parler UNIQUEMENT de l'état du bien, de la cuisine, des normes de sécurité et des travaux. Pas de fiscalité, pas de candidats.",
       "active_channels": ["chat"],
       "ai_actors": ["antoine_delvaux"],
 
@@ -294,8 +310,9 @@
     {
       "phase_id": "phase_1_3",
       "title": "Conseil sur le régime fiscal",
-      "duration_target_min": 6,
-      "objective": "Conseiller le régime fiscal le plus adapté à la situation du client en tenant compte du marché lyonnais",
+      "duration_target_min": 8,
+      "objective": "STRICT: Ne traiter QUE le régime fiscal. Ne pas parler de l'annonce, des locataires ou du collègue Julien. Conseiller le régime fiscal le plus adapté à la situation du client en tenant compte du marché lyonnais",
+      "phase_focus": "Le joueur doit parler UNIQUEMENT de fiscalité : location nue vs meublée, micro-foncier vs réel, LMNP. Pas d'annonce, pas de candidats.",
       "active_channels": ["chat"],
       "ai_actors": ["antoine_delvaux"],
 
@@ -316,21 +333,34 @@
 
       "completion_rules": { "min_score": 1 },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_4"
     },
 
     {
-      "phase_id": "phase_2",
-      "title": "Rédiger une annonce de location",
+      "phase_id": "phase_4",
+      "title": "Rédaction de l'annonce",
       "duration_target_min": 8,
       "objective": "Rédiger une annonce de location attractive et honnête pour le bien de M. Delvaux, en mettant en valeur les vrais points forts sans mentir",
-      "active_channels": ["chat"],
+      "phase_focus": "Le joueur rédige l'annonce et l'envoie par email. Il peut chatter avec Claire pour des précisions mais la validation se fait UNIQUEMENT par email.",
+      "active_channels": ["chat", "mail"],
       "ai_actors": ["claire_beaumont"],
 
       "player_input": {
         "type": "free_text",
-        "prompt": "Votre responsable souhaite mettre en ligne l'annonce. Rédigez-la et envoyez-la à Claire Beaumont pour validation. Mettez en valeur les vrais atouts du bien (vue, parquet, cheminée, quartier) sans exagérer."
+        "prompt": "Rédigez l'annonce et envoyez-la à Claire Beaumont pour validation. Mettez en valeur les vrais atouts du bien (vue, parquet, cheminée, quartier) sans exagérer."
       },
+
+      "entry_events": [
+        {
+          "event_id": "claire_demande_annonce",
+          "type": "mail",
+          "channel": "mail",
+          "actor": "claire_beaumont",
+          "delay_ms": 3000,
+          "subject": "Annonce Le Bon Coin — Bien Delvaux Fourvière",
+          "content": "Bonjour,\n\nIl faut publier rapidement une annonce sur Le Bon Coin pour le bien Delvaux à Fourvière.\n\nRédige un texte attractif mais honnête. Mets en avant les vrais points forts : la vue sur la Saône, le parquet chêne massif, la cheminée d'époque, le quartier Fourvière.\n\nN'exagère pas et ne mens pas sur l'état du bien.\n\nEnvoie-moi l'annonce par mail pour validation.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine"
+        }
+      ],
 
       "competencies": [
         "Rédige une annonce cohérente et professionnelle",
@@ -341,24 +371,51 @@
 
       "interruptions": [],
 
-      "completion_rules": { "min_score": 1 },
+      "mail_config": {
+        "enabled": true,
+        "kind": "annonce_validation",
+        "defaults": {
+          "to": "claire.beaumont@immolyon.fr",
+          "cc": "",
+          "subject": "RE: Annonce Le Bon Coin — Bien Delvaux Fourvière"
+        },
+        "require_attachments": false,
+        "on_send_flags": { "annonce_envoyee": true },
+        "send_label": "Envoyer l'annonce à Claire",
+        "send_advances_phase": true
+      },
+
+      "completion_rules": { "any_flags": ["annonce_envoyee"] },
       "auto_advance": true,
-      "next_phase": "phase_3"
+      "next_phase": "phase_5"
     },
 
     {
-      "phase_id": "phase_3",
-      "title": "Sélection des profils locataires",
+      "phase_id": "phase_5",
+      "title": "Tri des dossiers candidats",
       "duration_target_min": 8,
       "objective": "Analyser les 5 dossiers de candidature et présélectionner les profils éligibles sur des critères objectifs (revenus, stabilité, garanties)",
-      "active_channels": ["chat"],
-      "ai_actors": ["antoine_delvaux", "claire_beaumont"],
+      "phase_focus": "Le joueur analyse les dossiers et envoie sa sélection par email. Il peut chatter avec Claire ou Antoine pour des précisions mais la validation se fait UNIQUEMENT par email.",
+      "active_channels": ["chat", "mail"],
+      "ai_actors": ["claire_beaumont", "antoine_delvaux"],
 
       "player_input": {
         "type": "free_text",
-        "prompt": "Vous avez reçu 5 dossiers de candidature. Analysez chacun et sélectionnez les profils éligibles à la location. Les dossiers sont dans vos documents. Envoyez votre synthèse à Claire Beaumont.",
+        "prompt": "Vous avez reçu 5 dossiers de candidature. Analysez chacun et sélectionnez les profils éligibles à la location. Les dossiers sont dans vos documents. Envoyez votre synthèse à Claire Beaumont par email.",
         "resources_hint": "Consultez le document 'Dossiers des 5 candidats locataires' dans vos documents de travail."
       },
+
+      "entry_events": [
+        {
+          "event_id": "claire_dossiers",
+          "type": "mail",
+          "channel": "mail",
+          "actor": "claire_beaumont",
+          "delay_ms": 3000,
+          "subject": "Dossiers candidats — Bien Delvaux Fourvière",
+          "content": "Bonjour,\n\nJe te transmets les 5 dossiers de candidature pour le T3 Fourvière.\n\nAnalyse-les sur des critères objectifs : revenus, stabilité professionnelle, ratio charges/loyer, garanties. Consulte la grille ALI si besoin.\n\nEnvoie-moi ta présélection argumentée par mail.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine"
+        }
+      ],
 
       "competencies": [
         "Examine les revenus, charges, stabilité professionnelle et garanties de chaque candidat",
@@ -368,36 +425,52 @@
         "Ne discrimine pas sur des critères interdits (origine, situation familiale, etc.)"
       ],
 
-      "interruptions": [
-        {
-          "interrupt_id": "claire_relance",
-          "actor": "claire_beaumont",
-          "content": "Tu avances sur les candidatures pour le bien Delvaux ? Le propriétaire me relance, il veut un retour rapide. On ne peut pas se permettre de traîner.",
-          "channel": "chat",
-          "trigger": {
-            "type": "after_delay",
-            "delay_ms": 240000
-          }
-        }
-      ],
+      "interruptions": [],
 
-      "completion_rules": { "min_score": 1 },
+      "mail_config": {
+        "enabled": true,
+        "kind": "preselection_candidats",
+        "defaults": {
+          "to": "claire.beaumont@immolyon.fr",
+          "cc": "",
+          "subject": "RE: Dossiers candidats — Bien Delvaux Fourvière"
+        },
+        "require_attachments": false,
+        "on_send_flags": { "preselection_envoyee": true },
+        "send_label": "Envoyer la présélection à Claire",
+        "send_advances_phase": true
+      },
+
+      "completion_rules": { "any_flags": ["preselection_envoyee"] },
       "auto_advance": true,
-      "next_phase": "phase_4"
+      "next_phase": "phase_6"
     },
 
     {
-      "phase_id": "phase_4",
-      "title": "Validation avec le collègue",
-      "duration_target_min": 8,
-      "objective": "Choisir le locataire final en discutant avec Julien Marchand, tout en gardant une approche objective face à ses avis subjectifs",
-      "active_channels": ["chat"],
+      "phase_id": "phase_6",
+      "title": "Validation finale du locataire",
+      "duration_target_min": 10,
+      "objective": "STRICT: Ne traiter QUE le choix final du locataire. Recommander un candidat en défendant son choix avec des critères objectifs face à l'influence subjective de Julien Marchand.",
+      "phase_focus": "Le joueur reçoit un email demandant la validation finale, peut chatter avec Julien et Claire pour arbitrage, puis envoie sa recommandation finale par email.",
+      "active_channels": ["chat", "mail"],
       "ai_actors": ["julien_marchand", "claire_beaumont"],
 
       "player_input": {
         "type": "free_text",
-        "prompt": "Julien Marchand, votre collègue, a aussi vu les candidats lors des visites. Discutez avec lui pour arrêter le choix final du locataire. Puis envoyez votre décision finale à Claire Beaumont."
+        "prompt": "Claire vous demande de finaliser le choix du locataire. Julien Marchand a aussi vu les candidats. Échangez avec lui si besoin, puis envoyez votre recommandation structurée à Claire par email."
       },
+
+      "entry_events": [
+        {
+          "event_id": "claire_validation_finale",
+          "type": "mail",
+          "channel": "mail",
+          "actor": "claire_beaumont",
+          "delay_ms": 3000,
+          "subject": "Validation finale — Locataire Bien Delvaux",
+          "content": "Bonjour,\n\nJ'ai bien reçu ta présélection. Il faut maintenant trancher.\n\nJulien m'a dit qu'il avait aussi vu les candidats lors des visites. Échange avec lui si besoin, mais je veux ton avis personnel, argumenté et factuel.\n\nEnvoie-moi ta recommandation finale par mail avec :\n- Le candidat retenu\n- Les critères objectifs qui justifient ce choix\n- Les risques éventuels et comment les mitiger\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine"
+        }
+      ],
 
       "competencies": [
         "Ne se laisse pas influencer par les avis subjectifs de Julien sur les Moreau",
@@ -413,14 +486,25 @@
           "actor": "julien_marchand",
           "content": "Écoute, fais-moi confiance là-dessus, ça fait 6 ans que je fais ce métier. Les Moreau, c'est non. Point. Prends les Fontaine, ce sont des gens bien.",
           "channel": "chat",
-          "trigger": {
-            "type": "after_exchanges",
-            "min_player_messages": 2
-          }
+          "trigger": { "type": "after_exchanges", "min_player_messages": 2 }
         }
       ],
 
-      "completion_rules": { "min_score": 1 },
+      "mail_config": {
+        "enabled": true,
+        "kind": "recommandation_finale",
+        "defaults": {
+          "to": "claire.beaumont@immolyon.fr",
+          "cc": "",
+          "subject": "RE: Validation finale — Locataire Bien Delvaux"
+        },
+        "require_attachments": false,
+        "on_send_flags": { "recommandation_envoyee": true },
+        "send_label": "Envoyer la recommandation finale",
+        "send_advances_phase": true
+      },
+
+      "completion_rules": { "any_flags": ["recommandation_envoyee"] },
       "auto_advance": true
     }
   ],
@@ -429,7 +513,7 @@
     {
       "ending_id": "success",
       "label": "Succès",
-      "content": "Le joueur a proposé un loyer conforme à l'encadrement des loyers (~1 850 €), identifié les travaux nécessaires (au minimum la cuisine), recommandé la location nue, et sélectionné un locataire solvable accepté par l'assurance (Moreau ou Fontaine). L'appartement est loué, le propriétaire est satisfait, et la gestion est sereine. Claire Beaumont félicite le joueur."
+      "content": "Le joueur a proposé un loyer conforme à l'encadrement des loyers (~1 850 €), identifié les travaux nécessaires (au minimum la cuisine), recommandé la location nue, rédigé une annonce honnête, et sélectionné un locataire solvable accepté par l'assurance (Moreau ou Fontaine). L'appartement est loué, le propriétaire est satisfait, et la gestion est sereine. Claire Beaumont félicite le joueur."
     },
     {
       "ending_id": "partial_success",
@@ -452,11 +536,11 @@
     { "phase": "phase_1_2", "competency": "Distinction meublé / non meublé et leurs exigences" },
     { "phase": "phase_1_3", "competency": "Connaissance des régimes fiscaux de la location" },
     { "phase": "phase_1_3", "competency": "Adéquation du conseil avec le marché local" },
-    { "phase": "phase_2", "competency": "Annonce qui met en avant le bien sans mentir" },
-    { "phase": "phase_3", "competency": "Analyse objective de dossiers de candidature" },
-    { "phase": "phase_3", "competency": "Application du ratio revenus/loyer et prise en compte des charges" },
-    { "phase": "phase_4", "competency": "Résistance à l'influence subjective d'un collègue" },
-    { "phase": "phase_4", "competency": "Argumentation professionnelle et factuelle" },
-    { "phase": "phase_4", "competency": "Anticipation des critères d'assurance loyer impayé" }
+    { "phase": "phase_4", "competency": "Annonce qui met en avant le bien sans mentir" },
+    { "phase": "phase_5", "competency": "Analyse objective de dossiers de candidature" },
+    { "phase": "phase_5", "competency": "Application du ratio revenus/loyer et prise en compte des charges" },
+    { "phase": "phase_6", "competency": "Résistance à l'influence subjective d'un collègue" },
+    { "phase": "phase_6", "competency": "Argumentation professionnelle et factuelle" },
+    { "phase": "phase_6", "competency": "Anticipation des critères d'assurance loyer impayé" }
   ]
 }

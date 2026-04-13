@@ -133,11 +133,28 @@ ${JSON.stringify(scenarioJson, null, 2)}`;
 
     if (!aiResponse.ok) {
       const errText = await aiResponse.text();
-      console.error('Anthropic API error:', errText);
-      return NextResponse.json({ error: 'AI request failed' }, { status: 500 });
+      console.error('[Éditeur IA] Anthropic API error:', aiResponse.status, errText);
+      let detail = '';
+      try {
+        const errJson = JSON.parse(errText);
+        detail = errJson?.error?.message || errText.slice(0, 200);
+      } catch {
+        detail = errText.slice(0, 200);
+      }
+      if (aiResponse.status === 401) {
+        return NextResponse.json({ error: 'Clé API Anthropic invalide ou expirée', detail }, { status: 500 });
+      }
+      if (aiResponse.status === 429) {
+        return NextResponse.json({ error: 'Quota API dépassé ou rate limit atteint', detail }, { status: 500 });
+      }
+      if (aiResponse.status === 529) {
+        return NextResponse.json({ error: 'API Anthropic surchargée, réessayez dans quelques secondes', detail }, { status: 500 });
+      }
+      return NextResponse.json({ error: `Erreur API IA (${aiResponse.status})`, detail }, { status: 500 });
     }
 
     const aiData = await aiResponse.json();
+    console.log('[Éditeur IA] Réponse reçue, tokens:', aiData.usage?.input_tokens, 'in /', aiData.usage?.output_tokens, 'out');
     const reply = aiData.content?.[0]?.text || '';
 
     // Try to parse changes from reply
@@ -162,9 +179,13 @@ ${JSON.stringify(scenarioJson, null, 2)}`;
       changes,
       rawReply: reply,
     });
-  } catch (error) {
-    console.error('Scenario editor error:', error);
-    return NextResponse.json({ error: 'Editor failed' }, { status: 500 });
+  } catch (error: any) {
+    console.error('[Éditeur IA] Erreur inattendue:', error?.message || error);
+    const isTimeout = error?.cause?.code === 'UND_ERR_CONNECT_TIMEOUT' || error?.message?.includes('timeout');
+    if (isTimeout) {
+      return NextResponse.json({ error: 'Timeout — la requête IA a pris trop de temps', detail: 'Essayez avec un message plus court.' }, { status: 500 });
+    }
+    return NextResponse.json({ error: 'Erreur interne de l\'éditeur', detail: error?.message || 'Erreur inconnue' }, { status: 500 });
   }
 }
 

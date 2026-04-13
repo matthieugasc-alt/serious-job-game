@@ -1,0 +1,207 @@
+---
+title: Serious Job Game — Architecture Complète
+---
+graph TB
+    %% ============================================================
+    %% STYLES
+    %% ============================================================
+    classDef page fill:#4f46e5,stroke:#3730a3,color:#fff,rx:12
+    classDef api fill:#0891b2,stroke:#0e7490,color:#fff,rx:8
+    classDef lib fill:#7c3aed,stroke:#6d28d9,color:#fff,rx:8
+    classDef data fill:#d97706,stroke:#b45309,color:#fff,rx:8
+    classDef ext fill:#dc2626,stroke:#b91c1c,color:#fff,rx:8
+    classDef static fill:#059669,stroke:#047857,color:#fff,rx:8
+    classDef scenario fill:#ea580c,stroke:#c2410c,color:#fff,rx:8
+
+    %% ============================================================
+    %% UTILISATEUR
+    %% ============================================================
+    USER((Joueur / Admin))
+
+    %% ============================================================
+    %% PAGES NEXT.JS (FRONTEND)
+    %% ============================================================
+    subgraph FRONTEND["Frontend — Pages Next.js App Router"]
+        direction TB
+        HOME["/ — Accueil\nSélection scénarios\nFiltres par métier"]:::page
+        LOGIN["/login\nConnexion / Inscription"]:::page
+        INTRO["/scenarios/[id]\nAperçu & briefing\nDocuments PDF"]:::page
+        PLAY["/scenarios/[id]/play\nInterface de jeu\nChat • Mail • Docs\nPrésentations vocales"]:::page
+        DEBRIEF["/scenarios/[id]/debrief\nDébriefing IA\nÉvaluation par phase"]:::page
+        PROFILE["/profile\nStatistiques joueur\nCompétences extraites"]:::page
+        HISTORY["/history\nHistorique des parties\nExport PDF"]:::page
+        ADMIN["/admin\nÉditeur de scénarios\nVerrouillage\nGestion utilisateurs"]:::page
+    end
+
+    %% ============================================================
+    %% API ROUTES (BACKEND)
+    %% ============================================================
+    subgraph BACKEND["Backend — API Routes Next.js"]
+        direction TB
+
+        subgraph AUTH_API["Auth"]
+            API_LOGIN["POST /api/auth/login"]:::api
+            API_REGISTER["POST /api/auth/register"]:::api
+            API_SESSION["GET /api/auth/session"]:::api
+        end
+
+        subgraph SCENARIO_API["Scénarios"]
+            API_SCENARIOS["GET /api/scenarios\nListe tous les scénarios"]:::api
+            API_SCENARIO["GET /api/scenarios/[id]\nCharge scénario complet"]:::api
+            API_PROMPTS["GET /api/scenarios/[id]/prompts/[actor]\nPrompt IA d'un acteur"]:::api
+        end
+
+        subgraph GAME_API["Moteur de jeu"]
+            API_CHAT["POST /api/chat\nRéponse NPC via IA"]:::api
+            API_EVAL["POST /api/evaluate-presentation\nÉvaluation présentation orale"]:::api
+            API_DEBRIEF["POST /api/debrief\nGénération débriefing IA"]:::api
+            API_DOWNLOAD["GET /api/download\nTéléchargement PDF forcé\nContent-Disposition: attachment"]:::api
+        end
+
+        subgraph PROFILE_API["Profil"]
+            API_SAVE_GAME["POST /api/profile/save-game"]:::api
+            API_HISTORY["GET /api/profile/history"]:::api
+            API_STATS["GET /api/profile/stats"]:::api
+            API_PREFS["GET|POST /api/profile/preferences"]:::api
+            API_SKILLS["POST /api/profile/extract-skills"]:::api
+            API_PDF["GET /api/profile/download-pdf/[id]"]:::api
+        end
+
+        subgraph ADMIN_API["Admin"]
+            API_CONFIG["GET|POST /api/admin/scenario-config\nVerrouillage & prérequis"]:::api
+            API_EDITOR["POST /api/admin/scenario-editor\nÉdition IA de scénarios"]:::api
+            API_SAVE_SC["POST /api/admin/save-scenario\nSauvegarde sur disque"]:::api
+        end
+    end
+
+    %% ============================================================
+    %% LIBRAIRIES INTERNES
+    %% ============================================================
+    subgraph LIB["Librairies — app/lib/"]
+        direction TB
+        LIB_RUNTIME["runtime.ts\nMoteur de session\ninitializeSession()\nbuildRuntimeView()\ncompletePhase()"]:::lib
+        LIB_TYPES["types.ts\nScenarioDefinition\nSessionState\nPhaseDefinition\n1044 lignes"]:::lib
+        LIB_AUTH["auth.ts\nSHA-256 • Tokens\nregisterUser()\nvalidateSession()"]:::lib
+        LIB_SCENARIOS["scenarios.ts\nloadScenario()\nloadPrompt()\nlistScenarios()"]:::lib
+        LIB_RECORDS["gameRecords.ts\nSauvegarde serveur\nPar utilisateur"]:::lib
+        LIB_PREFS["userPreferences.ts\nFiltres métier\nNom d'affichage"]:::lib
+        LIB_CONFIG["scenarioConfig.ts\nadminLocked\nprerequisites"]:::lib
+    end
+
+    %% ============================================================
+    %% STOCKAGE DONNÉES (JSON)
+    %% ============================================================
+    subgraph DATA["Stockage — Fichiers JSON"]
+        direction TB
+        DATA_USERS["data/users.json\nComptes utilisateurs\nemail • hash • rôle"]:::data
+        DATA_SESSIONS["data/sessions.json\nTokens actifs\nExpiration 7 jours"]:::data
+        DATA_RECORDS["data/game_records/\n{userId}.json\nHistorique parties"]:::data
+        DATA_PREFS["data/user_preferences/\n{userId}.json\nPréférences"]:::data
+        DATA_CONFIG["data/scenario_config.json\nVerrouillage scénarios"]:::data
+    end
+
+    %% ============================================================
+    %% SCÉNARIOS
+    %% ============================================================
+    subgraph SCENARIOS["Scénarios — scenarios/"]
+        direction TB
+        SC_ATTERRISSAGE["atterrissage/\nCrise diplomatique\nscenario.json + prompts/"]:::scenario
+        SC_ART["art_du_malentendu/\nExposition controversée\nscenario.json + prompts/"]:::scenario
+        SC_HERITAGE["heritage_fourviere/\nGestion locative\nscenario.json + prompts/"]:::scenario
+    end
+
+    %% ============================================================
+    %% ASSETS STATIQUES
+    %% ============================================================
+    subgraph STATIC["Assets — public/"]
+        direction TB
+        STATIC_IMGS["Images scénarios\nSalon.png • Cuisine.png\nOeuvres • Portraits"]:::static
+        STATIC_PDFS["PDFs scénarios\nFiche bien • Grille loyers\nGuide fiscal • Candidats\nALI éligibilité"]:::static
+        STATIC_GUIDE["guide_creation_scenario.pdf\nGuide admin"]:::static
+    end
+
+    %% ============================================================
+    %% SERVICES EXTERNES
+    %% ============================================================
+    subgraph EXTERNAL["Services Externes"]
+        direction TB
+        OPENAI["OpenAI API\ngpt-4.1-mini\nRéponses NPC\nChat en temps réel"]:::ext
+        ANTHROPIC["Anthropic API\nClaude\nDébriefing IA\nÉditeur scénarios"]:::ext
+    end
+
+    %% ============================================================
+    %% CONNEXIONS UTILISATEUR → PAGES
+    %% ============================================================
+    USER --> HOME
+    USER --> LOGIN
+    HOME --> INTRO
+    INTRO --> PLAY
+    PLAY --> DEBRIEF
+    USER --> PROFILE
+    USER --> HISTORY
+    USER --> ADMIN
+
+    %% ============================================================
+    %% CONNEXIONS PAGES → API
+    %% ============================================================
+    LOGIN --> API_LOGIN
+    LOGIN --> API_REGISTER
+    HOME --> API_SCENARIOS
+    HOME --> API_CONFIG
+    INTRO --> API_SCENARIO
+    PLAY --> API_CHAT
+    PLAY --> API_EVAL
+    PLAY --> API_PROMPTS
+    PLAY --> API_DOWNLOAD
+    DEBRIEF --> API_DEBRIEF
+    DEBRIEF --> API_SAVE_GAME
+    PROFILE --> API_STATS
+    PROFILE --> API_SKILLS
+    HISTORY --> API_HISTORY
+    HISTORY --> API_PDF
+    ADMIN --> API_CONFIG
+    ADMIN --> API_EDITOR
+    ADMIN --> API_SAVE_SC
+
+    %% ============================================================
+    %% CONNEXIONS API → LIB
+    %% ============================================================
+    API_LOGIN --> LIB_AUTH
+    API_REGISTER --> LIB_AUTH
+    API_SESSION --> LIB_AUTH
+    API_SCENARIOS --> LIB_SCENARIOS
+    API_SCENARIO --> LIB_SCENARIOS
+    API_PROMPTS --> LIB_SCENARIOS
+    API_CHAT --> LIB_RUNTIME
+    API_SAVE_GAME --> LIB_RECORDS
+    API_HISTORY --> LIB_RECORDS
+    API_STATS --> LIB_RECORDS
+    API_PREFS --> LIB_PREFS
+    API_CONFIG --> LIB_CONFIG
+
+    %% ============================================================
+    %% CONNEXIONS LIB → DATA
+    %% ============================================================
+    LIB_AUTH --> DATA_USERS
+    LIB_AUTH --> DATA_SESSIONS
+    LIB_RECORDS --> DATA_RECORDS
+    LIB_PREFS --> DATA_PREFS
+    LIB_CONFIG --> DATA_CONFIG
+    LIB_SCENARIOS --> SCENARIOS
+
+    %% ============================================================
+    %% CONNEXIONS API → SERVICES EXTERNES
+    %% ============================================================
+    API_CHAT --> OPENAI
+    API_EVAL --> OPENAI
+    API_DEBRIEF --> ANTHROPIC
+    API_EDITOR --> ANTHROPIC
+    API_SKILLS --> OPENAI
+
+    %% ============================================================
+    %% CONNEXIONS ASSETS
+    %% ============================================================
+    API_DOWNLOAD --> STATIC_PDFS
+    INTRO --> STATIC_IMGS
+    INTRO --> STATIC_PDFS
+    PLAY --> STATIC_IMGS

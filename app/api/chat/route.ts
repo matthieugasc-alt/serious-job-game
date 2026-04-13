@@ -77,6 +77,7 @@ export async function POST(req: Request) {
     const message = sanitize(s(body?.message, ""));
     const phaseTitle = sanitize(s(body?.phaseTitle, ""));
     const phaseObjective = sanitize(s(body?.phaseObjective, ""));
+    const phaseFocus = sanitize(s(body?.phaseFocus, ""));
     const phasePrompt = sanitize(s(body?.phasePrompt, ""));
     const mode = sanitize(s(body?.mode, "guided"));
     const roleplayPromptTemplate = s(body?.roleplayPrompt, "");
@@ -124,6 +125,7 @@ MODE AUTONOMY:
         playerName,
         phaseTitle,
         phaseObjective,
+        phaseFocus,
         phasePrompt,
         narrative: narrative,
         mode,
@@ -134,6 +136,11 @@ MODE AUTONOMY:
       finalRoleplayPrompt = sanitize(
         interpolatePrompt(roleplayPromptTemplate, variables)
       );
+
+      // Inject strict phase focus constraint if defined
+      if (phaseFocus) {
+        finalRoleplayPrompt += `\n\n=== CONTRAINTE DE PHASE (OBLIGATOIRE) ===\nTu es actuellement dans la phase : "${phaseTitle}"\nFOCUS STRICT : ${phaseFocus}\n\nTu dois STRICTEMENT rester sur ce sujet.\nTu n'as pas le droit :\n- d'anticiper les phases suivantes\n- de parler de sujets non liés à cette phase\n- de mentionner des décisions futures ou des étapes à venir\nToute réponse hors sujet est interdite. Si le joueur aborde un sujet hors périmètre, ramène-le poliment mais fermement au sujet de cette phase.\n=== FIN CONTRAINTE ===`;
+      }
     } else {
       // Use generic fallback
       finalRoleplayPrompt = getGenericFallbackPrompt(playerName);
@@ -153,7 +160,7 @@ MODE AUTONOMY:
 You are an evaluator of a professional serious game. Quick evaluation only.
 
 PHASE: ${phaseTitle}
-OBJECTIVE: ${phaseObjective}
+OBJECTIVE: ${phaseObjective}${phaseFocus ? `\nPHASE FOCUS (strict scope): ${phaseFocus}\nOnly evaluate competencies related to this phase scope. Ignore off-topic content.` : ""}
 
 COMPETENCIES for this phase:
 ${sanitize(JSON.stringify(criteria, null, 2))}

@@ -149,6 +149,23 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const router = useRouter();
   const { scenarioId } = use(params);
 
+  // ── Debug mode: activate with ?debug=1 in URL, toggle with Ctrl+D ──
+  const [debugMode, setDebugMode] = useState(false);
+  const [debugCollapsed, setDebugCollapsed] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const u = new URL(window.location.href);
+    if (u.searchParams.get("debug") === "1") setDebugMode(true);
+    const handler = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.key === "d") {
+        e.preventDefault();
+        setDebugMode((prev) => !prev);
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, []);
+
   // ── State ──
   const [scenario, setScenario] = useState<ScenarioDefinition | null>(null);
   const [session, setSession] = useState<any>(null);
@@ -215,7 +232,42 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       ? localStorage.getItem(`sjg_playerName_${scenarioId}`) || "Joueur"
       : "Joueur";
 
-  const allDocuments = scenario?.resources?.documents || [];
+  const allDocumentsRaw = scenario?.resources?.documents || [];
+  // Build a stable phase progression map: phaseId → rank (based on next_phase chain, not array index)
+  const phaseProgressionMap: Record<string, number> = (() => {
+    const phases = scenario?.phases || [];
+    if (phases.length === 0) return {};
+    // Build lookup by phase_id
+    const byId: Record<string, any> = {};
+    for (const p of phases) byId[p.phase_id] = p;
+    // Find the first phase (the one no other phase points to via next_phase)
+    const targets = new Set(phases.map((p: any) => p.next_phase).filter(Boolean));
+    let head = phases.find((p: any) => !targets.has(p.phase_id));
+    if (!head) head = phases[0]; // fallback: use array order if no clear head
+    // Walk the chain
+    const map: Record<string, number> = {};
+    let rank = 0;
+    let cur = head;
+    const visited = new Set<string>();
+    while (cur && !visited.has(cur.phase_id)) {
+      map[cur.phase_id] = rank++;
+      visited.add(cur.phase_id);
+      cur = cur.next_phase ? byId[cur.next_phase] : null;
+    }
+    // Add any phases not in the chain (orphans) at the end
+    for (const p of phases) {
+      if (!(p.phase_id in map)) map[p.phase_id] = rank++;
+    }
+    return map;
+  })();
+  const currentPhaseId = scenario?.phases?.[session?.currentPhaseIndex]?.phase_id;
+  const currentPhaseRank = currentPhaseId != null ? (phaseProgressionMap[currentPhaseId] ?? -1) : -1;
+  const allDocuments = allDocumentsRaw.filter((d: any) => {
+    if (!d.available_from_phase) return true; // globally available
+    const requiredRank = phaseProgressionMap[d.available_from_phase];
+    if (requiredRank == null) return true; // unknown phase referenced → show by default
+    return currentPhaseRank >= requiredRank;
+  });
   const attachableDocs = allDocuments.filter(
     (d: any) => d.usable_as_attachment || d.usable_as_pj
   );
@@ -232,6 +284,41 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   scenarioRef.current = scenario;
   viewRef.current = view;
   isSendingRef.current = isSending;
+
+  // ── Debug logs (only when ?debug=1) ──
+  const prevPhaseIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!debugMode || !view || !scenario || !session) return;
+    const phase = scenario.phases[session.currentPhaseIndex];
+    const pid = phase?.phase_id || "?";
+    const isTransition = prevPhaseIdRef.current !== null && prevPhaseIdRef.current !== pid;
+    if (isTransition) {
+      console.log(
+        `%c[DEBUG] TRANSITION: ${prevPhaseIdRef.current} → ${pid}`,
+        "background:#5b5fc7;color:#fff;padding:2px 8px;border-radius:3px;font-weight:bold"
+      );
+    }
+    prevPhaseIdRef.current = pid;
+    console.log(
+      `%c[DEBUG] Phase: ${pid}`,
+      "color:#5b5fc7;font-weight:bold",
+      {
+        title: phase?.title,
+        focus: phase?.phase_focus || "(aucun)",
+        completionRules: phase?.completion_rules,
+        autoAdvance: phase?.auto_advance,
+        mailConfig: phase?.mail_config ? {
+          sendAdvances: phase.mail_config.send_advances_phase,
+          onSendFlags: phase.mail_config.on_send_flags,
+        } : "(aucun)",
+        canAdvance: view.canAdvance,
+        flags: { ...session.flags },
+        score: session.scores[pid] || 0,
+        docs: allDocuments.map((d: any) => d.doc_id),
+        hiddenDocs: allDocumentsRaw.filter((d: any) => !allDocuments.includes(d)).map((d: any) => d.doc_id + " (locked until " + d.available_from_phase + ")"),
+      }
+    );
+  }, [debugMode, view?.phaseId, view?.canAdvance, session?.currentPhaseIndex, allDocuments.length]);
 
   // ── Interaction mode ──
   const currentInteractionMode: string = scenario?.phases?.[session?.currentPhaseIndex]?.interaction_mode || "chat";
@@ -276,7 +363,23 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     if (!d.to.trim() || !d.subject.trim() || !d.body.trim()) return false;
     const phase = scenario.phases[session.currentPhaseIndex];
     if (phase?.mail_config?.require_attachments && (!d.attachments || d.attachments.length === 0)) return false;
+    // Minimum body length when mail advances phase (prevents accidental/empty sends)
+    if (phase?.mail_config?.send_advances_phase && d.body.trim().length < 20) return false;
     return true;
+  })();
+  // Human-readable reason why send is disabled (for tooltip / UX)
+  const mailSendBlockReason = (() => {
+    if (!canComposeMail || !session || !scenario) return "";
+    const d = currentMailDraft;
+    if (!d.to.trim()) return "Destinataire requis";
+    if (!d.subject.trim()) return "Objet requis";
+    if (!d.body.trim()) return "Contenu du mail requis";
+    const phase = scenario.phases[session.currentPhaseIndex];
+    if (phase?.mail_config?.require_attachments && (!d.attachments || d.attachments.length === 0))
+      return "Pièce jointe requise";
+    if (phase?.mail_config?.send_advances_phase && d.body.trim().length < 20)
+      return "Le contenu du mail est trop court (20 caractères minimum)";
+    return "";
   })();
 
   // ── Toast helper ──
@@ -769,6 +872,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     message: newText,
                     phaseTitle: v.phaseTitle,
                     phaseObjective: v.phaseObjective,
+                    phaseFocus: v.phaseFocus,
                     phasePrompt: v.phasePrompt,
                     criteria: v.criteria,
                     mode: v.adaptiveMode,
@@ -869,6 +973,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         playerName: displayPlayerName,
         phaseTitle: view?.phaseTitle || "",
         phaseObjective: view?.phaseObjective || "",
+        phaseFocus: view?.phaseFocus || "",
         phasePrompt: view?.phasePrompt || "",
         criteria: view?.criteria || [],
         narrative: scenario?.narrative || {},
@@ -928,6 +1033,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           message: text,
           phaseTitle: view.phaseTitle,
           phaseObjective: view.phaseObjective,
+          phaseFocus: view.phaseFocus,
           phasePrompt: view.phasePrompt,
           criteria: view.criteria,
           mode: view.adaptiveMode,
@@ -2361,6 +2467,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       <button
                         onClick={handleSendMail}
                         disabled={!canActuallySendMail}
+                        title={mailSendBlockReason || undefined}
                         style={{
                           padding: "8px 24px", borderRadius: 4, border: "none",
                           background: canActuallySendMail ? "#5b5fc7" : "#ccc",
@@ -2370,6 +2477,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       >
                         {view.sendMailLabel || "Envoyer"}
                       </button>
+                      {!canActuallySendMail && mailSendBlockReason && (
+                        <div style={{ fontSize: 11, color: "#e74c3c", marginTop: 4, textAlign: "right" }}>
+                          {mailSendBlockReason}
+                        </div>
+                      )}
                     </div>
                   </div>
                 )}
@@ -2582,6 +2694,60 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         </aside>
       </div>
       )}
+
+      {/* ═══════ DEBUG PANEL (only with ?debug=1) ═══════ */}
+      {debugMode && view && session && scenario && (() => {
+        const phase = scenario.phases[session.currentPhaseIndex];
+        const pid = phase?.phase_id || "?";
+        const rules = phase?.completion_rules || {};
+        const mc = phase?.mail_config;
+        const flagEntries = Object.entries(session.flags).filter(([, v]) => v);
+        return (
+          <div
+            style={{
+              position: "fixed", bottom: 12, left: 12, zIndex: 9999,
+              background: "rgba(15,15,30,0.95)", color: "#e0e0e0",
+              borderRadius: 10, border: "1px solid rgba(91,95,199,0.5)",
+              fontSize: 11, fontFamily: "monospace", maxWidth: 380,
+              boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+              backdropFilter: "blur(8px)",
+            }}
+          >
+            {/* Header — always visible */}
+            <div
+              onClick={() => setDebugCollapsed(!debugCollapsed)}
+              style={{
+                padding: "6px 12px", cursor: "pointer", display: "flex",
+                justifyContent: "space-between", alignItems: "center",
+                borderBottom: debugCollapsed ? "none" : "1px solid rgba(255,255,255,0.1)",
+                userSelect: "none",
+              }}
+            >
+              <span style={{ fontWeight: 700, color: "#a5a8ff" }}>
+                DEBUG {pid}
+              </span>
+              <span style={{ color: "rgba(255,255,255,0.4)" }}>
+                {debugCollapsed ? "+" : "-"}
+              </span>
+            </div>
+            {/* Body */}
+            {!debugCollapsed && (
+              <div style={{ padding: "8px 12px", lineHeight: 1.7 }}>
+                <div><span style={{ color: "#888" }}>Phase:</span> <span style={{ color: "#fff", fontWeight: 600 }}>{pid}</span> <span style={{ color: "#888" }}>({phase?.title})</span></div>
+                <div><span style={{ color: "#888" }}>Focus:</span> <span style={{ color: phase?.phase_focus ? "#a5a8ff" : "#555" }}>{phase?.phase_focus ? phase.phase_focus.slice(0, 80) + (phase.phase_focus.length > 80 ? "..." : "") : "(aucun)"}</span></div>
+                <div><span style={{ color: "#888" }}>Score:</span> {session.scores[pid] || 0} | <span style={{ color: "#888" }}>canAdvance:</span> <span style={{ color: view.canAdvance ? "#22c55e" : "#ef4444", fontWeight: 600 }}>{view.canAdvance ? "OUI" : "NON"}</span></div>
+                <div><span style={{ color: "#888" }}>Rules:</span> {rules.min_score !== undefined ? `min_score=${rules.min_score}` : ""}{rules.any_flags ? `any_flags=[${rules.any_flags.join(", ")}]` : ""}{rules.all_flags ? `all_flags=[${rules.all_flags.join(", ")}]` : ""}{!rules.min_score && !rules.any_flags && !rules.all_flags ? "fallback (2 msgs)" : ""}</div>
+                {mc && <div><span style={{ color: "#888" }}>Mail:</span> send_advances={mc.send_advances_phase ? "true" : "false"} | flags={JSON.stringify(mc.on_send_flags)}</div>}
+                <div><span style={{ color: "#888" }}>Docs:</span> {allDocuments.length}/{allDocumentsRaw.length} visibles{allDocumentsRaw.length > allDocuments.length ? ` (${allDocumentsRaw.length - allDocuments.length} locked)` : ""}</div>
+                {flagEntries.length > 0 && (
+                  <div><span style={{ color: "#888" }}>Flags:</span> {flagEntries.map(([k]) => k).join(", ")}</div>
+                )}
+                <div style={{ marginTop: 4, color: "#555", fontSize: 10 }}>?debug=1 | Ctrl+D toggle</div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

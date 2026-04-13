@@ -392,8 +392,12 @@ export function applyEvaluation(
   session.scores[phaseId] = previousPhaseScore + scoreDelta;
   session.totalScore += scoreDelta;
 
+  // Build set of flags reserved for mail_config (cannot be set by chat evaluation)
+  const mailReservedFlags = getMailReservedFlags(session);
+
   for (const [key, value] of Object.entries(flagsToSet)) {
     if (value === true) {
+      if (mailReservedFlags.has(key)) continue; // blocked: only mail send can set this
       session.flags[key] = true;
     }
   }
@@ -405,6 +409,24 @@ export function applyEvaluation(
   if (isCurrentPhaseValidatedByRules(session)) {
     unlockCurrentPhase(session);
   }
+}
+
+/**
+ * Returns the set of flag names that are reserved for mail_config.on_send_flags
+ * across ALL phases. These flags can only be set by handleSendMail, never by chat evaluation.
+ */
+function getMailReservedFlags(session: SessionState): Set<string> {
+  const reserved = new Set<string>();
+  const phases = session.scenario?.phases || [];
+  for (const phase of phases) {
+    const onSendFlags = phase?.mail_config?.on_send_flags;
+    if (onSendFlags && typeof onSendFlags === "object") {
+      for (const key of Object.keys(onSendFlags)) {
+        reserved.add(key);
+      }
+    }
+  }
+  return reserved;
 }
 
 export function updateAdaptiveMode(session: SessionState) {
@@ -1124,6 +1146,7 @@ export function buildRuntimeView(session: SessionState) {
     initialEvents: session.scenario.initial_events || [],
     phaseTitle: phase?.title || "Fin",
     phaseObjective: phase?.objective || "",
+    phaseFocus: phase?.phase_focus || "",
     phasePrompt:
       phase?.player_input?.prompt ||
       phase?.player_inputs?.[0]?.prompt ||
