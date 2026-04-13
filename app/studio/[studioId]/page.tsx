@@ -99,20 +99,32 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
   const [expandedPhases, setExpandedPhases] = useState<Set<string>>(new Set());
   const [validationResult, setValidationResult] = useState<any>(null);
   const [compilationResult, setCompilationResult] = useState<any>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const saveTimeoutRef = useRef<NodeJS.Timeout>(undefined);
 
   // Load studio data
   useEffect(() => {
     const fetchStudio = async () => {
       try {
-        const res = await fetch(`/api/studio/${studioId}`);
-        if (!res.ok) throw new Error('Failed to load studio');
+        const res = await fetch(`/api/studio/${studioId}`, { cache: 'no-store' });
+        if (res.status === 404) {
+          setLoadError(`Scénario "${studioId}" introuvable. Vérifiez qu'il a bien été créé.`);
+          setLoading(false);
+          return;
+        }
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || `Erreur serveur (${res.status})`);
+        }
         const data = await res.json();
+        if (!data || !data.id) {
+          throw new Error('Données du scénario invalides');
+        }
         setStudio(data);
         setLoading(false);
-      } catch (err) {
-        console.error(err);
-        setSaveStatus('error');
+      } catch (err: any) {
+        console.error('Load studio error:', err);
+        setLoadError(err.message || 'Impossible de charger le scénario');
         setLoading(false);
       }
     };
@@ -352,19 +364,33 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
     );
   }
 
-  if (!studio) {
+  if (loadError || !studio) {
     return (
       <div
         style={{
           display: 'flex',
+          flexDirection: 'column',
           justifyContent: 'center',
           alignItems: 'center',
           minHeight: '100vh',
           background: 'linear-gradient(135deg, #0f0f23 0%, #1a1a2e 100%)',
           color: '#ff6b6b',
+          gap: 16,
         }}
       >
-        <div>Studio non trouvé</div>
+        <div style={{ fontSize: 20, fontWeight: 700 }}>Scénario introuvable</div>
+        <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.6)', maxWidth: 400, textAlign: 'center' }}>
+          {loadError || `Le scénario "${studioId}" n'existe pas ou n'a pas pu être chargé.`}
+        </div>
+        <button
+          onClick={() => router.push('/admin')}
+          style={{
+            marginTop: 8, padding: '10px 24px', background: '#5b5fc7', color: '#fff',
+            border: 'none', borderRadius: 8, fontSize: 14, fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          ← Retour à l'admin
+        </button>
       </div>
     );
   }
@@ -452,7 +478,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
         </div>
 
         <button
-          onClick={() => router.push('/studio')}
+          onClick={() => router.push('/admin')}
           style={{
             margin: '12px 16px',
             padding: '10px 12px',

@@ -8,7 +8,7 @@ interface Scenario {
   title: string;
   status: "draft" | "compiled" | "published" | "error";
   tags?: string[];
-  updated_at?: string;
+  updatedAt?: string;
 }
 
 export default function StudioPage() {
@@ -63,13 +63,20 @@ export default function StudioPage() {
         body: JSON.stringify({ title: modalTitle.trim(), tags }),
       });
 
-      if (!res.ok) throw new Error("Failed to create scenario");
       const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || "Échec de la création du scénario");
+      }
+
+      const createdId = data.scenario?.id;
+      if (!createdId) {
+        throw new Error("Le serveur n'a pas retourné d'identifiant de scénario");
+      }
 
       setShowModal(false);
       setModalTitle("");
       setModalTags("");
-      router.push(`/studio/${data.id}`);
+      router.push(`/studio/${createdId}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la création");
     } finally {
@@ -273,7 +280,7 @@ export default function StudioPage() {
                 {/* Metadata */}
                 <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
                   <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
-                    Mis à jour {formatDate(scenario.updated_at)}
+                    Mis à jour {formatDate(scenario.updatedAt)}
                   </p>
                 </div>
 

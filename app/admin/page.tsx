@@ -34,7 +34,7 @@ export default function AdminPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userToken, setUserToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<"conversion" | "management" | "editor">("conversion");
+  const [activeSection, setActiveSection] = useState<"conversion" | "management" | "editor" | "studio">("conversion");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Conversion state
@@ -60,6 +60,23 @@ export default function AdminPage() {
   const [editorSending, setEditorSending] = useState(false);
   const [editorApplying, setEditorApplying] = useState(false);
   const editorChatEndRef = useRef<HTMLDivElement>(null);
+
+  // Studio state
+  interface StudioScenario {
+    id: string;
+    title: string;
+    status: string;
+    updatedAt?: string;
+  }
+  const [studioScenarios, setStudioScenarios] = useState<StudioScenario[]>([]);
+  const [studioLoading, setStudioLoading] = useState(false);
+  const [studioError, setStudioError] = useState("");
+  const [studioShowModal, setStudioShowModal] = useState(false);
+  const [studioModalTitle, setStudioModalTitle] = useState("");
+  const [studioModalTags, setStudioModalTags] = useState("");
+  const [studioCreating, setStudioCreating] = useState(false);
+  const [studioDeleting, setStudioDeleting] = useState<string | null>(null);
+  const [studioDeleteConfirm, setStudioDeleteConfirm] = useState<string | null>(null);
 
   useEffect(() => {
     const role = localStorage.getItem("user_role");
@@ -117,6 +134,89 @@ export default function AdminPage() {
       setScenariosLoading(false);
     }
   };
+
+  // ── Studio helpers ──────────────────────────────────────────────
+  const loadStudioScenarios = async () => {
+    try {
+      setStudioLoading(true);
+      setStudioError("");
+      const res = await fetch("/api/studio", { cache: "no-store" });
+      if (!res.ok) throw new Error("Failed to load studio scenarios");
+      const data = await res.json();
+      setStudioScenarios(data.scenarios || []);
+    } catch (err) {
+      setStudioError(err instanceof Error ? err.message : "Erreur de chargement");
+    } finally {
+      setStudioLoading(false);
+    }
+  };
+
+  const handleStudioCreate = async () => {
+    if (!studioModalTitle.trim()) {
+      setStudioError("Le titre est requis");
+      return;
+    }
+    try {
+      setStudioCreating(true);
+      setStudioError("");
+      const tags = studioModalTags.split(",").map((t) => t.trim()).filter(Boolean);
+      const res = await fetch("/api/studio", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: studioModalTitle.trim(), tags }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) throw new Error(data.error || "Échec de la création");
+      const createdId = data.scenario?.id;
+      if (!createdId) throw new Error("ID manquant dans la réponse");
+      setStudioShowModal(false);
+      setStudioModalTitle("");
+      setStudioModalTags("");
+      router.push(`/studio/${createdId}`);
+    } catch (err) {
+      setStudioError(err instanceof Error ? err.message : "Erreur lors de la création");
+    } finally {
+      setStudioCreating(false);
+    }
+  };
+
+  const handleStudioDelete = async (id: string) => {
+    try {
+      setStudioDeleting(id);
+      setStudioError("");
+      const res = await fetch(`/api/studio/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Échec de la suppression");
+      setStudioScenarios((prev) => prev.filter((s) => s.id !== id));
+      setStudioDeleteConfirm(null);
+    } catch (err) {
+      setStudioError(err instanceof Error ? err.message : "Erreur lors de la suppression");
+    } finally {
+      setStudioDeleting(null);
+    }
+  };
+
+  const formatStudioDate = (dateStr?: string) => {
+    if (!dateStr) return "";
+    return new Date(dateStr).toLocaleDateString("fr-FR", { year: "numeric", month: "long", day: "numeric" });
+  };
+
+  const getStudioStatusBadge = (status: string) => {
+    const colors: Record<string, { bg: string; color: string; label: string }> = {
+      draft: { bg: "rgba(234,179,8,0.2)", color: "#eab308", label: "Brouillon" },
+      compiled: { bg: "rgba(59,130,246,0.2)", color: "#3b82f6", label: "Compilé" },
+      published: { bg: "rgba(34,197,94,0.2)", color: "#22c55e", label: "Publié" },
+      error: { bg: "rgba(239,68,68,0.2)", color: "#ef4444", label: "Erreur" },
+    };
+    const c = colors[status] || colors.draft;
+    return c;
+  };
+
+  // Load studio scenarios when switching to studio tab
+  useEffect(() => {
+    if (activeSection === "studio") {
+      loadStudioScenarios();
+    }
+  }, [activeSection]);
 
   // ── File upload handler ────────────────────────────────────────
   const handleFile = useCallback(async (file: File) => {
@@ -422,6 +522,22 @@ export default function AdminPage() {
             }}
           >
             🤖 Éditeur IA
+          </button>
+          <button
+            onClick={() => setActiveSection("studio")}
+            style={{
+              padding: "12px 0",
+              fontSize: 16,
+              fontWeight: activeSection === "studio" ? 700 : 500,
+              color: activeSection === "studio" ? "#a5a8ff" : "rgba(255,255,255,0.6)",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              borderBottom: activeSection === "studio" ? "2px solid #5b5fc7" : "none",
+              transition: "all 0.2s",
+            }}
+          >
+            🎬 Scenario Studio
           </button>
         </div>
 
@@ -1207,6 +1323,265 @@ export default function AdminPage() {
                   >
                     Envoyer
                   </button>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Studio Section */}
+        {activeSection === "studio" && (
+          <div>
+            {/* Studio header + action */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+              <div>
+                <h2 style={{ margin: "0 0 4px", fontSize: 22, fontWeight: 700, color: "#fff" }}>
+                  Scenario Studio
+                </h2>
+                <p style={{ margin: 0, fontSize: 13, color: "rgba(255,255,255,0.6)" }}>
+                  Créez et éditez vos scénarios sans toucher au moteur global
+                </p>
+              </div>
+              <button
+                onClick={() => setStudioShowModal(true)}
+                style={{
+                  background: "#5b5fc7",
+                  color: "#fff",
+                  border: "none",
+                  padding: "10px 20px",
+                  borderRadius: 8,
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = "#4949a8"; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = "#5b5fc7"; }}
+              >
+                + Nouveau scénario
+              </button>
+            </div>
+
+            {/* Studio error */}
+            {studioError && (
+              <div style={{
+                background: "rgba(239,68,68,0.2)", border: "1px solid rgba(239,68,68,0.5)",
+                color: "#fca5a5", padding: 12, borderRadius: 8, marginBottom: 20, fontSize: 14,
+              }}>
+                {studioError}
+              </div>
+            )}
+
+            {/* Studio loading */}
+            {studioLoading && (
+              <div style={{ textAlign: "center", color: "rgba(255,255,255,0.6)", fontSize: 16, padding: "40px 0" }}>
+                Chargement...
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!studioLoading && studioScenarios.length === 0 && (
+              <div style={{
+                textAlign: "center", color: "rgba(255,255,255,0.6)",
+                fontSize: 16, padding: "60px 20px",
+              }}>
+                Aucun scénario studio. Commencez par en créer un !
+              </div>
+            )}
+
+            {/* Scenario cards */}
+            {!studioLoading && studioScenarios.length > 0 && (
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20 }}>
+                {studioScenarios.map((sc) => {
+                  const badge = getStudioStatusBadge(sc.status);
+                  return (
+                    <div
+                      key={sc.id}
+                      style={{
+                        background: "rgba(255,255,255,0.05)",
+                        border: "1px solid rgba(255,255,255,0.1)",
+                        borderRadius: 16, padding: 20,
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+                        e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)";
+                      }}
+                    >
+                      <div
+                        onClick={() => router.push(`/studio/${sc.id}`)}
+                        style={{ cursor: "pointer", marginBottom: 12 }}
+                      >
+                        <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600, color: "#fff" }}>
+                          {sc.title}
+                        </h3>
+                        <span style={{
+                          display: "inline-block", padding: "4px 12px", borderRadius: 6,
+                          fontSize: 12, fontWeight: 600,
+                          background: badge.bg, color: badge.color,
+                        }}>
+                          {badge.label}
+                        </span>
+                      </div>
+
+                      <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>
+                        <p style={{ margin: 0, fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+                          Mis à jour {formatStudioDate(sc.updatedAt)}
+                        </p>
+                      </div>
+
+                      {/* Actions */}
+                      <div style={{ display: "flex", gap: 8 }}>
+                        <button
+                          onClick={() => router.push(`/studio/${sc.id}`)}
+                          style={{
+                            flex: 1, background: "rgba(91,95,199,0.2)", color: "#a5a8ff",
+                            border: "none", padding: "8px 12px", borderRadius: 6,
+                            fontSize: 12, fontWeight: 600, cursor: "pointer",
+                          }}
+                        >
+                          Éditer
+                        </button>
+                        {studioDeleteConfirm === sc.id ? (
+                          <>
+                            <button
+                              onClick={() => handleStudioDelete(sc.id)}
+                              disabled={studioDeleting === sc.id}
+                              style={{
+                                flex: 1, background: "#ef4444", color: "#fff",
+                                border: "none", padding: "8px 12px", borderRadius: 6,
+                                fontSize: 12, fontWeight: 600,
+                                cursor: studioDeleting === sc.id ? "wait" : "pointer",
+                                opacity: studioDeleting === sc.id ? 0.7 : 1,
+                              }}
+                            >
+                              {studioDeleting === sc.id ? "..." : "Confirmer"}
+                            </button>
+                            <button
+                              onClick={() => setStudioDeleteConfirm(null)}
+                              style={{
+                                flex: 1, background: "rgba(255,255,255,0.1)", color: "#fff",
+                                border: "none", padding: "8px 12px", borderRadius: 6,
+                                fontSize: 12, fontWeight: 600, cursor: "pointer",
+                              }}
+                            >
+                              Annuler
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            onClick={() => setStudioDeleteConfirm(sc.id)}
+                            style={{
+                              flex: 1, background: "rgba(255,255,255,0.1)",
+                              color: "rgba(255,255,255,0.6)",
+                              border: "none", padding: "8px 12px", borderRadius: 6,
+                              fontSize: 12, fontWeight: 600, cursor: "pointer",
+                              transition: "all 0.2s",
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = "rgba(239,68,68,0.2)";
+                              e.currentTarget.style.color = "#fca5a5";
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = "rgba(255,255,255,0.1)";
+                              e.currentTarget.style.color = "rgba(255,255,255,0.6)";
+                            }}
+                          >
+                            Supprimer
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Create Modal */}
+            {studioShowModal && (
+              <div
+                style={{
+                  position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+                  background: "rgba(0,0,0,0.6)", display: "flex",
+                  alignItems: "center", justifyContent: "center", zIndex: 1000, padding: 20,
+                }}
+                onClick={() => setStudioShowModal(false)}
+              >
+                <div
+                  onClick={(e) => e.stopPropagation()}
+                  style={{
+                    background: "#1a1a2e", border: "1px solid rgba(255,255,255,0.1)",
+                    borderRadius: 16, padding: 32, maxWidth: 400, width: "100%",
+                  }}
+                >
+                  <h2 style={{ margin: "0 0 20px", fontSize: 20, fontWeight: 700, color: "#fff" }}>
+                    Créer un nouveau scénario
+                  </h2>
+                  <div style={{ marginBottom: 16 }}>
+                    <label style={{ display: "block", marginBottom: 8, fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
+                      Titre *
+                    </label>
+                    <input
+                      type="text"
+                      value={studioModalTitle}
+                      onChange={(e) => setStudioModalTitle(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleStudioCreate(); }}
+                      placeholder="Ex: Négociation difficile"
+                      style={{
+                        width: "100%", background: "rgba(255,255,255,0.05)",
+                        border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8,
+                        padding: "10px 12px", color: "#fff", fontSize: 13,
+                        fontFamily: "inherit", boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                  <div style={{ marginBottom: 24 }}>
+                    <label style={{ display: "block", marginBottom: 8, fontSize: 13, color: "rgba(255,255,255,0.7)" }}>
+                      Tags (optionnel, séparés par des virgules)
+                    </label>
+                    <input
+                      type="text"
+                      value={studioModalTags}
+                      onChange={(e) => setStudioModalTags(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") handleStudioCreate(); }}
+                      placeholder="Ex: difficult, sales, high-stakes"
+                      style={{
+                        width: "100%", background: "rgba(255,255,255,0.05)",
+                        border: "1px solid rgba(255,255,255,0.1)", borderRadius: 8,
+                        padding: "10px 12px", color: "#fff", fontSize: 13,
+                        fontFamily: "inherit", boxSizing: "border-box",
+                      }}
+                    />
+                  </div>
+                  <div style={{ display: "flex", gap: 12 }}>
+                    <button
+                      onClick={() => setStudioShowModal(false)}
+                      style={{
+                        flex: 1, background: "rgba(255,255,255,0.1)", color: "#fff",
+                        border: "none", padding: "10px 16px", borderRadius: 8,
+                        fontSize: 14, fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      Annuler
+                    </button>
+                    <button
+                      onClick={handleStudioCreate}
+                      disabled={studioCreating}
+                      style={{
+                        flex: 1, background: "#5b5fc7", color: "#fff",
+                        border: "none", padding: "10px 16px", borderRadius: 8,
+                        fontSize: 14, fontWeight: 600,
+                        cursor: studioCreating ? "wait" : "pointer",
+                        opacity: studioCreating ? 0.7 : 1,
+                      }}
+                    >
+                      {studioCreating ? "Création..." : "Créer"}
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
