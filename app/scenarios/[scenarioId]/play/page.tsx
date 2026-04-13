@@ -2236,11 +2236,55 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       {selectedMail.body}
                     </div>
                     {selectedMail.attachments && selectedMail.attachments.length > 0 && (
-                      <div style={{ marginTop: 16, padding: 12, background: "#f8f8f8", borderRadius: 6 }}>
-                        <strong style={{ fontSize: 12 }}>Pièces jointes :</strong>
-                        {selectedMail.attachments.map((a: any) => (
-                          <div key={a.id} style={{ fontSize: 12, color: "#5b5fc7", marginTop: 4 }}>📎 {a.label}</div>
-                        ))}
+                      <div style={{ marginTop: 16, padding: 14, background: "#f8f9fa", borderRadius: 8, border: "1px solid #e8e8e8" }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.3px" }}>
+                          📎 Pièces jointes ({selectedMail.attachments.length})
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                          {selectedMail.attachments.map((a: any) => {
+                            // Match attachment to scenario document
+                            const doc = scenario?.resources?.documents?.find((d: any) => d.doc_id === a.id);
+                            const hasFile = doc?.file_path;
+                            const hasImage = doc?.image_path;
+                            const isPDF = hasFile && doc.file_path!.endsWith(".pdf");
+                            const isImage = !!hasImage;
+                            const fileIcon = isPDF ? "📄" : isImage ? "🖼️" : "📁";
+                            const fileType = isPDF ? "PDF" : isImage ? "Image" : "Document";
+
+                            return (
+                              <div
+                                key={a.id}
+                                style={{
+                                  display: "flex", alignItems: "center", gap: 8,
+                                  padding: "8px 12px", background: "#fff", borderRadius: 6,
+                                  border: "1px solid #ddd", cursor: hasFile || hasImage ? "pointer" : "default",
+                                  transition: "all .15s", minWidth: 180, maxWidth: 280,
+                                }}
+                                onMouseEnter={(e) => { if (hasFile || hasImage) e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.background = "#f0f0ff"; }}
+                                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#ddd"; e.currentTarget.style.background = "#fff"; }}
+                                onClick={() => {
+                                  if (isPDF && hasFile) {
+                                    window.open(`/api/download?file=${encodeURIComponent(doc.file_path!)}`, "_blank");
+                                  } else if (isImage && hasImage) {
+                                    // Switch to docs tab and select this document
+                                    setMainView("docs");
+                                  }
+                                }}
+                              >
+                                <span style={{ fontSize: 22, flexShrink: 0 }}>{fileIcon}</span>
+                                <div style={{ flex: 1, minWidth: 0 }}>
+                                  <div style={{ fontSize: 12, fontWeight: 600, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                    {a.label}
+                                  </div>
+                                  <div style={{ fontSize: 10, color: "#888" }}>{fileType}</div>
+                                </div>
+                                {(hasFile || hasImage) && (
+                                  <span style={{ fontSize: 14, color: "#5b5fc7", flexShrink: 0 }} title="Ouvrir">⬇</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
                       </div>
                     )}
 
@@ -2303,39 +2347,49 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         <div style={{
                           position: "absolute", top: "100%", right: 0, marginTop: 4, zIndex: 100,
                           background: "#fff", border: "1px solid #ddd", borderRadius: 8,
-                          boxShadow: "0 4px 16px rgba(0,0,0,.12)", width: 260, maxHeight: 240, overflowY: "auto",
+                          boxShadow: "0 4px 16px rgba(0,0,0,.12)", width: 300, maxHeight: 280, overflowY: "auto",
                         }}>
                           <div style={{ padding: "8px 12px", borderBottom: "1px solid #eee", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase" }}>
-                            Contacts disponibles
+                            Répertoire — Destinataire
                           </div>
                           {actors
-                            .filter((a: any) => a.actor_id !== "player" && a.interaction_modes?.some((m: string) => /mail|email/i.test(m)))
-                            .map((a: any) => (
-                              <div
-                                key={a.actor_id}
-                                onClick={() => {
-                                  const name = a.email || a.name;
-                                  const existing = currentMailDraft.to.trim();
-                                  updateDraft({ to: existing ? `${existing}, ${name}` : name });
-                                  setShowContactPicker(null);
-                                }}
-                                style={{
-                                  padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-                                  borderBottom: "1px solid #f5f5f5", transition: "background .1s",
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0ff")}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
-                              >
-                                <Avatar initials={a.avatar?.initials || getInitials(a.name)} color={a.avatar?.color || "#666"} size={28} />
-                                <div>
-                                  <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{a.name}</div>
-                                  <div style={{ fontSize: 11, color: "#888" }}>{a.email || a.role}</div>
+                            .filter((a: any) => a.actor_id !== "player" && (a.visible_in_contacts || a.email))
+                            .map((a: any) => {
+                              const contactEmail = a.email || a.name;
+                              const isAlreadyAdded = currentMailDraft.to.toLowerCase().includes(contactEmail.toLowerCase());
+                              return (
+                                <div
+                                  key={a.actor_id}
+                                  onClick={() => {
+                                    if (isAlreadyAdded) {
+                                      // Remove from To field
+                                      const parts = currentMailDraft.to.split(",").map((s: string) => s.trim()).filter((s: string) => s.toLowerCase() !== contactEmail.toLowerCase());
+                                      updateDraft({ to: parts.join(", ") });
+                                    } else {
+                                      const existing = currentMailDraft.to.trim();
+                                      updateDraft({ to: existing ? `${existing}, ${contactEmail}` : contactEmail });
+                                    }
+                                  }}
+                                  style={{
+                                    padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+                                    borderBottom: "1px solid #f5f5f5", transition: "background .1s",
+                                    background: isAlreadyAdded ? "#f0f0ff" : "#fff",
+                                  }}
+                                  onMouseEnter={(e) => { if (!isAlreadyAdded) e.currentTarget.style.background = "#fafafa"; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.background = isAlreadyAdded ? "#f0f0ff" : "#fff"; }}
+                                >
+                                  <Avatar initials={a.avatar?.initials || getInitials(a.name)} color={a.avatar?.color || "#666"} size={28} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{a.name}</div>
+                                    <div style={{ fontSize: 11, color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                      {a.role?.slice(0, 40)}{a.role?.length > 40 ? "..." : ""}
+                                    </div>
+                                    {a.email && <div style={{ fontSize: 10, color: "#5b5fc7" }}>{a.email}</div>}
+                                  </div>
+                                  {isAlreadyAdded && <span style={{ fontSize: 16, color: "#5b5fc7", flexShrink: 0 }}>✓</span>}
                                 </div>
-                              </div>
-                            ))}
-                          {actors.filter((a: any) => a.actor_id !== "player" && a.interaction_modes?.some((m: string) => /mail|email/i.test(m))).length === 0 && (
-                            <div style={{ padding: "12px", fontSize: 12, color: "#999", textAlign: "center" }}>Aucun contact email</div>
-                          )}
+                              );
+                            })}
                         </div>
                       )}
                     </div>
@@ -2364,39 +2418,48 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         <div style={{
                           position: "absolute", top: "100%", right: 0, marginTop: 4, zIndex: 100,
                           background: "#fff", border: "1px solid #ddd", borderRadius: 8,
-                          boxShadow: "0 4px 16px rgba(0,0,0,.12)", width: 260, maxHeight: 240, overflowY: "auto",
+                          boxShadow: "0 4px 16px rgba(0,0,0,.12)", width: 300, maxHeight: 280, overflowY: "auto",
                         }}>
                           <div style={{ padding: "8px 12px", borderBottom: "1px solid #eee", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase" }}>
-                            Contacts disponibles
+                            Répertoire — Copie (Cc)
                           </div>
                           {actors
-                            .filter((a: any) => a.actor_id !== "player" && a.interaction_modes?.some((m: string) => /mail|email/i.test(m)))
-                            .map((a: any) => (
-                              <div
-                                key={a.actor_id}
-                                onClick={() => {
-                                  const name = a.email || a.name;
-                                  const existing = currentMailDraft.cc.trim();
-                                  updateDraft({ cc: existing ? `${existing}, ${name}` : name });
-                                  setShowContactPicker(null);
-                                }}
-                                style={{
-                                  padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-                                  borderBottom: "1px solid #f5f5f5", transition: "background .1s",
-                                }}
-                                onMouseEnter={(e) => (e.currentTarget.style.background = "#f0f0ff")}
-                                onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
-                              >
-                                <Avatar initials={a.avatar?.initials || getInitials(a.name)} color={a.avatar?.color || "#666"} size={28} />
-                                <div>
-                                  <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{a.name}</div>
-                                  <div style={{ fontSize: 11, color: "#888" }}>{a.email || a.role}</div>
+                            .filter((a: any) => a.actor_id !== "player" && (a.visible_in_contacts || a.email))
+                            .map((a: any) => {
+                              const contactEmail = a.email || a.name;
+                              const isAlreadyAdded = currentMailDraft.cc.toLowerCase().includes(contactEmail.toLowerCase());
+                              return (
+                                <div
+                                  key={a.actor_id}
+                                  onClick={() => {
+                                    if (isAlreadyAdded) {
+                                      const parts = currentMailDraft.cc.split(",").map((s: string) => s.trim()).filter((s: string) => s.toLowerCase() !== contactEmail.toLowerCase());
+                                      updateDraft({ cc: parts.join(", ") });
+                                    } else {
+                                      const existing = currentMailDraft.cc.trim();
+                                      updateDraft({ cc: existing ? `${existing}, ${contactEmail}` : contactEmail });
+                                    }
+                                  }}
+                                  style={{
+                                    padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
+                                    borderBottom: "1px solid #f5f5f5", transition: "background .1s",
+                                    background: isAlreadyAdded ? "#f0f0ff" : "#fff",
+                                  }}
+                                  onMouseEnter={(e) => { if (!isAlreadyAdded) e.currentTarget.style.background = "#fafafa"; }}
+                                  onMouseLeave={(e) => { e.currentTarget.style.background = isAlreadyAdded ? "#f0f0ff" : "#fff"; }}
+                                >
+                                  <Avatar initials={a.avatar?.initials || getInitials(a.name)} color={a.avatar?.color || "#666"} size={28} />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{a.name}</div>
+                                    <div style={{ fontSize: 11, color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                      {a.role?.slice(0, 40)}{a.role?.length > 40 ? "..." : ""}
+                                    </div>
+                                    {a.email && <div style={{ fontSize: 10, color: "#5b5fc7" }}>{a.email}</div>}
+                                  </div>
+                                  {isAlreadyAdded && <span style={{ fontSize: 16, color: "#5b5fc7", flexShrink: 0 }}>✓</span>}
                                 </div>
-                              </div>
-                            ))}
-                          {actors.filter((a: any) => a.actor_id !== "player" && a.interaction_modes?.some((m: string) => /mail|email/i.test(m))).length === 0 && (
-                            <div style={{ padding: "12px", fontSize: 12, color: "#999", textAlign: "center" }}>Aucun contact email</div>
-                          )}
+                              );
+                            })}
                         </div>
                       )}
                     </div>

@@ -154,7 +154,7 @@ MODE AUTONOMY:
 
     const reply =
       sanitize(roleplayResponse.output_text || "").trim() ||
-      `I'm not sure I'm following you, ${playerName}. Can you clarify?`;
+      `Je ne suis pas sûr de bien comprendre, ${playerName}. Pouvez-vous préciser ?`;
 
     // Build evaluation prompt — PLAYER-ONLY scoring
     // CRITICAL: Only player messages are included. No NPC/AI responses.

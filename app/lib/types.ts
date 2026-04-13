@@ -283,6 +283,9 @@ export type DocumentDefinition = {
 
   /** Optional file path or URL */
   file_path?: string;
+
+  /** Optional image path for image-type documents */
+  image_path?: string;
 };
 
 /**

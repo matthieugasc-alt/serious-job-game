@@ -795,8 +795,9 @@ export function scheduleInterruption(session: SessionState) {
   const nextInterruption = interruptions.find((interruption) => {
     const interruptId =
       interruption.interrupt_id || interruption.event_id || interruption.id;
+    // Skip interruptions with no content or no ID — they would produce empty/generic messages
+    if (!interruptId || !interruption.content?.trim()) return false;
     return (
-      interruptId &&
       !session.triggeredInterruptions.includes(interruptId) &&
       !session.pendingTimedEvents.some((e) => e.id === interruptId)
     );
@@ -830,7 +831,7 @@ export function scheduleInterruption(session: SessionState) {
           nextInterruption.actor ||
           nextInterruption.source_actor ||
           "unknown",
-        content: nextInterruption.content || "Interruption",
+        content: nextInterruption.content || "",
         dueAt: Date.now() + delayMs,
         phaseId,
         type: nextInterruption.type || "chat",
@@ -846,7 +847,7 @@ export function scheduleInterruption(session: SessionState) {
         nextInterruption.actor ||
         nextInterruption.source_actor ||
         "unknown",
-      content: nextInterruption.content || "Interruption",
+      content: nextInterruption.content || "",
       dueAt: Date.now() + delayMs,
       phaseId,
       type: nextInterruption.type || "chat",
@@ -860,7 +861,7 @@ export function scheduleInterruption(session: SessionState) {
         nextInterruption.actor ||
         nextInterruption.source_actor ||
         "unknown",
-      content: nextInterruption.content || "Interruption",
+      content: nextInterruption.content || "",
       dueAt: Date.now(),
       phaseId,
       type: nextInterruption.type || "chat",
@@ -885,6 +886,13 @@ export function flushDueTimedEvents(session: SessionState) {
     }
 
     session.triggeredInterruptions.push(event.id);
+
+    // Skip events with no meaningful content — prevents generic/empty messages
+    if (!event.content?.trim()) continue;
+
+    // Skip events whose phase no longer matches the current phase — prevents stale interruptions
+    const currentPhaseId = getCurrentPhaseId(session);
+    if (event.phaseId && currentPhaseId && event.phaseId !== currentPhaseId) continue;
 
     pushAction(session, {
       type: "interruption_triggered",
@@ -970,7 +978,7 @@ export function injectPhaseEntryEvents(session: SessionState) {
     if (session.injectedPhaseEntryEvents.includes(key)) continue;
 
     const actor = event.source_actor || event.actor || "system";
-    const content = event.content || "Événement";
+    const content = event.content || "";
     const attachments = Array.isArray(event.attachments)
       ? event.attachments.map((a: any, idx: number) => ({
           id: a.id || `${eventId}_att_${idx}`,
@@ -982,6 +990,12 @@ export function injectPhaseEntryEvents(session: SessionState) {
 
     const delayMs = event.delay_ms || 0;
     const useDelay = delayMs > 0;
+
+    // Skip chat events with no meaningful content — prevents empty/generic messages
+    if (!looksLikeMailEvent(event) && !content.trim()) {
+      session.injectedPhaseEntryEvents.push(key);
+      continue;
+    }
 
     // Determine if this is a mail or chat event
     if (looksLikeMailEvent(event)) {
