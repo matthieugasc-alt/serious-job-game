@@ -81,6 +81,7 @@
     {
       "actor_id": "antoine_delvaux",
       "name": "Antoine Delvaux",
+      "email": "antoine.delvaux@gmail.com",
       "role": "Client propriétaire, héritier de l'appartement",
       "personality": "Émotif et attaché au bien. Nostalgique. Pas du tout expert en immobilier. Fait confiance au joueur mais peut se braquer s'il sent qu'on ne respecte pas son attachement au bien. Veut louer mais ne veut surtout pas vendre. Ne connaît pas l'encadrement des loyers. A tendance à surestimer la valeur du bien par affection. Rationnel quand on lui explique calmement.",
       "interaction_modes": ["chat"],
@@ -98,6 +99,7 @@
     {
       "actor_id": "julien_marchand",
       "name": "Julien Marchand",
+      "email": "julien.marchand@immolyon.fr",
       "role": "Agent immobilier confirmé (6 ans d'expérience), même agence",
       "personality": "Sympa mais très subjectif dans ses jugements sur les candidats. A des avis tranchés sur les gens basés sur des impressions personnelles plutôt que sur des critères objectifs. Peut influencer le joueur avec ses opinions. Aime bien donner des conseils non sollicités.",
       "interaction_modes": ["chat"],
@@ -115,6 +117,7 @@
     {
       "actor_id": "claire_beaumont",
       "name": "Claire Beaumont",
+      "email": "claire.beaumont@immolyon.fr",
       "role": "Directrice d'agence ImmoLyon Patrimoine",
       "personality": "Professionnelle, exigeante, bienveillante. Attend du joueur qu'il soit rigoureux et factuel. Envoie un message au joueur à chaque nouvelle phase pour lui rappeler les règles et objectifs.",
       "interaction_modes": ["chat", "mail"],
@@ -273,7 +276,15 @@
         }
       ],
 
-      "completion_rules": { "min_score": 1 },
+      "completion_rules": {
+        "min_score": 3,
+        "required_player_evidence": [
+          {
+            "keywords": ["1700", "1750", "1800", "1850", "1900", "1950", "2000", "2050", "2100", "2150", "2200", "2300", "21,80", "26,10", "17,50", "21 €", "22 €"],
+            "min_matches": 1
+          }
+        ]
+      },
       "auto_advance": true,
       "next_phase": "phase_1_2"
     },
@@ -302,7 +313,19 @@
 
       "interruptions": [],
 
-      "completion_rules": { "min_score": 1 },
+      "completion_rules": {
+        "min_score": 3,
+        "required_player_evidence": [
+          {
+            "keywords": ["cuisine", "gaz", "électrique", "norme", "sécurité", "danger", "vétuste", "conforme"],
+            "min_matches": 2
+          },
+          {
+            "keywords": ["meuble", "meubles", "débarrasser", "retirer", "enlever", "supprimer", "vider", "remplacer", "rénover", "travaux"],
+            "min_matches": 1
+          }
+        ]
+      },
       "auto_advance": true,
       "next_phase": "phase_1_3"
     },
@@ -331,7 +354,15 @@
 
       "interruptions": [],
 
-      "completion_rules": { "min_score": 1 },
+      "completion_rules": {
+        "min_score": 3,
+        "required_player_evidence": [
+          {
+            "keywords": ["location nue", "lmnp", "meublé", "micro-foncier", "régime réel", "foncier", "bic", "fiscal", "fiscalité", "impôt"],
+            "min_matches": 2
+          }
+        ]
+      },
       "auto_advance": true,
       "next_phase": "phase_4"
     },
@@ -413,7 +444,11 @@
           "actor": "claire_beaumont",
           "delay_ms": 3000,
           "subject": "Dossiers candidats — Bien Delvaux Fourvière",
-          "content": "Bonjour,\n\nJe te transmets les 5 dossiers de candidature pour le T3 Fourvière.\n\nAnalyse-les sur des critères objectifs : revenus, stabilité professionnelle, ratio charges/loyer, garanties. Consulte la grille ALI si besoin.\n\nEnvoie-moi ta présélection argumentée par mail.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine"
+          "content": "Bonjour,\n\nJe te transmets les 5 dossiers de candidature pour le T3 Fourvière.\n\nAnalyse-les sur des critères objectifs : revenus, stabilité professionnelle, ratio charges/loyer, garanties. Consulte la grille ALI en pièce jointe.\n\nEnvoie-moi ta présélection argumentée par mail.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine",
+          "attachments": [
+            { "id": "dossiers_candidats", "label": "Dossiers des 5 candidats locataires" },
+            { "id": "grille_ali", "label": "Grille d'éligibilité ALI" }
+          ]
         }
       ],
 

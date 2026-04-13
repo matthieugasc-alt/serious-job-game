@@ -324,6 +324,52 @@ export function getScenarioDocuments(session: SessionState) {
   return session.scenario.resources?.documents || [];
 }
 
+/**
+ * Filter documents by phase availability.
+ *
+ * @param phases      - ordered array of phase definitions from scenario.phases
+ * @param documents   - full array of documents from scenario.resources.documents
+ * @param currentPhaseId - ID of the current phase, or null if game hasn't started
+ *
+ * When currentPhaseId is null (preview / before game start), only globally
+ * available documents are returned (those without available_from_phase).
+ */
+export function filterDocumentsByPhase(
+  phases: Array<{ phase_id: string; next_phase?: string }>,
+  documents: any[],
+  currentPhaseId: string | null
+): any[] {
+  // Build progression map by walking the next_phase chain
+  const byId: Record<string, { phase_id: string; next_phase?: string }> = {};
+  for (const p of phases) byId[p.phase_id] = p;
+  const targets = new Set(phases.map((p) => p.next_phase).filter(Boolean));
+  let head = phases.find((p) => !targets.has(p.phase_id)) || phases[0];
+  const progressionMap: Record<string, number> = {};
+  let rank = 0;
+  let cur: { phase_id: string; next_phase?: string } | undefined = head;
+  const visited = new Set<string>();
+  while (cur && !visited.has(cur.phase_id)) {
+    progressionMap[cur.phase_id] = rank++;
+    visited.add(cur.phase_id);
+    cur = cur.next_phase ? byId[cur.next_phase] : undefined;
+  }
+  // Orphan phases get appended at the end
+  for (const p of phases) {
+    if (!(p.phase_id in progressionMap)) progressionMap[p.phase_id] = rank++;
+  }
+
+  const currentRank = currentPhaseId != null
+    ? (progressionMap[currentPhaseId] ?? -1)
+    : -1; // no phase = before game start → only globals
+
+  return documents.filter((d: any) => {
+    if (!d.available_from_phase) return true; // globally available
+    const requiredRank = progressionMap[d.available_from_phase];
+    if (requiredRank == null) return true; // unknown phase → show by default
+    return currentRank >= requiredRank;
+  });
+}
+
 export function addPlayerMessage(session: SessionState, content: string, toActor?: string) {
   const phaseId = getCurrentPhaseId(session);
 
@@ -452,6 +498,25 @@ function isCurrentPhaseValidatedByRules(session: SessionState): boolean {
 
   // If completion_rules are defined, use them
   if (completionRules) {
+    // Check required_player_evidence FIRST — hard gate on player's own messages
+    // This ensures the player has actually mentioned key concepts, not just received them from NPCs
+    if (Array.isArray(completionRules.required_player_evidence) && completionRules.required_player_evidence.length > 0) {
+      const phaseConv = getPhaseConversation(session);
+      const playerText = phaseConv
+        .filter((m) => m.role === "player")
+        .map((m) => m.content.toLowerCase())
+        .join(" ");
+      const allEvidenceMet = completionRules.required_player_evidence.every(
+        (evidence: { keywords: string[]; min_matches: number }) => {
+          const matched = evidence.keywords.filter((kw: string) => playerText.includes(kw.toLowerCase()));
+          return matched.length >= (evidence.min_matches || 1);
+        }
+      );
+      if (!allEvidenceMet) {
+        return false; // Hard block: player hasn't demonstrated required knowledge
+      }
+    }
+
     // Check min_score: validate if phase score >= threshold
     if (completionRules.min_score !== undefined) {
       const phaseScore = session.scores[phaseId] || 0;

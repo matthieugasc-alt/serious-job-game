@@ -3,6 +3,7 @@
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import type { ScenarioDefinition } from "@/app/lib/types";
+import { filterDocumentsByPhase } from "@/app/lib/runtime";
 
 // ════════════════════════════════════════════════════════════════════
 // HELPERS
@@ -54,6 +55,11 @@ export default function IntroductionPage({
   const [error, setError] = useState<string | null>(null);
   const [starting, setStarting] = useState(false);
   const [selectedDocId, setSelectedDocId] = useState<string | null>(null);
+
+  // Filter documents: before game starts, only globally available docs are shown
+  const visibleDocuments = scenario
+    ? filterDocumentsByPhase(scenario.phases || [], scenario.resources?.documents || [], null)
+    : [];
 
   useEffect(() => {
     (async () => {
@@ -281,14 +287,14 @@ export default function IntroductionPage({
         </div>
 
         {/* ═══════ DOCUMENTS SECTION ═══════ */}
-        {scenario.resources?.documents && scenario.resources.documents.length > 0 && (
+        {visibleDocuments.length > 0 && (
           <Card title="📁 Vos documents de travail" style={{ marginBottom: 24 }}>
             <p style={{ margin: "0 0 12px", fontSize: 13, color: "#666" }}>
               Consultez ces documents avant de commencer. Ils seront également accessibles pendant le jeu.
             </p>
 
             {selectedDocId ? (() => {
-              const doc = (scenario.resources?.documents || []).find((d: any) => d.doc_id === selectedDocId);
+              const doc = visibleDocuments.find((d: any) => d.doc_id === selectedDocId);
               if (!doc) return null;
               const isPDF = !!(doc as any).file_path && (doc as any).file_path.endsWith(".pdf");
               return (
@@ -335,7 +341,7 @@ export default function IntroductionPage({
               );
             })() : (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
-                {(scenario.resources?.documents || []).map((doc: any) => {
+                {visibleDocuments.map((doc: any) => {
                   const hasImage = !!doc.image_path;
                   const hasPDF = !!doc.file_path && doc.file_path.endsWith(".pdf");
                   return hasPDF ? (

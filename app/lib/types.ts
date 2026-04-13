@@ -486,6 +486,17 @@ export type CompletionRules = {
    * For complex conditions not covered by standard rules.
    */
   custom?: string;
+
+  /**
+   * Hard gate: required keywords that MUST appear in the player's own messages
+   * before the phase can be validated. Each entry requires min_matches keywords
+   * from its keywords list to be found in the player's text.
+   * This prevents phases from being validated by NPC guidance alone.
+   */
+  required_player_evidence?: Array<{
+    keywords: string[];
+    min_matches: number;
+  }>;
 };
 
 /**

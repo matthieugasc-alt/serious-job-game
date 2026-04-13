@@ -88,6 +88,7 @@ export async function POST(req: Request) {
       ? body.recentConversation
       : [];
     const criteria = Array.isArray(body?.criteria) ? body.criteria : [];
+    const playerMessages = Array.isArray(body?.playerMessages) ? body.playerMessages : [];
 
     // Build mode-specific guidance
     const modeGuidance =
@@ -155,9 +156,24 @@ MODE AUTONOMY:
       sanitize(roleplayResponse.output_text || "").trim() ||
       `I'm not sure I'm following you, ${playerName}. Can you clarify?`;
 
-    // Build evaluation prompt — lightweight scoring to allow phase progression
+    // Build evaluation prompt — PLAYER-ONLY scoring
+    // CRITICAL: Only player messages are included. No NPC/AI responses.
+    const playerMsgBlock = playerMessages.length > 0
+      ? playerMessages.map((m: string, i: number) => `[Player msg ${i + 1}]: ${sanitize(m)}`).join("\n")
+      : `[Player msg]: ${message}`;
+
     const evaluationPrompt = sanitize(`
-You are an evaluator of a professional serious game. Quick evaluation only.
+You are a STRICT evaluator of a professional serious game.
+
+=== RULE ABSOLUE ===
+Tu dois analyser UNIQUEMENT les messages du JOUEUR ci-dessous.
+Tu n'as PAS accès aux réponses des personnages (PNJ/IA).
+Tu n'as PAS LE DROIT d'utiliser des réponses de l'IA pour compléter ou déduire une réponse correcte.
+Tu n'as PAS LE DROIT de créditer le joueur pour une connaissance qu'il n'a pas explicitement formulée lui-même.
+Si le joueur pose une question sans y répondre, ce n'est PAS une compétence démontrée.
+Si le joueur reformule ce qu'un PNJ lui a dit, ce n'est PAS une compétence démontrée.
+Seule la PRODUCTION PROPRE du joueur compte.
+=== FIN RULE ===
 
 PHASE: ${phaseTitle}
 OBJECTIVE: ${phaseObjective}${phaseFocus ? `\nPHASE FOCUS (strict scope): ${phaseFocus}\nOnly evaluate competencies related to this phase scope. Ignore off-topic content.` : ""}
@@ -165,14 +181,17 @@ OBJECTIVE: ${phaseObjective}${phaseFocus ? `\nPHASE FOCUS (strict scope): ${phas
 COMPETENCIES for this phase:
 ${sanitize(JSON.stringify(criteria, null, 2))}
 
-RECENT CONVERSATION:
-${sanitize(JSON.stringify(recentConversation.slice(-6), null, 2))}
+=== MESSAGES DU JOUEUR UNIQUEMENT ===
+${playerMsgBlock}
+=== FIN MESSAGES JOUEUR ===
 
-LAST PLAYER MESSAGE:
-${message}
-
-Evaluate how many competencies (0-3) the player demonstrates in their last message.
-Consider conversation context. Be fair, not harsh.
+Evaluate how many competencies (0-3) the player demonstrates across ALL their messages above.
+Be EXTREMELY STRICT:
+- score_delta = 0 if the player's messages are vague, generic, or merely ask questions.
+- score_delta = 0 if the player only acknowledges or agrees without adding substance.
+- score_delta > 0 ONLY if the player provides SPECIFIC, CONCRETE evidence: numbers, rules, criteria, analysis, or clear professional reasoning.
+- Each matched competency must be backed by an EXPLICIT statement in the player's messages.
+- Do NOT infer or assume knowledge the player hasn't stated.
 
 Return STRICT JSON only:
 {

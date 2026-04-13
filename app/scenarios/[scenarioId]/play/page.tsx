@@ -18,6 +18,7 @@ import {
   updateMailDraft,
   toggleMailAttachment,
   sendCurrentPhaseMail,
+  filterDocumentsByPhase,
 } from "@/app/lib/runtime";
 import type { ScenarioDefinition } from "@/app/lib/types";
 
@@ -217,8 +218,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const aiPromptsMapRef = useRef<Record<string, string>>({});
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const prevMailCountRef = useRef(0);
-  const prevChatCountRef = useRef(0);
+  const prevMailCountRef = useRef(-1);
+  const prevChatCountRef = useRef(-1);
 
   // ── Runtime view ──
   const view = useMemo(
@@ -233,41 +234,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       : "Joueur";
 
   const allDocumentsRaw = scenario?.resources?.documents || [];
-  // Build a stable phase progression map: phaseId → rank (based on next_phase chain, not array index)
-  const phaseProgressionMap: Record<string, number> = (() => {
-    const phases = scenario?.phases || [];
-    if (phases.length === 0) return {};
-    // Build lookup by phase_id
-    const byId: Record<string, any> = {};
-    for (const p of phases) byId[p.phase_id] = p;
-    // Find the first phase (the one no other phase points to via next_phase)
-    const targets = new Set(phases.map((p: any) => p.next_phase).filter(Boolean));
-    let head = phases.find((p: any) => !targets.has(p.phase_id));
-    if (!head) head = phases[0]; // fallback: use array order if no clear head
-    // Walk the chain
-    const map: Record<string, number> = {};
-    let rank = 0;
-    let cur = head;
-    const visited = new Set<string>();
-    while (cur && !visited.has(cur.phase_id)) {
-      map[cur.phase_id] = rank++;
-      visited.add(cur.phase_id);
-      cur = cur.next_phase ? byId[cur.next_phase] : null;
-    }
-    // Add any phases not in the chain (orphans) at the end
-    for (const p of phases) {
-      if (!(p.phase_id in map)) map[p.phase_id] = rank++;
-    }
-    return map;
-  })();
-  const currentPhaseId = scenario?.phases?.[session?.currentPhaseIndex]?.phase_id;
-  const currentPhaseRank = currentPhaseId != null ? (phaseProgressionMap[currentPhaseId] ?? -1) : -1;
-  const allDocuments = allDocumentsRaw.filter((d: any) => {
-    if (!d.available_from_phase) return true; // globally available
-    const requiredRank = phaseProgressionMap[d.available_from_phase];
-    if (requiredRank == null) return true; // unknown phase referenced → show by default
-    return currentPhaseRank >= requiredRank;
-  });
+  const currentPhaseId = scenario?.phases?.[session?.currentPhaseIndex]?.phase_id ?? null;
+  const allDocuments = filterDocumentsByPhase(
+    scenario?.phases || [],
+    allDocumentsRaw,
+    currentPhaseId
+  );
   const attachableDocs = allDocuments.filter(
     (d: any) => d.usable_as_attachment || d.usable_as_pj
   );
@@ -392,7 +364,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
   // ── Track new mails for unread badge + notification ──
   useEffect(() => {
-    if (inboxMails.length > prevMailCountRef.current && prevMailCountRef.current > 0) {
+    // First render: initialize without notifying
+    if (prevMailCountRef.current === -1) {
+      prevMailCountRef.current = inboxMails.length;
+      return;
+    }
+    if (inboxMails.length > prevMailCountRef.current) {
       const newCount = inboxMails.length - prevMailCountRef.current;
       setUnreadMails((u) => u + newCount);
       // Show toast for each new mail
@@ -408,7 +385,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // ── Track new chat messages for notification ──
   useEffect(() => {
     const nonPlayerMsgs = conversation.filter((m: any) => m.role !== "player" && m.role !== "system");
-    if (nonPlayerMsgs.length > prevChatCountRef.current && prevChatCountRef.current > 0) {
+    // First render: initialize without notifying
+    if (prevChatCountRef.current === -1) {
+      prevChatCountRef.current = nonPlayerMsgs.length;
+      return;
+    }
+    if (nonPlayerMsgs.length > prevChatCountRef.current) {
       const newCount = nonPlayerMsgs.length - prevChatCountRef.current;
       const newMsgs = nonPlayerMsgs.slice(-newCount);
       for (const msg of newMsgs) {
@@ -864,6 +846,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   role: m.role === "player" ? "user" : "assistant",
                   content: m.content,
                 }));
+                const playerOnlyMsgs = convNow
+                  .filter((m: any) => m.role === "player")
+                  .slice(-6)
+                  .map((m: any) => m.content);
                 const res = await fetch("/api/chat", {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
@@ -878,6 +864,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     mode: v.adaptiveMode,
                     narrative: scen.narrative,
                     recentConversation: recentConv,
+                    playerMessages: playerOnlyMsgs,
                     roleplayPrompt: activePrompt,
                   }),
                 });
@@ -981,6 +968,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           role: m.role === "player" ? "user" : "assistant",
           content: m.content,
         })),
+        playerMessages: conversation.filter((m: any) => m.role === "player").slice(-6).map((m: any) => m.content),
         roleplayPrompt: activePrompt,
         mode: view?.adaptiveMode || "autonomy",
       }),
@@ -1021,6 +1009,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         role: m.role === "player" ? "user" : "assistant",
         content: m.content,
       }));
+      // Player-only messages for evaluation (no NPC responses)
+      const playerOnlyMessages = relevantConv
+        .filter((m: any) => m.role === "player")
+        .slice(-6)
+        .map((m: any) => m.content);
 
       // Pick the right prompt for the target actor
       const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
@@ -1039,6 +1032,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           mode: view.adaptiveMode,
           narrative: scenario.narrative,
           recentConversation: recentConv,
+          playerMessages: playerOnlyMessages,
           roleplayPrompt: activePrompt,
         }),
       });
@@ -1967,7 +1961,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 return (
                   <li
                     key={actor.actor_id}
-                    onClick={() => setSelectedContact(actor.actor_id)}
+                    onClick={() => { setSelectedContact(actor.actor_id); setMainView("chat"); }}
                     style={{
                       display: "flex", alignItems: "center", gap: 10,
                       padding: "10px 8px", borderRadius: 8,
