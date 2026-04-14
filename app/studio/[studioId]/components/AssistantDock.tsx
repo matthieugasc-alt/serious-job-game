@@ -19,15 +19,15 @@ import { useCallback, useRef, useState, useEffect } from 'react';
 type Mode = 'free' | 'fill' | 'patch';
 
 const MODE_LABELS: Record<Mode, string> = {
-  free: 'Discuter',
+  free: 'Co-écrire',
   fill: 'Remplir',
   patch: 'Patcher',
 };
 
 const MODE_HINTS: Record<Mode, string> = {
-  free: 'Pose une question, demande un avis, brainstorme.',
-  fill: 'Demande de remplir des champs de la section active.',
-  patch: 'Demande une modification structurelle (preview avant application).',
+  free: 'Écris-moi un contexte, un dialogue, une description, un mail…',
+  fill: 'Remplis les champs vides de la section active.',
+  patch: 'Modifie la structure du scénario (preview avant application).',
 };
 
 interface FieldAssignment {
@@ -291,6 +291,7 @@ export default function AssistantDock({
               message={m}
               onApplyFill={onApplyFill}
               onOpenPatch={() => setPatchModal(m)}
+              onFollowUp={(text) => setInput(text)}
             />
           ))}
           {loading && (
@@ -374,10 +375,12 @@ function MessageBubble({
   message,
   onApplyFill,
   onOpenPatch,
+  onFollowUp,
 }: {
   message: ChatMessage;
   onApplyFill: (fields: FieldAssignment[]) => void;
   onOpenPatch: () => void;
+  onFollowUp?: (text: string) => void;
 }) {
   if (message.error) {
     return (
@@ -420,19 +423,27 @@ function MessageBubble({
           {message.free.followUps.length > 0 && (
             <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {message.free.followUps.map((f, i) => (
-                <span
+                <button
                   key={i}
+                  onClick={() => {
+                    onFollowUp?.(f);
+                  }}
                   style={{
-                    padding: '3px 8px',
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1px solid rgba(255,255,255,0.12)',
+                    padding: '4px 10px',
+                    background: 'rgba(91,95,199,0.15)',
+                    border: '1px solid rgba(91,95,199,0.35)',
                     borderRadius: 999,
                     fontSize: 11,
-                    color: 'rgba(255,255,255,0.7)',
+                    fontWeight: 600,
+                    color: '#a5a8ff',
+                    cursor: 'pointer',
+                    transition: 'background 0.15s',
                   }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'rgba(91,95,199,0.3)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'rgba(91,95,199,0.15)')}
                 >
                   {f}
-                </span>
+                </button>
               ))}
             </div>
           )}

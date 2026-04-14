@@ -79,8 +79,15 @@ CRITÈRES À VÉRIFIER :
 - Documents inutiles, mal rattachés ou manquants
 - Phases déséquilibrées (une phase qui écrase les autres)
 - Tâches floues pour le joueur
-- Critères d'évaluation absents ou non mesurables
-- Conditions de fin (endings) incohérentes avec completion_rules
+- Compétences cibles absentes ou non observables dans une phase
+- Compétences formulées trop vaguement ("bien communiquer" au lieu d'une capacité précise et mesurable)
+- Phase sans trigger de fin clair lié à la démonstration d'une compétence
+- Scoring mécanique non relié aux compétences (score pur sans valeur pédagogique)
+- Conditions de fin (endings) incohérentes avec les compétences / completion_rules
+
+LOGIQUE PÉDAGOGIQUE :
+Tu raisonnes d'abord en compétences : qu'est-ce que le joueur doit apprendre, montrer, valider ?
+Le score et les critères techniques sont secondaires et doivent servir la validation d'une compétence, pas l'inverse.
 
 FORMAT DE SORTIE STRICT (JSON) :
 {

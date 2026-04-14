@@ -53,9 +53,11 @@ Champs cibles attendus (utilise ces paths exacts dans "path") :
   title, subtitle, description, difficulty, duration, locale, tags,
   context, mission, initialSituation, trigger, backgroundFact,
   actors[i].{name, role, personality, promptContent},
-  phases[i].{title, objective, introMessage, interactionMode, criteria[j].description},
+  phases[i].{title, objective, competencies[j], completionTrigger, introMessage, interactionMode, criteria[j].description},
   documents[i].{label, content},
   endings[i].{label, content}
+
+PRIORITÉ PHASES : extrais d'abord les compétences cibles (phases[i].competencies) et les triggers de fin (phases[i].completionTrigger). Le scoring est secondaire.
 `;
 
 function buildExtractionPrompt(

@@ -67,7 +67,7 @@ function sectionLabel(activeTab?: string): string {
     case "actors":
       return "l'onglet Acteurs";
     case "phases":
-      return "l'onglet Phases (titres, objectifs, critères d'évaluation, règles de complétion)";
+      return "l'onglet Phases (compétences cibles, objectifs, trigger de fin de phase, scoring secondaire)";
     case "documents":
       return "l'onglet Documents";
     case "endings":
@@ -91,28 +91,28 @@ function buildFreePrompt(
   const hist = history
     .map((m) => `${m.role === "user" ? "UTILISATEUR" : "ASSISTANT"}: ${m.content}`)
     .join("\n");
-  const focus = focusPath ? `\n- Focus demandé : "${focusPath}"` : "";
+  const focus = focusPath ? `\nFocus : "${focusPath}"` : "";
   return {
     system:
       STUDIO_SYSTEM_PROMPT +
-      `\n\nTu es en MODE DISCUSSION. Tu ne proposes AUCUNE modification du scénario. Tu conseilles, tu expliques, tu donnes des pistes.`,
-    user: `Contexte : l'utilisateur travaille actuellement sur ${sectionLabel(activeTab)}.${focus}
+      `\n\nMODE DISCUSSION — tu ne modifies pas le scénario.
+Mais tu ne te contentes PAS de commenter ou poser des questions.
+Tu PRODUIS du contenu directement exploitable : brouillons de descriptions, ébauches de dialogues, exemples de mails, propositions de personnages, formulations de compétences, etc.
+Si on te demande un avis, donne-le en 2 phrases puis propose immédiatement une alternative concrète.
+Ne reformule jamais la question. Réponds.`,
+    user: `Section active : ${sectionLabel(activeTab)}.${focus}
 
-Historique récent :
-${hist || "(aucun)"}
-
-Scénario courant (lecture seule) :
+${hist ? `Historique :\n${hist}\n` : ""}Scénario :
 \`\`\`json
 ${studioRaw}
 \`\`\`
 
-Question actuelle :
 ${message}
 
-RÉPONSE ATTENDUE (JSON STRICT) :
+JSON STRICT :
 {
-  "answer": "réponse concise et concrète (1 à 4 paragraphes)",
-  "followUps": [ "question de relance 1", "question de relance 2" ]
+  "answer": "ta réponse — produis du contenu, pas du commentaire. 1 à 3 paragraphes max.",
+  "followUps": [ "action concrète qu'on peut enchaîner (pas une question)", "autre action possible" ]
 }`,
   };
 }
@@ -127,39 +127,32 @@ function buildFillPrompt(
   const hist = history
     .map((m) => `${m.role === "user" ? "UTILISATEUR" : "ASSISTANT"}: ${m.content}`)
     .join("\n");
-  const focus = focusPath ? `\n- Path cible : "${focusPath}"` : "";
+  const focus = focusPath ? `\nPath cible : "${focusPath}"` : "";
   return {
     system:
       STUDIO_SYSTEM_PROMPT +
-      `\n\nTu es en MODE REMPLISSAGE. Tu proposes des VALEURS pour des champs précis. Tu ne restructures rien. Tu ne supprimes rien.`,
-    user: `Contexte : l'utilisateur est sur ${sectionLabel(activeTab)}.${focus}
+      `\n\nMODE REMPLISSAGE — tu écris directement les contenus pour les champs demandés.
+Pas de commentaire, pas de "voici ce que je propose". Tu remplis.
+Pour les phases : compétences cibles et trigger de fin AVANT tout scoring.
+"rationale" = 1 phrase sèche, pas un paragraphe explicatif.`,
+    user: `Section : ${sectionLabel(activeTab)}.${focus}
 
-Historique récent :
-${hist || "(aucun)"}
-
-Scénario :
+${hist ? `Historique :\n${hist}\n` : ""}Scénario :
 \`\`\`json
 ${studioRaw}
 \`\`\`
 
-Demande :
 ${message}
 
-RÉPONSE ATTENDUE (JSON STRICT) :
+JSON STRICT :
 {
-  "rationale": "1 à 2 phrases expliquant la logique du remplissage",
+  "rationale": "1 phrase max — ce que tu as rempli et pourquoi",
   "fields": [
-    { "path": "context", "value": "…texte proposé…", "summary": "Contexte reformulé" },
-    { "path": "phases[0].objective", "value": "…", "summary": "Objectif de la phase 1" }
+    { "path": "context", "value": "…contenu rédigé…", "summary": "Résumé 3 mots" }
   ]
 }
 
-RÈGLES :
-- Utilise la notation dot/crochet (ex: "phases[2].criteria[0].description").
-- "value" doit être du type attendu à cet endroit (string, number, boolean, array, object).
-- 1 à 8 assignations maximum.
-- Ne propose QUE des champs qui relèvent de ${sectionLabel(activeTab)}, sauf demande explicite.
-- Ne touche jamais aux ids.`,
+Notation dot/crochet. Types corrects. 1 à 8 assignations. Scope : ${sectionLabel(activeTab)} sauf demande explicite. Jamais les ids.`,
   };
 }
 
@@ -173,36 +166,30 @@ function buildPatchPrompt(
   const hist = history
     .map((m) => `${m.role === "user" ? "UTILISATEUR" : "ASSISTANT"}: ${m.content}`)
     .join("\n");
-  const focus = focusPath ? `\n- Path prioritaire : "${focusPath}"` : "";
+  const focus = focusPath ? `\nPath prioritaire : "${focusPath}"` : "";
   return {
     system:
       STUDIO_SYSTEM_PROMPT +
-      `\n\nTu es en MODE PATCH. Tu proposes une version révisée du scénario. Tu préserves TOUS les ids existants et les clés racine.`,
-    user: `Contexte : utilisateur sur ${sectionLabel(activeTab)}.${focus}
+      `\n\nMODE PATCH — tu produis directement la version révisée du scénario.
+Pas de justification, pas de commentaire. Tu fais le changement demandé.
+Préserve TOUS les ids et clés racine. Compétences avant scoring.`,
+    user: `Section : ${sectionLabel(activeTab)}.${focus}
 
-Historique récent :
-${hist || "(aucun)"}
-
-Scénario actuel :
+${hist ? `Historique :\n${hist}\n` : ""}Scénario actuel :
 \`\`\`json
 ${studioRaw}
 \`\`\`
 
-Demande :
 ${message}
 
-RÉPONSE ATTENDUE (JSON STRICT) :
+JSON STRICT :
 {
-  "summary": "1 phrase sur ce que fait le patch",
-  "changes": [ { "path": "phases[2].objective", "summary": "Reformulé pour durcir" } ],
+  "summary": "1 phrase — ce qui change",
+  "changes": [ { "path": "phases[2].objective", "summary": "3 mots" } ],
   "proposedScenario": { ...scénario complet révisé... }
 }
 
-CONTRAINTES :
-- Mêmes clés racine qu'à l'entrée.
-- Tous les ids existants préservés.
-- Pas de suppression d'entités sauf demande explicite de l'utilisateur.
-- Compatible avec le runtime (types inchangés).`,
+Mêmes clés racine. Ids préservés. Pas de suppression sauf demande. Types inchangés.`,
   };
 }
 

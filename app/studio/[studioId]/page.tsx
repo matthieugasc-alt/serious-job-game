@@ -9,6 +9,57 @@ import JobFamiliesSelect from './components/JobFamiliesSelect';
 import ImportDropzone from './components/ImportDropzone';
 import { applyAssignments } from '@/app/lib/setByPath';
 
+/**
+ * CommaListInput — stores raw text in local state, only parses on blur.
+ * Prevents the "eaten spaces" bug caused by split+trim+join on every keystroke.
+ */
+function CommaListInput({
+  value,
+  onChange,
+  placeholder,
+  style,
+}: {
+  value: string[];
+  onChange: (items: string[]) => void;
+  placeholder?: string;
+  style?: React.CSSProperties;
+}) {
+  const [raw, setRaw] = useState(() => value.join(', '));
+  const prevValueRef = useRef(value);
+
+  // Sync raw when value changes externally (e.g. after AI apply or load)
+  useEffect(() => {
+    const prev = prevValueRef.current;
+    if (
+      value.length !== prev.length ||
+      value.some((v, i) => v !== prev[i])
+    ) {
+      setRaw(value.join(', '));
+      prevValueRef.current = value;
+    }
+  }, [value]);
+
+  const handleBlur = () => {
+    const items = raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+    prevValueRef.current = items;
+    onChange(items);
+  };
+
+  return (
+    <input
+      type="text"
+      value={raw}
+      onChange={(e) => setRaw(e.target.value)}
+      onBlur={handleBlur}
+      placeholder={placeholder}
+      style={style}
+    />
+  );
+}
+
 interface Actor {
   id: string;
   name: string;
@@ -38,6 +89,11 @@ interface Phase {
   objective: string;
   activeChannels: string[];
   aiActors: string[];
+  /** Compétences cibles de la phase — logique pédagogique principale */
+  competencies: string[];
+  /** Trigger de fin de phase (condition observable qui valide la complétion) */
+  completionTrigger: string;
+  /** Critères secondaires (scoring optionnel, maintenu pour rétrocompatibilité) */
   criteria: Criteria[];
   completionRules?: {
     minScore?: number;
@@ -221,6 +277,8 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
       objective: '',
       activeChannels: [],
       aiActors: [],
+      competencies: [],
+      completionTrigger: '',
       criteria: [],
       completionRules: { minScore: 0, maxExchanges: 100, flags: [] },
       autoAdvance: false,
@@ -665,10 +723,10 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
               <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
                 Tags (séparés par des virgules)
               </label>
-              <input
-                type="text"
-                value={studio.tags.join(', ')}
-                onChange={(e) => updateStudio({ tags: e.target.value.split(',').map((t) => t.trim()) })}
+              <CommaListInput
+                value={studio.tags}
+                onChange={(tags) => updateStudio({ tags })}
+                placeholder="tag1, tag2, tag3"
                 style={{
                   width: '100%',
                   padding: '10px 12px',
@@ -1377,150 +1435,268 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
                       </div>
                     </div>
 
-                    <div style={{ marginBottom: 20, background: 'rgba(255, 255, 255, 0.02)', padding: 16, borderRadius: 6 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                        <label style={{ fontSize: 14, fontWeight: 600 }}>Critères</label>
-                        <button
-                          onClick={() => {
-                            const newCriteria: Criteria = { description: '', points: 0 };
-                            updatePhase(phase.id, { criteria: [...phase.criteria, newCriteria] });
-                          }}
-                          style={{
-                            padding: '4px 8px',
-                            background: '#5b5fc7',
-                            border: 'none',
-                            color: '#fff',
-                            borderRadius: '4px',
-                            cursor: 'pointer',
-                            fontSize: 12,
-                          }}
-                        >
-                          +
-                        </button>
+                    {/* ── COMPÉTENCES CIBLES (bloc principal) ── */}
+                    <div
+                      style={{
+                        marginBottom: 20,
+                        background: 'rgba(91, 95, 199, 0.08)',
+                        border: '1px solid rgba(91, 95, 199, 0.25)',
+                        padding: 16,
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <label style={{ fontSize: 14, fontWeight: 700, color: '#a5a8ff' }}>
+                          Compétences cibles
+                        </label>
+                        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                          Que doit apprendre, démontrer ou valider le joueur ?
+                        </span>
                       </div>
-                      {phase.criteria.map((criterion, criteriaIndex) => (
-                        <div
-                          key={criteriaIndex}
-                          style={{
-                            display: 'flex',
-                            gap: 12,
-                            marginBottom: 8,
-                            alignItems: 'flex-start',
-                          }}
-                        >
+                      {(phase.competencies || []).map((comp, ci) => (
+                        <div key={ci} style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'center' }}>
+                          <span style={{ color: '#a5a8ff', fontWeight: 700, fontSize: 13, minWidth: 20 }}>{ci + 1}.</span>
                           <input
                             type="text"
-                            placeholder="Description"
-                            value={criterion.description}
+                            placeholder="Ex: Capacité à fixer un loyer cohérent en s'appuyant sur la grille"
+                            value={comp}
                             onChange={(e) => {
-                              const newCriteria = [...phase.criteria];
-                              newCriteria[criteriaIndex].description = e.target.value;
-                              updatePhase(phase.id, { criteria: newCriteria });
+                              const next = [...(phase.competencies || [])];
+                              next[ci] = e.target.value;
+                              updatePhase(phase.id, { competencies: next });
                             }}
                             style={{
                               flex: 1,
                               padding: '8px 10px',
-                              background: 'rgba(255, 255, 255, 0.08)',
-                              border: '1px solid rgba(255, 255, 255, 0.15)',
+                              background: 'rgba(255,255,255,0.08)',
+                              border: '1px solid rgba(255,255,255,0.15)',
                               color: '#fff',
-                              borderRadius: '4px',
-                              fontSize: 12,
-                            }}
-                          />
-                          <input
-                            type="number"
-                            placeholder="Points"
-                            value={criterion.points}
-                            onChange={(e) => {
-                              const newCriteria = [...phase.criteria];
-                              newCriteria[criteriaIndex].points = parseInt(e.target.value) || 0;
-                              updatePhase(phase.id, { criteria: newCriteria });
-                            }}
-                            style={{
-                              width: 80,
-                              padding: '8px 10px',
-                              background: 'rgba(255, 255, 255, 0.08)',
-                              border: '1px solid rgba(255, 255, 255, 0.15)',
-                              color: '#fff',
-                              borderRadius: '4px',
-                              fontSize: 12,
+                              borderRadius: 4,
+                              fontSize: 13,
                             }}
                           />
                           <button
                             onClick={() => {
-                              const newCriteria = phase.criteria.filter((_, i) => i !== criteriaIndex);
-                              updatePhase(phase.id, { criteria: newCriteria });
+                              const next = (phase.competencies || []).filter((_, i) => i !== ci);
+                              updatePhase(phase.id, { competencies: next });
                             }}
                             style={{
                               padding: '4px 8px',
-                              background: 'rgba(255, 107, 107, 0.2)',
-                              border: '1px solid rgba(255, 107, 107, 0.5)',
+                              background: 'rgba(255,107,107,0.15)',
+                              border: '1px solid rgba(255,107,107,0.4)',
                               color: '#ff6b6b',
-                              borderRadius: '4px',
+                              borderRadius: 4,
                               cursor: 'pointer',
-                              fontSize: 12,
+                              fontSize: 11,
                             }}
                           >
-                            Suppr.
+                            ✕
                           </button>
                         </div>
                       ))}
+                      <button
+                        onClick={() =>
+                          updatePhase(phase.id, { competencies: [...(phase.competencies || []), ''] })
+                        }
+                        style={{
+                          marginTop: 6,
+                          padding: '6px 12px',
+                          background: 'rgba(91,95,199,0.25)',
+                          border: '1px solid rgba(91,95,199,0.4)',
+                          color: '#a5a8ff',
+                          borderRadius: 4,
+                          cursor: 'pointer',
+                          fontSize: 12,
+                          fontWeight: 600,
+                        }}
+                      >
+                        + Ajouter une compétence
+                      </button>
                     </div>
 
-                    <div style={{ marginBottom: 20, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
-                          Score minimum
-                        </label>
-                        <input
-                          type="number"
-                          value={phase.completionRules?.minScore || 0}
-                          onChange={(e) =>
-                            updatePhase(phase.id, {
-                              completionRules: {
-                                ...phase.completionRules,
-                                minScore: parseInt(e.target.value) || 0,
-                              },
-                            })
-                          }
-                          style={{
-                            width: '100%',
-                            padding: '10px 12px',
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                            color: '#fff',
-                            borderRadius: '6px',
-                            fontSize: 14,
-                          }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
-                          Échanges max
-                        </label>
-                        <input
-                          type="number"
-                          value={phase.completionRules?.maxExchanges || 100}
-                          onChange={(e) =>
-                            updatePhase(phase.id, {
-                              completionRules: {
-                                ...phase.completionRules,
-                                maxExchanges: parseInt(e.target.value) || 100,
-                              },
-                            })
-                          }
-                          style={{
-                            width: '100%',
-                            padding: '10px 12px',
-                            background: 'rgba(255, 255, 255, 0.08)',
-                            border: '1px solid rgba(255, 255, 255, 0.15)',
-                            color: '#fff',
-                            borderRadius: '6px',
-                            fontSize: 14,
-                          }}
-                        />
-                      </div>
+                    {/* ── TRIGGER DE FIN DE PHASE ── */}
+                    <div style={{ marginBottom: 20 }}>
+                      <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
+                        Trigger de fin de phase
+                      </label>
+                      <span style={{ display: 'block', marginBottom: 6, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                        Condition observable qui valide que les compétences ont été démontrées
+                      </span>
+                      <textarea
+                        value={phase.completionTrigger || ''}
+                        onChange={(e) => updatePhase(phase.id, { completionTrigger: e.target.value })}
+                        placeholder="Ex: Le joueur a proposé un loyer entre 1700 et 2300 EUR avec justification chiffrée, et le client a accepté."
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          background: 'rgba(255,255,255,0.08)',
+                          border: '1px solid rgba(255,255,255,0.15)',
+                          color: '#fff',
+                          borderRadius: 6,
+                          fontSize: 14,
+                          minHeight: 70,
+                          resize: 'vertical',
+                        }}
+                      />
                     </div>
+
+                    {/* ── SCORING SECONDAIRE (collapsible) ── */}
+                    <details style={{ marginBottom: 20 }}>
+                      <summary
+                        style={{
+                          cursor: 'pointer',
+                          fontSize: 13,
+                          fontWeight: 600,
+                          color: 'rgba(255,255,255,0.6)',
+                          padding: '8px 0',
+                          userSelect: 'none',
+                        }}
+                      >
+                        Scoring et critères secondaires (optionnel)
+                      </summary>
+                      <div style={{ padding: '12px 0 0' }}>
+                        <div style={{ background: 'rgba(255,255,255,0.02)', padding: 12, borderRadius: 6, marginBottom: 12 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <label style={{ fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.6)' }}>
+                              Critères de scoring
+                            </label>
+                            <button
+                              onClick={() => {
+                                const newCriteria: Criteria = { description: '', points: 0 };
+                                updatePhase(phase.id, { criteria: [...phase.criteria, newCriteria] });
+                              }}
+                              style={{
+                                padding: '3px 6px',
+                                background: 'rgba(255,255,255,0.1)',
+                                border: 'none',
+                                color: 'rgba(255,255,255,0.6)',
+                                borderRadius: 4,
+                                cursor: 'pointer',
+                                fontSize: 11,
+                              }}
+                            >
+                              +
+                            </button>
+                          </div>
+                          {phase.criteria.map((criterion, criteriaIndex) => (
+                            <div
+                              key={criteriaIndex}
+                              style={{ display: 'flex', gap: 8, marginBottom: 6, alignItems: 'flex-start' }}
+                            >
+                              <input
+                                type="text"
+                                placeholder="Description du critère"
+                                value={criterion.description}
+                                onChange={(e) => {
+                                  const newCriteria = [...phase.criteria];
+                                  newCriteria[criteriaIndex].description = e.target.value;
+                                  updatePhase(phase.id, { criteria: newCriteria });
+                                }}
+                                style={{
+                                  flex: 1,
+                                  padding: '6px 8px',
+                                  background: 'rgba(255,255,255,0.08)',
+                                  border: '1px solid rgba(255,255,255,0.12)',
+                                  color: '#fff',
+                                  borderRadius: 4,
+                                  fontSize: 12,
+                                }}
+                              />
+                              <input
+                                type="number"
+                                placeholder="Pts"
+                                value={criterion.points}
+                                onChange={(e) => {
+                                  const newCriteria = [...phase.criteria];
+                                  newCriteria[criteriaIndex].points = parseInt(e.target.value) || 0;
+                                  updatePhase(phase.id, { criteria: newCriteria });
+                                }}
+                                style={{
+                                  width: 60,
+                                  padding: '6px 8px',
+                                  background: 'rgba(255,255,255,0.08)',
+                                  border: '1px solid rgba(255,255,255,0.12)',
+                                  color: '#fff',
+                                  borderRadius: 4,
+                                  fontSize: 12,
+                                }}
+                              />
+                              <button
+                                onClick={() =>
+                                  updatePhase(phase.id, { criteria: phase.criteria.filter((_, i) => i !== criteriaIndex) })
+                                }
+                                style={{
+                                  padding: '3px 6px',
+                                  background: 'rgba(255,107,107,0.15)',
+                                  border: '1px solid rgba(255,107,107,0.3)',
+                                  color: '#ff6b6b',
+                                  borderRadius: 4,
+                                  cursor: 'pointer',
+                                  fontSize: 11,
+                                }}
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 12 }}>
+                          <div>
+                            <label style={{ display: 'block', marginBottom: 4, fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.6)' }}>
+                              Score minimum (optionnel)
+                            </label>
+                            <input
+                              type="number"
+                              value={phase.completionRules?.minScore || 0}
+                              onChange={(e) =>
+                                updatePhase(phase.id, {
+                                  completionRules: {
+                                    ...phase.completionRules,
+                                    minScore: parseInt(e.target.value) || 0,
+                                  },
+                                })
+                              }
+                              style={{
+                                width: '100%',
+                                padding: '8px 10px',
+                                background: 'rgba(255,255,255,0.08)',
+                                border: '1px solid rgba(255,255,255,0.12)',
+                                color: '#fff',
+                                borderRadius: 4,
+                                fontSize: 13,
+                              }}
+                            />
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', marginBottom: 4, fontSize: 12, fontWeight: 600, color: 'rgba(255,255,255,0.6)' }}>
+                              Échanges max
+                            </label>
+                            <input
+                              type="number"
+                              value={phase.completionRules?.maxExchanges || 100}
+                              onChange={(e) =>
+                                updatePhase(phase.id, {
+                                  completionRules: {
+                                    ...phase.completionRules,
+                                    maxExchanges: parseInt(e.target.value) || 100,
+                                  },
+                                })
+                              }
+                              style={{
+                                width: '100%',
+                                padding: '8px 10px',
+                                background: 'rgba(255,255,255,0.08)',
+                                border: '1px solid rgba(255,255,255,0.12)',
+                                color: '#fff',
+                                borderRadius: 4,
+                                fontSize: 13,
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </details>
 
                     <div style={{ marginBottom: 20 }}>
                       <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
@@ -1753,10 +1929,9 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
                   <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
                     Tags
                   </label>
-                  <input
-                    type="text"
-                    value={doc.contains.join(', ')}
-                    onChange={(e) => updateDocument(doc.id, { contains: e.target.value.split(',').map((t) => t.trim()) })}
+                  <CommaListInput
+                    value={doc.contains}
+                    onChange={(contains) => updateDocument(doc.id, { contains })}
                     placeholder="tag1, tag2"
                     style={{
                       width: '100%',
@@ -1931,17 +2106,17 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
                   <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
                     Flags (séparés par des virgules)
                   </label>
-                  <input
-                    type="text"
-                    value={ending.conditions?.coreFlags?.join(', ') || ''}
-                    onChange={(e) =>
+                  <CommaListInput
+                    value={ending.conditions?.coreFlags || []}
+                    onChange={(coreFlags) =>
                       updateEnding(ending.id, {
                         conditions: {
                           ...ending.conditions,
-                          coreFlags: e.target.value.split(',').map((f) => f.trim()),
+                          coreFlags,
                         },
                       })
                     }
+                    placeholder="flag1, flag2"
                     style={{
                       width: '100%',
                       padding: '10px 12px',

@@ -26,15 +26,15 @@ import {
 
 const ACTION_INSTRUCTIONS: Record<PatchAction, string> = {
   "fix-inconsistency":
-    "Corrige UNIQUEMENT les incohérences narratives (contradictions internes, timeline impossible, personnages aux rôles contradictoires, transitions illogiques, critères d'évaluation détachés des objectifs). Ne retouche rien d'autre.",
+    "Corrige UNIQUEMENT les incohérences narratives (contradictions internes, timeline impossible, personnages aux rôles contradictoires, transitions illogiques, compétences cibles en décalage avec les objectifs de phase). Ne retouche rien d'autre.",
   improve:
-    "Améliore la qualité rédactionnelle et la précision pédagogique (reformule les objectifs flous, enrichit les descriptions pauvres, rend les tâches joueur actionnables). Ne change ni les ids ni la structure.",
+    "Améliore la qualité rédactionnelle et pédagogique : reformule les compétences cibles vagues en capacités observables et mesurables, enrichit les descriptions pauvres, rend les tâches joueur actionnables, précise les triggers de fin de phase pour qu'ils valident la démonstration de compétence. Ne change ni les ids ni la structure.",
   harden:
-    "Rend le scénario PLUS DIFFICILE : durcis les acteurs IA (plus résistants, plus exigeants), augmente la difficulté des objectifs, serre les critères d'évaluation, raccourcis les délais, ajoute des obstacles réalistes. Cohérent avec le contexte pro.",
+    "Rend le scénario PLUS DIFFICILE : durcis les acteurs IA (plus résistants, plus exigeants), rends les compétences cibles plus exigeantes (capacités plus fines, situations plus complexes), renforce les triggers de validation, ajoute des obstacles réalistes. Cohérent avec le contexte pro.",
   smooth:
-    "Rend le scénario PLUS FLUIDE : lisse les transitions de phases, clarifie les déclencheurs, harmonise le ton, retire les ruptures narratives. Zéro changement structurel.",
+    "Rend le scénario PLUS FLUIDE : lisse les transitions de phases, clarifie les triggers de fin, harmonise le ton, retire les ruptures narratives. Les compétences doivent s'enchaîner logiquement d'une phase à l'autre. Zéro changement structurel.",
   realism:
-    "Renforce le RÉALISME MÉTIER : corrige les détails techniques, précise les codes professionnels, remplace les formulations génériques par du vocabulaire du secteur, ajuste les timings aux usages réels.",
+    "Renforce le RÉALISME MÉTIER : corrige les détails techniques, précise les codes professionnels, reformule les compétences cibles avec le vocabulaire du secteur, remplace les formulations génériques par des capacités ancrées dans la réalité du métier, ajuste les timings aux usages réels.",
 };
 
 function studioJsonPath(studioId: string): string {

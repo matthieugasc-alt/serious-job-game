@@ -12,7 +12,7 @@
  * prompt dans actor.promptContent via le callback parent.
  */
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 export interface ActorBriefing {
   role: string;
@@ -133,12 +133,11 @@ export default function ActorBriefingForm({
       </Field>
 
       <Field label="Traits de personnalité (séparés par virgule)">
-        <input
-          type="text"
-          value={briefing.personalityTraits.join(', ')}
-          onChange={(e) => update({ personalityTraits: splitList(e.target.value) })}
+        <BriefingCommaInput
+          value={briefing.personalityTraits}
+          onChange={(personalityTraits) => update({ personalityTraits })}
           placeholder="exigeant, méthodique, impatient"
-          style={input()}
+          styleFn={input}
         />
       </Field>
 
@@ -153,42 +152,38 @@ export default function ActorBriefingForm({
 
       <Row>
         <Field label="Motivations (virgules)">
-          <input
-            type="text"
-            value={briefing.motivations.join(', ')}
-            onChange={(e) => update({ motivations: splitList(e.target.value) })}
+          <BriefingCommaInput
+            value={briefing.motivations}
+            onChange={(motivations) => update({ motivations })}
             placeholder="sécuriser son poste, tenir son budget"
-            style={input()}
+            styleFn={input}
           />
         </Field>
         <Field label="Peurs (virgules)">
-          <input
-            type="text"
-            value={briefing.fears.join(', ')}
-            onChange={(e) => update({ fears: splitList(e.target.value) })}
+          <BriefingCommaInput
+            value={briefing.fears}
+            onChange={(fears) => update({ fears })}
             placeholder="prendre une décision risquée, être court-circuité"
-            style={input()}
+            styleFn={input}
           />
         </Field>
       </Row>
 
       <Row>
         <Field label="Biais (virgules)">
-          <input
-            type="text"
-            value={briefing.biases.join(', ')}
-            onChange={(e) => update({ biases: splitList(e.target.value) })}
+          <BriefingCommaInput
+            value={briefing.biases}
+            onChange={(biases) => update({ biases })}
             placeholder="se méfie des startups, préfère les solutions éprouvées"
-            style={input()}
+            styleFn={input}
           />
         </Field>
         <Field label="Objectifs personnels (virgules)">
-          <input
-            type="text"
-            value={briefing.personalGoals.join(', ')}
-            onChange={(e) => update({ personalGoals: splitList(e.target.value) })}
+          <BriefingCommaInput
+            value={briefing.personalGoals}
+            onChange={(personalGoals) => update({ personalGoals })}
             placeholder="impressionner sa hiérarchie, valider son choix"
-            style={input()}
+            styleFn={input}
           />
         </Field>
       </Row>
@@ -304,11 +299,48 @@ export default function ActorBriefingForm({
 
 /* ---- helpers ---- */
 
-function splitList(s: string): string[] {
-  return s
-    .split(',')
-    .map((x) => x.trim())
-    .filter(Boolean);
+/**
+ * Blur-only comma list input — avoids eating spaces/commas while typing.
+ */
+function BriefingCommaInput({
+  value,
+  onChange,
+  placeholder,
+  styleFn,
+}: {
+  value: string[];
+  onChange: (items: string[]) => void;
+  placeholder?: string;
+  styleFn: () => React.CSSProperties;
+}) {
+  const [raw, setRaw] = useState(() => value.join(', '));
+  const prevRef = useRef(value);
+
+  useEffect(() => {
+    const prev = prevRef.current;
+    if (value.length !== prev.length || value.some((v, i) => v !== prev[i])) {
+      setRaw(value.join(', '));
+      prevRef.current = value;
+    }
+  }, [value]);
+
+  return (
+    <input
+      type="text"
+      value={raw}
+      onChange={(e) => setRaw(e.target.value)}
+      onBlur={() => {
+        const items = raw
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean);
+        prevRef.current = items;
+        onChange(items);
+      }}
+      placeholder={placeholder}
+      style={styleFn()}
+    />
+  );
 }
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
