@@ -323,19 +323,28 @@ export default function AdminPage() {
   };
 
   // ── Scenario config management ──────────────────────────────────
+  // Priority chain: in-progress edits → persisted server state → blank defaults.
+  // BUG FIX: previously this jumped straight from `editingConfigs` to blank
+  // defaults (always adminLocked=false), which meant:
+  //   (1) the UI always rendered unchecked after a save, even when the server
+  //       had adminLocked=true, and
+  //   (2) any subsequent field toggle started from blank defaults, silently
+  //       wiping featured/lockMessage/prerequisites/sortOrder/categoryOverride.
+  // As a result, "décocher" would first have to re-check (because the UI was
+  // out of sync), and the persisted locked state was never cleared on reload.
   const getEditingConfig = (scenarioId: string): ScenarioConfig => {
-    return (
-      editingConfigs[scenarioId] || {
-        id: scenarioId,
-        scenario_id: scenarioId,
-        adminLocked: false,
-        lockMessage: "",
-        prerequisites: [],
-        categoryOverride: "",
-        sortOrder: 0,
-        featured: false,
-      }
-    );
+    if (editingConfigs[scenarioId]) return editingConfigs[scenarioId];
+    if (configs[scenarioId]) return configs[scenarioId];
+    return {
+      id: scenarioId,
+      scenario_id: scenarioId,
+      adminLocked: false,
+      lockMessage: "",
+      prerequisites: [],
+      categoryOverride: "",
+      sortOrder: 0,
+      featured: false,
+    };
   };
 
   const handleConfigChange = (
@@ -356,37 +365,44 @@ export default function AdminPage() {
     setSavingConfigs((prev) => ({ ...prev, [scenarioId]: true }));
     try {
       const config = getEditingConfig(scenarioId);
+
+      // Explicit boolean coercion — NEVER send undefined for these fields.
+      // This guarantees both `true` and `false` are transmitted as-is.
+      const payload = {
+        scenarioId: config.scenario_id,
+        adminLocked: config.adminLocked === true, // strict boolean, not ?? false
+        lockMessage: config.lockMessage ?? "",
+        prerequisites: Array.isArray(config.prerequisites) ? config.prerequisites : [],
+        category: config.categoryOverride ?? "",
+        order: typeof config.sortOrder === "number" ? config.sortOrder : 0,
+        featured: config.featured === true,
+      };
+
       const res = await fetch("/api/admin/scenario-config", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${userToken}`,
         },
-        body: JSON.stringify({
-          scenarioId: config.scenario_id,
-          adminLocked: config.adminLocked ?? false,
-          lockMessage: config.lockMessage,
-          prerequisites: config.prerequisites,
-          category: config.categoryOverride,
-          order: config.sortOrder,
-          featured: config.featured,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        throw new Error("Erreur lors de la sauvegarde");
+        const errText = await res.text().catch(() => "");
+        throw new Error(`Erreur lors de la sauvegarde (${res.status}): ${errText}`);
       }
 
-      // Update local configs
-      setConfigs((prev) => ({ ...prev, [scenarioId]: config }));
+      // Clear the editing buffer for this scenario, then re-fetch from the
+      // server so the UI reflects exactly what was persisted (no guessing).
       setEditingConfigs((prev) => {
         const next = { ...prev };
         delete next[scenarioId];
         return next;
       });
+      await loadScenarios();
     } catch (err: any) {
       console.error("Save config error:", err);
-      alert("Erreur lors de la sauvegarde de la configuration");
+      alert(err?.message || "Erreur lors de la sauvegarde de la configuration");
     } finally {
       setSavingConfigs((prev) => ({ ...prev, [scenarioId]: false }));
     }

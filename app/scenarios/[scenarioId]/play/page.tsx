@@ -204,6 +204,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [raisedHands, setRaisedHands] = useState<string[]>([]);
   const [qaWaiting, setQaWaiting] = useState(false);
   const [presentationDone, setPresentationDone] = useState(false);
+  const [presentationError, setPresentationError] = useState<{
+    category: "empty_transcript" | "timeout" | "network" | "server_error" | "invalid_response";
+    message: string;
+  } | null>(null);
   const autoSendTimerRef = useRef<any>(null);
   const lastSentTranscriptRef = useRef("");
   const isSendingRef = useRef(false);
@@ -680,49 +684,132 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     return () => clearInterval(iv);
   }, [isRecording]);
 
-  // ── Auto-stop presentation when max_duration_sec reached ──
+  // ════════════════════════════════════════════════════════════════════
+  // PRESENTATION END FLOW — shared by manual stop + auto-stop
+  // ════════════════════════════════════════════════════════════════════
   const presentationAutoStoppedRef = useRef(false);
+
+  /**
+   * Ends the current presentation phase.
+   * Guarantees:
+   *  - The spinner never gets stuck (presentationDone is always cleared
+   *    when we either advance the phase OR set an explicit error).
+   *  - Phase 3 always starts when there is a usable transcript,
+   *    EVEN if the background evaluation fails or times out.
+   *  - Empty transcripts trigger an explicit error + retry UI
+   *    (instead of silently blocking on a spinner).
+   */
+  function endPresentation(trigger: "manual" | "auto") {
+    const transcript = stopRecognition();
+    setPresentationDone(true);
+    setPresentationError(null);
+
+    const trimmed = transcript.trim();
+
+    // ── Case 1: no transcript at all → surface an explicit error ──
+    if (!trimmed) {
+      console.warn(`[presentation:${trigger}] empty transcript`);
+      setPresentationError({
+        category: "empty_transcript",
+        message:
+          "Aucun son n'a été capté. Vérifiez que votre micro est autorisé dans le navigateur, puis réessayez.",
+      });
+      // Reset the auto-stop guard so the user can restart
+      presentationAutoStoppedRef.current = false;
+      return;
+    }
+
+    // ── Case 2: usable transcript → advance phase synchronously ──
+    if (!session || !scenario || !view) {
+      // Should not happen, but guard anyway
+      setPresentationError({
+        category: "server_error",
+        message: "État de session invalide. Rechargez la page.",
+      });
+      return;
+    }
+
+    const targetActor = (currentPhaseConfig as any)?.ai_actors?.[0] || "sophie_renard";
+    const next = cloneSession(session);
+    addPlayerMessage(next, trimmed, targetActor);
+    addAIMessage(next, "Présentation terminée. Passons à la suite !", targetActor);
+    completeCurrentPhaseAndAdvance(next);
+    injectPhaseEntryEvents(next);
+    const newPhase = scenario.phases[next.currentPhaseIndex];
+    if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
+    setSession(next);
+
+    // Clear UI state — the new phase will render its own mode
+    setPresentationDone(false);
+    setVoiceTranscript("");
+    presentationAutoStoppedRef.current = false;
+
+    // ── Background evaluation with timeout + explicit error categories ──
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45_000);
+
+    fetch("/api/evaluate-presentation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        transcript: trimmed,
+        phaseTitle: view.phaseTitle,
+        phaseObjective: view.phaseObjective,
+        criteria: view.criteria,
+      }),
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+          const errText = await res.text().catch(() => "");
+          throw new Error(`server_error:${res.status}:${errText.slice(0, 120)}`);
+        }
+        let data: any;
+        try {
+          data = await res.json();
+        } catch {
+          throw new Error("invalid_response");
+        }
+        if (!data || typeof data !== "object") throw new Error("invalid_response");
+        const updated = cloneSession(sessionRef.current);
+        applyEvaluation(
+          updated,
+          data.matched_criteria || [],
+          data.score_delta || 0,
+          data.flags_to_set || {}
+        );
+        setSession(updated);
+      })
+      .catch((err) => {
+        clearTimeout(timeoutId);
+        const msg = String(err?.message || err);
+        let category: "timeout" | "network" | "server_error" | "invalid_response" = "network";
+        if (err?.name === "AbortError") category = "timeout";
+        else if (msg.startsWith("server_error")) category = "server_error";
+        else if (msg === "invalid_response") category = "invalid_response";
+        console.error(`[presentation:${trigger}] background eval failed (${category}):`, err);
+        // The phase already advanced — surface a discreet toast so the
+        // user knows their score wasn't updated, but don't block progression.
+        const toastText =
+          category === "timeout"
+            ? "Analyse de présentation expirée (45 s). Progression conservée, critères non évalués."
+            : category === "server_error"
+              ? "Erreur serveur d'analyse. Progression conservée, critères non évalués."
+              : category === "invalid_response"
+                ? "Réponse d'analyse invalide. Progression conservée, critères non évalués."
+                : "Analyse indisponible (réseau). Progression conservée, critères non évalués.";
+        addToast(toastText, "⚠️", "chat");
+      });
+  }
+
+  // ── Auto-stop presentation when max_duration_sec reached ──
   useEffect(() => {
     if (!isRecording || currentInteractionMode !== "presentation") return;
     const maxSec = (currentPhaseConfig as any)?.presentation_config?.max_duration_sec || 300;
     if (recordingElapsed >= maxSec && !presentationAutoStoppedRef.current) {
       presentationAutoStoppedRef.current = true;
-      // Simulate clicking the stop button — stop recording and send for evaluation
-      const transcript = stopRecognition();
-      setPresentationDone(true);
-      if (transcript.trim() && session && scenario && view) {
-        const targetActor = (currentPhaseConfig as any)?.ai_actors?.[0] || "sophie_renard";
-        const next = cloneSession(session);
-        addPlayerMessage(next, transcript, targetActor);
-        // Advance to next phase IMMEDIATELY — don't wait for AI evaluation
-        addAIMessage(next, "Présentation terminée. Passons à la suite !", targetActor);
-        completeCurrentPhaseAndAdvance(next);
-        injectPhaseEntryEvents(next);
-        const newPhase = scenario?.phases[next.currentPhaseIndex];
-        if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
-        setSession(next);
-        setPresentationDone(false);
-        setVoiceTranscript("");
-        presentationAutoStoppedRef.current = false;
-        // Evaluate in background — fire and forget
-        fetch("/api/evaluate-presentation", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            transcript,
-            phaseTitle: view?.phaseTitle,
-            phaseObjective: view?.phaseObjective,
-            criteria: view?.criteria,
-          }),
-        })
-          .then(res => res.json())
-          .then(data => {
-            const updated = cloneSession(sessionRef.current);
-            applyEvaluation(updated, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-            setSession(updated);
-          })
-          .catch(err => console.error("Background eval (auto-stop):", err));
-      }
+      endPresentation("auto");
     }
   }, [recordingElapsed, currentInteractionMode]);
 
@@ -1590,41 +1677,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 <button
                   onClick={() => {
                     if (isRecording) {
-                      // Stop recording
-                      const transcript = stopRecognition();
-                      setPresentationDone(true);
-                      // Advance to next phase IMMEDIATELY — evaluate in background
-                      if (transcript.trim()) {
-                        const targetActor = (currentPhaseConfig as any)?.ai_actors?.[0] || "sophie_renard";
-                        const next = cloneSession(session);
-                        addPlayerMessage(next, transcript, targetActor);
-                        addAIMessage(next, "Présentation terminée. Passons à la suite !", targetActor);
-                        completeCurrentPhaseAndAdvance(next);
-                        injectPhaseEntryEvents(next);
-                        const newPhase = scenario?.phases[next.currentPhaseIndex];
-                        if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
-                        setSession(next);
-                        setPresentationDone(false);
-                        setVoiceTranscript("");
-                        // Background evaluation — fire and forget
-                        fetch("/api/evaluate-presentation", {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            transcript,
-                            phaseTitle: view?.phaseTitle,
-                            phaseObjective: view?.phaseObjective,
-                            criteria: view?.criteria,
-                          }),
-                        })
-                          .then(res => res.json())
-                          .then(data => {
-                            const updated = cloneSession(sessionRef.current);
-                            applyEvaluation(updated, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-                            setSession(updated);
-                          })
-                          .catch(err => console.error("Background eval (manual stop):", err));
-                      }
+                      endPresentation("manual");
                     } else {
                       // Start recording
                       const lang = (currentPhaseConfig as any)?.presentation_config?.language || "fr-FR";
@@ -1677,11 +1730,49 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 </div>
               )}
             </div>
+          ) : presentationError ? (
+            /* Explicit error state — replaces the infinite spinner */
+            <div style={{ textAlign: "center", maxWidth: 520 }}>
+              <div style={{ fontSize: 48, marginBottom: 16 }}>⚠️</div>
+              <h3 style={{ color: "#ffb4b4", fontSize: 18, fontWeight: 700, margin: "0 0 12px" }}>
+                {presentationError.category === "empty_transcript"
+                  ? "Aucun audio détecté"
+                  : presentationError.category === "timeout"
+                    ? "Analyse expirée"
+                    : presentationError.category === "network"
+                      ? "Problème de connexion"
+                      : presentationError.category === "invalid_response"
+                        ? "Réponse invalide du serveur"
+                        : "Erreur serveur"}
+              </h3>
+              <p style={{ color: "#e0e0e0", fontSize: 14, lineHeight: 1.6, margin: "0 0 24px" }}>
+                {presentationError.message}
+              </p>
+              <button
+                onClick={() => {
+                  setPresentationError(null);
+                  setPresentationDone(false);
+                  setVoiceTranscript("");
+                  voiceTranscriptRef.current = "";
+                  setRecordingElapsed(0);
+                  presentationAutoStoppedRef.current = false;
+                }}
+                style={{
+                  padding: "12px 28px", borderRadius: 10,
+                  background: "#5b5fc7", color: "#fff",
+                  border: "none", cursor: "pointer",
+                  fontSize: 14, fontWeight: 600,
+                }}
+              >
+                🔄 Réessayer la présentation
+              </button>
+            </div>
           ) : (
-            /* Processing state after recording */
+            /* Processing state after recording — only visible briefly
+               between stopRecognition() and phase transition render */
             <div style={{ textAlign: "center" }}>
               <div style={{ width: 48, height: 48, border: "4px solid rgba(255,255,255,0.2)", borderTopColor: "#7b7fff", borderRadius: "50%", animation: "spin .8s linear infinite", margin: "0 auto 20px" }} />
-              <p style={{ color: "#e0e0e0", fontSize: 16, fontWeight: 600 }}>Analyse de votre présentation...</p>
+              <p style={{ color: "#e0e0e0", fontSize: 16, fontWeight: 600 }}>Transition en cours...</p>
             </div>
           )}
         </div>
