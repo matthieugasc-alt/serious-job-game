@@ -13,6 +13,8 @@ interface Scenario {
   description?: string;
   tags?: string[];
   job_family?: string;
+  is_teaser?: boolean;
+  teaser_banner?: string;
 }
 
 interface ScenarioConfig {
@@ -91,6 +93,7 @@ function ScenarioCard({
   lockReason?: string;
   isCompleted?: boolean;
 }) {
+  const isTeaser = !!scenario.is_teaser;
   return (
     <div
       onClick={!isLocked ? onClick : undefined}
@@ -130,7 +133,7 @@ function ScenarioCard({
             left: 0,
             right: 0,
             bottom: 0,
-            background: "rgba(255,255,255,0.7)",
+            background: isTeaser ? "rgba(255,171,64,0.18)" : "rgba(255,255,255,0.7)",
             borderRadius: 18,
             display: "flex",
             alignItems: "center",
@@ -138,12 +141,28 @@ function ScenarioCard({
             flexDirection: "column",
             gap: 12,
             zIndex: 10,
+            border: isTeaser ? "2px dashed #ffab40" : undefined,
           }}
         >
-          <div style={{ fontSize: 32 }}>🔒</div>
-          <div style={{ textAlign: "center", fontSize: 13, color: "#666", fontWeight: 500 }}>
-            {lockReason || "Verrouillé"}
+          <div style={{ fontSize: 32 }}>{isTeaser ? "🚧" : "🔒"}</div>
+          <div
+            style={{
+              textAlign: "center",
+              fontSize: 13,
+              color: isTeaser ? "#b45309" : "#666",
+              fontWeight: 700,
+              textTransform: isTeaser ? "uppercase" : "none",
+              letterSpacing: isTeaser ? 0.5 : 0,
+              padding: "0 16px",
+            }}
+          >
+            {lockReason || (isTeaser ? "En cours d'implémentation" : "Verrouillé")}
           </div>
+          {isTeaser && (
+            <div style={{ fontSize: 11, color: "#92400e", fontStyle: "italic" }}>
+              Aperçu — non jouable
+            </div>
+          )}
         </div>
       )}
 
@@ -708,7 +727,11 @@ export default function ScenarioSelectionPage() {
                         let lockReason = "";
                         let isLocked = false;
 
-                        if (isAdminLocked) {
+                        if (scenario.is_teaser) {
+                          isLocked = true;
+                          lockReason =
+                            scenario.teaser_banner || "🚧 En cours d'implémentation";
+                        } else if (isAdminLocked) {
                           isLocked = true;
                           lockReason =
                             config.lockMessage || "🔧 En cours de développement";

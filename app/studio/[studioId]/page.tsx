@@ -2,6 +2,12 @@
 
 import { use, useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
+import AIReviewPanel from './components/AIReviewPanel';
+import ActorBriefingForm from './components/ActorBriefingForm';
+import AssistantDock from './components/AssistantDock';
+import JobFamiliesSelect from './components/JobFamiliesSelect';
+import ImportDropzone from './components/ImportDropzone';
+import { applyAssignments } from '@/app/lib/setByPath';
 
 interface Actor {
   id: string;
@@ -69,6 +75,9 @@ interface StudioData {
   subtitle: string;
   description: string;
   jobFamily: string;
+  jobFamilies?: string[];
+  isTeaserVisible?: boolean;
+  teaserBanner?: string;
   difficulty: string;
   duration: number;
   tags: string[];
@@ -429,6 +438,7 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
           { id: 'phases', label: 'Phases' },
           { id: 'documents', label: 'Documents' },
           { id: 'endings', label: 'Fins' },
+          { id: 'review', label: '🔍 Revue IA' },
           { id: 'json', label: 'Aperçu JSON' },
         ].map((tab) => (
           <button
@@ -667,6 +677,87 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
                   color: '#fff',
                   borderRadius: '6px',
                   fontSize: 14,
+                }}
+              />
+            </div>
+
+            {/* Familles de métier (référentiel) */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
+                Familles de métier (référentiel)
+              </label>
+              <JobFamiliesSelect
+                selectedIds={studio.jobFamilies || []}
+                onChange={(ids) => updateStudio({ jobFamilies: ids })}
+              />
+            </div>
+
+            {/* Visibilité teaser côté joueurs */}
+            <div
+              style={{
+                marginBottom: 20,
+                padding: 14,
+                background: 'rgba(255,171,64,0.06)',
+                border: '1px solid rgba(255,171,64,0.3)',
+                borderRadius: 8,
+              }}
+            >
+              <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={studio.isTeaserVisible === true}
+                  onChange={(e) => updateStudio({ isTeaserVisible: e.target.checked })}
+                />
+                <span style={{ fontSize: 14, fontWeight: 600, color: '#ffd180' }}>
+                  Afficher en teaser côté joueurs (non jouable)
+                </span>
+              </label>
+              {studio.isTeaserVisible && (
+                <div style={{ marginTop: 10 }}>
+                  <label style={{ display: 'block', marginBottom: 6, fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>
+                    Message de bannière (optionnel)
+                  </label>
+                  <input
+                    type="text"
+                    value={studio.teaserBanner || ''}
+                    onChange={(e) => updateStudio({ teaserBanner: e.target.value })}
+                    placeholder="Bientôt disponible · en cours d'implémentation"
+                    style={{
+                      width: '100%',
+                      padding: '8px 10px',
+                      background: 'rgba(255,255,255,0.06)',
+                      border: '1px solid rgba(255,255,255,0.15)',
+                      color: '#fff',
+                      borderRadius: 4,
+                      fontSize: 13,
+                    }}
+                  />
+                  <div style={{ marginTop: 6, fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>
+                    Les joueurs voient la carte avec la bannière mais ne peuvent pas lancer le scénario.
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Import intelligent drag-and-drop */}
+            <div style={{ marginBottom: 20 }}>
+              <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
+                Import intelligent (pré-remplissage depuis un document)
+              </label>
+              <ImportDropzone
+                studioId={studioId}
+                onApplyFields={(fields) => {
+                  setStudio((prev) => {
+                    if (!prev) return prev;
+                    const { result, report } = applyAssignments(
+                      prev as unknown as Record<string, unknown>,
+                      fields.map((f) => ({ path: f.path, value: f.value })),
+                    );
+                    if (report.skipped.length > 0) {
+                      console.warn('[import] skipped:', report.skipped);
+                    }
+                    return result as unknown as StudioData;
+                  });
                 }}
               />
             </div>
@@ -992,26 +1083,34 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
                 </div>
 
                 {actor.controlledBy === 'ai' && (
-                  <div style={{ marginBottom: 16 }}>
-                    <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
-                      Contenu du prompt IA
-                    </label>
-                    <textarea
-                      value={actor.promptContent || ''}
-                      onChange={(e) => updateActor(actor.id, { promptContent: e.target.value })}
-                      style={{
-                        width: '100%',
-                        padding: '10px 12px',
-                        background: 'rgba(255, 255, 255, 0.08)',
-                        border: '1px solid rgba(255, 255, 255, 0.15)',
-                        color: '#fff',
-                        borderRadius: '6px',
-                        fontSize: 14,
-                        minHeight: 120,
-                        resize: 'vertical',
-                      }}
+                  <>
+                    <div style={{ marginBottom: 16 }}>
+                      <label style={{ display: 'block', marginBottom: 8, fontSize: 14, fontWeight: 600 }}>
+                        Contenu du prompt IA
+                      </label>
+                      <textarea
+                        value={actor.promptContent || ''}
+                        onChange={(e) => updateActor(actor.id, { promptContent: e.target.value })}
+                        style={{
+                          width: '100%',
+                          padding: '10px 12px',
+                          background: 'rgba(255, 255, 255, 0.08)',
+                          border: '1px solid rgba(255, 255, 255, 0.15)',
+                          color: '#fff',
+                          borderRadius: '6px',
+                          fontSize: 14,
+                          minHeight: 120,
+                          resize: 'vertical',
+                        }}
+                      />
+                    </div>
+                    <ActorBriefingForm
+                      studioId={studioId}
+                      actorId={actor.id}
+                      actorName={actor.name}
+                      onInjectPrompt={(prompt) => updateActor(actor.id, { promptContent: prompt })}
                     />
-                  </div>
+                  </>
                 )}
 
                 <div style={{ marginBottom: 16 }}>
@@ -1877,6 +1976,17 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
           </div>
         )}
 
+        {/* REVIEW TAB — AI audit + 5 patch actions */}
+        {activeTab === 'review' && (
+          <AIReviewPanel
+            studioId={studioId}
+            onApplyPatch={(proposed) => {
+              // Merge preserving local shape; runtime compat already checked server-side.
+              setStudio((prev) => (prev ? ({ ...prev, ...(proposed as any) } as StudioData) : prev));
+            }}
+          />
+        )}
+
         {/* JSON PREVIEW TAB */}
         {activeTab === 'json' && (
           <div style={{ maxWidth: 1000 }}>
@@ -2052,6 +2162,30 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
           </div>
         )}
       </div>
+
+      {/* Copilote intégré — borné au scénario courant, lie à l'onglet actif */}
+      <AssistantDock
+        studioId={studioId}
+        activeTab={activeTab}
+        onApplyFill={(fields) => {
+          setStudio((prev) => {
+            if (!prev) return prev;
+            const { result, report } = applyAssignments(
+              prev as unknown as Record<string, unknown>,
+              fields.map((f) => ({ path: f.path, value: f.value })),
+            );
+            if (report.skipped.length > 0) {
+              console.warn('[assistant fill] skipped:', report.skipped);
+            }
+            return result as unknown as StudioData;
+          });
+        }}
+        onApplyPatch={(proposed) => {
+          setStudio((prev) =>
+            prev ? ({ ...prev, ...(proposed as any) } as StudioData) : prev,
+          );
+        }}
+      />
     </div>
   );
 }

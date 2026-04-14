@@ -67,6 +67,14 @@ export default function AdminPage() {
     title: string;
     status: string;
     updatedAt?: string;
+    jobFamilies?: string[];
+    isTeaserVisible?: boolean;
+  }
+  interface JobFamilyRow {
+    id: string;
+    label: string;
+    active: boolean;
+    order?: number;
   }
   const [studioScenarios, setStudioScenarios] = useState<StudioScenario[]>([]);
   const [studioLoading, setStudioLoading] = useState(false);
@@ -77,6 +85,13 @@ export default function AdminPage() {
   const [studioCreating, setStudioCreating] = useState(false);
   const [studioDeleting, setStudioDeleting] = useState<string | null>(null);
   const [studioDeleteConfirm, setStudioDeleteConfirm] = useState<string | null>(null);
+  // Job families referential
+  const [jobFamilies, setJobFamilies] = useState<JobFamilyRow[]>([]);
+  const [jobFamiliesLoading, setJobFamiliesLoading] = useState(false);
+  const [jobFamiliesError, setJobFamiliesError] = useState("");
+  const [newFamilyLabel, setNewFamilyLabel] = useState("");
+  const [newFamilyId, setNewFamilyId] = useState("");
+  const [familyFilter, setFamilyFilter] = useState<string>("all"); // "all" | familyId
 
   useEffect(() => {
     const role = localStorage.getItem("user_role");
@@ -211,10 +226,111 @@ export default function AdminPage() {
     return c;
   };
 
-  // Load studio scenarios when switching to studio tab
+  // ── Job families CRUD ───────────────────────────────────────────
+  const loadJobFamilies = async () => {
+    try {
+      setJobFamiliesLoading(true);
+      setJobFamiliesError("");
+      const res = await fetch("/api/job-families", { cache: "no-store" });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Erreur");
+      setJobFamilies(data.families || []);
+    } catch (err) {
+      setJobFamiliesError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setJobFamiliesLoading(false);
+    }
+  };
+
+  const handleCreateJobFamily = async () => {
+    const label = newFamilyLabel.trim();
+    if (!label) {
+      setJobFamiliesError("Label requis");
+      return;
+    }
+    const id =
+      newFamilyId.trim() ||
+      label
+        .normalize("NFD")
+        .replace(/[\u0300-\u036f]/g, "")
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+    try {
+      setJobFamiliesError("");
+      const res = await fetch("/api/job-families", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, label, active: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "Erreur");
+      setNewFamilyLabel("");
+      setNewFamilyId("");
+      await loadJobFamilies();
+    } catch (err) {
+      setJobFamiliesError(err instanceof Error ? err.message : "Erreur");
+    }
+  };
+
+  const handleToggleJobFamily = async (id: string, active: boolean) => {
+    try {
+      setJobFamiliesError("");
+      const res = await fetch(`/api/job-families/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Erreur");
+      }
+      await loadJobFamilies();
+    } catch (err) {
+      setJobFamiliesError(err instanceof Error ? err.message : "Erreur");
+    }
+  };
+
+  const handleRenameJobFamily = async (id: string, label: string) => {
+    if (!label.trim()) return;
+    try {
+      setJobFamiliesError("");
+      const res = await fetch(`/api/job-families/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ label: label.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Erreur");
+      }
+      await loadJobFamilies();
+    } catch (err) {
+      setJobFamiliesError(err instanceof Error ? err.message : "Erreur");
+    }
+  };
+
+  const handleDeleteJobFamily = async (id: string) => {
+    if (!confirm(`Supprimer la famille "${id}" ? Les scénarios qui l'utilisent ne seront pas modifiés automatiquement.`))
+      return;
+    try {
+      setJobFamiliesError("");
+      const res = await fetch(`/api/job-families/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Erreur");
+      }
+      await loadJobFamilies();
+    } catch (err) {
+      setJobFamiliesError(err instanceof Error ? err.message : "Erreur");
+    }
+  };
+
+  // Load studio scenarios + families when switching to studio tab
   useEffect(() => {
     if (activeSection === "studio") {
       loadStudioScenarios();
+      loadJobFamilies();
     }
   }, [activeSection]);
 
@@ -1378,6 +1494,202 @@ export default function AdminPage() {
               </button>
             </div>
 
+            {/* JobFamily referential panel */}
+            <div
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                border: "1px solid rgba(255,255,255,0.1)",
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 20,
+              }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#fff" }}>
+                  Familles métier
+                </h3>
+                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+                  {jobFamilies.filter((f) => f.active).length} active{jobFamilies.filter((f) => f.active).length > 1 ? "s" : ""} / {jobFamilies.length} total
+                </span>
+              </div>
+
+              {jobFamiliesError && (
+                <div style={{ color: "#fca5a5", fontSize: 12, marginBottom: 8 }}>{jobFamiliesError}</div>
+              )}
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginBottom: 12 }}>
+                {jobFamilies.map((f) => (
+                  <div
+                    key={f.id}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 6,
+                      padding: "6px 10px",
+                      borderRadius: 999,
+                      background: f.active ? "rgba(91,95,199,0.25)" : "rgba(255,255,255,0.05)",
+                      border: f.active ? "1px solid #5b5fc7" : "1px solid rgba(255,255,255,0.15)",
+                      fontSize: 12,
+                      color: f.active ? "#fff" : "rgba(255,255,255,0.5)",
+                    }}
+                  >
+                    <span
+                      onClick={() => {
+                        const label = prompt("Nouveau label", f.label);
+                        if (label) handleRenameJobFamily(f.id, label);
+                      }}
+                      style={{ cursor: "pointer", fontWeight: 600 }}
+                      title="Renommer"
+                    >
+                      {f.label}
+                    </span>
+                    <span style={{ opacity: 0.5, fontSize: 10 }}>({f.id})</span>
+                    <button
+                      onClick={() => handleToggleJobFamily(f.id, !f.active)}
+                      style={{
+                        background: "transparent",
+                        border: "1px solid rgba(255,255,255,0.2)",
+                        color: f.active ? "#a5a8ff" : "rgba(255,255,255,0.4)",
+                        fontSize: 10,
+                        padding: "2px 6px",
+                        borderRadius: 4,
+                        cursor: "pointer",
+                      }}
+                    >
+                      {f.active ? "Désactiver" : "Activer"}
+                    </button>
+                    <button
+                      onClick={() => handleDeleteJobFamily(f.id)}
+                      style={{
+                        background: "transparent",
+                        border: "none",
+                        color: "rgba(239,68,68,0.7)",
+                        fontSize: 12,
+                        cursor: "pointer",
+                      }}
+                      title="Supprimer"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {jobFamilies.length === 0 && !jobFamiliesLoading && (
+                  <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", fontStyle: "italic" }}>
+                    Aucune famille. Créez-en une ci-dessous.
+                  </div>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <input
+                  type="text"
+                  value={newFamilyLabel}
+                  onChange={(e) => setNewFamilyLabel(e.target.value)}
+                  placeholder="Label (ex. Management)"
+                  style={{
+                    flex: 1,
+                    minWidth: 160,
+                    padding: "6px 10px",
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 6,
+                    color: "#fff",
+                    fontSize: 13,
+                  }}
+                />
+                <input
+                  type="text"
+                  value={newFamilyId}
+                  onChange={(e) => setNewFamilyId(e.target.value)}
+                  placeholder="ID (optionnel, kebab-case)"
+                  style={{
+                    flex: 1,
+                    minWidth: 160,
+                    padding: "6px 10px",
+                    background: "rgba(255,255,255,0.06)",
+                    border: "1px solid rgba(255,255,255,0.15)",
+                    borderRadius: 6,
+                    color: "#fff",
+                    fontSize: 13,
+                  }}
+                />
+                <button
+                  onClick={handleCreateJobFamily}
+                  style={{
+                    padding: "6px 14px",
+                    background: "#5b5fc7",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: 6,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  + Ajouter
+                </button>
+              </div>
+            </div>
+
+            {/* Filter by family */}
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.6)" }}>Filtrer :</span>
+              <button
+                onClick={() => setFamilyFilter("all")}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  background: familyFilter === "all" ? "#5b5fc7" : "rgba(255,255,255,0.05)",
+                  color: "#fff",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  fontSize: 12,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                }}
+              >
+                Tous ({studioScenarios.length})
+              </button>
+              {jobFamilies.filter((f) => f.active).map((f) => {
+                const count = studioScenarios.filter((s) =>
+                  (s.jobFamilies || []).includes(f.id)
+                ).length;
+                const on = familyFilter === f.id;
+                return (
+                  <button
+                    key={f.id}
+                    onClick={() => setFamilyFilter(f.id)}
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: 999,
+                      background: on ? "#5b5fc7" : "rgba(255,255,255,0.05)",
+                      color: "#fff",
+                      border: "1px solid rgba(255,255,255,0.15)",
+                      fontSize: 12,
+                      fontWeight: 500,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {f.label} ({count})
+                  </button>
+                );
+              })}
+              <button
+                onClick={() => setFamilyFilter("none")}
+                style={{
+                  padding: "4px 10px",
+                  borderRadius: 999,
+                  background: familyFilter === "none" ? "#5b5fc7" : "rgba(255,255,255,0.05)",
+                  color: "#fff",
+                  border: "1px solid rgba(255,255,255,0.15)",
+                  fontSize: 12,
+                  fontStyle: "italic",
+                  cursor: "pointer",
+                }}
+              >
+                Sans famille
+              </button>
+            </div>
+
             {/* Studio error */}
             {studioError && (
               <div style={{
@@ -1408,7 +1720,14 @@ export default function AdminPage() {
             {/* Scenario cards */}
             {!studioLoading && studioScenarios.length > 0 && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: 20 }}>
-                {studioScenarios.map((sc) => {
+                {studioScenarios
+                  .filter((sc) => {
+                    if (familyFilter === "all") return true;
+                    const fams = sc.jobFamilies || [];
+                    if (familyFilter === "none") return fams.length === 0;
+                    return fams.includes(familyFilter);
+                  })
+                  .map((sc) => {
                   const badge = getStudioStatusBadge(sc.status);
                   return (
                     <div
@@ -1435,13 +1754,37 @@ export default function AdminPage() {
                         <h3 style={{ margin: "0 0 8px", fontSize: 16, fontWeight: 600, color: "#fff" }}>
                           {sc.title}
                         </h3>
-                        <span style={{
-                          display: "inline-block", padding: "4px 12px", borderRadius: 6,
-                          fontSize: 12, fontWeight: 600,
-                          background: badge.bg, color: badge.color,
-                        }}>
-                          {badge.label}
-                        </span>
+                        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                          <span style={{
+                            display: "inline-block", padding: "4px 12px", borderRadius: 6,
+                            fontSize: 12, fontWeight: 600,
+                            background: badge.bg, color: badge.color,
+                          }}>
+                            {badge.label}
+                          </span>
+                          {sc.isTeaserVisible && (
+                            <span style={{
+                              display: "inline-block", padding: "4px 10px", borderRadius: 6,
+                              fontSize: 11, fontWeight: 600,
+                              background: "rgba(255,171,64,0.2)", color: "#ffab40",
+                              border: "1px solid rgba(255,171,64,0.4)",
+                            }}>
+                              🚧 Teaser
+                            </span>
+                          )}
+                          {(sc.jobFamilies || []).slice(0, 2).map((fid) => {
+                            const f = jobFamilies.find((jf) => jf.id === fid);
+                            return (
+                              <span key={fid} style={{
+                                display: "inline-block", padding: "4px 10px", borderRadius: 6,
+                                fontSize: 11, fontWeight: 500,
+                                background: "rgba(91,95,199,0.15)", color: "#a5a8ff",
+                              }}>
+                                {f?.label || fid}
+                              </span>
+                            );
+                          })}
+                        </div>
                       </div>
 
                       <div style={{ marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid rgba(255,255,255,0.1)" }}>

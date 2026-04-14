@@ -22,6 +22,8 @@ interface StudioScenario {
   title: string;
   status: string;
   updatedAt: string;
+  jobFamilies?: string[];
+  isTeaserVisible?: boolean;
 }
 
 interface CreateScenarioRequest {
@@ -73,6 +75,8 @@ export async function GET() {
           title: data.title || "Untitled",
           status: data.status || "draft",
           updatedAt: data.updatedAt || new Date().toISOString(),
+          jobFamilies: Array.isArray(data.jobFamilies) ? data.jobFamilies : [],
+          isTeaserVisible: !!data.isTeaserVisible,
         });
       } catch (e) {
         // Skip malformed studio.json files

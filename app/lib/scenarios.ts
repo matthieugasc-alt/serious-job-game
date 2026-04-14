@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 const SCENARIOS_DIR = path.join(process.cwd(), 'scenarios');
+const STUDIO_DIR = path.join(process.cwd(), 'data', 'studio');
 
 /**
  * Interface for scenario metadata returned by listScenarios
@@ -18,6 +19,11 @@ interface ScenarioMeta {
   estimated_duration_min: number;
   tags?: string[];
   job_family: string;
+  job_families?: string[];
+  /** True when the entry is a teaser (studio draft exposed to players, non-playable) */
+  is_teaser?: boolean;
+  /** Optional banner text for the teaser ("En cours d'implémentation" by default) */
+  teaser_banner?: string;
 }
 
 /**
@@ -75,13 +81,79 @@ export function listScenarios(): ScenarioMeta[] {
       }
     }
 
-    // Sort by scenario_id for consistency
-    scenarios.sort((a, b) => a.scenario_id.localeCompare(b.scenario_id));
+    // --- Studio teasers: expose studio drafts flagged isTeaserVisible ---
+    try {
+      if (fs.existsSync(STUDIO_DIR)) {
+        const publishedIds = new Set(scenarios.map((s) => s.scenario_id));
+        const publishedUrlIds = new Set(scenarios.map((s) => s.id));
+        const studioEntries = fs.readdirSync(STUDIO_DIR, { withFileTypes: true });
+        for (const entry of studioEntries) {
+          if (!entry.isDirectory()) continue;
+          const studioPath = path.join(STUDIO_DIR, entry.name, 'studio.json');
+          if (!fs.existsSync(studioPath)) continue;
+          try {
+            const studio = JSON.parse(fs.readFileSync(studioPath, 'utf-8'));
+            if (!studio?.isTeaserVisible) continue;
+            // Skip if already published under same id (avoid duplicates)
+            if (publishedIds.has(studio.id) || publishedUrlIds.has(entry.name)) continue;
+            scenarios.push({
+              id: entry.name,
+              scenario_id: studio.id || entry.name,
+              title: studio.title || 'Scénario en cours',
+              subtitle: studio.subtitle || '',
+              description: studio.description || '',
+              difficulty: studio.difficulty || 'intermediate',
+              estimated_duration_min: studio.durationMin || 0,
+              tags: Array.isArray(studio.tags) ? studio.tags : [],
+              job_family: studio.jobFamily || '',
+              job_families: Array.isArray(studio.jobFamilies) ? studio.jobFamilies : [],
+              is_teaser: true,
+              teaser_banner:
+                typeof studio.teaserBanner === 'string' && studio.teaserBanner.trim()
+                  ? studio.teaserBanner
+                  : 'En cours d\'implémentation',
+            });
+          } catch (e) {
+            console.warn(`Failed to read studio teaser ${entry.name}:`, e);
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Failed to scan studio teasers:', e);
+    }
+
+    // Sort: playable first, teasers last; within each group by scenario_id
+    scenarios.sort((a, b) => {
+      const at = a.is_teaser ? 1 : 0;
+      const bt = b.is_teaser ? 1 : 0;
+      if (at !== bt) return at - bt;
+      return a.scenario_id.localeCompare(b.scenario_id);
+    });
 
     return scenarios;
   } catch (error) {
     console.error('Failed to list scenarios:', error);
     return [];
+  }
+}
+
+/**
+ * Return true if the given URL-facing id corresponds to a studio teaser
+ * (visible in the list but non-playable).
+ */
+export function isTeaserScenario(scenarioId: string): boolean {
+  try {
+    const studioPath = path.join(STUDIO_DIR, scenarioId, 'studio.json');
+    if (!fs.existsSync(studioPath)) return false;
+    const studio = JSON.parse(fs.readFileSync(studioPath, 'utf-8'));
+    if (!studio?.isTeaserVisible) return false;
+    // Only teaser if not also published to /scenarios
+    const publishedSubdir = path.join(SCENARIOS_DIR, scenarioId, 'scenario.json');
+    const publishedFlat = path.join(SCENARIOS_DIR, `${scenarioId}.json`);
+    if (fs.existsSync(publishedSubdir) || fs.existsSync(publishedFlat)) return false;
+    return true;
+  } catch {
+    return false;
   }
 }
 

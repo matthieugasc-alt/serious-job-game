@@ -21,6 +21,14 @@ import {
   filterDocumentsByPhase,
 } from "@/app/lib/runtime";
 import type { ScenarioDefinition } from "@/app/lib/types";
+import {
+  startVoiceCapture,
+  detectVoiceCapabilities,
+  type VoiceCaptureSession,
+  type VoiceCaptureResult,
+  type VoiceCaptureCapabilities,
+  type VoiceCaptureErrorCategory,
+} from "@/app/lib/voiceCapture";
 
 // ════════════════════════════════════════════════════════════════════
 // CONSTANTS & HELPERS
@@ -196,8 +204,15 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [interimText, setInterimText] = useState("");
   const [recordingElapsed, setRecordingElapsed] = useState(0);
   const recordingStartRef = useRef<number | null>(null);
-  const recognitionRef2 = useRef<any>(null);
+  const voiceSessionRef = useRef<VoiceCaptureSession | null>(null);
   const voiceTranscriptRef = useRef("");
+  const [voiceCapabilities, setVoiceCapabilities] = useState<VoiceCaptureCapabilities | null>(null);
+  const [voiceFatalError, setVoiceFatalError] = useState<{
+    category: VoiceCaptureErrorCategory;
+    message: string;
+  } | null>(null);
+  // When true, we're awaiting backend transcription after a stop()
+  const [voiceTranscribing, setVoiceTranscribing] = useState(false);
   const [isSpeakingTTS, setIsSpeakingTTS] = useState(false);
   const [speakingActorId, setSpeakingActorId] = useState<string | null>(null);
   const spokenMsgIdsRef = useRef<Set<string>>(new Set());
@@ -659,6 +674,23 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     return () => clearInterval(iv);
   }, [!!session, !!scenario]);
 
+  // ── Detect voice capture capabilities on mount ──
+  // Runs once, client-side only. Used to warn the user proactively if
+  // their browser cannot support either native SR or backend transcription.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const caps = detectVoiceCapabilities();
+    setVoiceCapabilities(caps);
+    // Log a short diagnostic to the console so we can help users debug
+    console.info("[voice] capabilities:", {
+      getUserMedia: caps.hasGetUserMedia,
+      mediaRecorder: caps.hasMediaRecorder,
+      speechRecognition: caps.hasSpeechRecognition,
+      mimeType: caps.preferredMimeType,
+      mode: caps.recommendedMode,
+    });
+  }, []);
+
   // ── Auto-scroll chat ──
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -699,27 +731,41 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
    *  - Empty transcripts trigger an explicit error + retry UI
    *    (instead of silently blocking on a spinner).
    */
-  function endPresentation(trigger: "manual" | "auto") {
-    const transcript = stopRecognition();
+  async function endPresentation(trigger: "manual" | "auto") {
     setPresentationDone(true);
     setPresentationError(null);
+    const result = await stopRecognition();
+    const trimmed = result.transcript.trim();
 
-    const trimmed = transcript.trim();
+    // ── Case 1: explicit error from capture pipeline ──
+    if (result.source === "error") {
+      console.warn(`[presentation:${trigger}] capture error:`, result.errorCategory, result.errorMessage);
+      setPresentationError({
+        category:
+          result.errorCategory === "transcribe_timeout" ? "timeout"
+          : result.errorCategory === "transcribe_network" ? "network"
+          : result.errorCategory === "transcribe_invalid_response" ? "invalid_response"
+          : "server_error",
+        message: result.errorMessage || "Erreur de transcription.",
+      });
+      presentationAutoStoppedRef.current = false;
+      return;
+    }
 
-    // ── Case 1: no transcript at all → surface an explicit error ──
+    // ── Case 2: no transcript at all (silence / mic didn't work) ──
     if (!trimmed) {
-      console.warn(`[presentation:${trigger}] empty transcript`);
+      console.warn(`[presentation:${trigger}] empty transcript (source=${result.source})`);
       setPresentationError({
         category: "empty_transcript",
         message:
-          "Aucun son n'a été capté. Vérifiez que votre micro est autorisé dans le navigateur, puis réessayez.",
+          "Aucun son n'a été capté pendant votre présentation. Vérifiez l'autorisation micro dans votre navigateur, fermez les autres applis qui l'utilisent, et réessayez.",
       });
       // Reset the auto-stop guard so the user can restart
       presentationAutoStoppedRef.current = false;
       return;
     }
 
-    // ── Case 2: usable transcript → advance phase synchronously ──
+    // ── Case 3: usable transcript → advance phase synchronously ──
     if (!session || !scenario || !view) {
       // Should not happen, but guard anyway
       setPresentationError({
@@ -856,160 +902,184 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   }, [conversation.length, session?.currentPhaseIndex]);
 
   // ── Auto-start mic in voice_qa mode ──
+  // Only auto-start when native SpeechRecognition is available (silence-based
+  // auto-send requires real-time interim results). When only MediaRecorder is
+  // available (Firefox), the user must click the mic button to submit each
+  // turn — the UI indicator shows "Mode tour-par-tour" to make this explicit.
   useEffect(() => {
     if (!session || !scenario) return;
     const phase = scenario.phases[session.currentPhaseIndex] as any;
-    if (phase?.interaction_mode === "voice_qa" && !isRecording && !presentationDone) {
-      // Small delay to let the phase transition settle
-      const t = setTimeout(() => startRecognition("fr-FR", true), 1500);
-      return () => clearTimeout(t);
-    }
-  }, [session?.currentPhaseIndex]);
+    if (phase?.interaction_mode !== "voice_qa") return;
+    if (isRecording || presentationDone) return;
+    const caps = voiceCapabilities || detectVoiceCapabilities();
+    if (!caps.hasSpeechRecognition) return; // backend mode → manual mic click
+    const t = setTimeout(() => startRecognition("fr-FR", true), 1500);
+    return () => clearTimeout(t);
+  }, [session?.currentPhaseIndex, voiceCapabilities?.recommendedMode]);
 
   // ════════════════════════════════════════════════════════════════════
   // SPEECH UTILITIES
   // ════════════════════════════════════════════════════════════════════
 
-  // ── Speech Recognition (STT) ──
-  function startRecognition(lang: string, autoSendMode: boolean = false) {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      alert("Votre navigateur ne supporte pas la reconnaissance vocale. Utilisez Google Chrome.");
-      return;
+  // ══════════════════════════════════════════════════════════════════
+  // VOICE CAPTURE — unified cross-browser via lib/voiceCapture
+  //
+  // Native SpeechRecognition is used when available (real-time interim
+  // + auto-send on silence for voice_qa). MediaRecorder always runs in
+  // parallel as a safety net — when native returns empty, the audio blob
+  // is sent to /api/transcribe (Whisper) and we use that transcript
+  // instead. Result: Firefox and other browsers without SR can still
+  // play the scenario.
+  // ══════════════════════════════════════════════════════════════════
+
+  // Shared helper used by voice_qa onSilence to push the accumulated
+  // transcript as a player message and trigger the AI reply.
+  function dispatchVoiceQAMessage(newText: string) {
+    if (!newText || isSendingRef.current) return;
+    const sess = sessionRef.current;
+    const scen = scenarioRef.current;
+    const v = viewRef.current;
+    if (!sess || !scen || !v) return;
+    const targetActor = scen.phases[sess.currentPhaseIndex]?.ai_actors?.[0] || "enfants_cmj";
+    const next = cloneSession(sess);
+    addPlayerMessage(next, newText, targetActor);
+    setSession(next);
+    voiceTranscriptRef.current = "";
+    setVoiceTranscript("");
+    lastSentTranscriptRef.current = "";
+    (async () => {
+      setIsSending(true);
+      try {
+        const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
+        const convNow = v.conversation || [];
+        const recentConv = convNow.slice(-10).map((m: any) => ({
+          role: m.role === "player" ? "user" : "assistant",
+          content: m.content,
+        }));
+        const playerOnlyMsgs = convNow
+          .filter((m: any) => m.role === "player")
+          .slice(-6)
+          .map((m: any) => m.content);
+        const res = await fetch("/api/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            playerName: displayPlayerName,
+            message: newText,
+            phaseTitle: v.phaseTitle,
+            phaseObjective: v.phaseObjective,
+            phaseFocus: v.phaseFocus,
+            phasePrompt: v.phasePrompt,
+            criteria: v.criteria,
+            mode: v.adaptiveMode,
+            narrative: scen.narrative,
+            recentConversation: recentConv,
+            playerMessages: playerOnlyMsgs,
+            roleplayPrompt: activePrompt,
+          }),
+        });
+        const data = await res.json();
+        playNotificationSound();
+        const final2 = cloneSession(next);
+        addAIMessage(final2, data.reply, targetActor);
+        applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+        setSession(final2);
+      } catch (err) {
+        console.error("Erreur dispatch vocal:", err);
+      } finally {
+        setIsSending(false);
+      }
+    })();
+  }
+
+  /**
+   * Start voice capture. Returns a promise that resolves once the mic is
+   * granted and recording has started (or rejects with a fatal error).
+   *
+   * `autoSendMode=true` enables silence-based auto-send used in voice_qa.
+   */
+  async function startRecognition(lang: string, autoSendMode: boolean = false): Promise<void> {
+    // Stop any previous session first
+    if (voiceSessionRef.current) {
+      try { await voiceSessionRef.current.cancel(); } catch {}
+      voiceSessionRef.current = null;
     }
-    const recognition = new SR();
-    recognition.lang = lang;
-    recognition.continuous = true;
-    recognition.interimResults = true;
 
-    let accumulated = "";
-
-    recognition.onresult = (event: any) => {
-      let interim = "";
-      let finalChunk = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        if (event.results[i].isFinal) {
-          finalChunk += event.results[i][0].transcript + " ";
-        } else {
-          interim += event.results[i][0].transcript;
-        }
-      }
-      if (finalChunk) {
-        accumulated += finalChunk;
-        voiceTranscriptRef.current = accumulated;
-        setVoiceTranscript(accumulated);
-
-        // ── Auto-send on speech pause in voice_qa mode ──
-        if (autoSendMode) {
-          // Clear previous pause timer
-          if (autoSendTimerRef.current) clearTimeout(autoSendTimerRef.current);
-          // Set new 2-second silence timer
-          autoSendTimerRef.current = setTimeout(() => {
-            const newText = accumulated.slice(lastSentTranscriptRef.current.length).trim();
-            if (!newText || isSendingRef.current) return;
-            // Mark what we've sent
-            lastSentTranscriptRef.current = accumulated;
-            // Send to AI
-            const sess = sessionRef.current;
-            const scen = scenarioRef.current;
-            const v = viewRef.current;
-            if (!sess || !scen || !v) return;
-            const targetActor = scen.phases[sess.currentPhaseIndex]?.ai_actors?.[0] || "enfants_cmj";
-            const next = cloneSession(sess);
-            addPlayerMessage(next, newText, targetActor);
-            setSession(next);
-            // Clear displayed transcript since it was sent
-            voiceTranscriptRef.current = "";
-            accumulated = "";
-            lastSentTranscriptRef.current = "";
-            setVoiceTranscript("");
-            // Get AI response
-            (async () => {
-              setIsSending(true);
-              try {
-                const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
-                const convNow = v.conversation || [];
-                const recentConv = convNow.slice(-10).map((m: any) => ({
-                  role: m.role === "player" ? "user" : "assistant",
-                  content: m.content,
-                }));
-                const playerOnlyMsgs = convNow
-                  .filter((m: any) => m.role === "player")
-                  .slice(-6)
-                  .map((m: any) => m.content);
-                const res = await fetch("/api/chat", {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify({
-                    playerName: displayPlayerName,
-                    message: newText,
-                    phaseTitle: v.phaseTitle,
-                    phaseObjective: v.phaseObjective,
-                    phaseFocus: v.phaseFocus,
-                    phasePrompt: v.phasePrompt,
-                    criteria: v.criteria,
-                    mode: v.adaptiveMode,
-                    narrative: scen.narrative,
-                    recentConversation: recentConv,
-                    playerMessages: playerOnlyMsgs,
-                    roleplayPrompt: activePrompt,
-                  }),
-                });
-                const data = await res.json();
-                playNotificationSound();
-                const final2 = cloneSession(next);
-                addAIMessage(final2, data.reply, targetActor);
-                applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-                setSession(final2);
-                // TTS will auto-trigger via existing effect
-              } catch (err) {
-                console.error("Erreur auto-send vocal:", err);
-              } finally {
-                setIsSending(false);
-              }
-            })();
-          }, 2000);
-        }
-      }
-      setInterimText(interim);
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error("Speech recognition error:", event.error);
-      if (event.error === "not-allowed") {
-        alert("Veuillez autoriser l'accès au microphone dans votre navigateur.");
-      }
-    };
-
-    recognition.onend = () => {
-      // Restart if still recording (Chrome stops after ~60s silence)
-      if (recognitionRef2.current === recognition && isRecording) {
-        try { recognition.start(); } catch {}
-      }
-    };
-
-    recognitionRef2.current = recognition;
-    recognition.start();
+    setVoiceFatalError(null);
     voiceTranscriptRef.current = "";
     setVoiceTranscript("");
     setInterimText("");
     lastSentTranscriptRef.current = "";
     if (autoSendTimerRef.current) { clearTimeout(autoSendTimerRef.current); autoSendTimerRef.current = null; }
-    setIsRecording(true);
-    recordingStartRef.current = Date.now();
-    setRecordingElapsed(0);
+
+    try {
+      const session = await startVoiceCapture({
+        lang,
+        preferNative: true,
+        onInterim: (text) => setInterimText(text),
+        onFinal: (fullAccumulated) => {
+          voiceTranscriptRef.current = fullAccumulated;
+          setVoiceTranscript(fullAccumulated);
+        },
+        onSilence: autoSendMode
+          ? (accumulated) => {
+              const newText = accumulated
+                .slice(lastSentTranscriptRef.current.length)
+                .trim();
+              if (!newText) return;
+              lastSentTranscriptRef.current = accumulated;
+              dispatchVoiceQAMessage(newText);
+            }
+          : undefined,
+        silenceTimeoutMs: autoSendMode ? 2000 : undefined,
+        onError: (category, message) => {
+          // Fatal pre-start error — surface to UI
+          setVoiceFatalError({ category, message });
+          setIsRecording(false);
+          recordingStartRef.current = null;
+        },
+      });
+      voiceSessionRef.current = session;
+      setIsRecording(true);
+      recordingStartRef.current = Date.now();
+      setRecordingElapsed(0);
+    } catch (err) {
+      // onError has already set voiceFatalError; nothing more to do
+      console.warn("[voice] startRecognition failed:", err);
+      setIsRecording(false);
+    }
   }
 
-  function stopRecognition(): string {
-    if (recognitionRef2.current) {
-      recognitionRef2.current.onend = null;
-      try { recognitionRef2.current.stop(); } catch {}
-      recognitionRef2.current = null;
-    }
+  /**
+   * Stop voice capture and return the best available transcript (native or
+   * backend-Whisper). Never throws — errors are returned in the result.
+   *
+   * Callers should check `result.source`:
+   *   - "native" | "backend" → use `result.transcript`
+   *   - "empty"              → no audio / silence
+   *   - "error"              → display `result.errorMessage`
+   */
+  async function stopRecognition(): Promise<VoiceCaptureResult> {
+    const session = voiceSessionRef.current;
+    voiceSessionRef.current = null;
     setIsRecording(false);
     recordingStartRef.current = null;
     setInterimText("");
-    return voiceTranscriptRef.current;
+    if (autoSendTimerRef.current) { clearTimeout(autoSendTimerRef.current); autoSendTimerRef.current = null; }
+    if (!session) {
+      // No active session (already stopped, or never started)
+      const fallback = voiceTranscriptRef.current.trim();
+      return { transcript: fallback, source: fallback ? "native" : "empty" };
+    }
+    // If session is in backend mode, show the transcribing spinner
+    const needsBackend = session.mode === "backend" || !session.nativeWorking();
+    if (needsBackend) setVoiceTranscribing(true);
+    try {
+      const result = await session.stop();
+      return result;
+    } finally {
+      setVoiceTranscribing(false);
+    }
   }
 
   function speakTTS(text: string, lang: string, actorId?: string): Promise<void> {
@@ -1662,6 +1732,38 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
           {!presentationDone ? (
             <div style={{ textAlign: "center", maxWidth: 700, width: "100%" }}>
+              {/* Voice capability banner — proactively tells the user which
+                  mode will be used (native instant vs backend Whisper). */}
+              {voiceCapabilities && voiceCapabilities.recommendedMode === "unavailable" && (
+                <div style={{
+                  background: "rgba(233,75,60,0.15)", border: "1px solid rgba(233,75,60,0.4)",
+                  borderRadius: 10, padding: "12px 16px", marginBottom: 16,
+                  color: "#ffb4b4", fontSize: 13, textAlign: "left",
+                }}>
+                  ⚠️ <strong>Capture audio indisponible sur ce navigateur.</strong> Utilisez
+                  une version récente de Chrome, Firefox, Safari ou Edge (HTTPS requis).
+                </div>
+              )}
+              {voiceCapabilities && voiceCapabilities.recommendedMode === "backend" && (
+                <div style={{
+                  background: "rgba(245,166,35,0.12)", border: "1px solid rgba(245,166,35,0.35)",
+                  borderRadius: 10, padding: "12px 16px", marginBottom: 16,
+                  color: "#ffd28a", fontSize: 12, textAlign: "left",
+                }}>
+                  ℹ️ Votre navigateur ne propose pas la transcription temps réel (Firefox, etc.).
+                  Pas de souci : l'audio sera enregistré puis transcrit côté serveur quand vous cliquerez sur stop.
+                </div>
+              )}
+              {/* Fatal voice error (mic refused, no device, etc.) */}
+              {voiceFatalError && (
+                <div style={{
+                  background: "rgba(233,75,60,0.15)", border: "1px solid rgba(233,75,60,0.4)",
+                  borderRadius: 10, padding: "12px 16px", marginBottom: 16,
+                  color: "#ffb4b4", fontSize: 13, textAlign: "left",
+                }}>
+                  ⚠️ {voiceFatalError.message}
+                </div>
+              )}
               {/* Instructions */}
               <div style={{ background: "rgba(255,255,255,0.08)", borderRadius: 16, padding: "24px 32px", marginBottom: 32, textAlign: "left", border: "1px solid rgba(255,255,255,0.1)" }}>
                 <h2 style={{ color: "#7b7fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 12px" }}>
@@ -1768,11 +1870,22 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
               </button>
             </div>
           ) : (
-            /* Processing state after recording — only visible briefly
-               between stopRecognition() and phase transition render */
+            /* Processing state after recording. If we're waiting on
+               backend Whisper transcription (Firefox / no native SR),
+               show an explicit message so the user understands why
+               the final transcript takes a few seconds. */
             <div style={{ textAlign: "center" }}>
               <div style={{ width: 48, height: 48, border: "4px solid rgba(255,255,255,0.2)", borderTopColor: "#7b7fff", borderRadius: "50%", animation: "spin .8s linear infinite", margin: "0 auto 20px" }} />
-              <p style={{ color: "#e0e0e0", fontSize: 16, fontWeight: 600 }}>Transition en cours...</p>
+              <p style={{ color: "#e0e0e0", fontSize: 16, fontWeight: 600 }}>
+                {voiceTranscribing
+                  ? "Transcription de votre présentation en cours..."
+                  : "Transition en cours..."}
+              </p>
+              {voiceTranscribing && (
+                <p style={{ color: "#888", fontSize: 12, marginTop: 8 }}>
+                  Envoi au service de transcription (jusqu'à 60 s)
+                </p>
+              )}
             </div>
           )}
         </div>
@@ -1955,17 +2068,47 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     animation: isRecording ? "micBlink 1s ease-in-out infinite" : "none",
                   }} />
                   <span style={{ fontSize: 12, fontWeight: 600, color: isRecording ? "#e94b3c" : "#999" }}>
-                    {isRecording ? (isSending ? "Analyse en cours..." : "Micro actif — Parlez librement") : "Micro coupé"}
+                    {voiceTranscribing
+                      ? "Transcription..."
+                      : isRecording
+                        ? (isSending ? "Analyse en cours..." : "Micro actif — Parlez librement")
+                        : "Micro coupé"}
                   </span>
                 </div>
+                {/* Voice_qa warns if native SR is missing — auto-send-on-silence
+                    only works with native. Backend-only users must tap the mic
+                    button to submit each turn. */}
+                {voiceCapabilities && !voiceCapabilities.hasSpeechRecognition && voiceCapabilities.hasMediaRecorder && (
+                  <span style={{ fontSize: 11, color: "#b87500", fontWeight: 600 }} title="Sans reconnaissance temps réel, appuyez sur le micro pour envoyer chaque tour.">
+                    📢 Mode tour-par-tour
+                  </span>
+                )}
+                {voiceFatalError && (
+                  <span style={{ fontSize: 11, color: "#c62828", fontWeight: 600 }} title={voiceFatalError.message}>
+                    ⚠️ {voiceFatalError.category === "permission_denied" ? "Micro refusé"
+                       : voiceFatalError.category === "mic_missing" ? "Aucun micro"
+                       : voiceFatalError.category === "mic_busy" ? "Micro occupé"
+                       : "Indisponible"}
+                  </span>
+                )}
                 <button
                   onClick={() => {
                     if (isRecording) {
-                      // Mute — just stop recognition, no send (auto-send handles it)
+                      // Mute — stop session (backend transcription result
+                      // ignored here; the last message was already dispatched
+                      // via onSilence or the final stop is just for "pause")
                       if (autoSendTimerRef.current) { clearTimeout(autoSendTimerRef.current); autoSendTimerRef.current = null; }
-                      stopRecognition();
+                      stopRecognition().then((result) => {
+                        // If backend produced a trailing transcript that hadn't
+                        // been auto-sent yet, dispatch it now so no input is lost.
+                        const pending = result.transcript.trim();
+                        const already = lastSentTranscriptRef.current.trim();
+                        if (pending && pending !== already && result.source !== "error") {
+                          dispatchVoiceQAMessage(pending);
+                        }
+                      }).catch(() => {});
                     } else {
-                      // Unmute — restart with auto-send
+                      // Unmute — restart with auto-send (if supported)
                       startRecognition("fr-FR", true);
                     }
                   }}

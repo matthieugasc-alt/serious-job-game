@@ -66,6 +66,12 @@ export default function IntroductionPage({
       try {
         setLoading(true);
         const res = await fetch(`/api/scenarios/${scenarioId}`);
+        if (res.status === 423) {
+          setError(
+            "Ce scénario est un aperçu en cours d'implémentation. Il n'est pas encore jouable."
+          );
+          return;
+        }
         if (!res.ok) throw new Error("Scenario not found");
         setScenario(await res.json());
       } catch {
