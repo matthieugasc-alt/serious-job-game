@@ -241,6 +241,13 @@ export type ActorDefinition = {
 
   /** Preview text shown in the contacts list */
   contact_preview?: string;
+
+  /**
+   * OpenAI TTS voice name for this actor.
+   * Available: "alloy", "ash", "ballad", "coral", "echo", "fable", "nova", "onyx", "sage", "shimmer"
+   * If omitted, a default voice is assigned automatically.
+   */
+  tts_voice?: string;
 };
 
 /**

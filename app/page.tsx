@@ -61,10 +61,37 @@ function DifficultyBadge({ difficulty }: { difficulty: string }) {
   );
 }
 
+/** Normalize a job_family value to a canonical slug for grouping.
+ *  Handles both slugs ("assistant_cooperation_internationale")
+ *  and freeform labels ("Assistant.e de coopération internationale").  */
+function normalizeJobFamily(raw: string): string {
+  const s = raw
+    .toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // strip accents
+    .replace(/[·.\-]/g, "")                           // strip middot, dot, dash
+    .replace(/\s+/g, "_")                              // spaces → underscores
+    .replace(/[^a-z0-9_]/g, "")                        // keep only alnum + _
+    .replace(/_+/g, "_")                               // collapse double _
+    .replace(/^_|_$/g, "");                            // trim leading/trailing _
+
+  // Merge known variants
+  if (s.includes("assistant") && s.includes("cooperation")) return "assistant_cooperation_internationale";
+  if (s.includes("attache") && s.includes("parlementaire")) return "attache_parlementaire";
+  if (s.includes("chef") && s.includes("produit")) return "chef_de_produit";
+  if (s.includes("enseignant")) return "enseignant";
+  if (s.includes("immobilier")) return "immobilier";
+
+  return s;
+}
+
 /** Format job_family slug into readable label */
 function formatJobFamily(slug: string): string {
   const map: Record<string, string> = {
     assistant_cooperation_internationale: "Assistant·e de coopération internationale",
+    attache_parlementaire: "Attaché·e parlementaire",
+    chef_de_produit: "Chef·fe de produit",
+    enseignant: "Enseignant·e",
+    immobilier: "Agent immobilier",
     management: "Management",
     ressources_humaines: "Ressources humaines",
     commercial: "Commercial",
@@ -226,12 +253,18 @@ function ScenarioCard({
       </div>
 
       <p
+        title={scenario.description || ""}
         style={{
           margin: "0 0 12px 0",
           fontSize: 15,
           lineHeight: 1.5,
           color: "#333",
           flex: 1,
+          display: "-webkit-box",
+          WebkitLineClamp: 4,
+          WebkitBoxOrient: "vertical" as const,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}
       >
         {scenario.description || "Scenario description"}
@@ -302,12 +335,12 @@ export default function ScenarioSelectionPage() {
         const loadedScenarios = scenariosData.scenarios || [];
         setScenarios(loadedScenarios);
 
-        // Extract unique categories
+        // Extract unique categories (normalized)
         const categories: string[] = Array.from(
           new Set<string>(
             loadedScenarios
-              .map((s: Scenario) => s.job_family)
-              .filter((f: string | undefined): f is string => Boolean(f))
+              .map((s: Scenario) => normalizeJobFamily(s.job_family || "autre"))
+              .filter((f: string) => Boolean(f))
           )
         ).sort();
         setAllCategories(categories);
@@ -339,7 +372,7 @@ export default function ScenarioSelectionPage() {
               const selectedCats = new Set<string>(
                 (prefsData.preferences || [])
                   .filter((p: UserPreference) => p.followed)
-                  .map((p: UserPreference) => p.job_family)
+                  .map((p: UserPreference) => normalizeJobFamily(p.job_family))
               );
               if (selectedCats.size > 0) {
                 setSelectedCategories(selectedCats);
@@ -649,15 +682,15 @@ export default function ScenarioSelectionPage() {
           </div>
         ) : (
           (() => {
-            // Filter scenarios by selected categories
+            // Filter scenarios by selected categories (normalized)
             const filteredScenarios = scenarios.filter((s) =>
-              selectedCategories.has(s.job_family || "autre")
+              selectedCategories.has(normalizeJobFamily(s.job_family || "autre"))
             );
 
-            // Group scenarios by job_family
+            // Group scenarios by normalized job_family
             const groups: Record<string, Scenario[]> = {};
             for (const s of filteredScenarios) {
-              const key = s.job_family || "autre";
+              const key = normalizeJobFamily(s.job_family || "autre");
               if (!groups[key]) groups[key] = [];
               groups[key].push(s);
             }

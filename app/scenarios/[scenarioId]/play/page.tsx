@@ -218,6 +218,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const spokenMsgIdsRef = useRef<Set<string>>(new Set());
   const [raisedHands, setRaisedHands] = useState<string[]>([]);
   const [qaWaiting, setQaWaiting] = useState(false);
+  const phaseStartRealTimeRef = useRef<number>(Date.now());
+  const phaseMaxDurationTriggeredRef = useRef<string | null>(null);
   const [presentationDone, setPresentationDone] = useState(false);
   const [presentationError, setPresentationError] = useState<{
     category: "empty_transcript" | "timeout" | "network" | "server_error" | "invalid_response";
@@ -660,6 +662,53 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     }
   }, [session?.simulatedTime, session?.currentPhaseIndex]);
 
+  // ── Reset phase start real time when phase changes ──
+  useEffect(() => {
+    if (!session) return;
+    phaseStartRealTimeRef.current = Date.now();
+  }, [session?.currentPhaseIndex]);
+
+  // ── Auto-advance based on max_duration_sec (real wall-clock time) ──
+  useEffect(() => {
+    if (!session || !scenario) return;
+    const phase = scenario.phases[session.currentPhaseIndex] as any;
+    const maxSec = phase?.max_duration_sec;
+    if (!maxSec || typeof maxSec !== "number") return;
+    const phaseId = phase?.phase_id || `phase_${session.currentPhaseIndex}`;
+    if (phaseMaxDurationTriggeredRef.current === phaseId) return;
+
+    const iv = setInterval(() => {
+      const elapsed = (Date.now() - phaseStartRealTimeRef.current) / 1000;
+      if (elapsed >= maxSec && phaseMaxDurationTriggeredRef.current !== phaseId) {
+        phaseMaxDurationTriggeredRef.current = phaseId;
+        // Check if there's a next phase
+        const isLastPhase = session.currentPhaseIndex >= scenario.phases.length - 1;
+        if (isLastPhase) {
+          // End the scenario — add a system message and trigger ending
+          setSession((prev: any) => {
+            if (!prev) return prev;
+            const next = cloneSession(prev);
+            addAIMessage(next, "⏱ Le temps de la visite est écoulé. Mme Renard rassemble les enfants pour le départ. Merci pour cette visite !", "system");
+            next.completed = true;
+            return next;
+          });
+        } else {
+          setSession((prev: any) => {
+            if (!prev) return prev;
+            const next = cloneSession(prev);
+            addAIMessage(next, "⏱ Le temps imparti pour cette phase est écoulé. Passons à la suite.", "system");
+            completeCurrentPhaseAndAdvance(next);
+            injectPhaseEntryEvents(next);
+            const newPhase = scenario.phases[next.currentPhaseIndex];
+            if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
+            return next;
+          });
+        }
+      }
+    }, 1000);
+    return () => clearInterval(iv);
+  }, [session?.currentPhaseIndex, !!session, !!scenario]);
+
   // ── Flush timed events ──
   useEffect(() => {
     if (!session || !scenario) return;
@@ -1082,15 +1131,99 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     }
   }
 
-  function speakTTS(text: string, lang: string, actorId?: string): Promise<void> {
+  // ── OpenAI TTS with per-actor voice mapping ──
+  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
+
+  /** Resolve the OpenAI TTS voice for a given actor.
+   *  1. Check actor's tts_voice field in scenario JSON
+   *  2. Fall back to a curated default per actor_id
+   *  3. Ultimate fallback: "nova"  */
+  function resolveVoice(actorId?: string): string {
+    // Check scenario actor definition first
+    if (actorId && scenario?.actors) {
+      const actor = (scenario.actors as any[]).find((a: any) => a.actor_id === actorId);
+      if (actor?.tts_voice) return actor.tts_voice;
+    }
+    // Curated defaults per actor for art_du_malentendu & others
+    const defaults: Record<string, string> = {
+      yuki_tanaka: "nova",       // warm, expressive female — fits Yuki
+      sophie_renard: "shimmer",  // calm, mature female
+      nathalie_morel: "coral",   // professional female
+      enfants_cmj: "fable",      // expressive, lighter — fits children
+      player: "echo",
+    };
+    if (actorId && defaults[actorId]) return defaults[actorId];
+    return "nova";
+  }
+
+  async function speakTTS(text: string, _lang: string, actorId?: string): Promise<void> {
+    if (typeof window === "undefined") return;
+
+    // Stop any currently playing TTS
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current = null;
+    }
+
+    if (actorId) setSpeakingActorId(actorId);
+    setIsSpeakingTTS(true);
+
+    try {
+      const voice = resolveVoice(actorId);
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, voice, speed: 1.0 }),
+      });
+
+      if (!res.ok) {
+        console.warn("TTS API error, falling back to Web Speech API");
+        await speakTTSFallback(text, _lang, actorId);
+        return;
+      }
+
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      ttsAudioRef.current = audio;
+
+      await new Promise<void>((resolve) => {
+        audio.onended = () => {
+          URL.revokeObjectURL(url);
+          setIsSpeakingTTS(false);
+          setSpeakingActorId(null);
+          ttsAudioRef.current = null;
+          resolve();
+        };
+        audio.onerror = () => {
+          URL.revokeObjectURL(url);
+          setIsSpeakingTTS(false);
+          setSpeakingActorId(null);
+          ttsAudioRef.current = null;
+          resolve();
+        };
+        audio.play().catch(() => {
+          setIsSpeakingTTS(false);
+          setSpeakingActorId(null);
+          ttsAudioRef.current = null;
+          resolve();
+        });
+      });
+    } catch (err) {
+      console.warn("TTS fetch failed, falling back to Web Speech API:", err);
+      await speakTTSFallback(text, _lang, actorId);
+    }
+  }
+
+  /** Fallback to browser Web Speech API if OpenAI TTS is unavailable */
+  function speakTTSFallback(text: string, lang: string, actorId?: string): Promise<void> {
     return new Promise((resolve) => {
-      if (typeof window === "undefined" || !window.speechSynthesis) { resolve(); return; }
+      if (!window.speechSynthesis) { setIsSpeakingTTS(false); setSpeakingActorId(null); resolve(); return; }
       speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang;
       utterance.rate = 0.95;
       utterance.pitch = 1.0;
-      // Pick a voice
       const voices = speechSynthesis.getVoices();
       const langPrefix = lang.split("-")[0];
       const preferred = voices.find(v => v.lang.startsWith(langPrefix) && (v.name.includes("Google") || v.name.includes("Microsoft")))
@@ -1916,7 +2049,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         // Generate child question
                         const question = await generateNPCMessage(
                           "enfants_cmj",
-                          `[L'enfant ${childName} est interrogé(e) et pose sa question à l'artiste ou au présentateur]`
+                          `INSTRUCTION: C'est ${childName} qui lève la main. Réponds UNIQUEMENT avec la réplique de ${childName}. UN SEUL enfant (${childName}), UNE question courte (1-2 phrases). Ne fais parler AUCUN autre enfant.`
                         );
                         // Add to conversation
                         const next = cloneSession(session);

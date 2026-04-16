@@ -96,7 +96,8 @@
       },
       "visible_in_contacts": true,
       "contact_status": "available",
-      "contact_preview": "At the gallery, preparing the exhibition."
+      "contact_preview": "At the gallery, preparing the exhibition.",
+      "tts_voice": "nova"
     },
     {
       "actor_id": "sophie_renard",
@@ -112,7 +113,8 @@
         "initials": "SR"
       },
       "visible_in_contacts": true,
-      "contact_status": "available"
+      "contact_status": "available",
+      "tts_voice": "shimmer"
     },
     {
       "actor_id": "enfants_cmj",
@@ -128,7 +130,8 @@
         "initials": "CMJ"
       },
       "visible_in_contacts": true,
-      "contact_status": "available"
+      "contact_status": "available",
+      "tts_voice": "fable"
     },
     {
       "actor_id": "nathalie_morel",
@@ -145,7 +148,8 @@
       },
       "visible_in_contacts": true,
       "contact_status": "busy",
-      "contact_preview": "En réunion. Dispo par chat uniquement."
+      "contact_preview": "En réunion. Dispo par chat uniquement.",
+      "tts_voice": "coral"
     }
   ],
 
@@ -242,6 +246,7 @@
       "phase_id": "phase_1_briefing_taxi",
       "title": "Briefing express avec Yuki",
       "duration_target_min": 5,
+      "max_duration_sec": 300,
       "objective": "Yuki Tanaka est surexcitée et vous bombarde de ses plans pour la visite. Elle compte utiliser ses clichés habituels sur la France devant les enfants. Le joueur doit la raisonner en anglais : lui faire comprendre diplomatiquement que ses propos provocateurs ne sont PAS appropriés devant des enfants de 7-10 ans, et obtenir qu'elle adapte son discours. Le temps presse : les enfants arrivent dans 5 minutes.",
       "active_channels": ["chat"],
       "ai_actors": ["yuki_tanaka"],
@@ -302,6 +307,7 @@
       "phase_id": "phase_2_presentation",
       "title": "Présentation aux enfants",
       "duration_target_min": 5,
+      "max_duration_sec": 300,
       "objective": "Faire un exposé oral en français pour présenter l'artiste et l'exposition aux enfants du CMJ. Le joueur doit expliquer qui est Yuki Tanaka de manière adaptée aux enfants, présenter l'exposition et ses thèmes de manière positive et accessible, préparer les enfants au fait que l'artiste ne parle pas français, et donner envie aux enfants de poser des questions.",
       "active_channels": ["chat"],
       "ai_actors": ["enfants_cmj", "sophie_renard"],
@@ -357,14 +363,15 @@
     {
       "phase_id": "phase_3_echange",
       "title": "Échange artiste-enfants",
-      "duration_target_min": 7,
+      "duration_target_min": 5,
+      "max_duration_sec": 300,
       "objective": "Animer l'échange entre Yuki Tanaka et les enfants. Le joueur doit traduire les questions des enfants (français → anglais) pour l'artiste, traduire les réponses de l'artiste (anglais → français) pour les enfants, ADAPTER les réponses si elles contiennent des propos inappropriés, gérer les situations où l'artiste dit quelque chose de déplacé, et reformuler avec tact si nécessaire sans trahir l'esprit de l'artiste.",
       "active_channels": ["chat"],
       "ai_actors": ["yuki_tanaka", "enfants_cmj", "sophie_renard"],
       "interaction_mode": "voice_qa",
       "auto_advance_at": "visit_end",
       "voice_qa_config": {
-        "children_names": ["Léa", "Hugo", "Inès", "Lucas", "Hana", "Théo", "Manon", "Kenji"],
+        "children_names": ["Hugo", "Léa", "Amine", "Camille", "Zoé", "Lucas", "Inès", "Tom", "Lina", "Noah", "Hana", "Kenji"],
         "hand_raise_interval_sec": 15,
         "max_simultaneous_hands": 3
       },
