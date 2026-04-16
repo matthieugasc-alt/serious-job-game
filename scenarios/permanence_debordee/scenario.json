@@ -1,0 +1,264 @@
+{
+  "scenario_id": "permanence_debordee",
+  "version": "1.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "La permanence débordée",
+    "subtitle": "Qualifier et traiter une demande citoyenne sur l'accès aux soins",
+    "description": "Un citoyen signale un délai de 4 mois pour obtenir un rendez-vous médecin dans sa commune rurale. Vous devez qualifier la demande, rédiger un courrier à l'ARS et répondre au citoyen.",
+    "job_family": "attache_parlementaire",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 15,
+    "tags": [
+      "parlementaire",
+      "permanence",
+      "santé",
+      "ARS",
+      "courrier",
+      "pour débuter"
+    ],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Qualifier une demande citoyenne",
+      "Distinguer compétence parlementaire et compétence locale",
+      "Rédiger un courrier institutionnel à l'ARS"
+    ]
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Attaché·e parlementaire",
+      "subtitle": "Gérez une demande citoyenne urgente sur l'accès aux soins"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Vous êtes attaché·e parlementaire de <strong>Mme Sylvie Garnier</strong>, députée de la 3e circonscription de l'Allier. Vous gérez la permanence et les courriers.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p>Un citoyen, M. Robert Pasquier, a envoyé un mail à la permanence pour dénoncer un <strong>délai de 4 mois</strong> pour voir un médecin généraliste dans sa commune. Il demande à la députée d'intervenir.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Échangez avec la directrice de cabinet pour qualifier la demande.</p><p><strong>Phase 2</strong> — Rédigez le courrier à l'ARS et la réponse au citoyen par mail.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles du jeu",
+        "content": "<p>Chat + mail uniquement. Soyez précis, institutionnel, et empathique envers le citoyen. Durée : ~15 min.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Vous êtes attaché·e parlementaire depuis 8 mois au bureau de Mme Sylvie Garnier, députée de l'Allier. La permanence reçoit régulièrement des demandes citoyennes sur des sujets variés. Votre rôle : qualifier les demandes, orienter les citoyens, et rédiger les courriers officiels.",
+    "mission": "Traiter la demande de M. Pasquier concernant l'accès aux soins dans sa commune : qualifier le problème, rédiger un courrier à l'ARS Auvergne-Rhône-Alpes, et répondre au citoyen.",
+    "initial_situation": "Mardi matin, 9h. Vous ouvrez la boîte mail de la permanence. Un mail de M. Robert Pasquier attend une réponse. La directrice de cabinet, Mme Nathalie Vidal, est disponible par chat.",
+    "trigger": "Le mail de M. Pasquier est dans votre boîte de réception. Mme Vidal vous a prévenu qu'il y avait un courrier citoyen à traiter en priorité ce matin.",
+    "background_fact": "L'Allier fait partie des départements classés en zone d'intervention prioritaire pour l'accès aux soins. La députée a déjà interpellé le gouvernement sur le sujet en commission."
+  },
+  "timeline": {
+    "scenario_start": "2025-04-15T09:00:00",
+    "sim_speed_multiplier": 2
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "",
+      "email": "",
+      "role": "Attaché·e parlementaire de Mme Garnier",
+      "personality": "",
+      "interaction_modes": [
+        "chat",
+        "mail"
+      ],
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#2E7D32",
+        "initials": "AP"
+      },
+      "visible_in_contacts": false
+    },
+    {
+      "actor_id": "nathalie_vidal",
+      "name": "Nathalie Vidal",
+      "email": "n.vidal@assemblee-nationale.fr",
+      "role": "Directrice de cabinet de Mme Garnier",
+      "personality": "Professionnelle, directive, exigeante sur la forme des courriers. Bienveillante mais attend de la rigueur. Connaît parfaitement les compétences parlementaires vs locales.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "nathalie_vidal.md",
+      "availability": "Disponible tout au long du scénario.",
+      "avatar": {
+        "color": "#1565C0",
+        "initials": "NV"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne"
+    },
+    {
+      "actor_id": "robert_pasquier",
+      "name": "Robert Pasquier",
+      "email": "r.pasquier42@orange.fr",
+      "role": "Citoyen de la 3e circonscription, retraité",
+      "personality": "Inquiet, un peu amer, mais poli. Attend une réponse concrète, pas du vent politique.",
+      "interaction_modes": [
+        "mail"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "robert_pasquier.md",
+      "availability": "Contactable par mail uniquement.",
+      "avatar": {
+        "color": "#6D4C41",
+        "initials": "RP"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Attend une réponse"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "mail_pasquier",
+        "label": "Mail de M. Pasquier",
+        "contains": [
+          "demande citoyenne",
+          "accès soins",
+          "délai médecin"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": false,
+        "content": "MAIL REÇU — De : r.pasquier42@orange.fr\nObjet : Situation inacceptable — accès aux soins à Lurcy-Lévis\n\nMadame la Députée,\n\nJe me permets de vous écrire car la situation est devenue intenable. Mon épouse, âgée de 72 ans, a besoin de consulter un médecin généraliste pour un suivi régulier. Or, le dernier médecin de Lurcy-Lévis a pris sa retraite en janvier et n'a pas été remplacé.\n\nLe cabinet le plus proche est à Moulins (25 km). Ma femme a appelé : le prochain rendez-vous disponible est dans 4 mois. 4 mois ! Pour un suivi de tension et de diabète.\n\nNous avons 82 ans à nous deux, nous n'avons pas de voiture. Le bus passe 2 fois par jour.\n\nJe sais que ce n'est peut-être pas de votre ressort direct, mais qui d'autre peut nous aider ?\n\nMerci de votre attention.\n\nRobert Pasquier\nLurcy-Lévis (03)"
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": false,
+    "hierarchy_limit": "Tout courrier officiel doit être validé par Mme Vidal avant envoi",
+    "diplomatic_tone_required": true,
+    "uncertainty": "Le joueur doit déterminer si la demande relève du parlementaire ou du local",
+    "sensitive_audience": "Citoyen âgé, inquiet, en attente d'une réponse concrète"
+  },
+  "initial_events": [
+    {
+      "event_id": "vidal_intro",
+      "type": "chat",
+      "actor": "nathalie_vidal",
+      "content": "Bonjour. Il y a un mail citoyen prioritaire ce matin — un monsieur de Lurcy-Lévis sur l'accès aux soins. Lisez-le et dites-moi comment vous comptez traiter ça. On ne peut pas répondre n'importe quoi, c'est un sujet sensible dans la circo."
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Qualifier la demande",
+      "duration_target_min": 7,
+      "objective": "Échanger avec Mme Vidal pour qualifier la demande : est-ce du ressort parlementaire ? Quel levier actionner ? Quel destinataire institutionnel ?",
+      "phase_focus": "Le joueur discute avec Mme Vidal pour comprendre le périmètre d'action et décider de la réponse à apporter.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "nathalie_vidal"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Discutez avec Mme Vidal pour qualifier la demande de M. Pasquier."
+      },
+      "competencies": [
+        "Identifie que l'accès aux soins en zone rurale relève de l'ARS, pas directement du parlementaire",
+        "Propose d'écrire un courrier d'interpellation à l'ARS au nom de la députée",
+        "Distingue le rôle de relais du parlementaire du pouvoir de décision"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Rédiger les courriers",
+      "duration_target_min": 8,
+      "objective": "Rédiger un mail à l'ARS et une réponse à M. Pasquier, en respectant le ton institutionnel.",
+      "phase_focus": "Le joueur rédige deux mails : un courrier d'interpellation ARS et une réponse au citoyen.",
+      "active_channels": [
+        "mail"
+      ],
+      "ai_actors": [
+        "nathalie_vidal",
+        "robert_pasquier"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Rédigez le courrier à l'ARS et la réponse à M. Pasquier."
+      },
+      "competencies": [
+        "Rédige un courrier institutionnel structuré à l'ARS (objet clair, faits, demande précise)",
+        "Répond au citoyen avec empathie et transparence sur les actions entreprises",
+        "Utilise le bon registre de langue pour chaque destinataire"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": null
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Réussite",
+      "content": "Vous avez correctement qualifié la demande, rédigé un courrier professionnel à l'ARS et rassuré M. Pasquier. Mme Vidal valide vos courriers. La députée vous remercie."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Partiel",
+      "content": "Vous avez traité la demande mais les courriers manquent de précision ou le ton n'est pas adapté. Mme Vidal demande des corrections."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "Vous n'avez pas identifié le bon interlocuteur institutionnel ou la réponse au citoyen est inadaptée."
+    }
+  ],
+  "competencies_evaluated": [
+    {
+      "phase": "phase_1",
+      "competency": "Qualification d'une demande citoyenne"
+    },
+    {
+      "phase": "phase_1",
+      "competency": "Connaissance du périmètre d'action parlementaire"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Rédaction d'un courrier institutionnel"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Communication empathique avec un citoyen"
+    }
+  ]
+}

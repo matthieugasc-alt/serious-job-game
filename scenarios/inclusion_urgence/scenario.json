@@ -1,0 +1,258 @@
+{
+  "scenario_id": "inclusion_urgence",
+  "version": "1.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "L'inclusion en urgence",
+    "subtitle": "Accueillir un élève allophone arrivant lundi",
+    "description": "Un élève allophone arrive lundi. Organisez l'accueil avec le directeur et contactez le CASNAV.",
+    "job_family": "enseignant",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 15,
+    "tags": [
+      "enseignement",
+      "inclusion",
+      "allophone",
+      "CASNAV",
+      "pour débuter"
+    ],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Organiser l'accueil d'un élève allophone",
+      "Mobiliser les ressources institutionnelles",
+      "Communiquer avec bienveillance"
+    ]
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Enseignant·e",
+      "subtitle": "Un nouvel élève allophone arrive lundi — organisez son accueil"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Enseignant·e en <strong>CE2</strong>, école élémentaire Pasteur.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p>Le directeur vous informe qu'un élève de <strong>8 ans</strong>, <strong>Aram</strong>, arrivé de Syrie, intègre votre classe lundi. Il ne parle pas français.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Échangez avec le directeur pour obtenir les infos.</p><p><strong>Phase 2</strong> — Contactez le CASNAV et préparez l'accueil.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles",
+        "content": "<p>Chat + mail. Document : fiche de renseignements. ~15 min.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "École élémentaire Pasteur, milieu urbain mixte. Classe de CE2, 24 élèves. L'école a déjà accueilli des élèves allophones par le passé.",
+    "mission": "Organiser l'accueil d'Aram : obtenir les infos du directeur, contacter le CASNAV pour un accompagnement UPE2A, et préparer un message d'accueil.",
+    "initial_situation": "Jeudi après-midi. Le directeur vous contacte.",
+    "trigger": "Le directeur vous écrit par chat.",
+    "background_fact": "Le CASNAV (Centre académique pour la scolarisation des enfants allophones) peut intervenir rapidement si la demande est bien formulée."
+  },
+  "timeline": {
+    "scenario_start": "2025-04-10T14:00:00",
+    "sim_speed_multiplier": 2
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "",
+      "email": "",
+      "role": "Enseignant·e CE2",
+      "personality": "",
+      "interaction_modes": [
+        "chat",
+        "mail"
+      ],
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#2E7D32",
+        "initials": "EN"
+      },
+      "visible_in_contacts": false
+    },
+    {
+      "actor_id": "alain_moreau",
+      "name": "Alain Moreau",
+      "email": "a.moreau@ac-lyon.fr",
+      "role": "Directeur",
+      "personality": "Bienveillant, pragmatique, un peu débordé.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "alain_moreau.md",
+      "avatar": {
+        "color": "#1565C0",
+        "initials": "AM"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne"
+    },
+    {
+      "actor_id": "casnav_referent",
+      "name": "Service CASNAV",
+      "email": "casnav@ac-lyon.fr",
+      "role": "Référent académique élèves allophones",
+      "personality": "Professionnel, réactif si la demande est bien formulée.",
+      "interaction_modes": [
+        "mail"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "casnav_referent.md",
+      "avatar": {
+        "color": "#00695C",
+        "initials": "CA"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": ""
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "fiche_aram",
+        "label": "Fiche de renseignements — Aram K.",
+        "contains": [
+          "élève",
+          "allophone",
+          "Syrie"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": true,
+        "content": "FICHE DE RENSEIGNEMENTS (partielle)\n\nNom : K.\nPrénom : Aram\nDate de naissance : 12/06/2016 (8 ans)\nNationalité : Syrienne\nLangue maternelle : Arabe (dialecte syrien)\nFrançais : aucune compréhension orale ni écrite\nScolarité antérieure : 2 ans d'école primaire en Syrie (interrompue)\nDate d'arrivée en France : mars 2025\nFamille : vit avec sa mère (arabophone, quelques mots de français) et sa grande sœur (15 ans, scolarisée au lycée)\nObservations : enfant décrit comme calme, curieux, un peu timide. Aime dessiner."
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "",
+    "diplomatic_tone_required": true,
+    "uncertainty": "Informations partielles sur le parcours de l'enfant",
+    "sensitive_audience": "Enfant vulnérable, famille en situation de migration"
+  },
+  "initial_events": [
+    {
+      "event_id": "moreau_intro",
+      "type": "chat",
+      "actor": "alain_moreau",
+      "content": "Bonjour. On a une inscription de dernière minute — un petit Aram, 8 ans, arrivé de Syrie en mars. Il ne parle pas français. Il sera dans ta classe lundi. J'ai une fiche de renseignements partielle, je te l'envoie. Il faudrait contacter le CASNAV rapidement."
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Obtenir les infos et organiser",
+      "duration_target_min": 6,
+      "objective": "Échanger avec le directeur pour comprendre la situation et planifier l'accueil.",
+      "phase_focus": "Organisation avec le directeur.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "alain_moreau"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Discutez avec le directeur."
+      },
+      "competencies": [
+        "Pose les bonnes questions (langue, parcours, besoins immédiats)",
+        "Propose des aménagements simples pour le premier jour",
+        "Identifie le CASNAV comme ressource clé"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Contacter le CASNAV et préparer l'accueil",
+      "duration_target_min": 9,
+      "objective": "Envoyer un mail au CASNAV et préparer un message d'accueil pour la classe.",
+      "phase_focus": "Rédaction des communications.",
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "casnav_referent",
+        "alain_moreau"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Contactez le CASNAV et préparez l'accueil."
+      },
+      "competencies": [
+        "Rédige un mail structuré au CASNAV (infos élève, demande d'accompagnement UPE2A)",
+        "Formule une demande claire et professionnelle",
+        "Prépare un accueil bienveillant adapté à un enfant non-francophone"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": null
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Réussite",
+      "content": "Le CASNAV est contacté, l'accueil est préparé, le directeur valide. Aram sera bien accueilli."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Partiel",
+      "content": "Le CASNAV est contacté mais le mail manque d'informations ou l'accueil n'est pas préparé."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "Le CASNAV n'est pas contacté ou la demande est mal formulée."
+    }
+  ],
+  "competencies_evaluated": [
+    {
+      "phase": "phase_1",
+      "competency": "Organisation d'un accueil inclusif"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Mobilisation des ressources institutionnelles"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Communication bienveillante"
+    }
+  ]
+}

@@ -1,0 +1,258 @@
+{
+  "scenario_id": "bug_du_vendredi",
+  "version": "1.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Le bug du vendredi",
+    "subtitle": "Gérer un bug critique remonté par un client B2B",
+    "description": "Un client important signale un bug critique sur la facturation. Vous devez qualifier le problème, évaluer l'impact business, et rédiger la communication client.",
+    "job_family": "chef_de_produit",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 15,
+    "tags": [
+      "produit",
+      "bug",
+      "client B2B",
+      "priorisation",
+      "pour débuter"
+    ],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Qualifier un incident produit",
+      "Évaluer un impact business",
+      "Rédiger une communication client sous pression"
+    ]
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Chef de produit junior",
+      "subtitle": "Un bug critique un vendredi après-midi — gérez la crise"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>PM junior chez <strong>InvoiceFlow</strong>, SaaS de facturation B2B. Vous gérez le module de génération de factures.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p>Vendredi 16h. <strong>TechnoServices</strong>, client à 45K€/an, signale que les factures générées ce matin affichent des <strong>montants TTC erronés</strong>. Leur comptable panique.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Échangez avec votre CPO pour qualifier et prioriser.</p><p><strong>Phase 2</strong> — Rédigez la communication client.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles",
+        "content": "<p>Chat + mail. Document : le mail du client. ~15 min.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Vous êtes PM junior chez InvoiceFlow depuis 6 mois. L'équipe tech est en sprint, le CPO est disponible par chat.",
+    "mission": "Qualifier le bug remonté par TechnoServices, évaluer l'impact, et rédiger la réponse client professionnelle.",
+    "initial_situation": "Vendredi 16h. Le mail de TechnoServices arrive. Votre CPO, Marc Dulac, vous contacte aussitôt.",
+    "trigger": "Marc vous écrit : 'TechnoServices nous remonte un bug critique. C'est ton module. Gère.'",
+    "background_fact": "TechnoServices représente 8% du MRR. Le bug semble lié à la mise à jour du taux de TVA déployée ce matin."
+  },
+  "timeline": {
+    "scenario_start": "2025-04-11T16:00:00",
+    "sim_speed_multiplier": 2
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "",
+      "email": "",
+      "role": "PM junior chez InvoiceFlow",
+      "personality": "",
+      "interaction_modes": [
+        "chat",
+        "mail"
+      ],
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#1B5E20",
+        "initials": "PM"
+      },
+      "visible_in_contacts": false
+    },
+    {
+      "actor_id": "marc_dulac",
+      "name": "Marc Dulac",
+      "email": "marc@invoiceflow.io",
+      "role": "CPO d'InvoiceFlow",
+      "personality": "Calme, analytique, attend des faits pas des émotions. Veut un impact chiffré.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "marc_dulac.md",
+      "avatar": {
+        "color": "#0D47A1",
+        "initials": "MD"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne"
+    },
+    {
+      "actor_id": "sophie_renard",
+      "name": "Sophie Renard",
+      "email": "s.renard@technoservices.fr",
+      "role": "Responsable comptable chez TechnoServices",
+      "personality": "Stressée, professionnelle, veut des réponses rapides et un engagement de résolution.",
+      "interaction_modes": [
+        "mail"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "sophie_renard.md",
+      "avatar": {
+        "color": "#E65100",
+        "initials": "SR"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Urgent"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "mail_client",
+        "label": "Mail de TechnoServices",
+        "contains": [
+          "bug",
+          "facturation",
+          "TVA"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": false,
+        "content": "De : s.renard@technoservices.fr\nObjet : URGENT — Montants TTC erronés sur factures du 11/04\n\nBonjour,\n\nNous avons généré nos factures mensuelles ce matin via InvoiceFlow. Problème : les montants TTC sont incorrects. La TVA semble appliquée à 21% au lieu de 20%. Résultat : toutes nos factures du mois sont fausses.\n\nNous avons 47 factures concernées, pour un écart total d'environ 3 200 €. Notre clôture comptable est lundi.\n\nMerci de traiter cela en urgence.\n\nSophie Renard\nResp. comptable — TechnoServices"
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "Le CPO doit valider la communication client",
+    "diplomatic_tone_required": true,
+    "uncertainty": "Le joueur doit identifier la cause probable (MAJ TVA)",
+    "sensitive_audience": "Client B2B à fort enjeu commercial"
+  },
+  "initial_events": [
+    {
+      "event_id": "marc_intro",
+      "type": "chat",
+      "actor": "marc_dulac",
+      "content": "TechnoServices nous remonte un bug critique sur la facturation — montants TTC erronés. C'est ton module. Lis le mail, qualifie-moi le problème, et dis-moi ce qu'on fait. Je veux l'impact chiffré avant qu'on communique au client."
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Qualifier et prioriser",
+      "duration_target_min": 7,
+      "objective": "Qualifier le bug avec Marc : cause probable, nombre de clients impactés, impact business.",
+      "phase_focus": "Analyse du bug avec le CPO.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "marc_dulac"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Analysez le mail et échangez avec Marc."
+      },
+      "competencies": [
+        "Identifie la cause probable (taux TVA passé de 20% à 21%)",
+        "Évalue l'impact (47 factures, 3 200€ d'écart, potentiellement d'autres clients)",
+        "Propose un plan d'action (rollback + régénération + communication)"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Communication client",
+      "duration_target_min": 8,
+      "objective": "Rédiger et envoyer le mail de réponse à TechnoServices.",
+      "phase_focus": "Rédaction de la communication de crise.",
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "marc_dulac",
+        "sophie_renard"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Rédigez le mail de réponse."
+      },
+      "competencies": [
+        "Reconnaît le problème sans minimiser",
+        "Donne un plan de résolution clair avec délai",
+        "Maintient la confiance du client"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": null
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Réussite",
+      "content": "Le bug est qualifié, la communication est pro et rassurante. Le client est informé, le fix est planifié pour lundi matin."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Partiel",
+      "content": "La communication est envoyée mais manque de précision sur le délai de résolution."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "Le bug n'est pas correctement qualifié ou la communication client est inadaptée."
+    }
+  ],
+  "competencies_evaluated": [
+    {
+      "phase": "phase_1",
+      "competency": "Qualification d'un incident produit"
+    },
+    {
+      "phase": "phase_1",
+      "competency": "Évaluation d'impact business"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Communication de crise client"
+    }
+  ]
+}

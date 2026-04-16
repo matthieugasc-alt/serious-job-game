@@ -1,0 +1,288 @@
+{
+  "scenario_id": "compromis_qui_coince",
+  "version": "1.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Le compromis qui coince",
+    "subtitle": "Débloquer une vente après un diagnostic défavorable",
+    "description": "Un diagnostic révèle un problème d'humidité. L'acheteur panique, le vendeur refuse de baisser. Trouvez un accord et formalisez-le.",
+    "job_family": "immobilier",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 20,
+    "tags": [
+      "immobilier",
+      "négociation",
+      "diagnostic",
+      "compromis",
+      "pour débuter"
+    ],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Gérer un blocage de transaction",
+      "Négocier entre deux parties",
+      "Formaliser une solution acceptable"
+    ]
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Agent immobilier",
+      "subtitle": "Le diagnostic bloque la vente — débloquez la situation"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Agent immobilier chez <strong>Immo+</strong>. Vous gérez la vente d'un T3 à <strong>Villeurbanne</strong>.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p>Le couple <strong>Petit</strong> (acheteurs) a fait une offre acceptée à <strong>195 000 €</strong>. Mais le diagnostic révèle un <strong>problème d'humidité</strong> en sous-sol. L'acheteur panique, le vendeur refuse toute baisse.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Rassurez l'acheteur et négociez avec le vendeur.</p><p><strong>Phase 2</strong> — Formalisez la solution par mail au notaire.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles",
+        "content": "<p>Chat + mail. Documents : diagnostic + offre. ~20 min.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Vous êtes agent immobilier chez Immo+ depuis 2 ans. Vous gérez la transaction entre le couple Petit (primo-accédants) et M. Garnier (vendeur du T3).",
+    "mission": "Débloquer la transaction en trouvant un accord entre acheteur et vendeur après le diagnostic défavorable, et formaliser la proposition au notaire.",
+    "initial_situation": "Jeudi 10h. Mme Petit vous contacte par chat, paniquée par le diagnostic.",
+    "trigger": "Mme Petit vous écrit.",
+    "background_fact": "Le problème d'humidité nécessite des travaux estimés entre 3 000 et 5 000 €. Ce n'est pas un vice caché — le diagnostic le mentionne explicitement. Plusieurs solutions sont possibles : baisse de prix, clause suspensive travaux, ou consignation d'une somme chez le notaire."
+  },
+  "timeline": {
+    "scenario_start": "2025-04-17T10:00:00",
+    "sim_speed_multiplier": 2
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "",
+      "email": "",
+      "role": "Agent immobilier chez Immo+",
+      "personality": "",
+      "interaction_modes": [
+        "chat",
+        "mail"
+      ],
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#1B5E20",
+        "initials": "AI"
+      },
+      "visible_in_contacts": false
+    },
+    {
+      "actor_id": "emma_petit",
+      "name": "Emma Petit",
+      "email": "emma.petit@gmail.com",
+      "role": "Acheteuse (primo-accédante)",
+      "personality": "Anxieuse, premier achat, a besoin d'être rassurée avec des faits.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "emma_petit.md",
+      "avatar": {
+        "color": "#AD1457",
+        "initials": "EP"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne — inquiète"
+    },
+    {
+      "actor_id": "patrick_garnier",
+      "name": "Patrick Garnier",
+      "email": "p.garnier@free.fr",
+      "role": "Vendeur du T3",
+      "personality": "Têtu, convaincu que son prix est juste, ne veut pas baisser mais peut être raisonné.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "patrick_garnier.md",
+      "avatar": {
+        "color": "#E65100",
+        "initials": "PG"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne"
+    },
+    {
+      "actor_id": "notaire",
+      "name": "Maître Leblanc",
+      "email": "leblanc@notaires-villeurbanne.fr",
+      "role": "Notaire en charge de la transaction",
+      "personality": "Professionnel, formel, attend une proposition claire.",
+      "interaction_modes": [
+        "mail"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "notaire_leblanc.md",
+      "avatar": {
+        "color": "#37474F",
+        "initials": "ML"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": ""
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "diagnostic",
+        "label": "Diagnostic humidité (extrait)",
+        "contains": [
+          "diagnostic",
+          "humidité",
+          "travaux"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": true,
+        "content": "DIAGNOSTIC IMMOBILIER — Extrait\nBien : T3, 65 m², RDC, Villeurbanne\n\nHUMIDITÉ — ANOMALIE DÉTECTÉE\nLocalisation : mur nord du sous-sol (cave)\nNature : remontées capillaires, traces de moisissures sur 2 m²\nGravité : modérée — ne compromet pas la structure\nTravaux recommandés : injection de résine hydrofuge + traitement anti-moisissures\nEstimation travaux : 3 000 à 5 000 €\n\nNote : le problème est localisé au sous-sol et n'affecte pas les pièces de vie."
+      },
+      {
+        "doc_id": "offre",
+        "label": "Offre d'achat acceptée",
+        "contains": [
+          "offre",
+          "prix",
+          "conditions"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": true,
+        "content": "OFFRE D'ACHAT\nAcheteurs : Emma et Thomas Petit\nVendeur : Patrick Garnier\nBien : T3 65 m², Villeurbanne\nPrix proposé : 195 000 €\nConditions : sous réserve de l'obtention du prêt et des diagnostics\nStatut : ACCEPTÉE le 08/04/2025"
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "",
+    "diplomatic_tone_required": true,
+    "uncertainty": "Le joueur doit trouver un compromis acceptable par les deux parties",
+    "sensitive_audience": "Primo-accédants stressés, vendeur têtu"
+  },
+  "initial_events": [
+    {
+      "event_id": "emma_intro",
+      "type": "chat",
+      "actor": "emma_petit",
+      "content": "Bonjour… On a reçu le diagnostic et il y a un problème d'humidité dans la cave. Mon mari est paniqué, il veut tout annuler. Moi j'aime vraiment cet appartement mais… est-ce que c'est grave ? Qu'est-ce qu'on fait ?"
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Rassurer et négocier",
+      "duration_target_min": 12,
+      "objective": "Rassurer l'acheteuse, puis négocier avec le vendeur une solution (baisse de prix ou consignation).",
+      "phase_focus": "Gestion des deux parties.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "emma_petit",
+        "patrick_garnier"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Gérez les deux parties."
+      },
+      "competencies": [
+        "Rassure l'acheteuse avec des faits (problème localisé, pas structurel, chiffrage connu)",
+        "Négocie avec le vendeur une solution raisonnable",
+        "Propose un mécanisme concret (baisse de prix de 3-5K ou consignation chez le notaire)"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Formaliser au notaire",
+      "duration_target_min": 8,
+      "objective": "Envoyer la proposition formalisée au notaire.",
+      "phase_focus": "Rédaction formelle.",
+      "active_channels": [
+        "mail"
+      ],
+      "ai_actors": [
+        "notaire"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Envoyez le mail au notaire."
+      },
+      "competencies": [
+        "Résume l'accord trouvé de manière claire et factuelle",
+        "Propose le mécanisme juridique adapté (avenant au compromis)",
+        "Utilise un ton professionnel adapté au notaire"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": null
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Réussite",
+      "content": "L'accord est trouvé, les deux parties sont satisfaites, le notaire a la proposition. La vente continue."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Partiel",
+      "content": "Un accord est trouvé mais le mail au notaire est incomplet ou imprécis."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "Pas d'accord trouvé ou une partie se retire de la transaction."
+    }
+  ],
+  "competencies_evaluated": [
+    {
+      "phase": "phase_1",
+      "competency": "Gestion de blocage transactionnel"
+    },
+    {
+      "phase": "phase_1",
+      "competency": "Négociation immobilière"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Formalisation juridique"
+    }
+  ]
+}

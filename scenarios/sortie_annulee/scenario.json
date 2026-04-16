@@ -1,0 +1,235 @@
+{
+  "scenario_id": "sortie_annulee",
+  "version": "1.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "La sortie annulée",
+    "subtitle": "Gérer l'annulation du bus et adapter le programme",
+    "description": "Le bus pour la sortie pédagogique est annulé à 3 jours. Trouvez une solution, informez les parents, et adaptez le programme.",
+    "job_family": "enseignant",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 15,
+    "tags": [
+      "enseignement",
+      "logistique",
+      "parents",
+      "adaptation",
+      "pour débuter"
+    ],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Résoudre un problème logistique sous contrainte",
+      "Communiquer un changement aux familles",
+      "Adapter un objectif pédagogique"
+    ]
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Enseignant·e",
+      "subtitle": "Le bus est annulé — sauvez la sortie pédagogique"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Enseignant·e en <strong>CM1</strong>, école élémentaire Condorcet.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p>La sortie au <strong>Musée des Confluences</strong> prévue vendredi est menacée : le transporteur a annulé le bus. Il reste 3 jours.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Trouvez une solution avec le directeur.</p><p><strong>Phase 2</strong> — Informez les parents par mail.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles",
+        "content": "<p>Chat + mail. Document : programme initial. ~15 min.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "École Condorcet, classe de CM1, 25 élèves. La sortie au Musée des Confluences était prévue depuis un mois.",
+    "mission": "Trouver une alternative à la sortie annulée, informer les parents, et adapter le programme pédagogique.",
+    "initial_situation": "Mardi matin. Le directeur vous informe que le transporteur a annulé.",
+    "trigger": "Le directeur vous écrit.",
+    "background_fact": "Le budget sortie est déjà engagé (entrée musée annulable sans frais, mais pas de budget pour un second transporteur). Une alternative à pied ou en transports en commun est possible si le lieu est accessible."
+  },
+  "timeline": {
+    "scenario_start": "2025-04-15T08:00:00",
+    "sim_speed_multiplier": 2
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "",
+      "email": "",
+      "role": "Enseignant·e CM1",
+      "personality": "",
+      "interaction_modes": [
+        "chat",
+        "mail"
+      ],
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#2E7D32",
+        "initials": "EN"
+      },
+      "visible_in_contacts": false
+    },
+    {
+      "actor_id": "isabelle_roux",
+      "name": "Isabelle Roux",
+      "email": "i.roux@ac-lyon.fr",
+      "role": "Directrice",
+      "personality": "Pratique, solution-oriented, veut que ça se fasse quand même si possible.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "isabelle_roux.md",
+      "avatar": {
+        "color": "#1565C0",
+        "initials": "IR"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "programme_sortie",
+        "label": "Programme — Sortie Musée des Confluences",
+        "contains": [
+          "sortie",
+          "musée",
+          "programme"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": false,
+        "content": "SORTIE PÉDAGOGIQUE — CM1 Condorcet\nDate : Vendredi 18 avril 2025\nLieu : Musée des Confluences, Lyon 2e\nTransport : Bus (annulé)\n\nProgramme :\n9h00 — Départ école\n10h00 — Visite guidée \"Origines, les récits du monde\" (1h30)\n11h30 — Atelier dessin scientifique (45 min)\n12h30 — Pique-nique au parc de Gerland\n14h00 — Retour\n\nObjectifs pédagogiques : découverte des sciences naturelles, observation et dessin scientifique, vivre ensemble hors de l'école.\n\nBudget : entrée musée 4€/élève (annulable sans frais), bus 280€ (annulé par le transporteur)."
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "La directrice valide toute modification",
+    "diplomatic_tone_required": true,
+    "uncertainty": "Le joueur doit trouver une alternative réaliste",
+    "sensitive_audience": "Parents qui ont organisé leur journée"
+  },
+  "initial_events": [
+    {
+      "event_id": "roux_intro",
+      "type": "chat",
+      "actor": "isabelle_roux",
+      "content": "Mauvaise nouvelle. Le transporteur pour vendredi a annulé — problème de véhicule. On n'a pas de budget pour un autre bus. Il faut trouver une solution : soit on change de lieu pour quelque chose d'accessible à pied ou en TCL, soit on annule. Qu'est-ce que vous proposez ?"
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Trouver une alternative",
+      "duration_target_min": 7,
+      "objective": "Proposer une solution alternative à la directrice.",
+      "phase_focus": "Résolution de problème avec la directrice.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "isabelle_roux"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Proposez une alternative."
+      },
+      "competencies": [
+        "Propose une alternative réaliste (lieu accessible en TCL ou à pied)",
+        "Adapte le programme pédagogique au nouveau lieu",
+        "Prend en compte les contraintes budget et sécurité"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Informer les parents",
+      "duration_target_min": 8,
+      "objective": "Rédiger le mail d'information aux parents.",
+      "phase_focus": "Communication aux familles.",
+      "active_channels": [
+        "mail"
+      ],
+      "ai_actors": [],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Rédigez le mail aux parents."
+      },
+      "competencies": [
+        "Explique la situation sans alarmer",
+        "Présente la nouvelle organisation clairement",
+        "Maintient l'enthousiasme pour la sortie adaptée"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": null
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Réussite",
+      "content": "Alternative trouvée, parents informés, programme adapté. La sortie est sauvée."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Partiel",
+      "content": "Une solution est trouvée mais le mail aux parents est incomplet ou le programme n'est pas adapté."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "Pas d'alternative proposée ou la communication est confuse."
+    }
+  ],
+  "competencies_evaluated": [
+    {
+      "phase": "phase_1",
+      "competency": "Résolution de problème logistique"
+    },
+    {
+      "phase": "phase_1",
+      "competency": "Adaptation pédagogique"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Communication aux familles"
+    }
+  ]
+}

@@ -1,0 +1,256 @@
+{
+  "scenario_id": "mot_des_parents",
+  "version": "1.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Le mot des parents",
+    "subtitle": "Gérer un mail parental agressif avec professionnalisme",
+    "description": "Un parent envoie un mail accusateur. Vous devez répondre professionnellement et préparer un rendez-vous avec le directeur.",
+    "job_family": "enseignant",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 15,
+    "tags": [
+      "enseignement",
+      "parents",
+      "conflit",
+      "communication",
+      "pour débuter"
+    ],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Gérer un conflit parent-enseignant par écrit",
+      "Maintenir une posture professionnelle",
+      "Préparer un entretien"
+    ]
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Enseignant·e",
+      "subtitle": "Un parent mécontent — gardez votre calme et votre professionnalisme"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Vous êtes enseignant·e en <strong>CM2</strong> à l'école élémentaire Jules Ferry.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p>Le père de <strong>Lucas</strong>, M. Bertrand, envoie un mail accusateur : son fils aurait été \"humilié\" devant la classe. Lucas a en réalité été repris pour bavardage répété.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Échangez avec le directeur.</p><p><strong>Phase 2</strong> — Répondez au parent par mail.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles",
+        "content": "<p>Chat + mail. ~15 min.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "École élémentaire Jules Ferry, quartier résidentiel. Classe de CM2, 26 élèves. Lucas Bertrand est un élève bavard mais pas méchant.",
+    "mission": "Répondre au mail de M. Bertrand avec professionnalisme, proposer un rendez-vous, et préparer la rencontre avec le directeur.",
+    "initial_situation": "Mercredi matin, 7h45. Vous ouvrez votre boîte mail avant la classe.",
+    "trigger": "Le mail de M. Bertrand est dans votre boîte.",
+    "background_fact": "Lucas a été rappelé à l'ordre 3 fois hier pour bavardage. La 3e fois, vous lui avez demandé de changer de place. Il a pleuré. Rien de violent ni d'humiliant — mais le père a eu une autre version."
+  },
+  "timeline": {
+    "scenario_start": "2025-04-16T07:45:00",
+    "sim_speed_multiplier": 2
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "",
+      "email": "",
+      "role": "Enseignant·e CM2",
+      "personality": "",
+      "interaction_modes": [
+        "chat",
+        "mail"
+      ],
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#2E7D32",
+        "initials": "EN"
+      },
+      "visible_in_contacts": false
+    },
+    {
+      "actor_id": "philippe_durand",
+      "name": "Philippe Durand",
+      "email": "p.durand@ac-lyon.fr",
+      "role": "Directeur de l'école",
+      "personality": "Calme, expérimenté, protège ses enseignants mais attend du professionnalisme.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "philippe_durand.md",
+      "avatar": {
+        "color": "#1565C0",
+        "initials": "PD"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En salle des maîtres"
+    },
+    {
+      "actor_id": "marc_bertrand",
+      "name": "Marc Bertrand",
+      "email": "m.bertrand@gmail.com",
+      "role": "Parent de Lucas, cadre en entreprise",
+      "personality": "En colère, protecteur, ton accusateur mais pas insultant.",
+      "interaction_modes": [
+        "mail"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "marc_bertrand.md",
+      "avatar": {
+        "color": "#BF360C",
+        "initials": "MB"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": ""
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "mail_parent",
+        "label": "Mail de M. Bertrand",
+        "contains": [
+          "plainte",
+          "parent",
+          "humiliation"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": false,
+        "content": "De : m.bertrand@gmail.com\nObjet : Comportement inacceptable envers mon fils\n\nMadame/Monsieur,\n\nMon fils Lucas est rentré hier en pleurs. Il m'a dit que vous l'aviez humilié devant toute la classe en le forçant à changer de place comme une punition publique.\n\nLucas a 10 ans. Il est sensible. Ce genre de méthode est inacceptable et je considère que c'est une forme de maltraitance psychologique.\n\nJe vous demande des explications immédiates. Si la situation ne change pas, j'en référerai à l'inspection académique.\n\nMarc Bertrand"
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": false,
+    "hierarchy_limit": "Le directeur doit être informé avant la réponse",
+    "diplomatic_tone_required": true,
+    "uncertainty": "Le joueur doit rétablir les faits sans accuser l'enfant de mentir",
+    "sensitive_audience": "Parent en colère, enfant sensible"
+  },
+  "initial_events": [
+    {
+      "event_id": "durand_intro",
+      "type": "chat",
+      "actor": "philippe_durand",
+      "content": "Bonjour. J'ai eu un appel de M. Bertrand ce matin, il est remonté. Vous avez vu son mail ? Dites-moi ce qui s'est passé exactement, et on voit comment on gère ça ensemble."
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Contexte avec le directeur",
+      "duration_target_min": 6,
+      "objective": "Expliquer la situation au directeur et préparer la réponse.",
+      "phase_focus": "Échange avec le directeur.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "philippe_durand"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Expliquez la situation au directeur."
+      },
+      "competencies": [
+        "Expose les faits objectivement (3 rappels, changement de place, pleurs)",
+        "Distingue les faits de l'interprétation du parent",
+        "Accepte la proposition de rendez-vous comme solution"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Répondre au parent",
+      "duration_target_min": 9,
+      "objective": "Rédiger un mail professionnel au parent.",
+      "phase_focus": "Rédaction de la réponse.",
+      "active_channels": [
+        "mail"
+      ],
+      "ai_actors": [
+        "marc_bertrand"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Répondez à M. Bertrand."
+      },
+      "competencies": [
+        "Accuse réception avec empathie (reconnaît la détresse de Lucas)",
+        "Rétablit les faits sans accuser l'enfant de mentir",
+        "Propose un rendez-vous en présence du directeur"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": null
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Réussite",
+      "content": "Votre réponse est professionnelle, empathique, et factuelle. M. Bertrand accepte le rendez-vous."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Partiel",
+      "content": "La réponse est correcte mais le ton est trop défensif ou pas assez empathique."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "La réponse est agressive, minimise la situation, ou ne propose pas de rencontre."
+    }
+  ],
+  "competencies_evaluated": [
+    {
+      "phase": "phase_1",
+      "competency": "Communication avec la hiérarchie"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Gestion de conflit parent-enseignant"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Rédaction professionnelle"
+    }
+  ]
+}

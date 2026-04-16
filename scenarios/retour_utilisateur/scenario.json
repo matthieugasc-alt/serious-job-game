@@ -1,0 +1,256 @@
+{
+  "scenario_id": "retour_utilisateur",
+  "version": "1.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Le retour utilisateur",
+    "subtitle": "Analyser un test UX et proposer un plan d'action",
+    "description": "60% d'abandon sur l'onboarding. Analysez les résultats du test utilisateur avec le lead UX et proposez un plan d'action à votre CPO.",
+    "job_family": "chef_de_produit",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 15,
+    "tags": [
+      "produit",
+      "UX",
+      "onboarding",
+      "analytics",
+      "pour débuter"
+    ],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Analyser des métriques utilisateur",
+      "Collaborer avec l'UX",
+      "Structurer un plan d'action produit"
+    ]
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Chef de produit junior",
+      "subtitle": "60% d'abandon sur l'onboarding — trouvez les causes et proposez un plan"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>PM junior chez <strong>Onboardly</strong>, SaaS d'onboarding RH.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p>Le test utilisateur de la semaine dernière montre <strong>60% d'abandon</strong> sur le tunnel d'onboarding. 3 irritants identifiés.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Analysez les résultats avec le lead UX.</p><p><strong>Phase 2</strong> — Envoyez un plan d'action au CPO.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles",
+        "content": "<p>Chat + mail. Document : synthèse du test. ~15 min.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Onboardly est un SaaS qui aide les entreprises à onboarder leurs nouveaux collaborateurs. L'onboarding de l'outil lui-même (le tunnel d'inscription) pose problème.",
+    "mission": "Analyser les résultats du test utilisateur avec le lead UX, puis envoyer un plan d'action priorisé au CPO.",
+    "initial_situation": "Mercredi matin. Les résultats du test sont dans votre boîte.",
+    "trigger": "Votre lead UX, Julie, vous contacte pour en discuter.",
+    "background_fact": "Le taux d'abandon était à 35% il y a 3 mois. Il a doublé après la refonte du formulaire d'inscription."
+  },
+  "timeline": {
+    "scenario_start": "2025-04-16T09:30:00",
+    "sim_speed_multiplier": 2
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "",
+      "email": "",
+      "role": "PM junior",
+      "personality": "",
+      "interaction_modes": [
+        "chat",
+        "mail"
+      ],
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#1B5E20",
+        "initials": "PM"
+      },
+      "visible_in_contacts": false
+    },
+    {
+      "actor_id": "julie_tran",
+      "name": "Julie Tran",
+      "email": "julie@onboardly.io",
+      "role": "Lead UX",
+      "personality": "Analytique, empathique utilisateur, précise. Attend que le PM priorise, pas qu'il redesigne.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "julie_tran.md",
+      "avatar": {
+        "color": "#7B1FA2",
+        "initials": "JT"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne"
+    },
+    {
+      "actor_id": "thomas_blanc",
+      "name": "Thomas Blanc",
+      "email": "thomas@onboardly.io",
+      "role": "CPO",
+      "personality": "Pragmatique, veut des quick wins et un plan clair.",
+      "interaction_modes": [
+        "mail"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "thomas_blanc.md",
+      "avatar": {
+        "color": "#0D47A1",
+        "initials": "TB"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Attend le plan"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "test_results",
+        "label": "Synthèse — Test utilisateur onboarding",
+        "contains": [
+          "UX",
+          "abandon",
+          "irritants"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": true,
+        "content": "SYNTHÈSE TEST UTILISATEUR — Onboarding Onboardly\nDate : 9 avril 2025 | 12 participants | Tunnel d'inscription\n\nTaux d'abandon global : 60% (vs 35% il y a 3 mois)\n\nIRRITANT 1 — Formulaire trop long (étape 2/4)\n8/12 participants ont hésité ou abandonné à l'étape 2 (infos entreprise). 14 champs obligatoires. Verbatim : \"Pourquoi ils ont besoin de tout ça maintenant ?\"\n\nIRRITANT 2 — Mot de passe trop contraignant\n6/12 ont échoué au premier essai (12 car. min + majuscule + chiffre + caractère spécial). 3 ont abandonné. Verbatim : \"J'ai pas le temps pour ça.\"\n\nIRRITANT 3 — Pas de barre de progression\n7/12 ne savaient pas combien d'étapes restaient. Verbatim : \"C'est encore long ?\" \"Je pensais que c'était la dernière page.\""
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": false,
+    "hierarchy_limit": "Le CPO valide le plan",
+    "diplomatic_tone_required": false,
+    "uncertainty": "",
+    "sensitive_audience": ""
+  },
+  "initial_events": [
+    {
+      "event_id": "julie_intro",
+      "type": "chat",
+      "actor": "julie_tran",
+      "content": "Salut ! Tu as vu les résultats du test ? 60% d'abandon, c'est violent. On en parle ? J'ai mes notes si tu veux qu'on décortique ensemble."
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Analyser avec le lead UX",
+      "duration_target_min": 8,
+      "objective": "Comprendre les 3 irritants et identifier les actions possibles.",
+      "phase_focus": "Analyse collaborative.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "julie_tran"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Discutez avec Julie."
+      },
+      "competencies": [
+        "Identifie les 3 irritants et leur impact respectif",
+        "Propose des solutions concrètes (réduire champs, assouplir mdp, ajouter barre de progression)",
+        "Distingue quick wins et chantiers plus lourds"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Plan d'action au CPO",
+      "duration_target_min": 7,
+      "objective": "Envoyer un mail structuré avec le plan d'action priorisé.",
+      "phase_focus": "Formalisation.",
+      "active_channels": [
+        "mail"
+      ],
+      "ai_actors": [
+        "thomas_blanc"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Envoyez le plan d'action."
+      },
+      "competencies": [
+        "Structure un plan avec priorités (P0/P1/P2 ou semaine 1/2/3)",
+        "Quantifie l'impact attendu de chaque action",
+        "Rédige de manière concise et actionnable"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": null
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Réussite",
+      "content": "Plan clair, priorisé, avec des quick wins. Le CPO valide et lance le sprint."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Partiel",
+      "content": "Le plan est là mais les priorités ne sont pas claires."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "Pas de plan structuré ou des propositions hors sujet."
+    }
+  ],
+  "competencies_evaluated": [
+    {
+      "phase": "phase_1",
+      "competency": "Analyse de données UX"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Plan d'action produit"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Communication CPO"
+    }
+  ]
+}

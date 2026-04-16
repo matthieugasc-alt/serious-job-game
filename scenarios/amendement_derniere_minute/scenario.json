@@ -1,0 +1,239 @@
+{
+  "scenario_id": "amendement_derniere_minute",
+  "version": "1.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "L'amendement de dernière minute",
+    "subtitle": "Préparer un amendement sur les transports scolaires",
+    "description": "Le député vous demande de préparer un amendement sur un projet de loi relatif aux transports scolaires. Vous devez lire l'article, formuler l'amendement et rédiger l'exposé des motifs.",
+    "job_family": "attache_parlementaire",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 18,
+    "tags": [
+      "parlementaire",
+      "amendement",
+      "transports scolaires",
+      "législatif",
+      "pour débuter"
+    ],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Lire un texte législatif",
+      "Formuler un amendement recevable",
+      "Rédiger un exposé des motifs"
+    ]
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Attaché·e parlementaire",
+      "subtitle": "Préparez un amendement dans l'urgence pour votre député"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Vous êtes attaché·e parlementaire de <strong>M. François Lemaire</strong>, député du Cantal. Il siège à la commission des affaires sociales.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p>Un projet de loi sur la mobilité rurale passe en commission demain. L'article 7 fixe un <strong>seuil de 20 élèves minimum</strong> pour maintenir une ligne de transport scolaire. C'est un problème pour les communes rurales du Cantal.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Échangez avec le député pour comprendre ce qu'il veut amender.</p><p><strong>Phase 2</strong> — Rédigez l'amendement et l'exposé des motifs par mail.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles du jeu",
+        "content": "<p>Chat + mail. Vous avez le texte de l'article 7 dans vos documents. ~18 min.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Vous travaillez depuis un an avec M. François Lemaire. La session parlementaire bat son plein. L'examen du projet de loi Mobilité Rurale est prévu demain en commission.",
+    "mission": "Préparer un amendement à l'article 7 du PJL Mobilité Rurale pour abaisser le seuil de maintien des lignes de transport scolaire, et rédiger l'exposé des motifs.",
+    "initial_situation": "Lundi soir, 18h. Le député vous contacte par chat. Il est pressé — l'amendement doit être déposé ce soir.",
+    "trigger": "M. Lemaire vous écrit : il veut un amendement prêt pour ce soir.",
+    "background_fact": "Dans le Cantal, 35% des communes rurales ont moins de 20 élèves scolarisés. Un seuil de 20 élèves condamnerait leurs lignes de transport scolaire."
+  },
+  "timeline": {
+    "scenario_start": "2025-04-14T18:00:00",
+    "sim_speed_multiplier": 2
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "",
+      "email": "",
+      "role": "Attaché·e parlementaire de M. Lemaire",
+      "personality": "",
+      "interaction_modes": [
+        "chat",
+        "mail"
+      ],
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#2E7D32",
+        "initials": "AP"
+      },
+      "visible_in_contacts": false
+    },
+    {
+      "actor_id": "francois_lemaire",
+      "name": "François Lemaire",
+      "email": "f.lemaire@assemblee-nationale.fr",
+      "role": "Député du Cantal",
+      "personality": "Pressé, directif, pragmatique. Pas le temps pour les longs discours. Veut un amendement solide et un exposé des motifs percutant.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "francois_lemaire.md",
+      "availability": "Disponible par chat.",
+      "avatar": {
+        "color": "#C62828",
+        "initials": "FL"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne — pressé"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "article_7",
+        "label": "Article 7 — PJL Mobilité Rurale",
+        "contains": [
+          "texte législatif",
+          "transport scolaire",
+          "seuil"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": true,
+        "content": "PROJET DE LOI MOBILITÉ RURALE — Article 7\n\n« Les lignes de transport scolaire desservant les communes de moins de 5 000 habitants sont maintenues sous réserve d'un effectif minimum de 20 élèves inscrits par ligne pour l'année scolaire en cours.\n\nEn deçà de ce seuil, l'autorité organisatrice de la mobilité peut décider de la suppression ou du regroupement de la ligne concernée, après consultation du conseil municipal.\n\nLes modalités d'application sont fixées par décret. »"
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "L'amendement doit être validé par le député",
+    "diplomatic_tone_required": false,
+    "uncertainty": "Le joueur doit trouver le bon seuil alternatif",
+    "sensitive_audience": "Enjeu territorial fort"
+  },
+  "initial_events": [
+    {
+      "event_id": "lemaire_intro",
+      "type": "chat",
+      "actor": "francois_lemaire",
+      "content": "J'ai besoin de vous. L'article 7 du PJL Mobilité Rurale passe demain en commission. Le seuil de 20 élèves pour maintenir les lignes de transport scolaire, c'est la mort pour nos communes du Cantal. Il me faut un amendement ce soir. Vous avez le texte ?"
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Comprendre la demande du député",
+      "duration_target_min": 6,
+      "objective": "Échanger avec le député pour cerner l'amendement souhaité : quel seuil alternatif ? Quel angle ?",
+      "phase_focus": "Discussion avec le député pour cadrer l'amendement.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "francois_lemaire"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Discutez avec M. Lemaire pour comprendre précisément ce qu'il attend."
+      },
+      "competencies": [
+        "Pose les bonnes questions pour cadrer la demande",
+        "Identifie le seuil de 20 élèves comme problème central",
+        "Propose un seuil alternatif réaliste (8 à 12 élèves)"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Rédiger l'amendement",
+      "duration_target_min": 12,
+      "objective": "Formuler l'amendement et rédiger l'exposé des motifs.",
+      "phase_focus": "Rédaction de l'amendement au format parlementaire.",
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "francois_lemaire"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Envoyez l'amendement rédigé au député par mail."
+      },
+      "competencies": [
+        "Formule un amendement dans le format attendu (article modifié + nouvelle rédaction)",
+        "Rédige un exposé des motifs argumenté avec des faits territoriaux",
+        "Respecte le registre législatif"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": null
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Réussite",
+      "content": "L'amendement est solide, l'exposé des motifs est percutant. Le député le dépose ce soir. Bravo."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Partiel",
+      "content": "L'amendement est déposé mais l'exposé des motifs manque de données concrètes."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "L'amendement est mal formulé ou le seuil proposé n'est pas crédible."
+    }
+  ],
+  "competencies_evaluated": [
+    {
+      "phase": "phase_1",
+      "competency": "Cadrage d'une demande législative"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Rédaction d'un amendement parlementaire"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Argumentation territoriale"
+    }
+  ]
+}

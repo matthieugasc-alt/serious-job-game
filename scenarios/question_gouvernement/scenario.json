@@ -1,0 +1,239 @@
+{
+  "scenario_id": "question_gouvernement",
+  "version": "1.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "La question au gouvernement",
+    "subtitle": "Préparer une QAG sur la fermeture d'une maternité",
+    "description": "La députée veut poser une question au gouvernement sur la fermeture annoncée d'une maternité dans sa circonscription. Vous devez rassembler les éléments et rédiger la question.",
+    "job_family": "attache_parlementaire",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 15,
+    "tags": [
+      "parlementaire",
+      "QAG",
+      "maternité",
+      "santé",
+      "pour débuter"
+    ],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Synthétiser une situation locale",
+      "Construire une argumentation politique factuelle",
+      "Respecter le format QAG (2 min oral)"
+    ]
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Attaché·e parlementaire",
+      "subtitle": "Rédigez une question au gouvernement percutante"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Attaché·e de <strong>Mme Catherine Morel</strong>, députée de la Nièvre.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p>La maternité de <strong>Clamecy</strong> va fermer. 800 naissances/an, 45 min du prochain établissement. La députée veut une QAG mardi.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Échangez avec la députée sur l'angle souhaité.</p><p><strong>Phase 2</strong> — Rédigez la QAG (2 min oral max).</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles",
+        "content": "<p>Chat + mail. Document : article de presse. ~15 min.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Vous êtes attaché·e parlementaire de Mme Catherine Morel, députée de la Nièvre. La fermeture annoncée de la maternité de Clamecy provoque une vive émotion locale.",
+    "mission": "Préparer la question au gouvernement (QAG) que la députée posera mardi à l'Assemblée : factuelle, percutante, 2 minutes maximum.",
+    "initial_situation": "Vendredi matin. La députée vous contacte par chat. Elle a lu l'article ce matin et veut poser sa QAG mardi.",
+    "trigger": "Mme Morel vous écrit pour vous demander de préparer la question.",
+    "background_fact": "Clamecy est la seule maternité dans un rayon de 45 km. La Nièvre a le plus faible nombre de maternités par habitant de Bourgogne-Franche-Comté."
+  },
+  "timeline": {
+    "scenario_start": "2025-04-11T09:00:00",
+    "sim_speed_multiplier": 2
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "",
+      "email": "",
+      "role": "Attaché·e parlementaire",
+      "personality": "",
+      "interaction_modes": [
+        "chat",
+        "mail"
+      ],
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#2E7D32",
+        "initials": "AP"
+      },
+      "visible_in_contacts": false
+    },
+    {
+      "actor_id": "catherine_morel",
+      "name": "Catherine Morel",
+      "email": "c.morel@assemblee-nationale.fr",
+      "role": "Députée de la Nièvre",
+      "personality": "Combative, émotive sur les sujets santé, veut du percutant mais pas du populisme.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "catherine_morel.md",
+      "availability": "Disponible.",
+      "avatar": {
+        "color": "#AD1457",
+        "initials": "CM"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "article_presse",
+        "label": "Article — Le Journal du Centre",
+        "contains": [
+          "maternité",
+          "Clamecy",
+          "fermeture"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": false,
+        "content": "LE JOURNAL DU CENTRE — 10 avril 2025\n\nFERMETURE DE LA MATERNITÉ DE CLAMECY : L'ARS CONFIRME\n\nL'Agence régionale de santé de Bourgogne-Franche-Comté a confirmé hier la fermeture de la maternité de Clamecy, prévue pour septembre 2025. L'établissement, qui assure environ 800 accouchements par an, sera remplacé par un centre périnatal de proximité sans capacité d'accouchement.\n\nLes futures mères devront se rendre à Auxerre (47 km) ou Nevers (52 km). L'ARS invoque des 'critères de sécurité' liés à l'insuffisance de personnel médical.\n\nLe maire de Clamecy, Jean-Paul Dumont, dénonce 'un abandon pur et simple du territoire'. Une pétition a recueilli 4 200 signatures en 48 heures.\n\nLa Nièvre compte déjà le ratio le plus faible de lits de maternité par habitant de la région."
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "La QAG doit être validée par la députée",
+    "diplomatic_tone_required": false,
+    "uncertainty": "",
+    "sensitive_audience": "Sujet émotionnel — familles et élus locaux"
+  },
+  "initial_events": [
+    {
+      "event_id": "morel_intro",
+      "type": "chat",
+      "actor": "catherine_morel",
+      "content": "Vous avez vu l'article du Journal du Centre ? La maternité de Clamecy, c'est confirmé. Je veux poser une QAG mardi. Il me faut un texte percutant — factuel, pas larmoyant, mais qui tape. 2 minutes max à l'oral. Vous me préparez ça ?"
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Cadrer l'angle avec la députée",
+      "duration_target_min": 5,
+      "objective": "Comprendre ce que la députée veut : ton, angle, cible (ministre de la Santé).",
+      "phase_focus": "Discussion pour cadrer la QAG.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "catherine_morel"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Échangez avec Mme Morel."
+      },
+      "competencies": [
+        "Identifie le ministre cible (Santé)",
+        "Propose un angle factuel et territorial",
+        "Comprend les contraintes du format QAG (2 min)"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Rédiger la QAG",
+      "duration_target_min": 10,
+      "objective": "Rédiger la question au gouvernement et l'envoyer à la députée.",
+      "phase_focus": "Rédaction de la QAG.",
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "catherine_morel"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Envoyez la QAG rédigée par mail."
+      },
+      "competencies": [
+        "Rédige une QAG structurée (contexte, faits, question)",
+        "Respecte le format 2 min (300-350 mots max)",
+        "Utilise des données factuelles de l'article"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": null
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Réussite",
+      "content": "La QAG est factuelle, percutante, et respecte le format. La députée la valide."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Partiel",
+      "content": "La QAG est trop longue ou manque de données chiffrées."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "La QAG est hors sujet, trop vague, ou trop émotionnelle sans faits."
+    }
+  ],
+  "competencies_evaluated": [
+    {
+      "phase": "phase_1",
+      "competency": "Cadrage d'une question parlementaire"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Rédaction au format QAG"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Argumentation factuelle"
+    }
+  ]
+}

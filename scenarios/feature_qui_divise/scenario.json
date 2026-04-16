@@ -1,0 +1,269 @@
+{
+  "scenario_id": "feature_qui_divise",
+  "version": "1.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "La feature qui divise",
+    "subtitle": "Arbitrer entre un commercial et un designer",
+    "description": "Le commercial veut un export CSV pour closer un deal. Le designer veut refondre le dashboard d'abord. À vous d'arbitrer.",
+    "job_family": "chef_de_produit",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 18,
+    "tags": [
+      "produit",
+      "priorisation",
+      "stakeholders",
+      "arbitrage",
+      "pour débuter"
+    ],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Écouter des parties prenantes opposées",
+      "Arbitrer avec des critères produit",
+      "Formaliser une décision"
+    ]
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Chef de produit junior",
+      "subtitle": "Deux demandes contradictoires — à vous d'arbitrer"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>PM junior chez <strong>DataBoard</strong>, SaaS d'analytics. Vous gérez le backlog du module Dashboard.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le contexte",
+        "content": "<p><strong>Karim</strong> (commercial) veut un export CSV pour closer un deal à 30K€. <strong>Léa</strong> (designer) refuse tout ajout tant que le dashboard n'est pas refondu. Votre CPO attend votre décision.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Échangez avec Karim puis Léa.</p><p><strong>Phase 2</strong> — Envoyez votre décision argumentée à la CPO.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles",
+        "content": "<p>Chat + mail. ~18 min.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "DataBoard est un SaaS d'analytics en croissance. L'équipe produit est petite (1 CPO, 2 PM, 3 devs, 1 designer).",
+    "mission": "Arbitrer entre la demande d'export CSV de Karim et la refonte dashboard de Léa, puis formaliser votre décision.",
+    "initial_situation": "Mardi matin. Karim et Léa vous ont chacun envoyé un message.",
+    "trigger": "Deux messages arrivent simultanément.",
+    "background_fact": "Le deal de Karim (MegaCorp, 30K€/an) doit être closé cette semaine. La refonte dashboard est dans la roadmap Q2 mais pas encore priorisée."
+  },
+  "timeline": {
+    "scenario_start": "2025-04-15T09:00:00",
+    "sim_speed_multiplier": 2
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "",
+      "email": "",
+      "role": "PM junior",
+      "personality": "",
+      "interaction_modes": [
+        "chat",
+        "mail"
+      ],
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#1B5E20",
+        "initials": "PM"
+      },
+      "visible_in_contacts": false
+    },
+    {
+      "actor_id": "karim_bensaid",
+      "name": "Karim Bensaïd",
+      "email": "karim@databoard.io",
+      "role": "Commercial senior",
+      "personality": "Enthousiaste, persuasif, centré résultat. Pousse fort pour son deal.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "karim_bensaid.md",
+      "avatar": {
+        "color": "#E65100",
+        "initials": "KB"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne"
+    },
+    {
+      "actor_id": "lea_fontaine",
+      "name": "Léa Fontaine",
+      "email": "lea@databoard.io",
+      "role": "Lead designer",
+      "personality": "Perfectionniste, attachée à la cohérence UX, refuse les rustines.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "lea_fontaine.md",
+      "avatar": {
+        "color": "#6A1B9A",
+        "initials": "LF"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne"
+    },
+    {
+      "actor_id": "anne_mercier",
+      "name": "Anne Mercier",
+      "email": "anne@databoard.io",
+      "role": "CPO",
+      "personality": "Attend une décision argumentée, pas un consensus mou.",
+      "interaction_modes": [
+        "mail"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "anne_mercier.md",
+      "avatar": {
+        "color": "#0D47A1",
+        "initials": "AM"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Attend votre arbitrage"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": []
+  },
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "La CPO tranche si votre arbitrage n'est pas clair",
+    "diplomatic_tone_required": true,
+    "uncertainty": "",
+    "sensitive_audience": ""
+  },
+  "initial_events": [
+    {
+      "event_id": "karim_intro",
+      "type": "chat",
+      "actor": "karim_bensaid",
+      "content": "Salut ! J'ai MegaCorp qui est prêt à signer — 30K annuel. Mais ils veulent absolument un export CSV des dashboards. C'est bloquant pour eux. On peut faire ça cette semaine ?"
+    },
+    {
+      "event_id": "lea_intro",
+      "type": "chat",
+      "actor": "lea_fontaine",
+      "content": "Salut. J'ai vu que Karim pousse encore pour rajouter des trucs au dashboard. On ne peut PAS continuer à empiler des features sur une base bancale. La refonte est prévue Q2, il faut la prioriser maintenant sinon on ne s'en sort plus."
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Écouter les deux parties",
+      "duration_target_min": 10,
+      "objective": "Comprendre les arguments de Karim et Léa.",
+      "phase_focus": "Écoute active des deux stakeholders.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "karim_bensaid",
+        "lea_fontaine"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Échangez avec Karim et Léa."
+      },
+      "competencies": [
+        "Écoute les arguments business (deal, revenu, deadline)",
+        "Écoute les arguments UX/tech (dette, cohérence, maintenabilité)",
+        "Pose des questions pour quantifier (effort dev, impact deal, scope refonte)"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Formaliser la décision",
+      "duration_target_min": 8,
+      "objective": "Envoyer un mail de décision argumentée à la CPO.",
+      "phase_focus": "Arbitrage produit.",
+      "active_channels": [
+        "mail"
+      ],
+      "ai_actors": [
+        "anne_mercier"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Envoyez votre décision par mail à Anne."
+      },
+      "competencies": [
+        "Formule une décision claire (pas un 'on verra')",
+        "Argumente avec des critères produit (impact, effort, urgence, dette)",
+        "Propose un séquençage réaliste"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": null
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Réussite",
+      "content": "Votre arbitrage est clair, argumenté, et propose un séquençage réaliste. La CPO valide."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Partiel",
+      "content": "La décision est prise mais l'argumentation est faible ou le séquençage est flou."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "Pas de décision claire, ou un consensus mou qui ne satisfait personne."
+    }
+  ],
+  "competencies_evaluated": [
+    {
+      "phase": "phase_1",
+      "competency": "Écoute de stakeholders"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Arbitrage produit"
+    },
+    {
+      "phase": "phase_2",
+      "competency": "Formalisation de décision"
+    }
+  ]
+}
