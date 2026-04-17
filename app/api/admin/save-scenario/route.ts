@@ -9,18 +9,27 @@ export const runtime = "nodejs";
 
 import { mkdir, writeFile } from "fs/promises";
 import { join } from "path";
+import { requireAuth } from "@/app/lib/auth";
+import { isAdminRole } from "@/app/lib/permissions";
+import type { GlobalRole } from "@/app/lib/permissions";
+import { parseBody, saveScenarioSchema } from "@/app/lib/validation";
 
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const scenario = body.scenario;
-
-    if (!scenario || !scenario.scenario_id) {
-      return Response.json(
-        { error: "Missing scenario or scenario_id" },
-        { status: 400 }
-      );
+    // ── Auth + admin guard ──
+    const auth = requireAuth(req);
+    if (auth.error) return auth.error;
+    if (!isAdminRole(auth.user.role as GlobalRole)) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const body = await req.json();
+
+    // ── Input validation ──
+    const parsed = parseBody(body, saveScenarioSchema);
+    if (parsed.error) return Response.json(parsed.error, { status: 400 });
+
+    const scenario = parsed.data.scenario;
 
     // Sanitize scenario_id for folder name
     const folderId = scenario.scenario_id

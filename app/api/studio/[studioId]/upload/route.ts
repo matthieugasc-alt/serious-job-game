@@ -13,6 +13,7 @@ import {
   existsSync,
 } from "fs";
 import { join } from "path";
+import { requireAuth } from "@/app/lib/auth";
 
 const ALLOWED_EXTENSIONS = [
   "pdf",
@@ -51,6 +52,10 @@ export async function POST(
   const { studioId } = await params;
 
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+
     const formData = await request.formData();
     const file = formData.get("file") as File;
 

@@ -28,6 +28,7 @@ export const maxDuration = 90;
 
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { requireAuth } from "@/app/lib/auth";
 import {
   ImportExtractPayloadSchema,
   STUDIO_SYSTEM_PROMPT,
@@ -179,6 +180,10 @@ export async function POST(
   const { studioId } = await params;
 
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+
     const p = studioJsonPath(studioId);
     if (!existsSync(p)) {
       return Response.json(

@@ -1,4 +1,6 @@
 import OpenAI from "openai";
+import { requireAuth } from "@/app/lib/auth";
+import { checkRateLimit, getRateLimitId, RATE_LIMITS } from "@/app/lib/rateLimit";
 
 /**
  * Backend fallback transcription via OpenAI Whisper.
@@ -17,6 +19,15 @@ export const maxDuration = 60;
 
 export async function POST(req: Request) {
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(req);
+    if (auth.error) return auth.error;
+
+    // ── Rate limit ──
+    const rlId = getRateLimitId(req, auth.user.id);
+    const rl = checkRateLimit(rlId, "transcribe", RATE_LIMITS.transcribe);
+    if (rl.blocked) return Response.json(rl.body, { status: 429 });
+
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return Response.json(

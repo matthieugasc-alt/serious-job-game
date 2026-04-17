@@ -15,9 +15,14 @@ import { spawn } from "child_process";
 import { readFile, unlink, access } from "fs/promises";
 import { tmpdir } from "os";
 import { join, resolve } from "path";
+import { requireAuth } from "@/app/lib/auth";
 
 export async function POST(req: Request) {
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(req);
+    if (auth.error) return auth.error;
+
     const body = await req.json();
 
     // Create a temp file path for the PDF

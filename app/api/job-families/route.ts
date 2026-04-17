@@ -7,6 +7,10 @@
 export const runtime = "nodejs";
 
 import { createJobFamily, listJobFamilies } from "@/app/lib/jobFamilies";
+import { requireAuth } from "@/app/lib/auth";
+import { isAdminRole } from "@/app/lib/permissions";
+import type { GlobalRole } from "@/app/lib/permissions";
+import { parseBody, createJobFamilySchema } from "@/app/lib/validation";
 
 export async function GET() {
   try {
@@ -21,17 +25,23 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json().catch(() => ({}));
-    if (!body?.label || typeof body.label !== "string") {
-      return Response.json(
-        { error: "Le champ 'label' est requis" },
-        { status: 400 },
-      );
+    // ── Auth + admin guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+    if (!isAdminRole(auth.user.role as GlobalRole)) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
     }
+
+    const body = await request.json().catch(() => ({}));
+
+    // ── Input validation ──
+    const parsed = parseBody(body, createJobFamilySchema);
+    if (parsed.error) return Response.json(parsed.error, { status: 400 });
+
     const family = createJobFamily({
-      label: body.label,
-      active: body.active,
-      order: body.order,
+      label: parsed.data.label,
+      active: parsed.data.active,
+      order: parsed.data.order,
     });
     return Response.json({ family }, { status: 201 });
   } catch (error: any) {

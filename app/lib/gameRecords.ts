@@ -20,6 +20,7 @@ export interface ServerGameRecord {
   pdfPath?: string; // Path to stored PDF (relative to data dir)
   jobFamily?: string; // Job family from scenario meta
   difficulty?: 'junior' | 'intermediate' | 'senior';
+  organizationId?: string; // Which org context the game was played in (null = personal)
   extractedSkills?: ExtractedSkill[]; // AI-extracted skills from debrief
 }
 

@@ -16,6 +16,7 @@ import {
   rmSync,
 } from "fs";
 import { join } from "path";
+import { requireAuth } from "@/app/lib/auth";
 
 interface StudioScenario {
   id: string;
@@ -47,8 +48,12 @@ function generateScenarioId(title: string): string {
 /**
  * GET /api/studio — List all studio scenarios
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+
     const studioDir = join(process.cwd(), "data", "studio");
 
     // Create data/studio if it doesn't exist
@@ -105,6 +110,10 @@ export async function GET() {
  */
 export async function POST(request: Request) {
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+
     const body: CreateScenarioRequest = await request.json();
 
     if (!body.title || typeof body.title !== "string") {

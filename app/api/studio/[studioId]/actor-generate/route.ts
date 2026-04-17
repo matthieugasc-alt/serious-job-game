@@ -24,6 +24,7 @@ import {
   callJSON,
   type ActorBriefing,
 } from "@/app/lib/studioAI";
+import { requireAuth } from "@/app/lib/auth";
 
 interface ReqBody {
   actorId?: string;
@@ -82,6 +83,10 @@ export async function POST(
   const { studioId } = await params;
 
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+
     const body: ReqBody = await request.json().catch(() => ({}));
     const parsedBriefing = ActorBriefingSchema.safeParse(body.briefing);
     if (!parsedBriefing.success) {

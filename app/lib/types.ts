@@ -1003,9 +1003,10 @@ export type SessionState = {
 
 /**
  * User role in the platform.
- * Determines permissions and UI visibility.
+ * Canonical type is GlobalRole in permissions.ts.
+ * This alias exists for backward compat with gameplay types.
  */
-export type UserRole = "player" | "trainer" | "admin";
+export type UserRole = "user" | "super_admin";
 
 /**
  * A user account.

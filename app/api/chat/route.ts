@@ -1,4 +1,7 @@
 import OpenAI from "openai";
+import { requireAuth } from "@/app/lib/auth";
+import { checkRateLimit, getRateLimitId, RATE_LIMITS } from "@/app/lib/rateLimit";
+import { parseBody, chatSchema } from "@/app/lib/validation";
 
 function s(value: unknown, fallback = "") {
   return typeof value === "string" ? value : fallback;
@@ -60,6 +63,15 @@ Respond ONLY with your character's dialogue in plain text.
 
 export async function POST(req: Request) {
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(req);
+    if (auth.error) return auth.error;
+
+    // ── Rate limit ──
+    const rlId = getRateLimitId(req, auth.user.id);
+    const rl = checkRateLimit(rlId, "chat", RATE_LIMITS.chat);
+    if (rl.blocked) return Response.json(rl.body, { status: 429 });
+
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return Response.json(
@@ -72,23 +84,25 @@ export async function POST(req: Request) {
 
     const body = await req.json();
 
-    // Extract and sanitize standard fields
-    const playerName = sanitize(s(body?.playerName, "Player")).trim() || "Player";
-    const message = sanitize(s(body?.message, ""));
-    const phaseTitle = sanitize(s(body?.phaseTitle, ""));
-    const phaseObjective = sanitize(s(body?.phaseObjective, ""));
-    const phaseFocus = sanitize(s(body?.phaseFocus, ""));
-    const phasePrompt = sanitize(s(body?.phasePrompt, ""));
-    const mode = sanitize(s(body?.mode, "guided"));
-    const roleplayPromptTemplate = s(body?.roleplayPrompt, "");
+    // ── Input validation ──
+    const parsed = parseBody(body, chatSchema);
+    if (parsed.error) return Response.json(parsed.error, { status: 400 });
+    const input = parsed.data;
 
-    const narrative =
-      body?.narrative && typeof body.narrative === "object" ? body.narrative : {};
-    const recentConversation = Array.isArray(body?.recentConversation)
-      ? body.recentConversation
-      : [];
-    const criteria = Array.isArray(body?.criteria) ? body.criteria : [];
-    const playerMessages = Array.isArray(body?.playerMessages) ? body.playerMessages : [];
+    // Extract and sanitize validated fields
+    const playerName = sanitize(input.playerName) || "Player";
+    const message = sanitize(input.message);
+    const phaseTitle = sanitize(input.phaseTitle);
+    const phaseObjective = sanitize(input.phaseObjective);
+    const phaseFocus = sanitize(input.phaseFocus);
+    const phasePrompt = sanitize(input.phasePrompt);
+    const mode = input.mode;
+    const roleplayPromptTemplate = input.roleplayPrompt;
+
+    const narrative = input.narrative;
+    const recentConversation = input.recentConversation;
+    const criteria = input.criteria;
+    const playerMessages = input.playerMessages;
 
     // Build mode-specific guidance
     const modeGuidance =

@@ -230,6 +230,17 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const lastSentTranscriptRef = useRef("");
   const isSendingRef = useRef(false);
 
+  // ── Auth token for API calls ──
+  const authTokenRef = useRef<string | null>(
+    typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
+  );
+  /** Build headers for authenticated API calls */
+  function apiHeaders(extra?: Record<string, string>): Record<string, string> {
+    const h: Record<string, string> = { "Content-Type": "application/json", ...extra };
+    if (authTokenRef.current) h["Authorization"] = `Bearer ${authTokenRef.current}`;
+    return h;
+  }
+
   // ── Refs for auto-send closures ──
   const sessionRef = useRef<any>(null);
   const scenarioRef = useRef<any>(null);
@@ -443,7 +454,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
     fetch("/api/debrief", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: apiHeaders(),
       body: JSON.stringify({
         playerName: displayPlayerName,
         scenarioTitle: scenario.meta?.title || "Scénario",
@@ -455,7 +466,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         defaultEnding: (scenario as any).default_ending || null,
       }),
     })
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) {
+          if (r.status === 429) throw new Error("Trop de requêtes. Veuillez patienter quelques instants.");
+          if (r.status === 400) throw new Error("Données invalides pour le débrief.");
+          throw new Error(`Erreur serveur (${r.status})`);
+        }
+        return r.json();
+      })
       .then((data) => {
         setDebriefData(data);
         setDebriefLoading(false);
@@ -513,6 +531,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           debrief: { ...debriefData, scenarioCompetencies: scenario.meta?.competencies || [] },
           jobFamily: scenario.meta?.job_family || "",
           difficulty: scenario.meta?.difficulty || "junior",
+          organizationId: typeof window !== "undefined" ? localStorage.getItem("active_org_id") || undefined : undefined,
         }),
       }).then(async (res) => {
         if (res && res.ok) {
@@ -851,7 +870,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
     fetch("/api/evaluate-presentation", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: apiHeaders(),
       body: JSON.stringify({
         transcript: trimmed,
         phaseTitle: view.phaseTitle,
@@ -1017,7 +1036,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           .map((m: any) => m.content);
         const res = await fetch("/api/chat", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: apiHeaders(),
           body: JSON.stringify({
             playerName: displayPlayerName,
             message: newText,
@@ -1033,6 +1052,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             roleplayPrompt: activePrompt,
           }),
         });
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          throw new Error(res.status === 429
+            ? "Trop de requêtes. Veuillez patienter."
+            : errBody.message || `Erreur chat (${res.status})`);
+        }
         const data = await res.json();
         playNotificationSound();
         const final2 = cloneSession(next);
@@ -1178,7 +1203,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       const voice = resolveVoice(actorId);
       const res = await fetch("/api/tts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: apiHeaders(),
         body: JSON.stringify({ text, voice, speed: 1.0 }),
       });
 
@@ -1250,7 +1275,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     const activePrompt = aiPromptsMapRef.current[actorId] || aiPromptRef.current;
     const res = await fetch("/api/chat", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: apiHeaders(),
       body: JSON.stringify({
         message: trigger,
         playerName: displayPlayerName,
@@ -1269,6 +1294,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         mode: view?.adaptiveMode || "autonomy",
       }),
     });
+    if (!res.ok) {
+      console.error(`Erreur NPC chat (${res.status})`);
+      return "";
+    }
     const data = await res.json();
     return data.reply || "";
   }
@@ -1316,7 +1345,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
       const res = await fetch("/api/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: apiHeaders(),
         body: JSON.stringify({
           playerName: displayPlayerName,
           message: text,
@@ -1332,6 +1361,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           roleplayPrompt: activePrompt,
         }),
       });
+
+      if (!res.ok) {
+        const errBody = await res.json().catch(() => ({}));
+        throw new Error(res.status === 429
+          ? "Trop de requêtes. Veuillez patienter quelques instants."
+          : errBody.message || `Erreur chat (${res.status})`);
+      }
 
       const data = await res.json();
       playNotificationSound();

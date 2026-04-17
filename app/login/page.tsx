@@ -44,7 +44,7 @@ export default function LoginPage() {
       const data = await response.json();
       localStorage.setItem("auth_token", data.token);
       localStorage.setItem("user_name", data.user?.name || data.name || "");
-      localStorage.setItem("user_role", data.user?.role || "player");
+      localStorage.setItem("user_role", data.user?.role || "user");
 
       router.push("/");
     } catch (err) {
@@ -84,7 +84,7 @@ export default function LoginPage() {
       const data = await response.json();
       localStorage.setItem("auth_token", data.token);
       localStorage.setItem("user_name", data.user?.name || data.name || "");
-      localStorage.setItem("user_role", data.user?.role || "player");
+      localStorage.setItem("user_role", data.user?.role || "user");
 
       router.push("/");
     } catch (err) {

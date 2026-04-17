@@ -7,6 +7,9 @@
 export const runtime = "nodejs";
 
 import { deleteJobFamily, updateJobFamily } from "@/app/lib/jobFamilies";
+import { requireAuth } from "@/app/lib/auth";
+import { isAdminRole } from "@/app/lib/permissions";
+import type { GlobalRole } from "@/app/lib/permissions";
 
 export async function PATCH(
   request: Request,
@@ -14,6 +17,13 @@ export async function PATCH(
 ) {
   const { familyId } = await params;
   try {
+    // ── Auth + admin guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+    if (!isAdminRole(auth.user.role as GlobalRole)) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const body = await request.json().catch(() => ({}));
     const family = updateJobFamily(familyId, {
       label: body.label,
@@ -31,11 +41,18 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ familyId: string }> },
 ) {
   const { familyId } = await params;
   try {
+    // ── Auth + admin guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+    if (!isAdminRole(auth.user.role as GlobalRole)) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     deleteJobFamily(familyId);
     return Response.json({ success: true });
   } catch (error: any) {

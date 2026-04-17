@@ -34,7 +34,7 @@ export default function AdminPage() {
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userToken, setUserToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeSection, setActiveSection] = useState<"conversion" | "management" | "editor" | "studio">("conversion");
+  const [activeSection, setActiveSection] = useState<"conversion" | "management" | "editor" | "studio" | "organizations">("conversion");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Conversion state
@@ -101,8 +101,8 @@ export default function AdminPage() {
       router.push("/login");
       return;
     }
-    // Allow admin access (fallback: also allow if email matches)
-    if (role !== "admin") {
+    // Allow super_admin access (legacy 'admin' role also accepted during migration)
+    if (role !== "super_admin" && role !== "admin") {
       router.push("/");
       return;
     }
@@ -671,6 +671,24 @@ export default function AdminPage() {
           >
             🎬 Scenario Studio
           </button>
+          {(userRole as string) === "super_admin" && (
+            <button
+              onClick={() => setActiveSection("organizations")}
+              style={{
+                padding: "12px 0",
+                fontSize: 16,
+                fontWeight: activeSection === "organizations" ? 700 : 500,
+                color: activeSection === "organizations" ? "#a5a8ff" : "rgba(255,255,255,0.6)",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                borderBottom: activeSection === "organizations" ? "2px solid #5b5fc7" : "none",
+                transition: "all 0.2s",
+              }}
+            >
+              🏢 Organisations
+            </button>
+          )}
         </div>
 
         {/* Conversion Section */}
@@ -1946,6 +1964,11 @@ export default function AdminPage() {
             )}
           </div>
         )}
+
+        {/* Organizations Section (super_admin only) */}
+        {activeSection === "organizations" && (
+          <OrganizationsSection token={userToken || ""} />
+        )}
       </div>
     </main>
   );
@@ -1998,4 +2021,265 @@ export default function AdminPage() {
       setTimeout(() => editorChatEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     }
   }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// ORGANIZATIONS SECTION — Manage orgs (super_admin)
+// ═══════════════════════════════════════════════════════════════════
+
+interface OrgData {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  adminUserId: string;
+  createdAt: string;
+  settings: { description?: string };
+}
+
+function OrganizationsSection({ token }: { token: string }) {
+  const [orgs, setOrgs] = useState<OrgData[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
+  const [formName, setFormName] = useState("");
+  const [formType, setFormType] = useState<"enterprise" | "coach">("enterprise");
+  const [formAdminEmail, setFormAdminEmail] = useState("");
+  // coachLevel is now on the user profile, not the org
+  const [formDescription, setFormDescription] = useState("");
+  const [creating, setCreating] = useState(false);
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    fetchOrgs();
+  }, []);
+
+  async function fetchOrgs() {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/organizations", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setOrgs(data.organizations || []);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!formName || !formAdminEmail) return;
+    setCreating(true);
+    setMessage(null);
+
+    try {
+      // First find or hint at the admin user
+      // The API expects adminUserId, so we need to resolve email → id
+      // For simplicity, pass the email and let the server handle it
+      // Actually the API expects adminUserId. We'll need to look up the user first.
+      const usersRes = await fetch("/api/auth/users", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      let adminUserId = "";
+      if (usersRes.ok) {
+        const usersData = await usersRes.json();
+        const adminUser = (usersData.users || []).find(
+          (u: any) => u.email.toLowerCase() === formAdminEmail.toLowerCase()
+        );
+        if (adminUser) {
+          adminUserId = adminUser.id;
+        }
+      }
+
+      if (!adminUserId) {
+        setMessage({ type: "error", text: `Utilisateur "${formAdminEmail}" non trouvé` });
+        setCreating(false);
+        return;
+      }
+
+      const res = await fetch("/api/organizations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          name: formName,
+          type: formType,
+          adminUserId,
+          // coachLevel is on the user now, not the org
+          description: formDescription || undefined,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setMessage({ type: "success", text: `Organisation "${formName}" créée !` });
+        setFormName("");
+        setFormAdminEmail("");
+        setFormDescription("");
+        setShowCreate(false);
+        await fetchOrgs();
+      } else {
+        setMessage({ type: "error", text: data.error || "Erreur" });
+      }
+    } catch {
+      setMessage({ type: "error", text: "Erreur réseau" });
+    } finally {
+      setCreating(false);
+    }
+  }
+
+  if (loading) return <div style={{ padding: 20, color: "rgba(255,255,255,0.7)" }}>Chargement...</div>;
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <h2 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#fff" }}>
+          Organisations ({orgs.length})
+        </h2>
+        <button
+          onClick={() => setShowCreate(!showCreate)}
+          style={{
+            padding: "10px 20px", background: "#5b5fc7", color: "#fff",
+            border: "none", borderRadius: 10, fontWeight: 600, fontSize: 14, cursor: "pointer",
+          }}
+        >
+          {showCreate ? "Annuler" : "+ Nouvelle organisation"}
+        </button>
+      </div>
+
+      {message && (
+        <div
+          style={{
+            padding: 14, borderRadius: 10, fontSize: 13, marginBottom: 16,
+            background: message.type === "success" ? "rgba(22,163,74,0.15)" : "rgba(220,38,38,0.15)",
+            border: `1px solid ${message.type === "success" ? "rgba(22,163,74,0.3)" : "rgba(220,38,38,0.3)"}`,
+            color: message.type === "success" ? "#86efac" : "#fca5a5",
+          }}
+        >
+          {message.text}
+        </div>
+      )}
+
+      {showCreate && (
+        <div style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 16, padding: 24, marginBottom: 24 }}>
+          <h3 style={{ margin: "0 0 16px", fontSize: 16, fontWeight: 600, color: "#fff" }}>Créer une organisation</h3>
+          <form onSubmit={handleCreate} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+            <div style={{ display: "flex", gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>Nom</label>
+                <input
+                  value={formName}
+                  onChange={(e) => setFormName(e.target.value)}
+                  placeholder="Nom de l'organisation"
+                  style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, color: "#fff", fontSize: 14 }}
+                />
+              </div>
+              <div style={{ flex: 1 }}>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>Email de l'admin</label>
+                <input
+                  type="email"
+                  value={formAdminEmail}
+                  onChange={(e) => setFormAdminEmail(e.target.value)}
+                  placeholder="admin@example.com"
+                  style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, color: "#fff", fontSize: 14 }}
+                />
+              </div>
+            </div>
+            <div style={{ display: "flex", gap: 16 }}>
+              <div>
+                <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>Type</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  {(["enterprise", "coach"] as const).map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => setFormType(t)}
+                      style={{
+                        padding: "8px 16px", borderRadius: 8, border: "none", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                        background: formType === t ? "#5b5fc7" : "rgba(255,255,255,0.1)",
+                        color: formType === t ? "#fff" : "rgba(255,255,255,0.6)",
+                      }}
+                    >
+                      {t === "enterprise" ? "🏢 Entreprise" : "🎓 Coach"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* coachLevel is now set on user profiles, not orgs */}
+            </div>
+            <div>
+              <label style={{ display: "block", fontSize: 12, fontWeight: 600, color: "rgba(255,255,255,0.7)", marginBottom: 4 }}>Description (optionnel)</label>
+              <input
+                value={formDescription}
+                onChange={(e) => setFormDescription(e.target.value)}
+                placeholder="Description courte"
+                style={{ width: "100%", padding: "10px 14px", background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8, color: "#fff", fontSize: 14 }}
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={creating}
+              style={{
+                padding: "12px 24px", background: creating ? "#4b4faa" : "#5b5fc7", color: "#fff",
+                border: "none", borderRadius: 10, fontWeight: 600, fontSize: 14,
+                cursor: creating ? "not-allowed" : "pointer", alignSelf: "flex-start",
+              }}
+            >
+              {creating ? "Création..." : "Créer l'organisation"}
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Org list */}
+      <div style={{ display: "grid", gap: 16 }}>
+        {orgs.map((org) => (
+          <div
+            key={org.id}
+            style={{
+              background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)",
+              borderRadius: 16, padding: 20, display: "flex", justifyContent: "space-between", alignItems: "center",
+            }}
+          >
+            <div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 6 }}>
+                <span style={{ fontSize: 18 }}>{org.type === "enterprise" ? "🏢" : "🎓"}</span>
+                <h3 style={{ margin: 0, fontSize: 16, fontWeight: 600, color: "#fff" }}>{org.name}</h3>
+                <span style={{
+                  padding: "3px 8px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                  background: org.status === "active" ? "rgba(22,163,74,0.2)" : "rgba(220,38,38,0.2)",
+                  color: org.status === "active" ? "#86efac" : "#fca5a5",
+                }}>
+                  {org.status === "active" ? "Actif" : "Suspendu"}
+                </span>
+                {/* coachLevel now on user profiles */}
+              </div>
+              <div style={{ fontSize: 12, color: "rgba(255,255,255,0.5)" }}>
+                {org.type === "enterprise" ? "Entreprise" : "Coach"} · Créé le {new Date(org.createdAt).toLocaleDateString("fr-FR")}
+                {org.settings.description && ` · ${org.settings.description}`}
+              </div>
+            </div>
+            <a
+              href={org.type === "enterprise" ? `/enterprise/${org.id}` : `/coach/${org.id}`}
+              style={{
+                padding: "8px 16px", background: "rgba(255,255,255,0.1)",
+                border: "1px solid rgba(255,255,255,0.2)", borderRadius: 8,
+                color: "#a5a8ff", fontSize: 13, fontWeight: 600, textDecoration: "none",
+                cursor: "pointer",
+              }}
+            >
+              Ouvrir →
+            </a>
+          </div>
+        ))}
+        {orgs.length === 0 && (
+          <div style={{ padding: 40, textAlign: "center", color: "rgba(255,255,255,0.4)", fontSize: 14 }}>
+            Aucune organisation créée. Cliquez sur "+ Nouvelle organisation" pour commencer.
+          </div>
+        )}
+      </div>
+    </div>
+  );
 }

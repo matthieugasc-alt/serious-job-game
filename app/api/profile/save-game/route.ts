@@ -5,6 +5,8 @@ import * as path from 'path';
 import { promisify } from 'util';
 import { validateSession } from '@/app/lib/auth';
 import { saveRecord, updateRecordPdf, ServerGameRecord } from '@/app/lib/gameRecords';
+import { markCompleted } from '@/app/lib/assignments';
+import { getMembership } from '@/app/lib/organizations';
 
 const execAsync = promisify(exec);
 
@@ -114,9 +116,29 @@ export async function POST(request: NextRequest) {
       debrief: body.debrief,
       jobFamily: body.jobFamily || undefined,
       difficulty: body.difficulty || undefined,
+      organizationId: body.organizationId || undefined,
     };
 
     const savedRecord = saveRecord(user.id, recordData);
+
+    // If an organizationId was provided, validate membership then mark completed
+    if (body.organizationId) {
+      const membership = getMembership(user.id, body.organizationId);
+      if (membership) {
+        try {
+          markCompleted(
+            body.scenarioId,
+            user.id,
+            body.organizationId,
+            savedRecord.id,
+          );
+        } catch (error) {
+          console.error('Failed to mark assignment completed:', error);
+        }
+      } else {
+        console.warn(`save-game: user ${user.id} not member of org ${body.organizationId}, skipping markCompleted`);
+      }
+    }
 
     // Attempt to generate PDF in the background
     generatePdf(savedRecord.id, body.debrief)

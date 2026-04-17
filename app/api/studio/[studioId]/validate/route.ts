@@ -16,6 +16,7 @@ import {
   validateScenario,
   StudioScenario,
 } from "@/app/lib/studioCompiler";
+import { requireAuth } from "@/app/lib/auth";
 
 /**
  * POST /api/studio/[studioId]/validate
@@ -27,6 +28,10 @@ export async function POST(
   const { studioId } = await params;
 
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+
     // Read studio.json
     const studioJsonPath = join(
       process.cwd(),

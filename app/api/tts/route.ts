@@ -1,5 +1,8 @@
 import { NextRequest } from "next/server";
 import OpenAI from "openai";
+import { requireAuth } from "@/app/lib/auth";
+import { checkRateLimit, getRateLimitId, RATE_LIMITS } from "@/app/lib/rateLimit";
+import { parseBody, ttsSchema } from "@/app/lib/validation";
 
 /**
  * POST /api/tts
@@ -18,6 +21,15 @@ const VALID_VOICES = new Set([
 
 export async function POST(req: NextRequest) {
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(req);
+    if (auth.error) return auth.error;
+
+    // ── Rate limit ──
+    const rlId = getRateLimitId(req, auth.user.id);
+    const rl = checkRateLimit(rlId, "tts", RATE_LIMITS.tts);
+    if (rl.blocked) return Response.json(rl.body, { status: 429 });
+
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return new Response(JSON.stringify({ error: "OPENAI_API_KEY manquante" }), {
@@ -27,21 +39,17 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const text: string = (body.text || "").trim();
-    if (!text) {
-      return new Response(JSON.stringify({ error: "text requis" }), {
+
+    // ── Input validation ──
+    const parsed = parseBody(body, ttsSchema);
+    if (parsed.error) {
+      return new Response(JSON.stringify(parsed.error), {
         status: 400,
         headers: { "Content-Type": "application/json" },
       });
     }
 
-    // Cap text at 4096 chars (OpenAI TTS limit)
-    const truncated = text.length > 4096 ? text.slice(0, 4096) : text;
-
-    const voice = VALID_VOICES.has(body.voice) ? body.voice : "nova";
-    const speed = typeof body.speed === "number"
-      ? Math.max(0.25, Math.min(4.0, body.speed))
-      : 1.0;
+    const { text: truncated, voice, speed } = parsed.data;
 
     const client = new OpenAI({ apiKey });
 

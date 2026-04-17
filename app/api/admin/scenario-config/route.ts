@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { validateSession } from '@/app/lib/auth';
+import { isAdminRole } from '@/app/lib/permissions';
 import {
   getAllScenarioConfigs,
   saveScenarioConfig,
   ScenarioConfig,
 } from '@/app/lib/scenarioConfig';
+import { parseBody, scenarioConfigSchema } from '@/app/lib/validation';
 
 export const runtime = 'nodejs';
 
@@ -45,40 +47,29 @@ export async function POST(request: NextRequest) {
     const { user } = result;
 
     // Check admin role
-    if (user.role !== 'admin') {
+    if (!isAdminRole(user.role)) {
       return NextResponse.json(
         { error: 'Insufficient permissions - admin only' },
         { status: 403 },
       );
     }
 
-    // Parse request body
+    // Parse & validate request body
     const body = await request.json();
 
-    // Validate required fields
-    if (!body.scenarioId) {
-      return NextResponse.json(
-        { error: 'Missing required field: scenarioId' },
-        { status: 400 },
-      );
-    }
-
-    if (typeof body.adminLocked !== 'boolean') {
-      return NextResponse.json(
-        { error: 'Missing required field: adminLocked (must be boolean)' },
-        { status: 400 },
-      );
-    }
+    // ── Input validation ──
+    const parsed = parseBody(body, scenarioConfigSchema);
+    if (parsed.error) return NextResponse.json(parsed.error, { status: 400 });
 
     // Build config object
     const config: ScenarioConfig = {
-      scenarioId: body.scenarioId,
-      adminLocked: body.adminLocked,
-      lockMessage: body.lockMessage || undefined,
-      prerequisites: Array.isArray(body.prerequisites) ? body.prerequisites : undefined,
-      category: body.category || undefined,
-      order: typeof body.order === 'number' ? body.order : undefined,
-      featured: typeof body.featured === 'boolean' ? body.featured : undefined,
+      scenarioId: parsed.data.scenarioId,
+      adminLocked: parsed.data.adminLocked,
+      lockMessage: parsed.data.lockMessage || undefined,
+      prerequisites: parsed.data.prerequisites || undefined,
+      category: parsed.data.category || undefined,
+      order: parsed.data.order,
+      featured: parsed.data.featured,
     };
 
     // Save scenario config

@@ -304,10 +304,18 @@ export default function ScenarioSelectionPage() {
   const [userToken, setUserToken] = useState<string | null>(null);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [allCategories, setAllCategories] = useState<string[]>([]);
+  const [mySpaces, setMySpaces] = useState<Array<{
+    organizationId: string;
+    organizationName: string;
+    orgType: string;
+    role: string;
+  }>>([]);
 
   useEffect(() => {
     // Check auth token and user name from localStorage
     if (typeof window !== "undefined") {
+      // Clear org context when on homepage (personal space)
+      localStorage.removeItem("active_org_id");
       const token = localStorage.getItem("auth_token");
       const name = localStorage.getItem("user_name");
       const role = localStorage.getItem("user_role");
@@ -395,6 +403,19 @@ export default function ScenarioSelectionPage() {
             }
           } catch (err) {
             console.error("Failed to fetch history:", err);
+          }
+
+          // Fetch user capabilities/memberships for space selector
+          try {
+            const capRes = await fetch("/api/capabilities", {
+              headers: { Authorization: `Bearer ${userToken}` },
+            });
+            if (capRes.ok) {
+              const capData = await capRes.json();
+              setMySpaces(capData.memberships || []);
+            }
+          } catch (err) {
+            console.error("Failed to fetch capabilities:", err);
           }
         }
       } catch (err) {
@@ -570,7 +591,7 @@ export default function ScenarioSelectionPage() {
         </div>
 
         {/* Admin Banner */}
-        {userRole === "admin" && (
+        {userRole === "super_admin" && (
           <div
             onClick={() => router.push("/admin")}
             style={{
@@ -605,6 +626,64 @@ export default function ScenarioSelectionPage() {
               </div>
             </div>
             <span style={{ fontSize: 20, opacity: 0.6 }}>→</span>
+          </div>
+        )}
+
+        {/* My Spaces */}
+        {mySpaces.length > 0 && (
+          <div style={{ marginBottom: 24 }}>
+            <p style={{ fontSize: 13, color: "#666", marginBottom: 10, fontWeight: 600 }}>
+              Mes espaces
+            </p>
+            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+              {mySpaces.map((space) => (
+                <div
+                  key={space.organizationId}
+                  onClick={() =>
+                    router.push(
+                      space.orgType === "enterprise"
+                        ? `/enterprise/${space.organizationId}`
+                        : `/coach/${space.organizationId}`
+                    )
+                  }
+                  style={{
+                    padding: "14px 20px",
+                    borderRadius: 14,
+                    background: space.orgType === "enterprise"
+                      ? "linear-gradient(135deg, #1e40af 0%, #3b82f6 100%)"
+                      : "linear-gradient(135deg, #6d28d9 0%, #8b5cf6 100%)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 12,
+                    transition: "transform 0.2s, box-shadow 0.2s",
+                    boxShadow: "0 4px 12px rgba(0,0,0,0.15)",
+                    minWidth: 200,
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 20px rgba(0,0,0,0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+                    (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                  }}
+                >
+                  <span style={{ fontSize: 22 }}>
+                    {space.orgType === "enterprise" ? "🏢" : "🎓"}
+                  </span>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: 14 }}>{space.organizationName}</div>
+                    <div style={{ fontSize: 11, opacity: 0.8 }}>
+                      {space.orgType === "enterprise" ? "Espace entreprise" : "Espace coaching"}
+                      {space.role === "admin" ? " · Admin" : ""}
+                    </div>
+                  </div>
+                  <span style={{ marginLeft: "auto", fontSize: 16, opacity: 0.7 }}>→</span>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

@@ -22,6 +22,7 @@ import {
   STUDIO_SYSTEM_PROMPT,
   callJSON,
 } from "@/app/lib/studioAI";
+import { requireAuth } from "@/app/lib/auth";
 
 const REVIEWS_HISTORY_LIMIT = 10;
 
@@ -115,6 +116,10 @@ export async function POST(
   const { studioId } = await params;
 
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(_request);
+    if (auth.error) return auth.error;
+
     const studio = readStudioJson(studioId);
     if (!studio) {
       return Response.json(

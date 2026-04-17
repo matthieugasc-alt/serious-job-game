@@ -10,6 +10,9 @@
  * ═══════════════════════════════════════════════════════════════════ */
 
 import { getEnvVar } from "@/app/lib/getApiKey";
+import { requireAuth } from "@/app/lib/auth";
+import { checkRateLimit, getRateLimitId, RATE_LIMITS } from "@/app/lib/rateLimit";
+import { parseBody, debriefSchema } from "@/app/lib/validation";
 
 function sanitize(input: string): string {
   return input
@@ -300,6 +303,15 @@ async function callOpenAI(prompt: string, apiKey: string): Promise<string> {
 
 export async function POST(req: Request) {
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(req);
+    if (auth.error) return auth.error;
+
+    // ── Rate limit ──
+    const rlId = getRateLimitId(req, auth.user.id);
+    const rl = checkRateLimit(rlId, "debrief", RATE_LIMITS.debrief);
+    if (rl.blocked) return Response.json(rl.body, { status: 429 });
+
     const anthropicKey = getEnvVar("ANTHROPIC_API_KEY");
     const openaiKey = getEnvVar("OPENAI_API_KEY");
 
@@ -311,7 +323,12 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const prompt = buildPrompt(body);
+
+    // ── Input validation ──
+    const parsed = parseBody(body, debriefSchema);
+    if (parsed.error) return Response.json(parsed.error, { status: 400 });
+
+    const prompt = buildPrompt(parsed.data);
 
     let raw: string;
 
@@ -321,9 +338,9 @@ export async function POST(req: Request) {
       raw = await callOpenAI(prompt, openaiKey!);
     }
 
-    const parsed = extractJson(raw);
+    const debriefJson = extractJson(raw);
 
-    if (!parsed) {
+    if (!debriefJson) {
       console.error("Failed to parse debrief JSON. Raw output:", raw.slice(0, 500));
       return Response.json(
         fallbackDebrief("Le débrief IA n'a pas pu être structuré correctement."),
@@ -331,7 +348,7 @@ export async function POST(req: Request) {
       );
     }
 
-    return Response.json(normalizeDebrief(parsed), { status: 200 });
+    return Response.json(normalizeDebrief(debriefJson), { status: 200 });
   } catch (error: any) {
     console.error("Erreur debrief route:", error);
 

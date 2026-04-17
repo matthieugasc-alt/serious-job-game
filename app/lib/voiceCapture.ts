@@ -474,9 +474,15 @@ async function transcribeOnBackend(audioBlob: Blob, lang: string): Promise<strin
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 60_000);
   try {
+    const headers: Record<string, string> = {};
+    if (typeof window !== "undefined") {
+      const token = localStorage.getItem("auth_token");
+      if (token) headers["Authorization"] = `Bearer ${token}`;
+    }
     const res = await fetch("/api/transcribe", {
       method: "POST",
       body: form,
+      headers,
       signal: controller.signal,
     });
     clearTimeout(timeoutId);

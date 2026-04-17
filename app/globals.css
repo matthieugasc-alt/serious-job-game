@@ -35,3 +35,47 @@ input, textarea, select {
 input::placeholder, textarea::placeholder {
   color: #999;
 }
+
+/* ── Tablet responsive (768–1024px) ── */
+/* These override inline styles where needed for tablet usability */
+@media (max-width: 1024px) {
+  /* Reduce sidebar width on tablet */
+  [data-sidebar="true"] {
+    width: 220px !important;
+    min-width: 220px !important;
+  }
+  [data-sidebar="true"] [data-sidebar-label] {
+    font-size: 13px !important;
+  }
+
+  /* Tighter padding on main content areas */
+  [data-main-content="true"] {
+    padding: 24px 20px !important;
+  }
+
+  /* Scenario cards: 2-column on tablet */
+  [data-card-grid="true"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 16px !important;
+  }
+
+  /* Stats grids: adapt to 2-col */
+  [data-stats-grid="true"] {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 12px !important;
+  }
+
+  /* Forms: full width */
+  [data-form-container="true"] {
+    max-width: 100% !important;
+    padding: 20px !important;
+  }
+}
+
+/* ── Small tablet (768–860px) ── */
+@media (max-width: 860px) {
+  [data-sidebar="true"] {
+    width: 200px !important;
+    min-width: 200px !important;
+  }
+}

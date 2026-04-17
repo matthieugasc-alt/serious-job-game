@@ -1,4 +1,7 @@
 import OpenAI from "openai";
+import { requireAuth } from "@/app/lib/auth";
+import { checkRateLimit, getRateLimitId, RATE_LIMITS } from "@/app/lib/rateLimit";
+import { parseBody, evaluatePresentationSchema } from "@/app/lib/validation";
 
 /**
  * Lightweight presentation evaluation endpoint.
@@ -22,6 +25,15 @@ function sanitize(input: string): string {
 
 export async function POST(req: Request) {
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(req);
+    if (auth.error) return auth.error;
+
+    // ── Rate limit ──
+    const rlId = getRateLimitId(req, auth.user.id);
+    const rl = checkRateLimit(rlId, "evaluate_presentation", RATE_LIMITS.evaluate_presentation);
+    if (rl.blocked) return Response.json(rl.body, { status: 429 });
+
     const apiKey = process.env.OPENAI_API_KEY;
     if (!apiKey) {
       return Response.json({ error: "OPENAI_API_KEY manquante" }, { status: 500 });
@@ -30,10 +42,14 @@ export async function POST(req: Request) {
     const client = new OpenAI({ apiKey });
     const body = await req.json();
 
-    const transcript = sanitize(s(body?.transcript, "")).trim();
-    const phaseTitle = sanitize(s(body?.phaseTitle, ""));
-    const phaseObjective = sanitize(s(body?.phaseObjective, ""));
-    const criteria = Array.isArray(body?.criteria) ? body.criteria : [];
+    // ── Input validation ──
+    const parsed = parseBody(body, evaluatePresentationSchema);
+    if (parsed.error) return Response.json(parsed.error, { status: 400 });
+
+    const transcript = sanitize(parsed.data.transcript);
+    const phaseTitle = sanitize(parsed.data.phaseTitle);
+    const phaseObjective = sanitize(parsed.data.phaseObjective);
+    const criteria = parsed.data.criteria;
 
     if (!transcript) {
       return Response.json({

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import * as fs from 'fs';
 import * as path from 'path';
 import { validateSession } from '@/app/lib/auth';
+import { isAdminRole } from '@/app/lib/permissions';
 
 export const runtime = 'nodejs';
 
@@ -49,7 +50,7 @@ export async function POST(request: NextRequest) {
     }
 
     const result = validateSession(token);
-    if (!result || result.user.role !== 'admin') {
+    if (!result || !isAdminRole(result.user.role)) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 
@@ -202,7 +203,7 @@ export async function PUT(request: NextRequest) {
     }
 
     const result = validateSession(token);
-    if (!result || result.user.role !== 'admin') {
+    if (!result || !isAdminRole(result.user.role)) {
       return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
     }
 

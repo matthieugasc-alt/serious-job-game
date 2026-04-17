@@ -15,6 +15,7 @@ import {
   rmSync,
 } from "fs";
 import { join } from "path";
+import { requireAuth } from "@/app/lib/auth";
 
 /**
  * GET /api/studio/[studioId]
@@ -26,6 +27,10 @@ export async function GET(
   const { studioId } = await params;
 
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(req);
+    if (auth.error) return auth.error;
+
     const studioJsonPath = join(
       process.cwd(),
       "data",
@@ -64,6 +69,10 @@ export async function PUT(
   const { studioId } = await params;
 
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+
     const studioJsonPath = join(
       process.cwd(),
       "data",
@@ -128,6 +137,10 @@ export async function DELETE(
   const { studioId } = await params;
 
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(req);
+    if (auth.error) return auth.error;
+
     const studioDir = join(process.cwd(), "data", "studio", studioId);
 
     if (!existsSync(studioDir)) {

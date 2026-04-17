@@ -25,6 +25,7 @@ export const maxDuration = 60;
 
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
+import { requireAuth } from "@/app/lib/auth";
 import {
   AIPatchPayloadSchema,
   ASSISTANT_MODES,
@@ -240,6 +241,10 @@ export async function POST(
   const { studioId } = await params;
 
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+
     const body: ReqBody = await request.json().catch(() => ({}));
 
     const mode = body.mode;

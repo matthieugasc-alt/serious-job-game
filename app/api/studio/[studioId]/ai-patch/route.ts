@@ -23,6 +23,7 @@ import {
   callJSON,
   type PatchAction,
 } from "@/app/lib/studioAI";
+import { requireAuth } from "@/app/lib/auth";
 
 const ACTION_INSTRUCTIONS: Record<PatchAction, string> = {
   "fix-inconsistency":
@@ -141,6 +142,10 @@ export async function POST(
   const { studioId } = await params;
 
   try {
+    // ── Auth guard ──
+    const auth = requireAuth(request);
+    if (auth.error) return auth.error;
+
     const body: PatchBody = await request.json().catch(() => ({}));
     const action = body.action;
 

@@ -13,6 +13,9 @@ import { writeFile, readFile, unlink } from "fs/promises";
 import { tmpdir } from "os";
 import { join } from "path";
 import { getEnvVar } from "@/app/lib/getApiKey";
+import { requireAuth } from "@/app/lib/auth";
+import { isAdminRole } from "@/app/lib/permissions";
+import type { GlobalRole } from "@/app/lib/permissions";
 
 // ── Extract text from PDF using pdftotext ────────────────────────
 async function extractPdfText(pdfBuffer: Buffer): Promise<string> {
@@ -292,6 +295,13 @@ STRUCTURE JSON ATTENDUE (respecte EXACTEMENT ce format) :
 // ── Main handler ─────────────────────────────────────────────────
 export async function POST(req: Request) {
   try {
+    // ── Auth + admin guard ──
+    const auth = requireAuth(req);
+    if (auth.error) return auth.error;
+    if (!isAdminRole(auth.user.role as GlobalRole)) {
+      return Response.json({ error: "Forbidden" }, { status: 403 });
+    }
+
     const apiKey = getEnvVar("ANTHROPIC_API_KEY");
     if (!apiKey) {
       return Response.json(
