@@ -288,6 +288,9 @@
         "Identifie le risque concret : refoulement par la PAF à Bordeaux",
         "Remarque que les deux autres membres de la délégation sont en règle"
       ],
+      "completion_rules": {
+        "min_score": 2
+      },
       "auto_advance": true,
       "next_phase": "phase_2_strategy"
     },
@@ -313,6 +316,9 @@
         "Envisage une action parallèle (appel PAF + mail consulat)",
         "Arrive à la stratégie sans aide directionnelle forte de Romain"
       ],
+      "completion_rules": {
+        "min_score": 2
+      },
       "auto_advance": true,
       "next_phase": "phase_3_execution"
     },
@@ -372,6 +378,9 @@
         "send_advances_phase": true
       },
 
+      "completion_rules": {
+        "any_flags": ["mail_sent"]
+      },
       "auto_advance": false,
       "next_phase": "phase_4_rebound"
     },
@@ -459,5 +468,11 @@
       "label": "Échec",
       "content": "La situation n'a pas été suffisamment sécurisée. Jorge s'est fait refouler à Bordeaux. Claudia a protesté, il y a eu un incident diplomatique. Le partenariat régional est compromis."
     }
+  ],
+  "competencies_evaluated": [
+    "Compréhension rapide d'une information en langue étrangère",
+    "Construction d'une stratégie institutionnelle sous contrainte de temps",
+    "Rédaction diplomatique et exploitation des canaux officiels",
+    "Gestion de l'incertitude et coordination multi-acteurs"
   ]
 }

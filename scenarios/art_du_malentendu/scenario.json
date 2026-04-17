@@ -218,8 +218,8 @@
     {
       "event_id": "system_notification",
       "type": "system_notification",
-      "actor": "system",
-      "content": "Vous venez d'arriver à la Galerie Marguerite Duras. Il est 14h55. Les enfants du CMJ arrivent dans 5 minutes. Yuki Tanaka vous attend à l'intérieur."
+      "actor": "nathalie_morel",
+      "content": "Je compte sur toi pour que tout se passe bien. N'oublie pas que le public c'est des enfants de 7-10 ans. Adapte le discours de l'artiste si besoin."
     },
     {
       "event_id": "yuki_sms_1",
@@ -249,7 +249,7 @@
       "max_duration_sec": 300,
       "objective": "Yuki Tanaka est surexcitée et vous bombarde de ses plans pour la visite. Elle compte utiliser ses clichés habituels sur la France devant les enfants. Le joueur doit la raisonner en anglais : lui faire comprendre diplomatiquement que ses propos provocateurs ne sont PAS appropriés devant des enfants de 7-10 ans, et obtenir qu'elle adapte son discours. Le temps presse : les enfants arrivent dans 5 minutes.",
       "active_channels": ["chat"],
-      "ai_actors": ["yuki_tanaka"],
+      "ai_actors": ["yuki_tanaka", "nathalie_morel"],
 
       "player_input": {
         "type": "free_text",
@@ -298,8 +298,10 @@
         }
       ],
 
-      "auto_advance": false,
-      "auto_advance_at": "children_arrival",
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
       "next_phase": "phase_2_presentation"
     },
 
@@ -356,7 +358,10 @@
         }
       ],
 
-      "auto_advance": false,
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
       "next_phase": "phase_3_echange"
     },
 
@@ -404,7 +409,10 @@
         }
       ],
 
-      "auto_advance": false
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true
     }
   ],
 
@@ -424,5 +432,12 @@
       "label": "Échec",
       "content": "La visite a mal tourné. Faute d'un briefing suffisant, l'artiste a tenu des propos clairement inappropriés devant les enfants. Mme Renard a dû intervenir et a écourté la visite. Certains enfants sont perturbés par ce qu'ils ont entendu. Votre supérieure vous convoque pour un débrief."
     }
+  ],
+  "competencies_evaluated": [
+    "Communication interculturelle en anglais professionnel",
+    "Adaptation du discours à un jeune public",
+    "Traduction et reformulation en temps réel",
+    "Gestion d'une situation imprévue avec tact",
+    "Animation d'une interaction interculturelle"
   ]
 }

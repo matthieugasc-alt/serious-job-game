@@ -229,7 +229,7 @@
       {
         "doc_id": "teaser_vetgroup",
         "label": "Teaser investisseur — VetGroup",
-        "file": "resources/01_teaser_vetgroup.pdf",
+        "file_path": "scenarios/due_diligence_sous_tension/resources/01_teaser_vetgroup.pdf",
         "contains": ["KPIs", "thèse d'investissement", "contacts", "valorisation"],
         "available_from_phase": "phase_1",
         "usable_as_pj": false
@@ -237,7 +237,7 @@
       {
         "doc_id": "data_pack_vetgroup",
         "label": "Data Pack — VetGroup (confidentiel)",
-        "file": "resources/02_data_pack_vetgroup.pdf",
+        "file_path": "scenarios/due_diligence_sous_tension/resources/02_data_pack_vetgroup.pdf",
         "contains": ["P&L", "EBITDA", "CAPEX", "baux", "associés", "KPIs", "cliniques", "immobilier", "fournisseurs", "RSE"],
         "available_from_phase": "phase_1",
         "usable_as_pj": false
@@ -245,7 +245,7 @@
       {
         "doc_id": "benchmark_concurrence",
         "label": "Benchmark concurrentiel — Réseaux vétérinaires",
-        "file": "resources/03_benchmark_concurrence.pdf",
+        "file_path": "scenarios/due_diligence_sous_tension/resources/03_benchmark_concurrence.pdf",
         "contains": ["concurrents", "marges", "multiples", "croissance"],
         "available_from_phase": "phase_1",
         "usable_as_pj": false
@@ -253,7 +253,7 @@
       {
         "doc_id": "fiche_prepa_interview",
         "label": "Fiche de préparation interview DG",
-        "file": "resources/04_fiche_prepa_interview.pdf",
+        "file_path": "scenarios/due_diligence_sous_tension/resources/04_fiche_prepa_interview.pdf",
         "contains": ["thèmes", "questions", "méthodologie"],
         "available_from_phase": "phase_2",
         "usable_as_pj": false
@@ -261,7 +261,7 @@
       {
         "doc_id": "template_recommandation",
         "label": "Template recommandation go/no-go",
-        "file": "resources/05_template_recommandation.pdf",
+        "file_path": "scenarios/due_diligence_sous_tension/resources/05_template_recommandation.pdf",
         "contains": ["structure", "critères", "format"],
         "available_from_phase": "phase_4",
         "usable_as_pj": true
