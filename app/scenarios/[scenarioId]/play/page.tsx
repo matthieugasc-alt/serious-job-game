@@ -280,6 +280,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const conversation = view?.conversation || [];
   const currentMailDraft = view?.currentMailDraft || { to: "", cc: "", subject: "", body: "", attachments: [] };
   const canComposeMail = view?.canSendMail;
+  const scenarioHasMail = view?.scenarioHasMail || false;
+  const mailLockedForNow = scenarioHasMail && !canComposeMail;
   const simulatedTime = view?.simulatedTime ? fmtTime(view.simulatedTime) : "--:--";
   const actors = scenario?.actors || [];
   const visibleContacts = actors.filter((a: any) => a.visible_in_contacts || a.actor_id === "player");
@@ -534,16 +536,19 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           organizationId: typeof window !== "undefined" ? localStorage.getItem("active_org_id") || undefined : undefined,
         }),
       }).then(async (res) => {
-        if (res && res.ok) {
-          const data = await res.json();
-          // Trigger async skill extraction
-          if (data.record?.id && token) {
-            fetch("/api/profile/extract-skills", {
-              method: "POST",
-              headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-              body: JSON.stringify({ recordId: data.record.id }),
-            }).catch((err) => console.error("Skill extraction failed:", err));
-          }
+        if (!res || !res.ok) {
+          const errBody = await res?.json().catch(() => ({}));
+          console.error("Erreur sauvegarde partie:", res?.status, errBody);
+          return;
+        }
+        const data = await res.json();
+        // Trigger async skill extraction
+        if (data.record?.id && token) {
+          fetch("/api/profile/extract-skills", {
+            method: "POST",
+            headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+            body: JSON.stringify({ recordId: data.record.id }),
+          }).catch((err) => console.error("Skill extraction failed:", err));
         }
       }).catch((err) => console.error("Failed to save game to server:", err));
     }
@@ -556,6 +561,15 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   useEffect(() => {
     async function init() {
       try {
+        // ── Auth guard: un compte est requis pour jouer ──
+        const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+        if (!token) {
+          router.push("/login");
+          return;
+        }
+        // Refresh the auth ref in case it was stale
+        authTokenRef.current = token;
+
         const res = await fetch(`/api/scenarios/${scenarioId}`);
         if (!res.ok) throw new Error("Impossible de charger le scénario");
         const data: ScenarioDefinition = await res.json();
@@ -2327,9 +2341,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           {/* Navigation tabs */}
           <nav style={{ display: "flex", borderBottom: "1px solid #e8e8e8", flexShrink: 0 }}>
             {([
-              { key: "chat" as MainView, icon: "💬", label: "Chat" },
-              { key: "mail" as MainView, icon: "📧", label: "Email", badge: unreadMails },
-            ]).map((tab) => (
+              { key: "chat" as MainView, icon: "💬", label: "Chat", badge: 0 },
+              { key: "mail" as MainView, icon: mailLockedForNow ? "🔒" : "📧", label: "Email", badge: unreadMails },
+            ]).map((tab) => {
+              const isLocked = tab.key === "mail" && mailLockedForNow;
+              return (
               <button
                 key={tab.key}
                 onClick={() => setMainView(tab.key)}
@@ -2338,8 +2354,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   background: mainView === tab.key ? "#f0f0ff" : "#fff",
                   borderBottom: mainView === tab.key ? "2px solid #5b5fc7" : "2px solid transparent",
                   fontSize: 12, fontWeight: mainView === tab.key ? 700 : 500,
-                  color: mainView === tab.key ? "#5b5fc7" : "#666",
+                  color: isLocked ? "#bbb" : mainView === tab.key ? "#5b5fc7" : "#666",
                   position: "relative",
+                  opacity: isLocked ? 0.7 : 1,
                 }}
               >
                 {tab.icon} {tab.label}
@@ -2349,7 +2366,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   </span>
                 ) : null}
               </button>
-            ))}
+              );
+            })}
           </nav>
 
           {/* Contacts section */}
@@ -2577,7 +2595,23 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
                 {inboxMails.length === 0 && !showCompose && (
                   <div style={{ padding: 20, textAlign: "center", color: "#999", fontSize: 13 }}>
-                    Aucun email reçu pour le moment
+                    {mailLockedForNow ? (
+                      <div style={{ padding: "24px 16px" }}>
+                        <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.5 }}>🔒</div>
+                        <div style={{ fontWeight: 600, color: "#888", marginBottom: 8, fontSize: 14 }}>
+                          Messagerie verrouillée
+                        </div>
+                        <div style={{ color: "#aaa", fontSize: 12, lineHeight: 1.5 }}>
+                          La messagerie se déverrouillera dans la suite du scénario.
+                          Concentrez-vous sur la conversation pour le moment.
+                        </div>
+                        <div style={{ marginTop: 16, display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", background: "#f0f7ff", borderRadius: 8, fontSize: 11, color: "#5b8fbf" }}>
+                          📧 Disponible prochainement
+                        </div>
+                      </div>
+                    ) : (
+                      "Aucun email reçu pour le moment"
+                    )}
                   </div>
                 )}
 

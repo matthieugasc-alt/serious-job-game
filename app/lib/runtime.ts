@@ -1253,6 +1253,10 @@ export function buildRuntimeView(session: SessionState) {
     pendingTimedEvents: session.pendingTimedEvents,
     canSendMail,
     sendMailLabel,
+    /** True if any phase in the scenario has mail_config.enabled */
+    scenarioHasMail: (session.scenario?.phases || []).some(
+      (p: any) => p.mail_config?.enabled
+    ),
     simulatedTime: session.simulatedTime,
     simSpeedMultiplier: session.simSpeedMultiplier,
   };

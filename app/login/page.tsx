@@ -1,15 +1,27 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
 type TabKey = "login" | "register";
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabKey>("login");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Redirect URL after login (if coming from a protected page)
+  const redirectTo = searchParams.get("redirect") || "/";
+
+  // Auto-redirect if already logged in
+  useEffect(() => {
+    const token = localStorage.getItem("auth_token");
+    if (token) {
+      router.replace(redirectTo);
+    }
+  }, []);
 
   // Login form
   const [loginEmail, setLoginEmail] = useState("");
@@ -38,7 +50,7 @@ export default function LoginPage() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Connexion échouée");
+        throw new Error(data.message || data.error || "Connexion échouée");
       }
 
       const data = await response.json();
@@ -46,7 +58,7 @@ export default function LoginPage() {
       localStorage.setItem("user_name", data.user?.name || data.name || "");
       localStorage.setItem("user_role", data.user?.role || "user");
 
-      router.push("/");
+      router.push(redirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de la connexion");
     } finally {
@@ -78,7 +90,7 @@ export default function LoginPage() {
 
       if (!response.ok) {
         const data = await response.json();
-        throw new Error(data.error || "Inscription échouée");
+        throw new Error(data.message || data.error || "Inscription échouée");
       }
 
       const data = await response.json();
@@ -86,7 +98,7 @@ export default function LoginPage() {
       localStorage.setItem("user_name", data.user?.name || data.name || "");
       localStorage.setItem("user_role", data.user?.role || "user");
 
-      router.push("/");
+      router.push(redirectTo);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erreur lors de l'inscription");
     } finally {
@@ -369,8 +381,11 @@ export default function LoginPage() {
                       fontFamily: "Arial, sans-serif",
                       boxSizing: "border-box",
                     }}
-                    placeholder="••••••••"
+                    placeholder="8 caractères minimum"
                   />
+                  <div style={{ fontSize: 11, color: "#999", marginTop: 4 }}>
+                    Minimum 8 caractères
+                  </div>
                 </div>
 
                 <div style={{ marginBottom: 20 }}>

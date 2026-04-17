@@ -88,6 +88,13 @@ export default function IntroductionPage({
   }, [scenarioId]);
 
   function handleStart() {
+    // ── Auth guard: un compte est requis pour jouer ──
+    const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+
     const name = playerName.trim() || "Joueur";
     localStorage.setItem(`sjg_playerName_${scenarioId}`, name);
     localStorage.setItem(`sjg_scenarioId`, scenarioId);

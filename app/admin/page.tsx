@@ -533,7 +533,7 @@ export default function AdminPage() {
     );
   }
 
-  if (userRole !== "admin") return null;
+  if (userRole !== "super_admin" && userRole !== "admin") return null;
 
   // ── Step indicator ─────────────────────────────────────────────
   const stepLabel: Record<Step, string> = {

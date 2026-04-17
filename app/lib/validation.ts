@@ -94,16 +94,9 @@ export const chatSchema = z.object({
 export const debriefSchema = z.object({
   scenarioTitle: nonEmptyString,
   playerName: trimmedString.default("Joueur"),
-  phases: z.array(z.object({
-    phase_title: trimmedString.default(""),
-    phase_objective: trimmedString.default(""),
-    conversation: z.array(z.unknown()).default([]),
-    score: z.number().optional(),
-    competencies: z.array(z.unknown()).default([]),
-  })).min(1, "au moins une phase requise"),
-  ending: z.string().default("partial_success"),
-  avgScore: z.number().min(0).max(100).default(0),
-  // Allow extra fields — the debrief prompt builder uses many
+  // phases come from scenario.phases — passthrough to keep all fields (title, objective, scoring, etc.)
+  phases: z.array(z.record(z.string(), z.unknown())).min(1, "au moins une phase requise"),
+  // Extra fields sent by frontend: conversation, sentMails, inboxMails, endings, defaultEnding
 }).passthrough();
 
 // ─── Evaluate Presentation Schema ─────────────────────────────

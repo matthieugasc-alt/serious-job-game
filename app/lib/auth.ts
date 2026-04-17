@@ -140,15 +140,15 @@ export function registerUser(
     const users = loadUsers();
 
     if (users.some((u) => u.email.toLowerCase() === email.toLowerCase())) {
-      return { error: 'Email already registered' };
+      return { error: 'Cette adresse email est déjà utilisée' };
     }
 
     if (!email || !name || !password) {
-      return { error: 'Missing required fields' };
+      return { error: 'Tous les champs sont requis' };
     }
 
     if (password.length < 6) {
-      return { error: 'Password must be at least 6 characters' };
+      return { error: 'Le mot de passe doit contenir au moins 8 caractères' };
     }
 
     const userId = crypto.randomUUID();
@@ -191,10 +191,10 @@ export function loginUser(
     const users = loadUsers();
     const user = users.find((u) => u.email.toLowerCase() === email.toLowerCase());
 
-    if (!user) return { error: 'Invalid email or password' };
+    if (!user) return { error: 'Email ou mot de passe incorrect' };
 
     if (user.passwordHash !== hashPassword(password)) {
-      return { error: 'Invalid email or password' };
+      return { error: 'Email ou mot de passe incorrect' };
     }
 
     user.lastLoginAt = new Date().toISOString();
