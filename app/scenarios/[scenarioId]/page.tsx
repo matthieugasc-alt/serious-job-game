@@ -91,7 +91,7 @@ export default function IntroductionPage({
     // ── Auth guard: un compte est requis pour jouer ──
     const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
     if (!token) {
-      router.push("/login");
+      router.push("/login?redirect=" + encodeURIComponent(`/scenarios/${scenarioId}/play`));
       return;
     }
 

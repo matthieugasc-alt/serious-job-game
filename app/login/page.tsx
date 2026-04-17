@@ -1,11 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
 type TabKey = "login" | "register";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <main style={{ minHeight: "100vh", background: "linear-gradient(180deg, #f6f8fc 0%, #eef2f9 100%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ color: "#999", fontSize: 14 }}>Chargement...</div>
+      </main>
+    }>
+      <LoginPageInner />
+    </Suspense>
+  );
+}
+
+function LoginPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [activeTab, setActiveTab] = useState<TabKey>("login");

@@ -564,7 +564,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         // ── Auth guard: un compte est requis pour jouer ──
         const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
         if (!token) {
-          router.push("/login");
+          router.push("/login?redirect=" + encodeURIComponent(window.location.pathname));
           return;
         }
         // Refresh the auth ref in case it was stale

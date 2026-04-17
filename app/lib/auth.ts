@@ -147,7 +147,7 @@ export function registerUser(
       return { error: 'Tous les champs sont requis' };
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       return { error: 'Le mot de passe doit contenir au moins 8 caractères' };
     }
 
@@ -419,7 +419,7 @@ export function updateUserStatus(userId: string, status: UserStatus): { success:
 
 export function updateUserPassword(userId: string, newPassword: string): { success: boolean; error?: string } {
   try {
-    if (newPassword.length < 6) return { success: false, error: 'Password must be at least 6 characters' };
+    if (newPassword.length < 8) return { success: false, error: 'Le mot de passe doit contenir au moins 8 caractères' };
 
     const users = loadUsers();
     const user = users.find((u) => u.id === userId);
