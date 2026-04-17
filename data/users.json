@@ -12,7 +12,7 @@
     "id": "ae519f0f-86d9-40a5-ab70-f5b2f626e4db",
     "email": "gascmatthieu@gmail.com",
     "name": "Matthieu Gasc",
-    "role": "admin",
+    "role": "super_admin",
     "passwordHash": "201b6dca18085cd419cdbdb58b5585900a9ddc0d23c56d81bc79ed75c1b1b8e9",
     "createdAt": "2026-04-10T15:26:28.669Z",
     "lastLoginAt": "2026-04-11T08:55:47.569Z"

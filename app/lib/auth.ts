@@ -357,7 +357,16 @@ export function createManagedUser(params: {
 export function deleteUserById(id: string): { success: boolean; error?: string } {
   try {
     let users = loadUsers();
-    if (!users.some((u) => u.id === id)) return { success: false, error: 'User not found' };
+    const target = users.find((u) => u.id === id);
+    if (!target) return { success: false, error: 'User not found' };
+
+    // Protect last super_admin
+    if (migrateRole(target.role) === 'super_admin') {
+      const superAdminCount = users.filter((u) => migrateRole(u.role) === 'super_admin').length;
+      if (superAdminCount <= 1) {
+        return { success: false, error: 'Impossible de supprimer le dernier super_admin' };
+      }
+    }
 
     users = users.filter((u) => u.id !== id);
     saveUsers(users);
@@ -377,6 +386,14 @@ export function updateUserRole(userId: string, newRole: GlobalRole): { success: 
     const users = loadUsers();
     const user = users.find((u) => u.id === userId);
     if (!user) return { success: false, error: 'User not found' };
+
+    // Protect last super_admin from demotion
+    if (migrateRole(user.role) === 'super_admin' && newRole !== 'super_admin') {
+      const superAdminCount = users.filter((u) => migrateRole(u.role) === 'super_admin').length;
+      if (superAdminCount <= 1) {
+        return { success: false, error: 'Impossible de rétrograder le dernier super_admin' };
+      }
+    }
 
     user.role = newRole;
     saveUsers(users);

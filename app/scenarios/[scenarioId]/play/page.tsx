@@ -523,9 +523,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           playerName: displayPlayerName,
           ending: debriefData.ending || "failure",
           avgScore,
-          durationMin: Math.round(
-            (Date.now() - new Date(session.simulatedTime || Date.now()).getTime()) / 60000
-          ) || 0,
+          durationMin: Math.max(1, Math.round(
+            (Date.now() - (session.realStartTime || Date.now())) / 60000
+          )),
           phasesCompleted: session.completedPhases?.length || 0,
           totalPhases: scenario.phases?.length || 0,
           debrief: { ...debriefData, scenarioCompetencies: scenario.meta?.competencies || [] },

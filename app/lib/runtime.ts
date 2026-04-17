@@ -147,6 +147,8 @@ export type SessionState = {
   simulatedTime: string;
   /** Speed multiplier for time progression */
   simSpeedMultiplier: number;
+  /** Real wall-clock timestamp (ms since epoch) when session was created */
+  realStartTime: number;
 };
 
 function makeId(prefix: string) {
@@ -250,6 +252,7 @@ export function initializeSession(scenario: any): SessionState {
 
     simulatedTime: scenario?.timeline?.scenario_start || new Date().toISOString(),
     simSpeedMultiplier: scenario?.timeline?.sim_speed_multiplier || 1,
+    realStartTime: Date.now(),
   };
 
   if (Array.isArray(scenario.initial_events)) {

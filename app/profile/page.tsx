@@ -136,6 +136,7 @@ export default function ProfilePage() {
   const [totalPlayTime, setTotalPlayTime] = useState(0);
   const [successRate, setSuccessRate] = useState(0);
   const [gamesPlayed, setGamesPlayed] = useState(0);
+  const [gamesWon, setGamesWon] = useState(0);
 
   useEffect(() => {
     const load = async () => {
@@ -169,6 +170,7 @@ export default function ProfilePage() {
           setTotalPlayTime(d.totalPlayTime || 0);
           setSuccessRate(d.successRate || 0);
           setGamesPlayed(d.gamesPlayed || 0);
+          setGamesWon(d.gamesWon || 0);
         }
         if (scenariosRes.ok) { const d = await scenariosRes.json(); setScenarios(d.scenarios || []); }
         if (configsRes.ok) { const d = await configsRes.json(); setScenarioConfigs(d.configs || []); }
@@ -266,7 +268,8 @@ export default function ProfilePage() {
           </div>
 
           <StatCard value={gamesPlayed} label="Parties jouées" icon="🎮" />
-          <StatCard value={`${successRate}%`} label="Taux de réussite" icon="🏆" />
+          <StatCard value={gamesWon} label="Parties gagnées" icon="🏆" />
+          <StatCard value={`${successRate}%`} label="Taux de réussite" icon="📊" />
           <StatCard value={completedScenarioIds.length} label="Scénarios uniques" icon="📋" />
           <StatCard value={`${totalPlayTime} min`} label="Temps total joué" icon="⏱️" />
         </div>

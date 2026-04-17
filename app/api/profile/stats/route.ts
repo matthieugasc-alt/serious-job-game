@@ -35,9 +35,10 @@ export async function GET(request: NextRequest) {
     // Total play time
     const totalPlayTime = records.reduce((sum, r) => sum + (r.durationMin || 0), 0);
 
-    // Success rate
-    const successCount = records.filter((r) => r.ending === 'success').length;
-    const successRate = records.length > 0 ? Math.round((successCount / records.length) * 100) : 0;
+    // Win counting: "success" = fully won, "partial_success" = partially won
+    const gamesWon = records.filter((r) => r.ending === 'success').length;
+    const gamesSuccessful = records.filter((r) => r.ending === 'success' || r.ending === 'partial_success').length;
+    const successRate = records.length > 0 ? Math.round((gamesSuccessful / records.length) * 100) : 0;
 
     return NextResponse.json({
       streak,
@@ -47,6 +48,7 @@ export async function GET(request: NextRequest) {
       totalPlayTime,
       successRate,
       gamesPlayed: records.length,
+      gamesWon,
     });
   } catch (error) {
     console.error('Failed to get profile stats:', error);
