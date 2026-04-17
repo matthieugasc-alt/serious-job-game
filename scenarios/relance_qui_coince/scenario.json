@@ -1,0 +1,218 @@
+{
+  "scenario_id": "relance_qui_coince",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "La relance qui coince",
+    "subtitle": "Relancer un client silencieux sans le braquer",
+    "description": "DigitaPlus ne répond plus depuis 3 semaines. Leur contrat expire dans 15 jours. Votre manager vous pousse à relancer — mais il faut comprendre pourquoi ils se sont tus avant d'écrire.",
+    "job_family": "commercial",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 15,
+    "tags": ["relance", "B2B", "churn", "mail", "fidélisation"],
+    "show_objective": false,
+    "show_background_fact": false
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Commercial·e B2B",
+      "subtitle": "Relancer un client qui ne répond plus"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Vous êtes commercial·e B2B spécialisé·e en solutions SaaS d'analytics. DigitaPlus est un client fidèle depuis 2 ans (contrat de 1200€/mois).</p><p>Mais depuis 3 semaines, c'est le silence radio. Le renouvellement était censé être une formalité.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le problème",
+        "content": "<p>Le responsable commercial chez DigitaPlus est parti il y a 3 semaines. Son remplaçant, <strong>Clément Faure</strong>, ne vous connaît pas.</p><p>En plus, une demande de feature (dashboard personnalisé) traîne sans réponse depuis 2 mois.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Discuter avec Sandra Lévy (votre manager) pour comprendre le contexte avant d'agir.</p><p><strong>Phase 2</strong> — Rédiger un mail de relance personnalisé à Clément Faure.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Tes atouts",
+        "content": "<p>DigitaPlus était un très bon client (NPS 8). La relation était solide avant le changement d'interlocuteur.</p><p>Consultez la fiche client et le template de relance dans les documents — mais attention, un template générique ne marchera pas ici.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Vous êtes commercial·e B2B dans une entreprise SaaS d'analytics. DigitaPlus (agence digitale, 25 personnes) est client depuis 2 ans à 1200€/mois. Très bon client historiquement (NPS 8), mais silence radio depuis 3 semaines. L'ancien responsable commercial est parti, remplacé par Clément Faure. Une demande de dashboard personnalisé n'a jamais été traitée par votre équipe produit.",
+    "mission": "Comprendre le contexte avec Sandra, puis rédiger un mail de relance personnalisé à Clément Faure qui montre que vous connaissez sa situation et qui relance le renouvellement sans braquer.",
+    "initial_situation": "Sandra Lévy, votre manager, vous interpelle sur le dossier DigitaPlus. Elle n'aime pas les mauvaises surprises. Le contrat expire dans 15 jours.",
+    "trigger": "Sandra vous écrit sur le chat."
+  },
+  "timeline": {
+    "scenario_start": "2025-06-10T08:30:00",
+    "sim_speed_multiplier": 1
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "(joueur)",
+      "role": "Commercial·e B2B, solutions SaaS analytics",
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#5b5fc7",
+        "initials": "CO"
+      }
+    },
+    {
+      "actor_id": "sandra_levy",
+      "name": "Sandra Lévy",
+      "role": "Directrice commerciale",
+      "personality": "Directe, exigeante, impatiente si on ne pose pas les bonnes questions. Respecte ceux qui réfléchissent avant d'agir.",
+      "controlled_by": "ai",
+      "prompt_file": "sandra_levy.md",
+      "avatar": {
+        "color": "#6A1B9A",
+        "initials": "SL"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "tts_voice": "shimmer"
+    },
+    {
+      "actor_id": "clement_faure",
+      "name": "Clément Faure",
+      "role": "Directeur commercial, DigitaPlus",
+      "personality": "Nouveau dans le poste, probablement débordé. Professionnel mais distant si le mail ne lui parle pas. A besoin de voir qu'on connaît son contexte.",
+      "controlled_by": "ai",
+      "prompt_file": "clement_faure.md",
+      "avatar": {
+        "color": "#00695C",
+        "initials": "CF"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "tts_voice": "echo"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "fiche_digitaplus",
+        "label": "Fiche client DigitaPlus",
+        "contains": ["historique", "contrat", "turnover", "feature request"],
+        "usable_as_pj": false,
+        "content": "FICHE CLIENT — DigitaPlus\n\nEntreprise : DigitaPlus (agence digitale)\nTaille : 25 personnes\nContrat : 1200€/mois depuis 2 ans (renouvellement annuel)\nRenouvellement prévu : dans 15 jours\nHistorique : Très bon client (NPS 8), renouvellements toujours sans problème\nTurnover récent : Ancien responsable commercial parti il y a 3 semaines\nRemplacé par : Clément Faure (nouveau dans le poste)\nDemande en attente : Dashboard de reporting personnalisé (demandé il y a 60 jours, pas encore traité par l'équipe produit)\nDernier contact : Appel de renouvellement il y a 3 semaines, avant le départ de l'ancien contact\nStatut actuel : Radio silence depuis 3 semaines"
+      },
+      {
+        "doc_id": "template_relance",
+        "label": "Template de relance standard (à ne PAS utiliser tel quel)",
+        "contains": ["template", "relance", "renouvellement"],
+        "usable_as_pj": false,
+        "content": "TEMPLATE DE RELANCE STANDARD\n\nObjet: Renouvellement DigitaPlus - Contrat 1200€/mois\n\nBonjour,\n\nJe vous recontacte concernant le renouvellement de votre contrat avec nous, qui expire dans 15 jours. Nous serions ravis de continuer à vous accompagner.\n\nN'hésitez pas si vous avez des questions.\n\nCordialement,\n[Votre nom]\n\n⚠️ Ce template est générique. Il sera probablement ignoré par un nouveau contact qui ne vous connaît pas."
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": true,
+    "phase_1": "Vous devez avoir une vraie conversation avec Sandra avant de rédiger. Elle va vous donner des informations clés, mais vous devez poser les bonnes questions.",
+    "phase_2": "Le mail ne doit PAS être un template. Clément Faure ne répondra qu'à un mail personnalisé qui montre que vous connaissez la situation de DigitaPlus."
+  },
+  "initial_events": [
+    {
+      "event_id": "sandra_first",
+      "type": "chat",
+      "actor": "sandra_levy",
+      "content": "Le renouvellement DigitaPlus, t'en es où ? Ça fait 3 semaines qu'ils répondent plus. Le contrat tombe dans 15 jours."
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Comprendre la situation avec Sandra",
+      "duration_target_min": 7,
+      "max_duration_sec": 420,
+      "objective": "Discutez avec Sandra pour comprendre le contexte avant de relancer. Posez les bonnes questions sur le client, le turnover, la feature request non traitée.",
+      "active_channels": ["chat"],
+      "ai_actors": ["sandra_levy"],
+      "competencies": [
+        "Pose des questions sur le client (historique, contexte)",
+        "Identifie le turnover chez DigitaPlus comme facteur clé",
+        "Mentionne la feature request non traitée",
+        "Demande comment approcher la relance",
+        "Montre qu'il ne va pas envoyer un template"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Rédiger la relance",
+      "duration_target_min": 8,
+      "max_duration_sec": 480,
+      "objective": "Rédigez un mail personnalisé à Clément Faure (c.faure@digitaplus.fr) pour relancer DigitaPlus. Le mail doit montrer que vous comprenez leur contexte.",
+      "active_channels": ["mail"],
+      "ai_actors": ["clement_faure"],
+      "mail_config": {
+        "to": "c.faure@digitaplus.fr",
+        "defaults": {
+          "subject": "",
+          "to": "c.faure@digitaplus.fr"
+        },
+        "send_advances_phase": true
+      },
+      "competencies": [
+        "Reconnaît le changement chez DigitaPlus (nouveau responsable)",
+        "Mentionne un détail concret (dashboard, feature request, relation antérieure)",
+        "N'utilise pas un template générique",
+        "Ton personnalisé et respectueux (pas agressif malgré l'urgence)",
+        "Propose une prochaine étape (appel, rendez-vous)",
+        "Mentionne le contrat ou la date limite sans paraître trop pushy"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Clément répond positivement",
+      "content": "Vous avez trouvé le bon équilibre. Clément Faure reconnaît votre effort pour comprendre leur contexte. Il vous propose un appel pour discuter du renouvellement et de leurs besoins. Contrat sauvé, relation améliorée."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Clément répond avec réserve",
+      "content": "Votre mail n'est pas mauvais, mais il manque de finesse. Clément Faure répond, mais semble distant. Il faudra un appel pour vraiment relancer la discussion. Contrat en suspens."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Le template qui ne passe pas",
+      "content": "Vous avez envoyé un mail trop générique. Clément Faure le classe directement. Pas de réponse. Le contrat expire 15 jours plus tard sans renouvellement. Sandra va vous le faire remarquer."
+    }
+  ],
+  "competencies_evaluated": [
+    "Diagnostic de situation",
+    "Personnalisation de l'approche",
+    "Gestion du contexte client",
+    "Gestion de l'urgence",
+    "Communication écrite B2B"
+  ]
+}

@@ -271,6 +271,7 @@
       "phase_id": "phase_1_comprehension",
       "title": "Compréhension",
       "duration_target_min": 3,
+      "max_duration_sec": 300,
       "objective": "Comprendre le message en espagnol et transmettre l'information essentielle à Romain",
       "active_channels": ["chat"],
       "ai_actors": ["romain"],
@@ -295,6 +296,7 @@
       "phase_id": "phase_2_strategy",
       "title": "Stratégie",
       "duration_target_min": 5,
+      "max_duration_sec": 300,
       "objective": "Proposer un plan d'action crédible. C'est le joueur qui doit amener l'idée de contacter la bonne autorité.",
       "active_channels": ["chat"],
       "ai_actors": ["romain"],
@@ -319,6 +321,7 @@
       "phase_id": "phase_3_execution",
       "title": "Exécution",
       "duration_target_min": 10,
+      "max_duration_sec": 300,
       "objective": "Structurer son approche puis rédiger le courriel au consulat",
       "active_channels": ["chat", "mail"],
       "ai_actors": ["romain"],
@@ -377,6 +380,7 @@
       "phase_id": "phase_4_rebound",
       "title": "Rebond",
       "duration_target_min": 5,
+      "max_duration_sec": 300,
       "objective": "Répondre efficacement à une réponse évasive du consulat tout en gérant la pression de Romain et Claudia",
       "active_channels": ["chat", "mail"],
       "ai_actors": ["romain"],
@@ -434,6 +438,7 @@
         "send_advances_phase": true
       },
 
+      "completion_rules": { "any_flags": ["replied_to_consulate"] },
       "auto_advance": false
     }
   ],

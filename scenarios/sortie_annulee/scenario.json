@@ -152,6 +152,7 @@
       "phase_id": "phase_1",
       "title": "Trouver une alternative",
       "duration_target_min": 7,
+      "max_duration_sec": 300,
       "objective": "Proposer une solution alternative à la directrice.",
       "phase_focus": "Résolution de problème avec la directrice.",
       "active_channels": [
@@ -179,12 +180,15 @@
       "phase_id": "phase_2",
       "title": "Informer les parents",
       "duration_target_min": 8,
+      "max_duration_sec": 300,
       "objective": "Rédiger le mail d'information aux parents.",
       "phase_focus": "Communication aux familles.",
       "active_channels": [
         "mail"
       ],
-      "ai_actors": [],
+      "ai_actors": [
+        "isabelle_roux"
+      ],
       "player_input": {
         "type": "free_text",
         "prompt": "Rédigez le mail aux parents."
@@ -219,17 +223,8 @@
     }
   ],
   "competencies_evaluated": [
-    {
-      "phase": "phase_1",
-      "competency": "Résolution de problème logistique"
-    },
-    {
-      "phase": "phase_1",
-      "competency": "Adaptation pédagogique"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Communication aux familles"
-    }
+    "Résolution de problème logistique",
+    "Adaptation pédagogique",
+    "Communication aux familles"
   ]
 }

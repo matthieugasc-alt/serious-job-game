@@ -1,0 +1,215 @@
+{
+  "scenario_id": "client_qui_hesite",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Le client qui hésite",
+    "subtitle": "Lever les objections d'un prospect qualifié",
+    "description": "Laurent Mercier a aimé votre démo, mais son DG trouve votre solution trop chère face au concurrent. À vous de comprendre ses vrais besoins et de formuler une proposition ajustée.",
+    "job_family": "commercial",
+    "difficulty": "pour débuter",
+    "estimated_duration_min": 15,
+    "tags": ["objection", "B2B", "SaaS", "négociation", "proposition commerciale"],
+    "show_objective": false,
+    "show_background_fact": false
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Commercial·e B2B",
+      "subtitle": "L'art de lever une objection prix"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Vous êtes commercial·e chez LynkCRM, une solution CRM SaaS à 890€/mois.</p><p>Laurent Mercier, DSI d'une PME de distribution alimentaire (45 personnes), a fait une démo il y a 10 jours et a bien aimé votre solution.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le problème",
+        "content": "<p>Laurent hésite. Son DG compare avec SimpleCRM (490€/mois) et ne comprend pas pourquoi payer presque le double.</p><p>Laurent vous écrit pour en discuter.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> — Discuter avec Laurent par chat pour comprendre ses vrais besoins et lever ses objections.</p><p><strong>Phase 2</strong> — Rédiger un mail de proposition commerciale ajustée.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Tes atouts",
+        "content": "<p>LynkCRM a un avantage clé : <strong>intégration native avec les ERP</strong> (SimpleCRM ne l'a pas).</p><p>Vous proposez aussi la <strong>migration gratuite des données</strong> et un <strong>support dédié</strong> pendant 3 mois.</p><p>Votre fiche produit est dans les documents.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Vous êtes commercial·e B2B chez LynkCRM depuis 2 ans. LynkCRM est un CRM SaaS positionné moyen-haut de gamme (890€/mois) ciblant les PME de 30 à 200 personnes. Votre force : l'intégration native ERP, la migration de données gratuite, et un support dédié pendant 3 mois.",
+    "mission": "Lever les objections prix de Laurent Mercier et obtenir un engagement vers la signature, soit par un mail de proposition ajustée qui le convainc.",
+    "initial_situation": "Laurent Mercier vous a contacté par chat. Il a aimé la démo mais son DG freine sur le prix face à SimpleCRM (490€/mois). C'est maintenant qu'il faut agir — Laurent est encore chaud mais le DG veut une réponse cette semaine.",
+    "trigger": "Laurent vous écrit sur le chat."
+  },
+  "timeline": {
+    "scenario_start": "2025-03-12T10:00:00",
+    "sim_speed_multiplier": 1
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "(joueur)",
+      "role": "Commercial·e B2B, LynkCRM",
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#5b5fc7",
+        "initials": "CO"
+      }
+    },
+    {
+      "actor_id": "laurent_mercier",
+      "name": "Laurent Mercier",
+      "role": "DSI, Maison Duval (distribution alimentaire, 45 personnes)",
+      "personality": "Pragmatique, technique, sous pression de son DG",
+      "controlled_by": "ai",
+      "prompt_file": "laurent_mercier.md",
+      "avatar": {
+        "color": "#0D47A1",
+        "initials": "LM"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "tts_voice": "echo"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "fiche_lynkcrm",
+        "label": "Fiche produit LynkCRM",
+        "contains": [
+          "tarifs",
+          "fonctionnalités",
+          "intégrations",
+          "support"
+        ],
+        "usable_as_pj": true,
+        "content": "LYNKCRM — FICHE PRODUIT\n\nAbonnement : 890€/mois (engagement 12 mois) ou 990€/mois (sans engagement)\nUtilisateurs inclus : jusqu'à 50\nIntégrations natives : SAP, Sage, EBP, Cegid, Divalto\nMigration données : GRATUITE (import depuis tout CRM concurrent)\nSupport : dédié pendant 3 mois (un interlocuteur unique), puis support standard\nFormation : 2 sessions de 2h incluses\nSLA : 99.9% uptime, support réactif sous 4h\nSécurité : hébergement France, RGPD, chiffrement AES-256\n\nAVANTAGES CONCURRENTIELS vs SimpleCRM :\n- Intégration ERP native (SimpleCRM = API limitée, connecteurs payants)\n- Migration gratuite (SimpleCRM = 2000€ de frais de migration)\n- Support dédié 3 mois (SimpleCRM = ticketing uniquement)\n- 50 users inclus (SimpleCRM = 20 users, au-delà +15€/user/mois)"
+      },
+      {
+        "doc_id": "historique_laurent",
+        "label": "Historique prospect — Laurent Mercier",
+        "contains": [
+          "démo",
+          "besoins",
+          "contexte"
+        ],
+        "usable_as_pj": false,
+        "content": "HISTORIQUE PROSPECT\n\nEntreprise : Maison Duval — distribution alimentaire bio\nContact : Laurent Mercier, DSI\nEffectif : 45 personnes, dont 12 commerciaux terrain\nCRM actuel : Excel + boîtes mail partagées (pas de CRM)\nERP : Sage X3\nDémo : 2 mars 2025 — Laurent + 2 commerciaux. Retour positif.\nPoints d'intérêt : intégration Sage, suivi pipeline, app mobile terrain\nBlocker identifié : prix (DG compare avec SimpleCRM)\nDécisionnaire : M. Duval (DG), valide les investissements > 500€/mois\nTimeline : veut déployer avant juin"
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "Le joueur ne peut pas accorder de remise supérieure à 10% sans validation de son manager."
+  },
+  "initial_events": [
+    {
+      "event_id": "laurent_first",
+      "type": "chat",
+      "actor": "laurent_mercier",
+      "content": "Salut, c'est Laurent Mercier de Maison Duval. Suite à la démo, on a bien avancé en interne mais on a un souci côté budget. Mon DG compare avec SimpleCRM qui est à 490€. Vous avez de la marge ou c'est fixe ?"
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Comprendre et lever les objections",
+      "duration_target_min": 7,
+      "max_duration_sec": 420,
+      "objective": "Comprendre les vraies objections de Laurent (prix vs valeur), identifier ses besoins clés (intégration ERP, migration, support) et construire un argumentaire qui va au-delà du prix.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "laurent_mercier"
+      ],
+      "competencies": [
+        "Pose des questions ouvertes pour comprendre le vrai besoin",
+        "Reformule l'objection prix en termes de valeur",
+        "Identifie les coûts cachés du concurrent",
+        "Maintient la relation sans être agressif"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Proposition commerciale ajustée",
+      "duration_target_min": 8,
+      "max_duration_sec": 480,
+      "objective": "Rédiger un mail de proposition commerciale à Laurent qui reprend les arguments identifiés en phase 1 et propose une offre ajustée (pas forcément une remise — peut être un engagement, un pilote, etc.)",
+      "active_channels": [
+        "mail"
+      ],
+      "ai_actors": [
+        "laurent_mercier"
+      ],
+      "mail_config": {
+        "to": "l.mercier@maison-duval.fr",
+        "defaults": {
+          "subject": "",
+          "to": "l.mercier@maison-duval.fr"
+        },
+        "send_advances_phase": true
+      },
+      "competencies": [
+        "Structure un mail professionnel et personnalisé",
+        "Reprend les points identifiés en discussion",
+        "Propose une offre ajustée crédible",
+        "Inclut un appel à l'action clair"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Succès",
+      "content": "Laurent a transmis votre proposition à son DG avec un avis favorable. L'intégration Sage et la migration gratuite ont fait la différence. Le deal est en bonne voie."
+    },
+    {
+      "ending_id": "partial_success",
+      "label": "Succès partiel",
+      "content": "Laurent apprécie votre effort mais votre proposition manquait de personnalisation. Il vous demande un complément avant de présenter au DG."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "Laurent est resté sur son objection prix. Sans arguments concrets sur la valeur ajoutée, il penche vers SimpleCRM."
+    }
+  ],
+  "competencies_evaluated": [
+    "Écoute active et reformulation",
+    "Argumentation valeur vs prix",
+    "Rédaction commerciale",
+    "Gestion d'objections"
+  ]
+}

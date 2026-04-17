@@ -147,7 +147,7 @@
         ],
         "available_from_phase": null,
         "usable_as_pj": false,
-        "content": "De : s.renard@technoservices.fr\nObjet : URGENT — Montants TTC erronés sur factures du 11/04\n\nBonjour,\n\nNous avons généré nos factures mensuelles ce matin via InvoiceFlow. Problème : les montants TTC sont incorrects. La TVA semble appliquée à 21% au lieu de 20%. Résultat : toutes nos factures du mois sont fausses.\n\nNous avons 47 factures concernées, pour un écart total d'environ 3 200 €. Notre clôture comptable est lundi.\n\nMerci de traiter cela en urgence.\n\nSophie Renard\nResp. comptable — TechnoServices"
+        "content": "De : s.renard@technoservices.fr\nObjet : URGENT — Montants TTC erronés sur factures du 11/04\n\nNous avons généré nos factures mensuelles ce matin via InvoiceFlow. Problème : les montants TTC sont incorrects. La TVA semble appliquée à 21% au lieu de 20%. Résultat : toutes nos factures du mois sont fausses.\n\nNous avons 47 factures concernées, pour un écart total d'environ 3 200 €. Notre clôture comptable est lundi.\n\nMerci de traiter cela en urgence.\n\nSophie Renard\nResp. comptable — TechnoServices"
       }
     ]
   },
@@ -171,6 +171,7 @@
       "phase_id": "phase_1",
       "title": "Qualifier et prioriser",
       "duration_target_min": 7,
+      "max_duration_sec": 300,
       "objective": "Qualifier le bug avec Marc : cause probable, nombre de clients impactés, impact business.",
       "phase_focus": "Analyse du bug avec le CPO.",
       "active_channels": [
@@ -198,6 +199,7 @@
       "phase_id": "phase_2",
       "title": "Communication client",
       "duration_target_min": 8,
+      "max_duration_sec": 300,
       "objective": "Rédiger et envoyer le mail de réponse à TechnoServices.",
       "phase_focus": "Rédaction de la communication de crise.",
       "active_channels": [
@@ -242,17 +244,8 @@
     }
   ],
   "competencies_evaluated": [
-    {
-      "phase": "phase_1",
-      "competency": "Qualification d'un incident produit"
-    },
-    {
-      "phase": "phase_1",
-      "competency": "Évaluation d'impact business"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Communication de crise client"
-    }
+    "Qualification d'un incident produit",
+    "Évaluation d'impact business",
+    "Communication de crise client"
   ]
 }

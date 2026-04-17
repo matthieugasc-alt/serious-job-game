@@ -163,7 +163,7 @@
       "event_id": "durand_intro",
       "type": "chat",
       "actor": "philippe_durand",
-      "content": "Bonjour. J'ai eu un appel de M. Bertrand ce matin, il est remonté. Vous avez vu son mail ? Dites-moi ce qui s'est passé exactement, et on voit comment on gère ça ensemble."
+      "content": "J'ai eu un appel de M. Bertrand ce matin, il est remonté. Vous avez vu son mail ? Dites-moi ce qui s'est passé exactement, et on voit comment on gère ça ensemble."
     }
   ],
   "phases": [
@@ -171,6 +171,7 @@
       "phase_id": "phase_1",
       "title": "Contexte avec le directeur",
       "duration_target_min": 6,
+      "max_duration_sec": 300,
       "objective": "Expliquer la situation au directeur et préparer la réponse.",
       "phase_focus": "Échange avec le directeur.",
       "active_channels": [
@@ -198,6 +199,7 @@
       "phase_id": "phase_2",
       "title": "Répondre au parent",
       "duration_target_min": 9,
+      "max_duration_sec": 300,
       "objective": "Rédiger un mail professionnel au parent.",
       "phase_focus": "Rédaction de la réponse.",
       "active_channels": [
@@ -240,17 +242,8 @@
     }
   ],
   "competencies_evaluated": [
-    {
-      "phase": "phase_1",
-      "competency": "Communication avec la hiérarchie"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Gestion de conflit parent-enseignant"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Rédaction professionnelle"
-    }
+    "Communication avec la hiérarchie",
+    "Gestion de conflit parent-enseignant",
+    "Rédaction professionnelle"
   ]
 }

@@ -153,6 +153,7 @@
       "phase_id": "phase_1",
       "title": "Comprendre la demande du député",
       "duration_target_min": 6,
+      "max_duration_sec": 300,
       "objective": "Échanger avec le député pour cerner l'amendement souhaité : quel seuil alternatif ? Quel angle ?",
       "phase_focus": "Discussion avec le député pour cadrer l'amendement.",
       "active_channels": [
@@ -180,6 +181,7 @@
       "phase_id": "phase_2",
       "title": "Rédiger l'amendement",
       "duration_target_min": 12,
+      "max_duration_sec": 300,
       "objective": "Formuler l'amendement et rédiger l'exposé des motifs.",
       "phase_focus": "Rédaction de l'amendement au format parlementaire.",
       "active_channels": [
@@ -223,17 +225,8 @@
     }
   ],
   "competencies_evaluated": [
-    {
-      "phase": "phase_1",
-      "competency": "Cadrage d'une demande législative"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Rédaction d'un amendement parlementaire"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Argumentation territoriale"
-    }
+    "Cadrage d'une demande législative",
+    "Rédaction d'un amendement parlementaire",
+    "Argumentation territoriale"
   ]
 }

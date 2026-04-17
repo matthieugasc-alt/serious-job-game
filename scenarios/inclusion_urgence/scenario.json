@@ -163,7 +163,7 @@
       "event_id": "moreau_intro",
       "type": "chat",
       "actor": "alain_moreau",
-      "content": "Bonjour. On a une inscription de dernière minute — un petit Aram, 8 ans, arrivé de Syrie en mars. Il ne parle pas français. Il sera dans ta classe lundi. J'ai une fiche de renseignements partielle, je te l'envoie. Il faudrait contacter le CASNAV rapidement."
+      "content": "On a une inscription de dernière minute — un petit Aram, 8 ans, arrivé de Syrie en mars. Il ne parle pas français. Il sera dans ta classe lundi. J'ai une fiche de renseignements partielle, je te l'envoie. Il faudrait contacter le CASNAV rapidement."
     }
   ],
   "phases": [
@@ -171,6 +171,7 @@
       "phase_id": "phase_1",
       "title": "Obtenir les infos et organiser",
       "duration_target_min": 6,
+      "max_duration_sec": 300,
       "objective": "Échanger avec le directeur pour comprendre la situation et planifier l'accueil.",
       "phase_focus": "Organisation avec le directeur.",
       "active_channels": [
@@ -198,6 +199,7 @@
       "phase_id": "phase_2",
       "title": "Contacter le CASNAV et préparer l'accueil",
       "duration_target_min": 9,
+      "max_duration_sec": 300,
       "objective": "Envoyer un mail au CASNAV et préparer un message d'accueil pour la classe.",
       "phase_focus": "Rédaction des communications.",
       "active_channels": [
@@ -242,17 +244,8 @@
     }
   ],
   "competencies_evaluated": [
-    {
-      "phase": "phase_1",
-      "competency": "Organisation d'un accueil inclusif"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Mobilisation des ressources institutionnelles"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Communication bienveillante"
-    }
+    "Organisation d'un accueil inclusif",
+    "Mobilisation des ressources institutionnelles",
+    "Communication bienveillante"
   ]
 }

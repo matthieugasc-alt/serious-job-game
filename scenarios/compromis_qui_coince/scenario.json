@@ -194,7 +194,7 @@
       "event_id": "emma_intro",
       "type": "chat",
       "actor": "emma_petit",
-      "content": "Bonjour… On a reçu le diagnostic et il y a un problème d'humidité dans la cave. Mon mari est paniqué, il veut tout annuler. Moi j'aime vraiment cet appartement mais… est-ce que c'est grave ? Qu'est-ce qu'on fait ?"
+      "content": "On a reçu le diagnostic et il y a un problème d'humidité dans la cave. Mon mari est paniqué, il veut tout annuler. Moi j'aime vraiment cet appartement mais… est-ce que c'est grave ? Qu'est-ce qu'on fait ?"
     }
   ],
   "phases": [
@@ -202,6 +202,7 @@
       "phase_id": "phase_1",
       "title": "Rassurer et négocier",
       "duration_target_min": 12,
+      "max_duration_sec": 300,
       "objective": "Rassurer l'acheteuse, puis négocier avec le vendeur une solution (baisse de prix ou consignation).",
       "phase_focus": "Gestion des deux parties.",
       "active_channels": [
@@ -230,6 +231,7 @@
       "phase_id": "phase_2",
       "title": "Formaliser au notaire",
       "duration_target_min": 8,
+      "max_duration_sec": 300,
       "objective": "Envoyer la proposition formalisée au notaire.",
       "phase_focus": "Rédaction formelle.",
       "active_channels": [
@@ -272,17 +274,8 @@
     }
   ],
   "competencies_evaluated": [
-    {
-      "phase": "phase_1",
-      "competency": "Gestion de blocage transactionnel"
-    },
-    {
-      "phase": "phase_1",
-      "competency": "Négociation immobilière"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Formalisation juridique"
-    }
+    "Gestion de blocage transactionnel",
+    "Négociation immobilière",
+    "Formalisation juridique"
   ]
 }

@@ -1,0 +1,284 @@
+{
+  "scenario_id": "closing_sous_pression",
+  "version": "1.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Le closing sous pression",
+    "subtitle": "Négocier une réduction de prix sans sacrifier les marges",
+    "description": "Un deal de 45K€/an pour FleetPro (SaaS de gestion de flotte) avec Nicolas Berger (TransNord) est quasi signé, mais il demande 20% de discount en dernière minute. Vous devez négocier sans brader, trouver un compromis créatif, puis obtenir la validation de votre directrice commerciale.",
+    "job_family": "commercial",
+    "difficulty": "intermédiaire",
+    "estimated_duration_min": 12,
+    "tags": [
+      "vente",
+      "négociation",
+      "closing",
+      "prix",
+      "objection",
+      "intermédiaire"
+    ],
+    "show_objective": true,
+    "show_background_fact": true,
+    "pedagogical_goals": [
+      "Identifier les vrais motifs derrière une objection prix",
+      "Défendre la valeur sans abandonner les marges",
+      "Proposer des compromis créatifs (termes, services, déploiement)",
+      "Valider un accord avec la hiérarchie"
+    ]
+  },
+  "introduction": {
+    "header": {
+      "tag": "Simulation métier",
+      "title": "Commercial B2B",
+      "subtitle": "Finalisez un deal en gérant une objection prix critique"
+    },
+    "cards": [
+      {
+        "title": "Ton rôle",
+        "content": "<p>Vous êtes commercial B2B pour <strong>FleetPro</strong>, un éditeur SaaS de gestion de flotte. Vous aviez un deal prêt à signer avec <strong>Nicolas Berger</strong>, Responsable achats chez TransNord (120 personnes, transport/logistique).</p>",
+        "column": "left"
+      },
+      {
+        "title": "Le problème",
+        "content": "<p>Mardi matin, mail de Nicolas : <em>\"On est quasi bons pour signer mais j'ai besoin qu'on reparle du prix. Mon directeur financier me demande un effort. Votre concurrent LogiTrack nous propose 36K€ pour un périmètre similaire.\"</em> C'est une demande de <strong>20% de reduction</strong> sur les 45K€ convenus (36K€).</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ce qui t'attend",
+        "content": "<p><strong>Phase 1</strong> (7 min) — Chat avec Nicolas. Comprendre sa vraie contrainte, défendre la valeur, proposer un compromis créatif (termes, services, déploiement).</p><p><strong>Phase 2</strong> (5 min) — Debrief avec Valérie Chen (directrice commerciale). Valider votre accord trouvé.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Règles du jeu",
+        "content": "<p>Chat + mail. Soyez stratégique sur le prix (protégez les marges >38K€), créatif sur les contreparties, et convaincant sur la valeur. Durée : ~12 min.</p>",
+        "column": "right"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Vous êtes commercial B2B senior chez FleetPro depuis 2 ans. TransNord est une PME de transport et logistique de 120 personnes en région Auvergne-Rhône-Alpes. Vous avez passé 3 mois à qualifier le besoin avec Nicolas Berger (Responsable achats) et sa directrice logistique. Un accord à 45K€/an a été convenu et le contrat était prêt à signer.",
+    "mission": "Gérer l'objection prix de Nicolas Berger, trouver un compromis viable qui protège vos marges et la valeur de la solution, puis faire valider votre accord par Valérie Chen (directrice commerciale).",
+    "initial_situation": "Mardi, 09h15. Vous vérifiez votre mail avant la réunion de direction. Mail de Nicolas Berger arrive : le deal est mis en suspens à cause d'une pression du DAF (directeur administratif et financier) pour réduire les coûts.",
+    "trigger": "Mail de Nicolas Berger demandant une reparole sur le prix avec mention d'une alternative concurrente à 36K€.",
+    "background_fact": "LogiTrack est un concurrent real mais moins complet que FleetPro (pas de géolocalisation temps réel, pas de maintenance prédictive). Nicolas le sait. Sa vraie contrainte : budget capé à 40K€ par son DAF, pas une demande pour descendre à 36K€."
+  },
+  "timeline": {
+    "scenario_start": "2026-04-17T09:15:00",
+    "sim_speed_multiplier": 2
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "",
+      "email": "",
+      "role": "Commercial B2B senior, FleetPro",
+      "personality": "",
+      "interaction_modes": [
+        "chat",
+        "mail"
+      ],
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#E65100",
+        "initials": "CB"
+      },
+      "visible_in_contacts": false
+    },
+    {
+      "actor_id": "nicolas_berger",
+      "name": "Nicolas Berger",
+      "email": "n.berger@transnord.fr",
+      "role": "Responsable achats, TransNord",
+      "personality": "35 ans, ancien commercial reconverti en achats, connaît les techniques de vente. Bon négociateur mais pas agressif. Respecte les commerciaux qui défendent leur valeur. Méprise ceux qui lâchent sans combattre.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "nicolas_berger.md",
+      "availability": "Disponible tout au long de la phase 1.",
+      "avatar": {
+        "color": "#D84315",
+        "initials": "NB"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne",
+      "tts_voice": "onyx"
+    },
+    {
+      "actor_id": "valerie_chen",
+      "name": "Valérie Chen",
+      "email": "v.chen@fleetpro.com",
+      "role": "Directrice commerciale, FleetPro",
+      "personality": "48 ans, 20 ans de vente B2B, protège les marges mais pragmatique. Veut comprendre les décisions du joueur. Directe, pas de small talk.",
+      "interaction_modes": [
+        "chat"
+      ],
+      "controlled_by": "ai",
+      "prompt_file": "valerie_chen.md",
+      "availability": "Disponible phase 2 uniquement.",
+      "avatar": {
+        "color": "#4A148C",
+        "initials": "VC"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "En ligne",
+      "tts_voice": "coral"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "mail_nicolas_initial",
+        "label": "Mail de Nicolas Berger",
+        "contains": [
+          "objection prix",
+          "concurrence",
+          "pression DAF"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": false,
+        "content": "MAIL REÇU — De : n.berger@transnord.fr\nObjet : RE: Finalisation deal FleetPro – besoin d'ajustement prix\n\nBonjour,\n\nJ'aurais un truc à te lever. On est quasi bons pour signer, et franchement ta solution c'est du bon travail. Mais mon DAF m'a mis une pression cette nuit : il me demande de serrer les coûts sur ce budget. Il me dit qu'on peut tester LogiTrack à 36K€ pour tester.\n\nJe sais que c'est pas idéal, mais peux-on en parler ? Qu'est-ce que tu peux faire ?\n\nA+\nNicolas"
+      },
+      {
+        "doc_id": "fiche_deal_transnord",
+        "label": "Fiche deal TransNord",
+        "contains": [
+          "contexte client",
+          "besoins",
+          "pricing",
+          "historique"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": false,
+        "content": "FICHE DEAL — TransNord\n\n## Client\n- Nom : TransNord (PME de transport/logistique, 120 personnes)\n- Décideur : Nicolas Berger (Responsable achats)\n- Utilisateurs finaux : Directrice logistique (Marie Claure), 8 chauffeurs, 4 admins\n\n## Besoins identifiés\n1. Géolocalisation temps réel des 25 camions\n2. Optimisation des itinéraires (réduction carburant ~8%)\n3. Maintenance prédictive (alertes usure, révisions)\n4. Respect normes de repos conducteurs (CEMT)\n5. Reporting pour auditeurs de conformité\n\n## Solution proposée\n- FleetPro Premium : 45K€/an (30 utilisateurs inclus)\n- Déploiement progressif (10 véhicules mois 1, 15 mois 2, full mois 3)\n- 3 jours de formation client\n- Support standard 2/5 inclus\n- Contrat 12 mois, auto-renouvellement\n\n## Timing\n- Visite démo : 15 février 2026\n- Validation besoins : 01 mars 2026\n- Accord prix : 07 avril 2026\n- Signature prévue : 17 avril 2026 ← AUJOURD'HUI, mais Nicolas freine\n\n## Margin interne\n- Prix facturé : 45K€ (100%)\n- COGS (licence + support) : ~5K€\n- Marge brute : 40K€ (89%)\n- Plancher acceptable : 38K€ brut (marge ~33K€ = 73%)"
+      },
+      {
+        "doc_id": "grille_tarifaire",
+        "label": "Grille tarifaire FleetPro",
+        "contains": [
+          "pricing",
+          "options",
+          "contreparties"
+        ],
+        "available_from_phase": null,
+        "usable_as_pj": false,
+        "content": "GRILLE TARIFAIRE — FleetPro\n\n## Offres standards\n- Starter : 15K€/an (5 utilisateurs, géolocalisation basique)\n- Premium : 45K€/an (30 utilisateurs, full features) ← TransNord\n- Enterprise : 120K€/an (illimité, support dédié)\n\n## Options commerciales (critères de flexibilité)\n1. Paiement échelonné : +3% (ex: 30K€ à la signature, reste en 3 virements trimestriels)\n2. Formation intensif (5 jours vs 3 jours) : +2K€\n3. Déploiement progressif (1 mois) : gratuit si contrat 24 mois, +1K€ si 12 mois\n4. Support premium (24/7, dédié) : +8K€/an\n5. Extension utilisateurs : +500€/utilisateur/an\n6. Maintenance prédictive avancée : +3K€/an\n\n## Possibilités de compromis\n- Réduction directe max : -5% (= 42,75K€) — à éviter, affaiblit la valeur\n- Compromis créatif : paiement trimestriel (économie client +3%) + formation gratuite (+0 coût pour nous) = 43,5K€ ou 45K€ avec engagement 24 mois\n- Pilote 6 mois : -20% provisoire (36K€ 1er semestre, puis 45K€ si satisfaction) → à étudier case par case\n- Déploiement progressif + support dédié 3 mois : +0 KE mais forte valeur perçue"
+      }
+    ]
+  },
+  "constraints": {
+    "time_pressure": true,
+    "hierarchy_limit": "Tout compromis > 2K€ doit être validé par Valérie Chen (directrice commerciale)",
+    "protect_margin": "Garder minimum 38K€ net (marge 73%)",
+    "protect_value": "Ne jamais positionner la réduction comme simple discount — toujours lier à une contrepartie (termes, services, déploiement)",
+    "deal_at_risk": "Sans compromise, Nicolas risque de signer LogiTrack"
+  },
+  "initial_events": [
+    {
+      "event_id": "mail_nicolas",
+      "type": "chat",
+      "actor": "nicolas_berger",
+      "content": "Salut, j'aurais un truc à te lever. On est quasi bons pour signer, et franchement ta solution c'est du bon travail. Mais mon DAF m'a mis une pression cette nuit : il me demande de serrer les coûts. Il me dit qu'on peut tester LogiTrack à 36K€ pour tester. Je sais que c'est pas idéal, mais peux-on en parler ? Qu'est-ce que tu peux faire ?"
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1",
+      "title": "Négocier avec Nicolas",
+      "duration_target_min": 7,
+      "max_duration_sec": 420,
+      "objective": "Chat avec Nicolas Berger. Comprendre sa vraie contrainte (vs tactic), défendre la valeur de FleetPro vs LogiTrack, proposer un compromis créatif (termes de paiement, formation, déploiement, services) sans brader le prix.",
+      "phase_focus": "Le joueur doit découvrir que la contrainte réelle de Nicolas est un budget DAF capé à 40K€ (pas 36K€). La concurrence LogiTrack existe mais est moins complète. Trouver un accord viable et créatif.",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "nicolas_berger"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Discutez avec Nicolas Berger. Comprenez sa contrainte, défendez la valeur, et proposez un compromis qui protège vos marges."
+      },
+      "competencies": [
+        "Écoute active : pose des questions pour découvrir la vraie contrainte (budget DAF) vs la tactic (concurrence)",
+        "Défense de valeur : explique pourquoi FleetPro > LogiTrack (géolocalisation temps réel, maintenance prédictive, support)",
+        "Créativité commerciale : propose des compromis intelligents (termes, services, déploiement) plutôt qu'une réduction plate",
+        "Respect de la marge : garde un accord > 38K€ net"
+      ],
+      "completion_rules": {
+        "min_score": 3
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2"
+    },
+    {
+      "phase_id": "phase_2",
+      "title": "Validation avec Valérie",
+      "duration_target_min": 5,
+      "max_duration_sec": 300,
+      "objective": "Debrief avec Valérie Chen (directrice commerciale). Présenter le compromis trouvé avec Nicolas. Valérie va valider, challenger, ou demander de renégocier selon la qualité de l'accord.",
+      "phase_focus": "Le joueur doit justifier le compromis trouvé. Valérie vérifie : le prix net est-il >38K€ ? La contrepartie (services, termes) justifie-t-elle le niveau ? Le deal est-il rescuable ou trop mou ?",
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "valerie_chen"
+      ],
+      "player_input": {
+        "type": "free_text",
+        "prompt": "Présentez votre accord à Valérie Chen. Elle va l'évaluer et vous donner son feedback."
+      },
+      "competencies": [
+        "Synthèse et justification : présente l'accord avec chiffres clairs et rationale",
+        "Défense des marges : démontre que le prix net protège les 38K€ minimums",
+        "Valeur ajoutée : montre comment les contreparties (services, termes) justifient l'accord trouvé",
+        "Gestion de la hiérarchie : accepte le feedback et ajuste si nécessaire"
+      ],
+      "completion_rules": {
+        "min_score": 2
+      },
+      "auto_advance": true
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Réussite",
+      "content": "Vous avez négocié intelligemment avec Nicolas, trouvé un accord créatif >38K€ (ex: 43K€ + paiement trimestriel + support premium 3 mois). Valérie valide. Le deal est sauvé avec des marges protégées."
+    },
+    {
+      "ending_id": "partial",
+      "label": "Partiel",
+      "content": "Vous avez obtenu un accord avec Nicolas mais proche du minimum (38-39K€) ou trop chargé en services. Valérie valide mais avec réserves. Le deal passe mais les marges sont serrées."
+    },
+    {
+      "ending_id": "failure",
+      "label": "Échec",
+      "content": "Vous avez cédé trop de terrain à Nicolas (< 38K€) ou perdu le deal. Valérie refuse et vous demande de renégocier ou le deal part à LogiTrack."
+    }
+  ],
+  "competencies_evaluated": [
+    "Écoute active et découverte de la vraie contrainte",
+    "Défense de la valeur vs concurrence",
+    "Créativité commerciale (compromis vs réduction)",
+    "Protection des marges",
+    "Synthèse et justification de l'accord",
+    "Gestion de la hiérarchie commerciale"
+  ]
+}

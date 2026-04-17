@@ -166,7 +166,7 @@
       "event_id": "vidal_intro",
       "type": "chat",
       "actor": "nathalie_vidal",
-      "content": "Bonjour. Il y a un mail citoyen prioritaire ce matin — un monsieur de Lurcy-Lévis sur l'accès aux soins. Lisez-le et dites-moi comment vous comptez traiter ça. On ne peut pas répondre n'importe quoi, c'est un sujet sensible dans la circo."
+      "content": "Il y a un mail citoyen prioritaire ce matin — un monsieur de Lurcy-Lévis sur l'accès aux soins. Lisez-le et dites-moi comment vous comptez traiter ça. On ne peut pas répondre n'importe quoi, c'est un sujet sensible dans la circo."
     }
   ],
   "phases": [
@@ -174,6 +174,7 @@
       "phase_id": "phase_1",
       "title": "Qualifier la demande",
       "duration_target_min": 7,
+      "max_duration_sec": 300,
       "objective": "Échanger avec Mme Vidal pour qualifier la demande : est-ce du ressort parlementaire ? Quel levier actionner ? Quel destinataire institutionnel ?",
       "phase_focus": "Le joueur discute avec Mme Vidal pour comprendre le périmètre d'action et décider de la réponse à apporter.",
       "active_channels": [
@@ -201,6 +202,7 @@
       "phase_id": "phase_2",
       "title": "Rédiger les courriers",
       "duration_target_min": 8,
+      "max_duration_sec": 300,
       "objective": "Rédiger un mail à l'ARS et une réponse à M. Pasquier, en respectant le ton institutionnel.",
       "phase_focus": "Le joueur rédige deux mails : un courrier d'interpellation ARS et une réponse au citoyen.",
       "active_channels": [
@@ -244,21 +246,9 @@
     }
   ],
   "competencies_evaluated": [
-    {
-      "phase": "phase_1",
-      "competency": "Qualification d'une demande citoyenne"
-    },
-    {
-      "phase": "phase_1",
-      "competency": "Connaissance du périmètre d'action parlementaire"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Rédaction d'un courrier institutionnel"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Communication empathique avec un citoyen"
-    }
+    "Qualification d'une demande citoyenne",
+    "Connaissance du périmètre d'action parlementaire",
+    "Rédaction d'un courrier institutionnel",
+    "Communication empathique avec un citoyen"
   ]
 }

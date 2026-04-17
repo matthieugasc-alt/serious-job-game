@@ -15,6 +15,7 @@ import {
   tickSimulatedTime,
   injectPhaseEntryEvents,
   completeCurrentPhaseAndAdvance,
+  finishScenario,
   updateMailDraft,
   toggleMailAttachment,
   sendCurrentPhaseMail,
@@ -684,12 +685,17 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         // Check if there's a next phase
         const isLastPhase = session.currentPhaseIndex >= scenario.phases.length - 1;
         if (isLastPhase) {
-          // End the scenario — add a system message and trigger ending
+          // End the scenario — complete last phase + trigger finish
           setSession((prev: any) => {
             if (!prev) return prev;
             const next = cloneSession(prev);
-            addAIMessage(next, "⏱ Le temps de la visite est écoulé. Mme Renard rassemble les enfants pour le départ. Merci pour cette visite !", "system");
-            next.completed = true;
+            addAIMessage(next, "⏱ Le temps imparti est écoulé.", "system");
+            // Mark last phase as completed
+            const lastPhaseId = scenario.phases[next.currentPhaseIndex]?.phase_id;
+            if (lastPhaseId && !next.completedPhases.includes(lastPhaseId)) {
+              next.completedPhases.push(lastPhaseId);
+            }
+            finishScenario(next);
             return next;
           });
         } else {

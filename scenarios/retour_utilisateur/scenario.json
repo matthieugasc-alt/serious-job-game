@@ -171,6 +171,7 @@
       "phase_id": "phase_1",
       "title": "Analyser avec le lead UX",
       "duration_target_min": 8,
+      "max_duration_sec": 300,
       "objective": "Comprendre les 3 irritants et identifier les actions possibles.",
       "phase_focus": "Analyse collaborative.",
       "active_channels": [
@@ -198,6 +199,7 @@
       "phase_id": "phase_2",
       "title": "Plan d'action au CPO",
       "duration_target_min": 7,
+      "max_duration_sec": 300,
       "objective": "Envoyer un mail structuré avec le plan d'action priorisé.",
       "phase_focus": "Formalisation.",
       "active_channels": [
@@ -240,17 +242,8 @@
     }
   ],
   "competencies_evaluated": [
-    {
-      "phase": "phase_1",
-      "competency": "Analyse de données UX"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Plan d'action produit"
-    },
-    {
-      "phase": "phase_2",
-      "competency": "Communication CPO"
-    }
+    "Analyse de données UX",
+    "Plan d'action produit",
+    "Communication CPO"
   ]
 }
