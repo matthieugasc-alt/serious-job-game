@@ -377,8 +377,8 @@
       "auto_advance_at": "visit_end",
       "voice_qa_config": {
         "children_names": ["Hugo", "Léa", "Amine", "Camille", "Zoé", "Lucas", "Inès", "Tom", "Lina", "Noah", "Hana", "Kenji"],
-        "hand_raise_interval_sec": 15,
-        "max_simultaneous_hands": 3
+        "hand_raise_interval_sec": 8,
+        "max_simultaneous_hands": 5
       },
 
       "player_input": {

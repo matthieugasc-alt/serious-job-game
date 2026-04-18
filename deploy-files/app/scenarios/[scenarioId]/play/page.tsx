@@ -962,12 +962,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       setRaisedHands(prev => {
         const available = names.filter(n => !prev.includes(n));
         const updated = [...prev];
-        // Randomly lower a hand (10% chance)
-        if (updated.length > 1 && Math.random() < 0.1) {
+        // Randomly lower a hand (20% chance)
+        if (updated.length > 1 && Math.random() < 0.2) {
           updated.splice(Math.floor(Math.random() * updated.length), 1);
         }
-        // Randomly raise a hand (60% chance)
-        if (available.length > 0 && updated.length < maxHands && Math.random() < 0.6) {
+        // Randomly raise a hand (40% chance)
+        if (available.length > 0 && updated.length < maxHands && Math.random() < 0.4) {
           updated.push(available[Math.floor(Math.random() * available.length)]);
         }
         return updated;

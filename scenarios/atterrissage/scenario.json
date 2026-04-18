@@ -260,7 +260,7 @@
     {
       "event_id": "whatsapp_claudia",
       "type": "whatsapp_message",
-      "actor": "claudia",
+      "actor": "romain",
       "language": "es",
       "content": "Romain, tenemos un problema. En el mostrador de facturación en Madrid, la aerolínea nos informó que la visa Schengen de nuestro colega Jorge Huamán Quispe (ingeniero hidráulico del Gobierno Regional de Arequipa) vence hoy a medianoche. La aerolínea aceptó embarcarlo, pero nos advirtió que la policía de fronteras en Burdeos podría rechazarlo porque la fecha de salida del territorio (domingo 12 de abril) supera la validez de su visa. Los otros dos pasaportes están en regla. ¿Qué hacemos? Aterrizamos en 1h40."
     }
@@ -364,8 +364,8 @@
         "enabled": true,
         "kind": "consulate_initial",
         "defaults": {
-          "to": "consulat-madrid@exemple.fr",
-          "cc": "paf-bordeaux@exemple.fr",
+          "to": "visas.madrid-fslt@diplomatie.gouv.fr",
+          "cc": "paf-bordeaux-merignac@interieur.gouv.fr",
           "subject": "Demande urgente relative à l'arrivée de la délégation péruvienne"
         },
         "require_attachments": false,
@@ -433,8 +433,8 @@
         "enabled": true,
         "kind": "consulate_reply",
         "defaults": {
-          "to": "consulat-madrid@exemple.fr",
-          "cc": "paf-bordeaux@exemple.fr",
+          "to": "visas.madrid-fslt@diplomatie.gouv.fr",
+          "cc": "paf-bordeaux-merignac@interieur.gouv.fr",
           "subject": "Transmission des pièces complémentaires – dossier Jorge Huamán Quispe"
         },
         "require_attachments": true,
