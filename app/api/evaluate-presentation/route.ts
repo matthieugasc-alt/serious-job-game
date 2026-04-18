@@ -70,7 +70,7 @@ CRITÈRES D'ÉVALUATION:
 ${sanitize(JSON.stringify(criteria, null, 2))}
 
 TRANSCRIPTION DE LA PRÉSENTATION DU JOUEUR:
-${transcript.slice(0, 2000)}
+${transcript.slice(0, 4000)}
 
 Évalue combien de critères (0-${criteria.length}) le joueur démontre dans sa présentation.
 Sois juste et bienveillant. Donne aussi un bref feedback constructif en français (2-3 phrases max).

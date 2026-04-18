@@ -40,13 +40,15 @@ export interface RateLimitConfig {
   windowMs: number;
 }
 
-/** Pre-configured limits for each route category */
+/** Pre-configured limits for each route category.
+ *  Chat & TTS budgets account for NPC auto-messages (each player message
+ *  can trigger 2-3 additional AI/TTS calls for NPC characters). */
 export const RATE_LIMITS = {
-  chat:                 { max: 20, windowMs: 60_000 } as RateLimitConfig,
+  chat:                 { max: 40, windowMs: 60_000 } as RateLimitConfig,
   debrief:              { max: 5,  windowMs: 60_000 } as RateLimitConfig,
-  evaluate_presentation:{ max: 10, windowMs: 60_000 } as RateLimitConfig,
-  tts:                  { max: 15, windowMs: 60_000 } as RateLimitConfig,
-  transcribe:           { max: 10, windowMs: 60_000 } as RateLimitConfig,
+  evaluate_presentation:{ max: 15, windowMs: 60_000 } as RateLimitConfig,
+  tts:                  { max: 30, windowMs: 60_000 } as RateLimitConfig,
+  transcribe:           { max: 20, windowMs: 60_000 } as RateLimitConfig,
   auth:                 { max: 10, windowMs: 60_000 } as RateLimitConfig,
   admin_write:          { max: 10, windowMs: 60_000 } as RateLimitConfig,
 };

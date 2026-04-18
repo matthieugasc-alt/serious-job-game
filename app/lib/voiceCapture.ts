@@ -490,7 +490,11 @@ async function transcribeOnBackend(audioBlob: Blob, lang: string): Promise<strin
       const txt = await res.text().catch(() => "");
       const e: any = new Error(`transcribe_failed:${res.status}:${txt.slice(0, 200)}`);
       e.category = "transcribe_failed";
-      e.userMessage = `Le service de transcription a répondu ${res.status}. Réessayez.`;
+      e.userMessage = res.status === 413
+        ? `L'enregistrement est trop volumineux (${(audioBlob.size / 1024 / 1024).toFixed(1)} Mo). Essayez un enregistrement plus court.`
+        : res.status === 429
+          ? "Trop de requêtes de transcription. Patientez quelques secondes."
+          : `Le service de transcription a répondu ${res.status}. Réessayez.`;
       throw e;
     }
     let data: any;

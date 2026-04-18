@@ -161,15 +161,6 @@ MODE AUTONOMY:
       finalRoleplayPrompt = getGenericFallbackPrompt(playerName);
     }
 
-    const roleplayResponse = await client.responses.create({
-      model: "gpt-4.1-mini",
-      input: finalRoleplayPrompt,
-    });
-
-    const reply =
-      sanitize(roleplayResponse.output_text || "").trim() ||
-      `Je ne suis pas sûr de bien comprendre, ${playerName}. Pouvez-vous préciser ?`;
-
     // Build evaluation prompt — PLAYER-ONLY scoring
     // CRITICAL: Only player messages are included. No NPC/AI responses.
     const playerMsgBlock = playerMessages.length > 0
@@ -215,10 +206,24 @@ Return STRICT JSON only:
 }
 `);
 
-    const evalResponse = await client.responses.create({
-      model: "gpt-4.1-mini",
-      input: evaluationPrompt,
-    });
+    // ── PARALLEL AI calls: roleplay + evaluation run simultaneously ──
+    // These two calls are independent — the evaluation only needs the
+    // player's messages, not the roleplay response. Running in parallel
+    // cuts perceived latency by ~50%.
+    const [roleplayResponse, evalResponse] = await Promise.all([
+      client.responses.create({
+        model: "gpt-4.1-mini",
+        input: finalRoleplayPrompt,
+      }),
+      client.responses.create({
+        model: "gpt-4.1-mini",
+        input: evaluationPrompt,
+      }),
+    ]);
+
+    const reply =
+      sanitize(roleplayResponse.output_text || "").trim() ||
+      `Je ne suis pas sûr de bien comprendre, ${playerName}. Pouvez-vous préciser ?`;
 
     let evaluation: {
       matched_criteria?: string[];
