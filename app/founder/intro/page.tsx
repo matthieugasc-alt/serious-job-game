@@ -26,7 +26,7 @@ export default function FounderIntroPage() {
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/data/founder_rules.json")
+    fetch("/api/founder/rules")
       .then((r) => r.json())
       .then((rules) => {
         setPitch(rules.pitch);
