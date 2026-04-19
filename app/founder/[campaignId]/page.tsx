@@ -180,8 +180,16 @@ export default function FounderDashboardPage() {
   const [applyingOutcome, setApplyingOutcome] = useState(false);
   const [outcomeResult, setOutcomeResult] = useState<OutcomeResult | null>(null);
   const [showDebrief, setShowDebrief] = useState(false);
+  const [userRole, setUserRole] = useState<string | null>(null);
 
   const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+
+  // Read user role for admin debug panel
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setUserRole(localStorage.getItem("user_role"));
+    }
+  }, []);
 
   // ── Load campaign ──────────────────────────────────────────────
   const loadData = useCallback(async () => {
@@ -254,6 +262,29 @@ export default function FounderDashboardPage() {
   function dismissDebrief() {
     setShowDebrief(false);
     setOutcomeResult(null);
+  }
+
+  async function debugJumpTo(index: number) {
+    if (!token || !campaign) return;
+    try {
+      const res = await fetch("/api/founder/campaigns", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          currentScenarioIndex: index,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCampaign(data.campaign);
+      }
+    } catch (err) {
+      console.error("Debug jump failed:", err);
+    }
   }
 
   // ── Loading / Error ────────────────────────────────────────────
@@ -535,6 +566,34 @@ export default function FounderDashboardPage() {
           <p style={S.completedBody}>
             Tu as traversé les 18 mois du mode Founder. L'advisory board review arrive bientôt.
           </p>
+        </section>
+      )}
+
+      {/* ── Admin Debug Panel (super_admin only) ────────────────── */}
+      {userRole === "super_admin" && (
+        <section style={S.debugPanel}>
+          <div style={S.debugHeader}>
+            <span style={S.debugDot} />
+            <span style={S.debugTag}>Debug Admin</span>
+          </div>
+          <p style={S.debugInfo}>
+            Index actuel : {campaign.currentScenarioIndex} · Pending : {campaign.pendingScenarioId || "aucun"} · Status : {campaign.status}
+          </p>
+          <div style={S.debugGrid}>
+            {FOUNDER_TIMELINE.map((entry, i) => (
+              <button
+                key={entry.scenarioId}
+                onClick={() => debugJumpTo(i)}
+                style={{
+                  ...S.debugBtn,
+                  ...(i === campaign.currentScenarioIndex ? S.debugBtnActive : {}),
+                }}
+              >
+                <span style={S.debugBtnIdx}>{i}</span>
+                <span style={S.debugBtnTitle}>{entry.title}</span>
+              </button>
+            ))}
+          </div>
         </section>
       )}
     </main>
@@ -1378,5 +1437,76 @@ const S: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     boxShadow: "0 4px 20px rgba(91,95,199,0.2)",
     transition: "all 0.2s",
+  },
+
+  // ── Debug panel ─────────────────────────────────────────────
+  debugPanel: {
+    position: "relative",
+    zIndex: 1,
+    marginTop: 40,
+    padding: "18px 20px",
+    background: "rgba(239,68,68,0.04)",
+    borderRadius: 12,
+    border: "1px solid rgba(239,68,68,0.15)",
+  },
+  debugHeader: {
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 10,
+  },
+  debugDot: {
+    width: 5,
+    height: 5,
+    borderRadius: "50%",
+    background: "#ef4444",
+    boxShadow: "0 0 6px rgba(239,68,68,0.4)",
+  },
+  debugTag: {
+    fontSize: 10,
+    fontWeight: 800,
+    color: "#ef4444",
+    textTransform: "uppercase",
+    letterSpacing: 1,
+  },
+  debugInfo: {
+    margin: "0 0 12px",
+    fontSize: 11,
+    color: "rgba(255,255,255,0.35)",
+    fontFamily: "monospace",
+  },
+  debugGrid: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  },
+  debugBtn: {
+    display: "flex",
+    alignItems: "center",
+    gap: 10,
+    padding: "8px 12px",
+    background: "rgba(255,255,255,0.02)",
+    border: "1px solid rgba(255,255,255,0.05)",
+    borderRadius: 6,
+    cursor: "pointer",
+    transition: "all 0.15s",
+    color: "rgba(255,255,255,0.5)",
+  },
+  debugBtnActive: {
+    background: "rgba(91,95,199,0.1)",
+    border: "1px solid rgba(91,95,199,0.3)",
+    color: "#a5a8ff",
+  },
+  debugBtnIdx: {
+    width: 20,
+    fontSize: 11,
+    fontWeight: 800,
+    fontFamily: "monospace",
+    color: "inherit",
+  },
+  debugBtnTitle: {
+    fontSize: 12,
+    fontWeight: 600,
+    color: "inherit",
   },
 };

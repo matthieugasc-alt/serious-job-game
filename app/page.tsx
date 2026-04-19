@@ -632,7 +632,29 @@ export default function ScenarioSelectionPage() {
         {/* Founder Mode Entry */}
         {userName && (
           <div
-            onClick={() => router.push("/founder/intro")}
+            onClick={async () => {
+              const token = localStorage.getItem("auth_token");
+              if (!token) {
+                router.push("/login?redirect=/founder/intro");
+                return;
+              }
+              try {
+                const res = await fetch("/api/founder/campaigns", {
+                  headers: { Authorization: `Bearer ${token}` },
+                });
+                const data = await res.json();
+                const active = (data.campaigns || []).find(
+                  (c: any) => c.status !== "completed"
+                );
+                if (active) {
+                  router.push(`/founder/${active.id}`);
+                } else {
+                  router.push("/founder/intro");
+                }
+              } catch {
+                router.push("/founder/intro");
+              }
+            }}
             style={{
               marginBottom: 24,
               padding: "18px 24px",

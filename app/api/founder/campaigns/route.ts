@@ -66,7 +66,7 @@ export async function PATCH(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
   const body = await req.json();
-  const { campaignId, pendingScenarioId } = body;
+  const { campaignId, pendingScenarioId, currentScenarioIndex } = body;
 
   if (!campaignId) {
     return NextResponse.json({ error: 'campaignId required' }, { status: 400 });
@@ -81,6 +81,12 @@ export async function PATCH(req: NextRequest) {
 
   if (pendingScenarioId !== undefined) {
     campaign.pendingScenarioId = pendingScenarioId;
+  }
+
+  if (typeof currentScenarioIndex === 'number' && currentScenarioIndex >= 0) {
+    campaign.currentScenarioIndex = currentScenarioIndex;
+    campaign.pendingScenarioId = null;
+    campaign.status = 'in_progress';
   }
 
   saveCampaign(campaign);

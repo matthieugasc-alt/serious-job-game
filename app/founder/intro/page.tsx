@@ -20,6 +20,7 @@ export default function FounderIntroPage() {
     }
 
     try {
+      // 1. Create (or retrieve existing) campaign
       const res = await fetch("/api/founder/campaigns", {
         method: "POST",
         headers: {
@@ -28,9 +29,33 @@ export default function FounderIntroPage() {
         },
       });
       const data = await res.json();
-      if (data.campaign?.id) {
-        router.push(`/founder/${data.campaign.id}`);
+      const campaign = data.campaign;
+      if (!campaign?.id) {
+        setCreating(false);
+        return;
       }
+
+      // If existing campaign already in progress, go to dashboard
+      if (data.existing) {
+        router.push(`/founder/${campaign.id}`);
+        return;
+      }
+
+      // 2. Set the first scenario as pending
+      await fetch("/api/founder/campaigns", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          campaignId: campaign.id,
+          pendingScenarioId: "founder_00_cto",
+        }),
+      });
+
+      // 3. Launch directly into scenario 0
+      router.push(`/scenarios/founder_00_cto/play`);
     } catch (err) {
       console.error("Failed to create campaign:", err);
       setCreating(false);
