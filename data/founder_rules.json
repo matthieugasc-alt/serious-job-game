@@ -1,0 +1,140 @@
+{
+  "version": "1.0",
+
+  "initialState": {
+    "treasury": 15000,
+    "ownership": 70,
+    "mrr": 0,
+    "payroll": 0,
+    "productQuality": 0,
+    "techDebt": 0,
+    "investorConfidence": 30,
+    "marketValidation": 10
+  },
+
+  "pitch": {
+    "problem": {
+      "headline": "Les blocs operatoires francais perdent 2 heures par jour en desorganisation.",
+      "context": "La planification des interventions chirurgicales repose encore sur des tableaux Excel, des appels telephoniques et l'intuition des cadres de bloc. Resultat : des salles vides a 14h, des chirurgiens qui attendent, des patients reprogrammes. Le cout pour un CHU moyen : 800k€ par an en temps perdu.",
+      "data": "Taux d'occupation moyen des blocs en France : 68%. Le benchmark international est a 85%."
+    },
+    "product": {
+      "vision": "Un SaaS de planification intelligente des blocs operatoires. L'outil ingere les contraintes (disponibilite chirurgiens, materiel, anesthesistes, duree estimee) et propose un planning optimise en temps reel.",
+      "v1Promise": "La V1 doit prouver une seule chose : qu'un algorithme peut proposer un planning de bloc plus efficace qu'un cadre de bloc experimente, sur une semaine type.",
+      "techStack": "Application web SaaS. Backend Python/Node, frontend React, hebergement cloud certifie HDS."
+    },
+    "market": {
+      "target": "CHU et cliniques privees en France. 1 300 etablissements avec bloc operatoire. Cible initiale : les 32 CHU.",
+      "size": "Marche adressable France : ~50M€/an en licences SaaS.",
+      "competition": "Quelques solutions existent (HopitalManager, Surgivisio) mais ce sont des ERP lourds vendus aux DSI. Personne n'a encore propose un outil leger, centre sur le cadre de bloc, utilisable en 48h.",
+      "timing": "Le Segur du numerique a debloque 2Md€ pour la digitalisation des hopitaux. Les CHU ont du budget fleche et une obligation de resultat. La fenetre est ouverte pour 18 mois."
+    },
+    "founders": {
+      "ceo": {
+        "role": "Tu diriges la startup. Strategie, produit, recrutement, levee de fonds, vente. Tout passe par toi.",
+        "background": "Tu n'es ni developpeur ni medecin. Tu viens du conseil / business. Tu sais structurer, convaincre, executer. Tu ne sais pas coder ni operer.",
+        "commitment": "Full-time. Pas de salaire. Tes economies sont sur la table."
+      },
+      "cpo": {
+        "name": "Alexandre Morel",
+        "role": "Chief Product Officer. Il definit le besoin, valide les fonctionnalites, ouvre les portes des hopitaux.",
+        "background": "Chirurgien orthopediste au CHU de Bordeaux. 12 ans d'experience. Il vit le probleme tous les jours.",
+        "commitment": "Mi-temps. Il garde son poste a l'hopital. Il ne peut pas se permettre de quitter.",
+        "value": "Sans lui, pas d'acces au terrain. Pas de test clinique, pas de feedback utilisateur, pas de credibilite face aux directeurs de CHU. Il est irremplacable."
+      }
+    },
+    "stakes": {
+      "ambition": "Devenir la reference francaise de l'optimisation des blocs operatoires.",
+      "constraints": "Pas d'equipe technique. Pas de produit. Pas de client. Pas de revenu. 15 000€ mobilisables sur 25 000€ d'economies. Un co-fondateur a mi-temps. Zero reseau investisseur.",
+      "runway": "Au rythme actuel, tu as 6 a 8 mois avant d'etre a sec. Moins si tu recrutes.",
+      "firstMove": "Tu dois trouver quelqu'un pour construire le produit. Un CTO, un freelance, un associe technique — quelqu'un. Sans ca, rien ne demarre."
+    },
+    "initialMetrics": {
+      "treasury": "15 000 € mobilisables — tu as mis 25 000 € de cote mais tu gardes 10 000 € de reserve personnelle. Ce qui est sur la table, c'est 15k. Quand c'est fini, c'est fini.",
+      "ownership": "70% toi (CEO, full-time) / 30% Alexandre (CPO, mi-temps). Reparti au pacte d'associes.",
+      "mrr": "-",
+      "payroll": "-"
+    }
+  },
+
+  "scenarios": {
+    "founder_00_cto": {
+      "order": 0,
+      "title": "Trouver un CTO",
+      "scenarioId": "founder_00_cto",
+      "outcomes": {
+        "success": {
+          "outcomeId": "clean_execution",
+          "label": "Recrutement maitrise",
+          "summary": "Tu as trouve un CTO freelance solide a des conditions raisonnables. Pas de co-fondateur technique, mais un executant fiable qui peut demarrer vite.",
+          "signal": "robust",
+          "deltas": {
+            "treasury": -2000,
+            "ownership": -5,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 20,
+            "techDebt": 5,
+            "investorConfidence": 5,
+            "marketValidation": 0
+          },
+          "microDebrief": {
+            "decision": "Tu as recrute un CTO freelance senior avec 5% d'equity et un TJM raisonnable.",
+            "impact": "Le developpement peut demarrer dans deux semaines. Ta tresorerie absorbe le cout.",
+            "strength": "Tu as su renoncer au CTO co-fondateur ideal pour avancer vite. C'est un reflexe de fondateur.",
+            "risk": "Un freelance n'a pas le meme engagement qu'un co-fondateur. Si le projet se complique, il peut partir.",
+            "advice": "Ton prochain defi : convaincre un incubateur. Prepare un pitch qui compense l'absence de CTO co-fondateur."
+          }
+        },
+        "partial_success": {
+          "outcomeId": "costly_progress",
+          "label": "Recrutement couteux",
+          "summary": "Tu as un CTO, mais tu as lache trop d'equity ou paye trop cher. Le travail avance, mais le prix est eleve pour une startup sans revenu.",
+          "signal": "costly",
+          "deltas": {
+            "treasury": -5000,
+            "ownership": -12,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 15,
+            "techDebt": 10,
+            "investorConfidence": 0,
+            "marketValidation": 0
+          },
+          "microDebrief": {
+            "decision": "Tu as recrute un CTO mais les conditions sont desequilibrees — trop d'equity cedee ou budget trop eleve.",
+            "impact": "Le dev demarre mais ta tresorerie fond. Tu passes sous les 10k avant meme d'avoir un produit.",
+            "strength": "Tu as quand meme quelqu'un pour construire. C'est mieux que zero.",
+            "risk": "12 points d'equity cedees des le scenario 0, c'est un signal de dilution excessive. Les investisseurs le verront.",
+            "advice": "Au prochain tour, surveille chaque euro. Tu n'as plus de marge."
+          }
+        },
+        "failure": {
+          "outcomeId": "strategic_delay",
+          "label": "Temps perdu",
+          "summary": "Tu n'as recrute personne. Le temps passe a chercher le candidat ideal t'a coute deux mois. Alexandre commence a s'impatienter.",
+          "signal": "delayed",
+          "deltas": {
+            "treasury": -1000,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 0,
+            "techDebt": 0,
+            "investorConfidence": -10,
+            "marketValidation": 0
+          },
+          "microDebrief": {
+            "decision": "Tu as passe deux mois a chercher le CTO parfait sans recruter personne.",
+            "impact": "Pas de produit, pas d'avancement. 1000€ brules en cafes et deplacements. La fenetre Segur continue de se fermer.",
+            "strength": "Tu n'as pas cede d'equity dans la panique. C'est une forme de discipline.",
+            "risk": "Alexandre doute. Il a mis sa reputation en jeu en s'associant avec toi. Deux mois sans rien, ca pese.",
+            "advice": "Arrete de chercher la perfection. Recrute quelqu'un de correct et avance."
+          }
+        }
+      }
+    }
+  },
+
+  "boardReviews": []
+}
