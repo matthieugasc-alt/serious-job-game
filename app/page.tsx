@@ -629,6 +629,60 @@ export default function ScenarioSelectionPage() {
           </div>
         )}
 
+        {/* Founder Mode Entry */}
+        {userName && (
+          <div
+            onClick={() => router.push("/founder/intro")}
+            style={{
+              marginBottom: 24,
+              padding: "18px 24px",
+              borderRadius: 14,
+              background: "linear-gradient(135deg, #0f0f1e 0%, #161633 50%, #1a1a3e 100%)",
+              color: "#fff",
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              transition: "transform 0.2s, box-shadow 0.2s",
+              boxShadow: "0 4px 16px rgba(91,95,199,0.15)",
+              border: "1px solid rgba(91,95,199,0.2)",
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLDivElement).style.transform = "translateY(-2px)";
+              (e.currentTarget as HTMLDivElement).style.boxShadow = "0 8px 28px rgba(91,95,199,0.25)";
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
+              (e.currentTarget as HTMLDivElement).style.boxShadow = "0 4px 16px rgba(91,95,199,0.15)";
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+              <div style={{
+                width: 40,
+                height: 40,
+                borderRadius: "50%",
+                background: "linear-gradient(135deg, #5b5fc7, #7c7fff)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: 18,
+                fontWeight: 800,
+                color: "#fff",
+                boxShadow: "0 0 12px rgba(91,95,199,0.3)",
+              }}>
+                F
+              </div>
+              <div>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>Startup Founder Mode</div>
+                <div style={{ fontSize: 12, color: "rgba(255,255,255,0.55)", marginTop: 2 }}>
+                  Lance ta startup. 7 décisions. 18 mois simulés.
+                </div>
+              </div>
+            </div>
+            <span style={{ fontSize: 20, opacity: 0.5, color: "#a5a8ff" }}>→</span>
+          </div>
+        )}
+
         {/* My Spaces */}
         {mySpaces.length > 0 && (
           <div style={{ marginBottom: 24 }}>
