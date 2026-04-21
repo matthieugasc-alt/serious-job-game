@@ -116,28 +116,28 @@
       {
         "doc_id": "synthese_entretiens",
         "label": "Synthèse des entretiens — 10 chirurgiens",
-        "file_path": "documents/synthese_entretiens.md",
+        "file_path": "/scenarios/founder_02_mvp/documents/synthese_entretiens.pdf",
         "contains": ["entretiens", "chirurgiens", "annulations", "planning", "bloc", "cadre de bloc"],
         "usable_as_pj": true
       },
       {
         "doc_id": "note_cadrage",
         "label": "Note de cadrage produit — Alexandre Morel",
-        "file_path": "documents/note_cadrage_produit.md",
+        "file_path": "/scenarios/founder_02_mvp/documents/note_cadrage_produit.pdf",
         "contains": ["cadrage", "modules", "architecture", "planning", "budget", "150k"],
         "usable_as_pj": true
       },
       {
         "doc_id": "devis_novadev",
         "label": "Devis NovaDev — 32 150 € HT",
-        "file_path": "documents/devis_prestataire.md",
+        "file_path": "/scenarios/founder_02_mvp/documents/devis_prestataire.pdf",
         "contains": ["devis", "NovaDev", "développement", "backend", "frontend", "déploiement"],
         "usable_as_pj": true
       },
       {
         "doc_id": "devis_renegocie",
         "label": "Devis révisé NovaDev (scope réduit / equity)",
-        "file_path": "documents/devis_renegocie.md",
+        "file_path": "/scenarios/founder_02_mvp/documents/devis_renegocie.pdf",
         "contains": ["devis", "réduit", "equity", "option A", "option B", "20k"],
         "usable_as_pj": true
       }

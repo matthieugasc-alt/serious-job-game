@@ -116,42 +116,42 @@
       {
         "doc_id": "fiche_chu",
         "label": "Fiche — CHU de Bordeaux (Pellegrin)",
-        "file_path": "documents/fiche_chu_bordeaux.md",
+        "file_path": "/scenarios/founder_03_clinical/documents/fiche_chu_bordeaux.pdf",
         "contains": ["CHU", "Pellegrin", "32 salles", "public", "DxPlanning", "Lemaire"],
         "usable_as_pj": false
       },
       {
         "doc_id": "fiche_saint_martin",
         "label": "Fiche — Hôpital Privé Saint-Martin",
-        "file_path": "documents/fiche_hopital_prive_saint_martin.md",
+        "file_path": "/scenarios/founder_03_clinical/documents/fiche_hopital_prive_saint_martin.pdf",
         "contains": ["Saint-Martin", "Ramsay", "8 salles", "Castex", "Girard"],
         "usable_as_pj": false
       },
       {
         "doc_id": "fiche_clinique",
         "label": "Fiche — Clinique Saint-Augustin",
-        "file_path": "documents/fiche_clinique_saint_augustin.md",
+        "file_path": "/scenarios/founder_03_clinical/documents/fiche_clinique_saint_augustin.pdf",
         "contains": ["Saint-Augustin", "5 salles", "Alexandre", "Laroche", "indépendant"],
         "usable_as_pj": false
       },
       {
         "doc_id": "contrat_chu",
         "label": "Contrat de test — CHU de Bordeaux",
-        "file_path": "documents/contrat_test_chu_bordeaux.md",
+        "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_chu_bordeaux.pdf",
         "contains": ["contrat", "PI", "intéressement", "CHU", "données", "SecNumCloud"],
         "usable_as_pj": true
       },
       {
         "doc_id": "contrat_saint_martin",
         "label": "Contrat de test — Hôpital Saint-Martin",
-        "file_path": "documents/contrat_test_hopital_saint_martin.md",
+        "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_hopital_saint_martin.pdf",
         "contains": ["contrat", "Ramsay", "référencement", "pilote"],
         "usable_as_pj": true
       },
       {
         "doc_id": "contrat_clinique",
         "label": "Contrat de test — Clinique Saint-Augustin",
-        "file_path": "documents/contrat_test_clinique_saint_augustin.md",
+        "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_clinique_saint_augustin.pdf",
         "contains": ["contrat", "test", "8 semaines", "simple"],
         "usable_as_pj": true
       }

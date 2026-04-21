@@ -148,35 +148,35 @@
       {
         "doc_id": "cv_sofia",
         "label": "CV — Sofia Renault",
-        "file_path": "documents/cv_sofia_renault.md",
+        "file_path": "/scenarios/founder_00_cto/documents/cv_sofia_renault.pdf",
         "contains": ["CV", "Sofia", "Centrale Lyon", "MedFlow", "Doctolib", "HDS"],
         "usable_as_pj": true
       },
       {
         "doc_id": "cv_marc",
         "label": "CV — Marc Lefèvre",
-        "file_path": "documents/cv_marc_lefevre.md",
+        "file_path": "/scenarios/founder_00_cto/documents/cv_marc_lefevre.pdf",
         "contains": ["CV", "Marc", "Betclic", "ENSEEIHT", "Atos", "CNAM"],
         "usable_as_pj": true
       },
       {
         "doc_id": "cv_karim",
         "label": "CV — Karim Benzarti",
-        "file_path": "documents/cv_karim_benzarti.md",
+        "file_path": "/scenarios/founder_00_cto/documents/cv_karim_benzarti.pdf",
         "contains": ["CV", "Karim", "Pixel33", "DUT", "MedBoard"],
         "usable_as_pj": true
       },
       {
         "doc_id": "note_avocat",
         "label": "Note — Me Dufresne (avocate)",
-        "file_path": "documents/note_avocat.md",
+        "file_path": "/scenarios/founder_00_cto/documents/note_avocat.pdf",
         "contains": ["pacte", "associés", "vesting", "equity", "exclusivité", "BSPCE", "SAS"],
         "usable_as_pj": false
       },
       {
         "doc_id": "pacte_associes",
         "label": "Pacte d'associés (proposé par le CTO)",
-        "file_path": "documents/pacte_associes.md",
+        "file_path": "/scenarios/founder_00_cto/documents/pacte_associes.pdf",
         "contains": ["pacte", "vesting", "leaver", "capital", "non-concurrence"],
         "usable_as_pj": true
       }
@@ -445,21 +445,22 @@
       "duration_target_min": 2,
       "max_duration_sec": 180,
       "active_channels": ["chat"],
-      "ai_actors": ["alexandre_morel", "sofia_renault", "marc_lefevre", "karim_benzarti"],
+      "ai_actors": ["alexandre_morel", "chosen_cto"],
+      "dynamic_actor": "chosen_cto",
       "entry_events": [
         {
           "event_id": "candidate_accepts",
-          "actor": "sofia_renault",
-          "content": "J'ai bien reçu ta proposition. C'est aligné avec ce que je cherche. Je suis partante. Mon avocat Me Fabre va rédiger un pacte d'associés, je te l'envoie dans la journée.",
+          "actor": "chosen_cto",
+          "content": "J'ai bien reçu ta proposition. C'est aligné avec ce que je cherche. Je suis partant(e). Mon avocat Me Fabre va rédiger un pacte d'associés, je te l'envoie dans la journée.",
           "channel": "chat",
-          "delay_ms": 3000
+          "delay_ms": 1500
         },
         {
           "event_id": "alex_advice",
           "actor": "alexandre_morel",
           "content": "Super nouvelle ! Par contre, avant de signer quoi que ce soit, relis bien la note de Me Dufresne qu'on a dans les documents. Elle insiste sur un point : chaque associé full-time doit avoir une clause d'exclusivité dans le pacte. C'est ta protection.",
           "channel": "chat",
-          "delay_ms": 6000
+          "delay_ms": 4000
         }
       ],
       "scoring": {
@@ -482,15 +483,16 @@
       "duration_target_min": 7,
       "max_duration_sec": 600,
       "active_channels": ["chat", "mail"],
-      "ai_actors": ["alexandre_morel", "sofia_renault", "marc_lefevre", "karim_benzarti"],
+      "ai_actors": ["alexandre_morel", "chosen_cto"],
+      "dynamic_actor": "chosen_cto",
       "entry_events": [
         {
           "event_id": "pacte_sent",
-          "actor": "sofia_renault",
+          "actor": "chosen_cto",
           "channel": "mail",
           "subject": "Pacte d'associés — Orisio",
           "content": "Comme discuté, voici le pacte rédigé par mon avocat Me Fabre. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine. Renvoie-moi le pacte signé et on lance les démarches.",
-          "delay_ms": 3000,
+          "delay_ms": 1500,
           "attachments": [
             { "id": "pacte_associes", "label": "Pacte d'associés — Orisio SAS" }
           ]
@@ -500,7 +502,7 @@
           "actor": "alexandre_morel",
           "content": "J'ai vu que tu as reçu le pacte. Prends le temps de le lire. Compare bien avec la note de Me Dufresne. Si tu veux modifier quelque chose, discute avec le CTO par chat avant de signer.",
           "channel": "chat",
-          "delay_ms": 8000
+          "delay_ms": 5000
         }
       ],
       "mail_config": {
@@ -554,21 +556,48 @@
     {
       "phase_id": "phase_4_twist",
       "title": "Le coup de fil d'Alexandre",
-      "objective": "Alexandre t'apprend que le CTO travaille à mi-temps pour une autre startup. Gère la crise.",
-      "phase_focus": "Plot twist. Alexandre a découvert que le CTO a accepté un poste à 50% dans une autre startup. Si le pacte est bien rédigé (clause d'exclusivité), le joueur peut déclencher la clause de bad leaver. Sinon, le CTO a une position de force et négocie son départ.",
+      "objective": "Alexandre t'apprend que le CTO travaille à mi-temps pour une autre startup. Gère la crise : confronte le CTO et envoie un mail formel de rupture. Le scénario ne se termine qu'après l'envoi du mail.",
+      "phase_focus": "Plot twist. Alexandre a découvert que le CTO a accepté un poste à 50% dans une autre startup. Le joueur DOIT envoyer un mail formel de rupture pour terminer le scénario. Sans mail, pas de fin. Alexandre pousse explicitement à agir. Le joueur peut discuter par chat avec le CTO pour le confronter, puis envoie le mail de rupture qui déclenche la résolution.",
       "duration_target_min": 5,
-      "max_duration_sec": 420,
       "active_channels": ["chat", "mail"],
-      "ai_actors": ["alexandre_morel", "sofia_renault", "marc_lefevre", "karim_benzarti"],
+      "ai_actors": ["alexandre_morel", "chosen_cto"],
+      "dynamic_actor": "chosen_cto",
       "entry_events": [
         {
           "event_id": "alex_panic",
           "actor": "alexandre_morel",
           "content": "Attends je viens d'apprendre un truc. Je suis tombé sur LinkedIn sur un post de notre CTO qui se présente comme « CTO & Co-founder » d'une AUTRE startup — un truc de téléconsultation. Mi-temps chez nous, mi-temps chez eux. C'est quoi ce bordel ?? On avait dit full-time !",
           "channel": "chat",
-          "delay_ms": 3000
+          "delay_ms": 1500
+        },
+        {
+          "event_id": "alex_advice_twist",
+          "actor": "alexandre_morel",
+          "content": "Regarde bien le pacte qu'on a signé. Si on a une clause d'exclusivité, on peut activer le bad leaver et récupérer ses parts. Sinon… on est mal. Tu dois agir maintenant.",
+          "channel": "chat",
+          "delay_ms": 5000
+        },
+        {
+          "event_id": "alex_push_action",
+          "actor": "alexandre_morel",
+          "content": "Soit tu appliques le pacte, soit tu acceptes de perdre le contrôle. Si tu ne réagis pas maintenant, tu poses un précédent dangereux. Écris un mail de rupture formel au CTO — c'est le seul moyen de protéger Orisio.",
+          "channel": "chat",
+          "delay_ms": 12000
         }
       ],
+      "mail_config": {
+        "enabled": true,
+        "kind": "rupture_cto",
+        "defaults": {
+          "to": "",
+          "cc": "",
+          "subject": "Constat de manquement — Pacte d'associés Orisio"
+        },
+        "require_attachments": false,
+        "on_send_flags": { "formal_mail_sent": true },
+        "send_label": "Envoyer le mail de rupture",
+        "send_advances_phase": true
+      },
       "scoring": {
         "criteria": [
           {
@@ -578,28 +607,17 @@
             "sets_flag": "bad_leaver_triggered"
           },
           {
-            "criterion_id": "formal_mail_sent",
-            "description": "Le joueur envoie un mail formel au CTO constatant la rupture",
-            "points": 3
-          },
-          {
             "criterion_id": "negotiated_exit",
             "description": "Le joueur négocie une sortie (avec ou sans compensation)",
             "points": 2,
             "sets_flag": "cto_negotiation_won"
-          },
-          {
-            "criterion_id": "paid_to_leave",
-            "description": "Le joueur accepte de payer 2 500 € pour le départ du CTO (pacte mal rédigé)",
-            "points": 0,
-            "sets_flag": "cto_paid_to_leave"
           }
         ]
       },
       "completion_rules": {
-        "any_flags": ["bad_leaver_triggered", "cto_negotiation_won", "cto_paid_to_leave"]
+        "any_flags": ["formal_mail_sent"]
       },
-      "auto_advance": true
+      "auto_advance": false
     }
   ],
   "endings": [

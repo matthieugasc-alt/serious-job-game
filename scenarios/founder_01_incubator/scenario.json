@@ -148,7 +148,7 @@
       {
         "doc_id": "one_pager_template",
         "label": "Template One-Pager — Orisio",
-        "file_path": "documents/one_pager_orisio.md",
+        "file_path": "/scenarios/founder_01_incubator/documents/one_pager_orisio.pdf",
         "contains": ["one-pager", "template", "marché", "équipe", "modèle"],
         "usable_as_pj": true
       }
