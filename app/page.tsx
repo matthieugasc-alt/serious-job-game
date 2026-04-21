@@ -297,6 +297,7 @@ export default function ScenarioSelectionPage() {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [configs, setConfigs] = useState<Record<string, ScenarioConfig>>({});
   const [completedScenarios, setCompletedScenarios] = useState<Set<string>>(new Set());
+  const [founderCompletedIds, setFounderCompletedIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [userName, setUserName] = useState<string | null>(null);
@@ -403,6 +404,26 @@ export default function ScenarioSelectionPage() {
             }
           } catch (err) {
             console.error("Failed to fetch history:", err);
+          }
+
+          // Fetch Founder campaign to know which founder scenarios are unlocked for classic mode
+          try {
+            const founderRes = await fetch("/api/founder/campaigns", {
+              headers: { Authorization: `Bearer ${userToken}` },
+            });
+            if (founderRes.ok) {
+              const founderData = await founderRes.json();
+              const campaigns = founderData.campaigns || (founderData.campaign ? [founderData.campaign] : []);
+              const ids = new Set<string>();
+              for (const camp of campaigns) {
+                for (const cs of camp.completedScenarios || []) {
+                  ids.add(cs.scenarioId);
+                }
+              }
+              setFounderCompletedIds(ids);
+            }
+          } catch (err) {
+            // Non-blocking: if no campaign exists, founder scenarios stay locked
           }
 
           // Fetch user capabilities/memberships for space selector
@@ -912,6 +933,9 @@ export default function ScenarioSelectionPage() {
                           prerequisites.length === 0 ||
                           completedPrerequisites.length === prerequisites.length;
 
+                        const isFounderScenario = (scenario.job_family || "") === "founder";
+                        const isFounderUnlocked = founderCompletedIds.has(scenario.scenario_id);
+
                         let lockReason = "";
                         let isLocked = false;
 
@@ -919,6 +943,10 @@ export default function ScenarioSelectionPage() {
                           isLocked = true;
                           lockReason =
                             scenario.teaser_banner || "🚧 En cours d'implémentation";
+                        } else if (isFounderScenario && !isFounderUnlocked) {
+                          // Founder scenarios locked until completed in Founder mode
+                          isLocked = true;
+                          lockReason = "🔒 Complétez ce scénario en Founder Mode pour le débloquer";
                         } else if (isAdminLocked) {
                           isLocked = true;
                           lockReason =

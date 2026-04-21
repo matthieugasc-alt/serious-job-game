@@ -73,7 +73,41 @@ export default function IntroductionPage({
           return;
         }
         if (!res.ok) throw new Error("Scenario not found");
-        setScenario(await res.json());
+        const scenarioData = await res.json();
+
+        // ── Founder lock guard ──
+        // Founder scenarios (job_family === "founder") are locked in classic mode
+        // until the player has completed them in Founder mode.
+        const isFounderScenario = (scenarioData.meta?.job_family || "") === "founder";
+        if (isFounderScenario) {
+          const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+          let founderUnlocked = false;
+          if (token) {
+            try {
+              const fRes = await fetch("/api/founder/campaigns", {
+                headers: { Authorization: `Bearer ${token}` },
+              });
+              if (fRes.ok) {
+                const fData = await fRes.json();
+                const campaigns = fData.campaigns || (fData.campaign ? [fData.campaign] : []);
+                for (const camp of campaigns) {
+                  if ((camp.completedScenarios || []).some((cs: any) => cs.scenarioId === scenarioId)) {
+                    founderUnlocked = true;
+                    break;
+                  }
+                }
+              }
+            } catch {
+              // Non-blocking
+            }
+          }
+          if (!founderUnlocked) {
+            setError("🔒 Ce scénario est réservé au Founder Mode. Complétez-le d'abord en mode Founder pour le débloquer en mode classique.");
+            return;
+          }
+        }
+
+        setScenario(scenarioData);
       } catch {
         setError("Impossible de charger le scénario");
       } finally {

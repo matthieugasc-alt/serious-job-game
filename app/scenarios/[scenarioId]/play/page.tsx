@@ -627,6 +627,35 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         const res = await fetch(`/api/scenarios/${scenarioId}`);
         if (!res.ok) throw new Error("Impossible de charger le scénario");
         const data: ScenarioDefinition = await res.json();
+
+        // ── Founder lock guard (classic mode) ──
+        // If this is a Founder scenario, verify the player either:
+        // (a) has an active Founder campaign (playing in Founder mode), OR
+        // (b) has already completed it in Founder mode (playing classic replay)
+        const isFounderMeta = ((data.meta as any)?.job_family || "") === "founder";
+        if (isFounderMeta) {
+          try {
+            const fRes = await fetch("/api/founder/campaigns", {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            if (fRes.ok) {
+              const fData = await fRes.json();
+              const campaigns = fData.campaigns || (fData.campaign ? [fData.campaign] : []);
+              const hasActiveCampaign = campaigns.some((c: any) => c.status !== "completed");
+              const hasCompletedScenario = campaigns.some((c: any) =>
+                (c.completedScenarios || []).some((cs: any) => cs.scenarioId === scenarioId)
+              );
+              // If no active campaign AND scenario not completed → blocked
+              if (!hasActiveCampaign && !hasCompletedScenario) {
+                router.replace("/?locked=founder");
+                return;
+              }
+            }
+          } catch {
+            // Non-blocking: allow play if check fails
+          }
+        }
+
         setScenario(data);
 
         const s = initializeSession(data);

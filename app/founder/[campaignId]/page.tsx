@@ -291,6 +291,18 @@ export default function FounderDashboardPage() {
     }
   }
 
+  // ── Guard: redirect to S0 if it hasn't been completed yet ──
+  // MUST be called before any early return to respect Rules of Hooks
+  const hasCompletedS0 = (campaign?.completedScenarios || []).some(
+    (s) => s.scenarioId === "founder_00_cto"
+  );
+  useEffect(() => {
+    if (loading || error || !campaign) return;
+    if (!hasCompletedS0 && campaign.status !== "completed") {
+      router.replace(`/scenarios/founder_00_cto/play`);
+    }
+  }, [loading, error, campaign, hasCompletedS0]);
+
   // ── Loading / Error ────────────────────────────────────────────
   if (loading) {
     return (
@@ -311,17 +323,6 @@ export default function FounderDashboardPage() {
       </div>
     );
   }
-
-  // ── Guard: redirect to S0 if it hasn't been completed yet ──
-  // The dashboard should only appear AFTER scenario 0 (company doesn't exist before)
-  const hasCompletedS0 = campaign.completedScenarios.some(
-    (s) => s.scenarioId === "founder_00_cto"
-  );
-  useEffect(() => {
-    if (!hasCompletedS0 && campaign.status !== "completed") {
-      router.replace(`/scenarios/founder_00_cto/play`);
-    }
-  }, [hasCompletedS0, campaign.status]);
 
   if (!hasCompletedS0 && campaign.status !== "completed") {
     return (
