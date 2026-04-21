@@ -10,6 +10,7 @@ export type ChatMessage = {
   toActor?: string;
   phaseId?: string;
   timestamp: number;
+  attachments?: MailAttachment[];
 };
 
 export type MailAttachment = {
@@ -257,12 +258,19 @@ export function initializeSession(scenario: any): SessionState {
 
   if (Array.isArray(scenario.initial_events)) {
     for (const event of scenario.initial_events) {
+      const eventAttachments = Array.isArray(event.attachments)
+        ? event.attachments.map((a: any, idx: number) => ({
+            id: a.id || `init_att_${idx}`,
+            label: a.label || a.name || `Pièce jointe ${idx + 1}`,
+          }))
+        : [];
       addChatMessageInternal(state, {
         role: "npc",
         actor: event.actor,
         content: event.content,
         type: event.type,
         phaseId: firstPhaseId,
+        ...(eventAttachments.length > 0 ? { attachments: eventAttachments } : {}),
       });
 
       pushAction(state, {
@@ -919,6 +927,7 @@ export function flushDueTimedEvents(session: SessionState) {
         content: event.content,
         type: "interruption",
         phaseId: event.phaseId,
+        ...(event.attachments && event.attachments.length > 0 ? { attachments: event.attachments } : {}),
       });
 
       pushAction(session, {
@@ -1031,6 +1040,7 @@ export function injectPhaseEntryEvents(session: SessionState) {
           dueAt: Date.now() + delayMs,
           phaseId,
           type: "chat",
+          attachments: attachments.length > 0 ? attachments : undefined,
         });
       } else {
         addChatMessageInternal(session, {
@@ -1039,6 +1049,7 @@ export function injectPhaseEntryEvents(session: SessionState) {
           content,
           type: event.channel || event.type || "incoming",
           phaseId,
+          ...(attachments.length > 0 ? { attachments } : {}),
         });
 
         pushAction(session, {

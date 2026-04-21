@@ -32,7 +32,7 @@
       },
       {
         "title": "Les candidats",
-        "content": "<p><strong>Sofia Renault</strong> — 31 ans, ex-lead dev MedFlow, ex-Doctolib. Centrale Lyon.</p><p><strong>Marc Lefèvre</strong> — 28 ans, dev senior Betclic, passé par Atos/CNAM. ENSEEIHT.</p><p><strong>Karim Benzarti</strong> — 24 ans, dev web en agence. DUT Info. Side project médical.</p>",
+        "content": "<p><strong>Sofia Renault</strong> — 31 ans, ex-lead dev MedFlow, ex-Doctolib. Centrale Lyon.</p><p><strong>Marc Lefèvre</strong> — 28 ans, dev senior Betclic, passé par Atos/CNAM. ENSEEIHT.</p><p><strong>Karim Benzarti</strong> — 24 ans, dev web en agence, DUT Info. Junior mais motivé, side project médical, budget serré.</p>",
         "column": "left"
       },
       {
@@ -116,7 +116,7 @@
       "actor_id": "karim_benzarti",
       "name": "Karim Benzarti",
       "role": "Candidat CTO — Dev web junior, agence Pixel33",
-      "personality": "Enthousiaste, humble, sincère. Dit oui à tout.",
+      "personality": "Enthousiaste, sincère, humble. Honnête sur ses limites mais motivé à 100%.",
       "controlled_by": "ai",
       "prompt_file": "prompts/karim_benzarti.md",
       "avatar": {
@@ -197,6 +197,7 @@
       "pacte_received": false,
       "pacte_signed_clean": false,
       "pacte_signed_dirty": false,
+      "pacte_signed": false,
       "twist_revealed": false,
       "bad_leaver_triggered": false,
       "cto_negotiation_won": false,
@@ -347,7 +348,7 @@
         {
           "event_id": "karim_hello",
           "actor": "karim_benzarti",
-          "content": "Bonsoir ! Karim Benzarti. Merci de me recevoir. J'ai lu le pitch qu'Alexandre m'a envoyé, j'ai plein de questions. C'est un projet qui me parle vraiment — j'ai un side project dans le médical justement.",
+          "content": "Bonsoir, Karim Benzarti. Merci de me recevoir. J'ai lu le pitch qu'Alexandre m'a envoyé — l'optimisation des blocs opératoires, c'est un vrai sujet. J'ai un side project dans le médical justement, MedBoard, un dashboard de suivi patient. C'est pas le même périmètre mais ça m'a donné un bon aperçu de la complexité du domaine.",
           "channel": "chat",
           "delay_ms": 2000
         }
@@ -434,37 +435,87 @@
         "set_flags": { "offer_sent": true }
       },
       "auto_advance": true,
+      "next_phase": "phase_3_accept"
+    },
+    {
+      "phase_id": "phase_3_accept",
+      "title": "Réponse du candidat",
+      "objective": "Le candidat répond à ta proposition. Attends sa réponse et discute avec Alexandre.",
+      "phase_focus": "Le candidat choisi répond positivement à la proposition. Il annonce que son avocat prépare un pacte d'associés. Alexandre te conseille de relire la note de Me Dufresne avant de signer quoi que ce soit.",
+      "duration_target_min": 2,
+      "max_duration_sec": 180,
+      "active_channels": ["chat"],
+      "ai_actors": ["alexandre_morel", "sofia_renault", "marc_lefevre", "karim_benzarti"],
+      "entry_events": [
+        {
+          "event_id": "candidate_accepts",
+          "actor": "sofia_renault",
+          "content": "J'ai bien reçu ta proposition. C'est aligné avec ce que je cherche. Je suis partante. Mon avocat Me Fabre va rédiger un pacte d'associés, je te l'envoie dans la journée.",
+          "channel": "chat",
+          "delay_ms": 3000
+        },
+        {
+          "event_id": "alex_advice",
+          "actor": "alexandre_morel",
+          "content": "Super nouvelle ! Par contre, avant de signer quoi que ce soit, relis bien la note de Me Dufresne qu'on a dans les documents. Elle insiste sur un point : chaque associé full-time doit avoir une clause d'exclusivité dans le pacte. C'est ta protection.",
+          "channel": "chat",
+          "delay_ms": 6000
+        }
+      ],
+      "scoring": {
+        "criteria": []
+      },
+      "completion_rules": {
+        "max_exchanges": 4
+      },
+      "on_complete": {
+        "set_flags": { "offer_accepted": true }
+      },
+      "auto_advance": true,
       "next_phase": "phase_3_pacte"
     },
     {
       "phase_id": "phase_3_pacte",
       "title": "Le pacte d'associés",
-      "objective": "Le candidat accepte et t'envoie un pacte d'associés rédigé par son avocat. Relis-le attentivement avant de signer.",
-      "phase_focus": "Le candidat choisi répond positivement et envoie un pacte. Le joueur doit le relire, repérer les clauses manquantes (notamment l'exclusivité/full-time du CTO) et négocier des modifications si nécessaire.",
+      "objective": "Tu as reçu le pacte d'associés rédigé par l'avocat du CTO. Relis-le attentivement, discute les clauses par chat si besoin, puis renvoie le pacte signé par mail.",
+      "phase_focus": "Le joueur reçoit le pacte par mail. Il doit le relire, repérer que l'article 6 (engagements CTO) ne mentionne ni full-time ni exclusivité, discuter par chat avec Alexandre et/ou le CTO, puis renvoyer le pacte signé. Le trigger de fin est l'envoi du pacte signé par mail.",
       "duration_target_min": 7,
       "max_duration_sec": 600,
       "active_channels": ["chat", "mail"],
       "ai_actors": ["alexandre_morel", "sofia_renault", "marc_lefevre", "karim_benzarti"],
       "entry_events": [
         {
-          "event_id": "candidate_accepts",
-          "actor": "sofia_renault",
-          "content": "J'ai bien reçu ta proposition. C'est aligné avec ce que je cherche. Par contre, il faut qu'on fasse les choses proprement. Mon avocat a rédigé un pacte d'associés, je te l'envoie. Lis-le, dis-moi si ça te va, et on signe.",
-          "channel": "chat",
-          "delay_ms": 3000
-        },
-        {
           "event_id": "pacte_sent",
           "actor": "sofia_renault",
           "channel": "mail",
           "subject": "Pacte d'associés — Orisio",
-          "content": "Comme discuté, voici le pacte rédigé par mon avocat Me Fabre. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine.",
-          "delay_ms": 5000,
+          "content": "Comme discuté, voici le pacte rédigé par mon avocat Me Fabre. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine. Renvoie-moi le pacte signé et on lance les démarches.",
+          "delay_ms": 3000,
           "attachments": [
             { "id": "pacte_associes", "label": "Pacte d'associés — Orisio SAS" }
           ]
+        },
+        {
+          "event_id": "alex_reminder",
+          "actor": "alexandre_morel",
+          "content": "J'ai vu que tu as reçu le pacte. Prends le temps de le lire. Compare bien avec la note de Me Dufresne. Si tu veux modifier quelque chose, discute avec le CTO par chat avant de signer.",
+          "channel": "chat",
+          "delay_ms": 8000
         }
       ],
+      "mail_config": {
+        "enabled": true,
+        "kind": "pacte_response",
+        "defaults": {
+          "to": "",
+          "cc": "",
+          "subject": "RE: Pacte d'associés — Orisio"
+        },
+        "require_attachments": true,
+        "on_send_flags": { "pacte_signed": true },
+        "send_label": "Renvoyer le pacte signé",
+        "send_advances_phase": true
+      },
       "scoring": {
         "criteria": [
           {
@@ -492,7 +543,7 @@
         ]
       },
       "completion_rules": {
-        "any_flags": ["pacte_signed_clean", "pacte_signed_dirty"]
+        "any_flags": ["pacte_signed_clean", "pacte_signed_dirty", "pacte_signed"]
       },
       "on_complete": {
         "set_flags": { "pacte_received": true }

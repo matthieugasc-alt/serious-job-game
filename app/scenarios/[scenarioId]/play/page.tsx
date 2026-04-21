@@ -192,6 +192,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [showBriefingOverlay, setShowBriefingOverlay] = useState(false);
   const [unreadMails, setUnreadMails] = useState(0);
   const [toasts, setToasts] = useState<Array<{ id: string; text: string; icon: string; type: "chat" | "mail" }>>([]);
+  const [pacteSigned, setPacteSigned] = useState(false);
+  const [showSignatureView, setShowSignatureView] = useState(false);
   const [showContactPicker, setShowContactPicker] = useState<"to" | "cc" | null>(null);
   const [debriefData, setDebriefData] = useState<any>(null);
   const [debriefLoading, setDebriefLoading] = useState(false);
@@ -364,21 +366,22 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const currentPhaseConfig = scenario?.phases?.[session?.currentPhaseIndex];
 
   // Per-contact conversation filtering
-  // For Founder interview phases (single ai_actor), show ALL messages in the phase
-  // so Alexandre's introductions and transitions remain visible alongside the candidate.
+  // For interview phases (single ai_actor), show only messages from the CURRENT PHASE
+  // so conversations from previous interviews don't bleed into the current one.
   const currentPhaseAiActors = scenario?.phases?.[session?.currentPhaseIndex]?.ai_actors || [];
   const filteredConversation = useMemo(() => {
     if (!selectedContact) return conversation;
 
-    // Founder interview phases: show all messages (Alexandre intros + candidate)
-    // Detect: single ai_actor in phase = dedicated interview
+    // Interview phases (single ai_actor): show only this phase's messages
+    // This ensures each interview (Sofia, Marc, Karim) has its own clean conversation.
     if (currentPhaseAiActors.length === 1) {
       const phaseActorId = currentPhaseAiActors[0];
       return conversation.filter((msg: any) => {
         if (msg.role === "system") return false;
+        // Only show messages from the current phase
+        if (msg.phaseId && currentPhaseId && msg.phaseId !== currentPhaseId) return false;
         if (msg.role === "player") return msg.toActor === phaseActorId;
-        // Show messages from the phase's ai_actor AND from any other actor
-        // (e.g., Alexandre's transition messages)
+        // Show all NPC messages from this phase (Alexandre intros + candidate)
         if (msg.role === "npc") return true;
         return false;
       });
@@ -391,7 +394,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       if (msg.role === "npc") return msg.actor === selectedContact;
       return false;
     });
-  }, [conversation, selectedContact, currentPhaseAiActors.length]);
+  }, [conversation, selectedContact, currentPhaseAiActors.length, currentPhaseId]);
 
   // Track which contacts have unread messages (messages the player hasn't "seen" by clicking on them)
   const lastSeenRef = useRef<Record<string, number>>({});
@@ -2017,6 +2020,154 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       </header>
 
       {/* ═══════ BRIEFING OVERLAY ═══════ */}
+      {/* ── Signature visuelle overlay ── */}
+      {showSignatureView && (() => {
+        const pacteDoc = scenario?.resources?.documents?.find((d: any) => d.doc_id === "pacte_associes");
+        const pacteContent = (pacteDoc as any)?.content || "Contenu du pacte non disponible.";
+        return (
+          <div style={{
+            position: "fixed", inset: 0, zIndex: 10001,
+            background: "rgba(0,0,0,0.7)", display: "flex",
+            alignItems: "center", justifyContent: "center", padding: 20,
+          }}>
+            <div style={{
+              background: "#fff", borderRadius: 16, maxWidth: 680, width: "100%",
+              maxHeight: "90vh", display: "flex", flexDirection: "column",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.3)",
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: "20px 24px 16px", borderBottom: "1px solid #e8e8e8",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: "#333" }}>
+                    📋 Pacte d'associés — Orisio SAS
+                  </h2>
+                  <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888" }}>
+                    Relisez attentivement puis signez en bas du document
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowSignatureView(false)}
+                  style={{
+                    background: "none", border: "none", fontSize: 24,
+                    color: "#888", cursor: "pointer", padding: "4px 8px",
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Document body (scrollable) */}
+              <div style={{
+                flex: 1, overflowY: "auto", padding: "20px 24px",
+                fontSize: 12, lineHeight: 1.7, color: "#333", whiteSpace: "pre-wrap",
+              }}>
+                {pacteContent}
+              </div>
+
+              {/* Signature area */}
+              <div style={{
+                padding: "20px 24px", borderTop: "2px solid #e8e8e8",
+                background: "#fafafa",
+              }}>
+                {!pacteSigned ? (
+                  <>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 12, marginBottom: 16,
+                    }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: "50%",
+                        background: "#5b5fc7", display: "flex", alignItems: "center",
+                        justifyContent: "center", color: "#fff", fontSize: 14, fontWeight: 700,
+                      }}>
+                        CEO
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>
+                          {displayPlayerName || "CEO"} — Président, Orisio SAS
+                        </div>
+                        <div style={{ fontSize: 11, color: "#888" }}>
+                          Bordeaux, le {new Date().toLocaleDateString("fr-FR")}
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{
+                      border: "2px dashed #ccc", borderRadius: 12, padding: "24px 20px",
+                      textAlign: "center", background: "#fff", marginBottom: 16,
+                      cursor: "pointer", transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.background = "#f8f8ff"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#ccc"; e.currentTarget.style.background = "#fff"; }}
+                    onClick={() => {
+                      setPacteSigned(true);
+                      // Set flag in session
+                      if (session) {
+                        const next = { ...session, flags: { ...session.flags } };
+                        // If player never raised exclusivity issue → dirty sign
+                        if (!next.flags.pacte_signed_clean) {
+                          next.flags.pacte_signed_dirty = true;
+                        }
+                        setSession(next);
+                      }
+                    }}
+                    >
+                      <div style={{ fontSize: 28, marginBottom: 8 }}>✍️</div>
+                      <div style={{ fontSize: 14, fontWeight: 600, color: "#555" }}>
+                        Cliquez ici pour signer
+                      </div>
+                      <div style={{ fontSize: 11, color: "#999", marginTop: 4 }}>
+                        Votre signature électronique sera apposée
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{
+                      padding: "16px 20px", background: "rgba(91,95,199,0.05)",
+                      border: "1px solid rgba(91,95,199,0.15)", borderRadius: 12,
+                      display: "flex", alignItems: "center", gap: 12, marginBottom: 16,
+                    }}>
+                      <div style={{
+                        width: 48, height: 48, borderRadius: 12,
+                        background: "linear-gradient(135deg, #5b5fc7, #7c7fff)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: "#fff", fontSize: 20, fontWeight: 700,
+                        fontFamily: "'Georgia', serif", fontStyle: "italic",
+                      }}>
+                        {(displayPlayerName || "CEO").charAt(0)}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 16, fontWeight: 700, color: "#5b5fc7", fontFamily: "'Georgia', serif", fontStyle: "italic" }}>
+                          {displayPlayerName || "CEO"}
+                        </div>
+                        <div style={{ fontSize: 11, color: "#888" }}>
+                          Signé électroniquement le {new Date().toLocaleDateString("fr-FR")} à {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                        </div>
+                      </div>
+                      <span style={{ marginLeft: "auto", fontSize: 22 }}>✅</span>
+                    </div>
+                    <button
+                      onClick={() => setShowSignatureView(false)}
+                      style={{
+                        width: "100%", padding: "12px 20px",
+                        background: "linear-gradient(135deg, #5b5fc7, #4a4eb3)",
+                        border: "none", borderRadius: 10, color: "#fff",
+                        fontSize: 14, fontWeight: 700, cursor: "pointer",
+                        boxShadow: "0 4px 16px rgba(91,95,199,0.2)",
+                      }}
+                    >
+                      Fermer — Renvoyez le pacte par mail
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {showBriefingOverlay && (
         <div
           style={{
@@ -2748,6 +2899,29 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         >
                           {msg.content}
                         </div>
+                        {/* Attachments (documents sent in chat) */}
+                        {msg.attachments && msg.attachments.length > 0 && (
+                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
+                            {msg.attachments.map((att: any) => {
+                              const attDoc = scenario?.resources?.documents?.find((d: any) => d.doc_id === att.id);
+                              return (
+                                <button
+                                  key={att.id}
+                                  onClick={() => { if (attDoc) { setSelectedDocId(attDoc.doc_id); setRightPanel("docs"); } }}
+                                  style={{
+                                    display: "inline-flex", alignItems: "center", gap: 4,
+                                    padding: "4px 10px", background: isPlayer ? "rgba(255,255,255,0.15)" : "#fff",
+                                    border: isPlayer ? "1px solid rgba(255,255,255,0.25)" : "1px solid #ddd",
+                                    borderRadius: 8, fontSize: 11, fontWeight: 600,
+                                    color: isPlayer ? "#fff" : "#5b5fc7", cursor: attDoc ? "pointer" : "default",
+                                  }}
+                                >
+                                  📄 {att.label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
                   );
@@ -2906,11 +3080,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                           {selectedMail.attachments.map((a: any) => {
                             // Match attachment to scenario document
                             const doc = scenario?.resources?.documents?.find((d: any) => d.doc_id === a.id);
+                            const hasContent = !!(doc?.content);
                             const hasFile = doc?.file_path;
                             const hasImage = doc?.image_path;
                             const isPDF = hasFile && doc.file_path!.endsWith(".pdf");
                             const isImage = !!hasImage;
-                            const fileIcon = isPDF ? "📄" : isImage ? "🖼️" : "📁";
+                            const isClickable = hasContent || isPDF || isImage;
+                            const fileIcon = isPDF ? "📄" : isImage ? "🖼️" : "📄";
                             const fileType = isPDF ? "PDF" : isImage ? "Image" : "Document";
 
                             return (
@@ -2919,17 +3095,16 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                                 style={{
                                   display: "flex", alignItems: "center", gap: 8,
                                   padding: "8px 12px", background: "#fff", borderRadius: 6,
-                                  border: "1px solid #ddd", cursor: hasFile || hasImage ? "pointer" : "default",
+                                  border: "1px solid #ddd", cursor: isClickable ? "pointer" : "default",
                                   transition: "all .15s", minWidth: 180, maxWidth: 280,
                                 }}
-                                onMouseEnter={(e) => { if (hasFile || hasImage) e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.background = "#f0f0ff"; }}
+                                onMouseEnter={(e) => { if (isClickable) { e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.background = "#f0f0ff"; } }}
                                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#ddd"; e.currentTarget.style.background = "#fff"; }}
                                 onClick={() => {
-                                  if (isPDF && hasFile) {
-                                    window.open(`/api/download?file=${encodeURIComponent(doc.file_path!)}`, "_blank");
-                                  } else if (isImage && hasImage) {
-                                    // Switch to docs tab and select this document
-                                    setMainView("docs");
+                                  if (doc) {
+                                    // Open document in the docs panel
+                                    setSelectedDocId(doc.doc_id);
+                                    setRightPanel("docs");
                                   }
                                 }}
                               >
@@ -2940,8 +3115,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                                   </div>
                                   <div style={{ fontSize: 10, color: "#888" }}>{fileType}</div>
                                 </div>
-                                {(hasFile || hasImage) && (
-                                  <span style={{ fontSize: 14, color: "#5b5fc7", flexShrink: 0 }} title="Ouvrir">⬇</span>
+                                {isClickable && (
+                                  <span style={{ fontSize: 14, color: "#5b5fc7", flexShrink: 0 }} title="Consulter">📖</span>
                                 )}
                               </div>
                             );
@@ -3348,6 +3523,38 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     {((selectedDoc as any).usable_as_pj || (selectedDoc as any).usable_as_attachment) && (
                       <div style={{ marginTop: 10, fontSize: 11, color: "#44b553", fontWeight: 600 }}>
                         ✓ Joignable en pièce jointe
+                      </div>
+                    )}
+                    {/* ── Signature visuelle du pacte ── */}
+                    {selectedDoc.doc_id === "pacte_associes" && currentPhaseId === "phase_3_pacte" && (
+                      <div style={{ marginTop: 16 }}>
+                        {pacteSigned ? (
+                          <div style={{
+                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
+                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
+                            display: "flex", alignItems: "center", gap: 10,
+                          }}>
+                            <span style={{ fontSize: 20 }}>✅</span>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Pacte signé</div>
+                              <div style={{ fontSize: 11, color: "#666" }}>Vous pouvez maintenant le renvoyer par mail.</div>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowSignatureView(true)}
+                            style={{
+                              width: "100%", padding: "12px 20px",
+                              background: "linear-gradient(135deg, #5b5fc7, #4a4eb3)",
+                              border: "1px solid rgba(91,95,199,0.4)", borderRadius: 10,
+                              color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                              boxShadow: "0 4px 16px rgba(91,95,199,0.2)",
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
+                            }}
+                          >
+                            ✍️ Ouvrir la vue de signature
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

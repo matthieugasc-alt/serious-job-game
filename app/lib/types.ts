@@ -293,6 +293,12 @@ export type DocumentDefinition = {
 
   /** Optional image path for image-type documents */
   image_path?: string;
+
+  /** Document text content (injected server-side from .md files) */
+  content?: string;
+
+  /** Whether this document can be used as PJ (alias for usable_as_attachment) */
+  usable_as_pj?: boolean;
 };
 
 /**
