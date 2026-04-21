@@ -364,15 +364,34 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const currentPhaseConfig = scenario?.phases?.[session?.currentPhaseIndex];
 
   // Per-contact conversation filtering
+  // For Founder interview phases (single ai_actor), show ALL messages in the phase
+  // so Alexandre's introductions and transitions remain visible alongside the candidate.
+  const currentPhaseAiActors = scenario?.phases?.[session?.currentPhaseIndex]?.ai_actors || [];
   const filteredConversation = useMemo(() => {
     if (!selectedContact) return conversation;
+
+    // Founder interview phases: show all messages (Alexandre intros + candidate)
+    // Detect: single ai_actor in phase = dedicated interview
+    if (currentPhaseAiActors.length === 1) {
+      const phaseActorId = currentPhaseAiActors[0];
+      return conversation.filter((msg: any) => {
+        if (msg.role === "system") return false;
+        if (msg.role === "player") return msg.toActor === phaseActorId;
+        // Show messages from the phase's ai_actor AND from any other actor
+        // (e.g., Alexandre's transition messages)
+        if (msg.role === "npc") return true;
+        return false;
+      });
+    }
+
+    // Multi-actor phases: standard per-contact filtering
     return conversation.filter((msg: any) => {
-      if (msg.role === "system") return false; // system messages go to all
+      if (msg.role === "system") return false;
       if (msg.role === "player") return msg.toActor === selectedContact;
       if (msg.role === "npc") return msg.actor === selectedContact;
       return false;
     });
-  }, [conversation, selectedContact]);
+  }, [conversation, selectedContact, currentPhaseAiActors.length]);
 
   // Track which contacts have unread messages (messages the player hasn't "seen" by clicking on them)
   const lastSeenRef = useRef<Record<string, number>>({});
@@ -633,6 +652,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             });
             if (cpRes.ok) {
               const cpData = await cpRes.json();
+
+              // Scenario 0 abandon → campaign deleted, redirect to intro
+              if (cpData.resetCampaign) {
+                router.replace("/founder/intro");
+                return;
+              }
+
               if (cpData.isResume && cpData.resumePhaseIndex > 0) {
                 // Fast-forward: mark earlier phases as completed and jump to resume phase
                 for (let i = 0; i < cpData.resumePhaseIndex; i++) {
@@ -667,6 +693,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             console.warn("[founder] checkpoint check failed:", e);
           }
         }
+
+        // ── Inject entry_events for the active phase (critical for phase 0!) ──
+        injectPhaseEntryEvents(s);
 
         setSession(s);
         setLoading(false);

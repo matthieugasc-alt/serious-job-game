@@ -35,9 +35,31 @@ export default function FounderIntroPage() {
         return;
       }
 
-      // If existing campaign already in progress, go to dashboard
+      // If existing campaign: check if scenario 0 is already completed
       if (data.existing) {
-        router.push(`/founder/${campaign.id}`);
+        const hasCompletedS0 = (campaign.completedScenarios || []).some(
+          (s: any) => s.scenarioId === "founder_00_cto"
+        );
+        if (hasCompletedS0) {
+          // S0 done → go to dashboard
+          router.push(`/founder/${campaign.id}`);
+          return;
+        }
+        // S0 not done → launch S0 directly (no dashboard before it's completed)
+        if (campaign.pendingScenarioId !== "founder_00_cto") {
+          await fetch("/api/founder/campaigns", {
+            method: "PATCH",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              campaignId: campaign.id,
+              pendingScenarioId: "founder_00_cto",
+            }),
+          });
+        }
+        router.push(`/scenarios/founder_00_cto/play`);
         return;
       }
 

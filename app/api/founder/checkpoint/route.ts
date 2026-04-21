@@ -6,7 +6,10 @@ import {
   advanceCheckpoint,
   clearCheckpoint,
   ABANDON_PENALTY,
+  SCENARIO_0_ID,
 } from '@/app/lib/founder';
+import * as fs from 'fs';
+import * as path from 'path';
 
 /**
  * POST /api/founder/checkpoint
@@ -40,8 +43,20 @@ export async function POST(req: NextRequest) {
   switch (action) {
     case 'enter': {
       const result = handleScenarioEntry(campaign, scenarioId);
+
+      // Scenario 0 abandon → delete campaign entirely, signal redirect
+      if (result.resetCampaign) {
+        const campaignsDir = path.join(process.cwd(), 'data', 'founder_campaigns');
+        const campaignFile = path.join(campaignsDir, `${campaign.id}.json`);
+        if (fs.existsSync(campaignFile)) {
+          fs.unlinkSync(campaignFile);
+        }
+        return NextResponse.json({ resetCampaign: true });
+      }
+
       return NextResponse.json({
         isResume: result.isResume,
+        resetCampaign: false,
         penaltyApplied: result.penaltyApplied,
         penaltyMonths: result.penaltyMonths,
         resumePhaseIndex: result.resumePhaseIndex,
@@ -51,6 +66,10 @@ export async function POST(req: NextRequest) {
     }
 
     case 'advance': {
+      // Scenario 0: no intermediate checkpoint saves (one-shot)
+      if (scenarioId === SCENARIO_0_ID) {
+        return NextResponse.json({ ok: true });
+      }
       if (typeof phaseIndex !== 'number' || !completedPhaseId) {
         return NextResponse.json(
           { error: 'phaseIndex (number) and completedPhaseId required for advance' },

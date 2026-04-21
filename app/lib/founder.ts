@@ -307,17 +307,27 @@ export function findActiveCampaign(userId: string): FounderCampaign | null {
   return campaigns.find((c) => c.status !== 'completed') || null;
 }
 
+/** Scenario 0 is played in one sitting — no checkpoint, no resume. */
+export const SCENARIO_0_ID = 'founder_00_cto';
+
 /**
  * Handle a player entering a scenario play page.
- * - If no checkpoint: first entry → create checkpoint, no penalty.
- * - If checkpoint exists for same scenario: abandon detected → apply penalty once,
- *   return resume info.
+ *
+ * SPECIAL CASE — Scenario 0 ("Trouver un CTO"):
+ *   Played in one sitting. If a checkpoint already exists → the player
+ *   abandoned → signal `resetCampaign: true`. The caller (API route)
+ *   is responsible for deleting the campaign file.
+ *
+ * ALL OTHER SCENARIOS:
+ *   - No checkpoint → first entry, create one.
+ *   - Checkpoint exists → resume with penalty.
  */
 export function handleScenarioEntry(
   campaign: FounderCampaign,
   scenarioId: string,
 ): {
   isResume: boolean;
+  resetCampaign: boolean;
   penaltyApplied: boolean;
   penaltyMonths: number;
   resumePhaseIndex: number;
@@ -325,6 +335,43 @@ export function handleScenarioEntry(
   campaign: FounderCampaign;
 } {
   const cp = campaign.checkpoint;
+
+  // ── Scenario 0: one-shot, no checkpoint resume ──
+  if (scenarioId === SCENARIO_0_ID) {
+    if (cp && cp.scenarioId === SCENARIO_0_ID) {
+      // Abandon detected → signal full reset
+      return {
+        isResume: false,
+        resetCampaign: true,
+        penaltyApplied: false,
+        penaltyMonths: 0,
+        resumePhaseIndex: 0,
+        resumeCompletedPhases: [],
+        campaign,
+      };
+    }
+    // First entry → create a checkpoint (so we can detect abandon next time)
+    campaign.checkpoint = {
+      scenarioId,
+      phaseIndex: 0,
+      completedPhases: [],
+      abandonCount: 0,
+      penaltiesApplied: 0,
+      savedAt: new Date().toISOString(),
+    };
+    saveCampaign(campaign);
+    return {
+      isResume: false,
+      resetCampaign: false,
+      penaltyApplied: false,
+      penaltyMonths: 0,
+      resumePhaseIndex: 0,
+      resumeCompletedPhases: [],
+      campaign,
+    };
+  }
+
+  // ── Other scenarios: standard checkpoint logic ──
 
   // Case 1: No checkpoint or different scenario → first entry
   if (!cp || cp.scenarioId !== scenarioId) {
@@ -339,6 +386,7 @@ export function handleScenarioEntry(
     saveCampaign(campaign);
     return {
       isResume: false,
+      resetCampaign: false,
       penaltyApplied: false,
       penaltyMonths: 0,
       resumePhaseIndex: 0,
@@ -369,6 +417,7 @@ export function handleScenarioEntry(
 
   return {
     isResume: true,
+    resetCampaign: false,
     penaltyApplied,
     penaltyMonths,
     resumePhaseIndex: cp.phaseIndex,

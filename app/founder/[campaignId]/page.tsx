@@ -109,6 +109,8 @@ interface Campaign {
   state: FounderState;
   completedScenarios: CompletedScenario[];
   lastMicroDebrief: MicroDebrief | null;
+  hasAdvisoryBoard: boolean;
+  checkpoint: any;
 }
 
 interface OutcomeResult {
@@ -306,6 +308,26 @@ export default function FounderDashboardPage() {
       <div style={S.loaderWrap}>
         <p style={{ color: "#ef4444", fontSize: 15, marginBottom: 16 }}>{error || "Campagne introuvable"}</p>
         <button onClick={() => router.push("/")} style={S.ghostBtn}>Retour</button>
+      </div>
+    );
+  }
+
+  // ── Guard: redirect to S0 if it hasn't been completed yet ──
+  // The dashboard should only appear AFTER scenario 0 (company doesn't exist before)
+  const hasCompletedS0 = campaign.completedScenarios.some(
+    (s) => s.scenarioId === "founder_00_cto"
+  );
+  useEffect(() => {
+    if (!hasCompletedS0 && campaign.status !== "completed") {
+      router.replace(`/scenarios/founder_00_cto/play`);
+    }
+  }, [hasCompletedS0, campaign.status]);
+
+  if (!hasCompletedS0 && campaign.status !== "completed") {
+    return (
+      <div style={S.loaderWrap}>
+        <div style={S.loaderPulse} />
+        <p style={S.loaderText}>Redirection vers le scénario 0...</p>
       </div>
     );
   }
@@ -571,30 +593,139 @@ export default function FounderDashboardPage() {
         </section>
       )}
 
-      {/* ── Admin Debug Panel (super_admin only) ────────────────── */}
+      {/* ── Admin Control Panel (super_admin only) ────────────────── */}
       {userRole === "super_admin" && (
         <section style={S.debugPanel}>
           <div style={S.debugHeader}>
             <span style={S.debugDot} />
-            <span style={S.debugTag}>Debug Admin</span>
+            <span style={S.debugTag}>Contrôle Admin</span>
           </div>
           <p style={S.debugInfo}>
-            Index actuel : {campaign.currentScenarioIndex} · Pending : {campaign.pendingScenarioId || "aucun"} · Status : {campaign.status}
+            Index : {campaign.currentScenarioIndex} · Pending : {campaign.pendingScenarioId || "—"} · Status : {campaign.status}
           </p>
-          <div style={S.debugGrid}>
-            {FOUNDER_TIMELINE.map((entry, i) => (
-              <button
-                key={entry.scenarioId}
-                onClick={() => debugJumpTo(i)}
-                style={{
-                  ...S.debugBtn,
-                  ...(i === campaign.currentScenarioIndex ? S.debugBtnActive : {}),
-                }}
-              >
-                <span style={S.debugBtnIdx}>{i}</span>
-                <span style={S.debugBtnTitle}>{entry.title}</span>
-              </button>
-            ))}
+
+          {/* ── Scenario Slider ── */}
+          <div style={{ padding: "12px 0 4px" }}>
+            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", textTransform: "uppercase" as const, letterSpacing: 1.5, marginBottom: 10, fontWeight: 700 }}>
+              Navigation scénarios
+            </p>
+            {/* Track line */}
+            <div style={{ position: "relative" as const, height: 40, margin: "0 0 8px" }}>
+              <div style={{ position: "absolute" as const, top: 18, left: 0, right: 0, height: 4, background: "rgba(255,255,255,0.06)", borderRadius: 2 }} />
+              {/* Progress fill */}
+              <div style={{ position: "absolute" as const, top: 18, left: 0, width: `${Math.min(100, (campaign.currentScenarioIndex / Math.max(1, TOTAL_SCENARIOS - 1)) * 100)}%`, height: 4, background: "linear-gradient(90deg, #5b5fc7, #7c7fff)", borderRadius: 2, transition: "width 0.3s" }} />
+              {/* Nodes */}
+              {FOUNDER_TIMELINE.map((entry, i) => {
+                const isCompleted2 = campaign.completedScenarios.some((s) => s.scenarioId === entry.scenarioId);
+                const isCurrent = i === campaign.currentScenarioIndex;
+                const pct = TOTAL_SCENARIOS <= 1 ? 50 : (i / (TOTAL_SCENARIOS - 1)) * 100;
+                return (
+                  <button
+                    key={entry.scenarioId}
+                    onClick={() => debugJumpTo(i)}
+                    title={`${entry.title} (index ${i})`}
+                    style={{
+                      position: "absolute" as const,
+                      left: `${pct}%`,
+                      top: 8,
+                      transform: "translateX(-50%)",
+                      width: isCurrent ? 24 : 20,
+                      height: isCurrent ? 24 : 20,
+                      borderRadius: "50%",
+                      background: isCompleted2
+                        ? "#4ade80"
+                        : isCurrent
+                          ? "#5b5fc7"
+                          : "rgba(255,255,255,0.1)",
+                      border: isCurrent
+                        ? "3px solid #a5a8ff"
+                        : isCompleted2
+                          ? "2px solid rgba(74,222,128,0.4)"
+                          : "2px solid rgba(255,255,255,0.15)",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 9,
+                      fontWeight: 700,
+                      color: isCompleted2 || isCurrent ? "#fff" : "rgba(255,255,255,0.4)",
+                      transition: "all 0.2s",
+                      boxShadow: isCurrent ? "0 0 12px rgba(91,95,199,0.5)" : "none",
+                      padding: 0,
+                    }}
+                  >
+                    {isCompleted2 ? "✓" : i}
+                  </button>
+                );
+              })}
+            </div>
+            {/* Labels under nodes */}
+            <div style={{ position: "relative" as const, height: 28 }}>
+              {FOUNDER_TIMELINE.map((entry, i) => {
+                const pct = TOTAL_SCENARIOS <= 1 ? 50 : (i / (TOTAL_SCENARIOS - 1)) * 100;
+                const isCurrent = i === campaign.currentScenarioIndex;
+                return (
+                  <span
+                    key={entry.scenarioId}
+                    style={{
+                      position: "absolute" as const,
+                      left: `${pct}%`,
+                      transform: "translateX(-50%)",
+                      fontSize: 8,
+                      color: isCurrent ? "#a5a8ff" : "rgba(255,255,255,0.25)",
+                      fontWeight: isCurrent ? 700 : 400,
+                      whiteSpace: "nowrap" as const,
+                      textAlign: "center" as const,
+                      maxWidth: 70,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    S{i}
+                  </span>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Reset Button ── */}
+          <div style={{ borderTop: "1px solid rgba(255,255,255,0.06)", paddingTop: 12, marginTop: 8 }}>
+            <button
+              onClick={async () => {
+                if (!confirm("Supprimer la campagne et revenir à l'intro Founder ?")) return;
+                try {
+                  await fetch("/api/founder/campaigns", {
+                    method: "DELETE",
+                    headers: {
+                      "Content-Type": "application/json",
+                      Authorization: `Bearer ${token}`,
+                    },
+                    body: JSON.stringify({ campaignId: campaign.id }),
+                  });
+                  router.push("/founder/intro");
+                } catch (err) {
+                  console.error("Reset failed:", err);
+                }
+              }}
+              style={{
+                width: "100%",
+                padding: "10px 16px",
+                background: "rgba(239,68,68,0.08)",
+                border: "1px solid rgba(239,68,68,0.25)",
+                borderRadius: 8,
+                color: "#ef4444",
+                fontSize: 12,
+                fontWeight: 700,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 8,
+              }}
+            >
+              <span>🗑</span>
+              Reset complet — Supprimer la campagne
+            </button>
           </div>
         </section>
       )}
