@@ -1,0 +1,383 @@
+{
+  "scenario_id": "founder_01_incubator",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Entrée en incubateur",
+    "subtitle": "Convaincre un jury de sélection avec un pitch solide",
+    "description": "Tu vises l'incubateur Bordeaux Technowest. Tu dois préparer ton one-pager, pitcher face à un jury de 3 personnes et répondre à leurs questions en direct. Le tout à l'oral.",
+    "job_family": "founder",
+    "difficulty": "intermediate",
+    "estimated_duration_min": 20,
+    "tags": ["incubateur", "pitch", "one-pager", "jury", "oral", "e-santé"],
+    "show_objective": false,
+    "show_background_fact": false
+  },
+  "introduction": {
+    "header": {
+      "tag": "Founder Mode · Scénario 1",
+      "title": "Entrée en incubateur",
+      "subtitle": "Mois 2–4 — Construction du MVP"
+    },
+    "cards": [
+      {
+        "title": "La situation",
+        "content": "<p>Alexandre a obtenu un créneau de passage devant le comité de sélection de <strong>Bordeaux Technowest</strong>, un incubateur généraliste bien connecté dans l'écosystème bordelais.</p><p>Tu as 3 jours pour préparer ton dossier.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ta mission",
+        "content": "<p><strong>Phase 1</strong> — Remplir le one-pager d'Orisio (template fourni) et le soumettre au jury.</p><p><strong>Phase 2</strong> — Elevator pitch de <strong>40 secondes</strong> chrono. Pas une de plus.</p><p><strong>Phase 3</strong> — 5 minutes de questions-réponses avec le jury. Ça va vite.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Le jury",
+        "content": "<p><strong>Claire Dumont</strong> — Directrice de Technowest. Profil business, 15 ans dans l'accompagnement startup.</p><p><strong>Thomas Vidal</strong> — Mentor technique. CTO expérimenté, ex-startup fintech.</p><p><strong>Dr. Isabelle Morin</strong> — Experte santé. Ancienne directrice d'hôpital, consultante e-santé.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Conseil",
+        "content": "<p>Un bon one-pager est <strong>concis, chiffré et honnête</strong>. Le jury voit 8 startups aujourd'hui.</p><p>L'elevator pitch c'est <strong>40 secondes</strong>. C'est court. Prépare-le. Problème, solution, pourquoi toi, en 3 phrases.</p><p>Ensuite les questions fusent pendant 5 minutes. Pas de temps mort.</p>",
+        "column": "right",
+        "type": "tip"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Orisio a maintenant un CTO. L'étape suivante est d'intégrer un incubateur pour bénéficier de mentorat, de réseau et de crédibilité. Bordeaux Technowest organise une session de sélection ce jeudi.",
+    "mission": "Préparer un one-pager convaincant, délivrer un elevator pitch de 40 secondes et survivre à 5 minutes de questions du jury.",
+    "initial_situation": "Tu as le template du one-pager et les infos du marché. Le format : 40 secondes de pitch puis 5 minutes de questions. C'est rapide et intense.",
+    "trigger": "Alexandre t'envoie la date du passage et le template à remplir."
+  },
+  "timeline": {
+    "scenario_start": "2025-10-20T09:00:00",
+    "sim_speed_multiplier": 1
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "(joueur)",
+      "role": "CEO, Orisio",
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#5b5fc7",
+        "initials": "CEO"
+      }
+    },
+    {
+      "actor_id": "alexandre_morel",
+      "name": "Alexandre Morel",
+      "role": "CPO & Cofondateur, Orisio",
+      "personality": "Enthousiaste, encourage le joueur, donne des conseils terrain.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/alexandre_morel.md",
+      "avatar": {
+        "color": "#1565C0",
+        "initials": "AM"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Ton associé chirurgien",
+      "tts_voice": "onyx"
+    },
+    {
+      "actor_id": "claire_dumont",
+      "name": "Claire Dumont",
+      "role": "Directrice, Bordeaux Technowest",
+      "personality": "Bienveillante mais exigeante. Pose des questions business : marché, modèle, traction. Ne supporte pas le flou.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/claire_dumont.md",
+      "avatar": {
+        "color": "#AD1457",
+        "initials": "CD"
+      },
+      "visible_in_contacts": false,
+      "tts_voice": "nova"
+    },
+    {
+      "actor_id": "thomas_vidal",
+      "name": "Thomas Vidal",
+      "role": "Mentor technique, Technowest — Ex-CTO fintech",
+      "personality": "Direct, technique, provocateur. Challenge la faisabilité et les choix tech. Pas méchant mais cash.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/thomas_vidal.md",
+      "avatar": {
+        "color": "#2E7D32",
+        "initials": "TV"
+      },
+      "visible_in_contacts": false,
+      "tts_voice": "echo"
+    },
+    {
+      "actor_id": "isabelle_morin",
+      "name": "Dr. Isabelle Morin",
+      "role": "Experte santé — Ancienne directrice d'hôpital",
+      "personality": "Calme, précise, connaît parfaitement le terrain hospitalier. Teste la connaissance du joueur sur le secteur.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/isabelle_morin.md",
+      "avatar": {
+        "color": "#E65100",
+        "initials": "IM"
+      },
+      "visible_in_contacts": false,
+      "tts_voice": "shimmer"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    },
+    {
+      "channel_id": "voice",
+      "type": "visio",
+      "label": "Oral — Jury",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "one_pager_template",
+        "label": "Template One-Pager — Orisio",
+        "file_path": "documents/one_pager_orisio.md",
+        "contains": ["one-pager", "template", "marché", "équipe", "modèle"],
+        "usable_as_pj": true
+      }
+    ]
+  },
+  "constraints": {
+    "pitch_duration_max_sec": 300,
+    "jury_expects_honesty": true
+  },
+  "state": {
+    "flags": {
+      "one_pager_submitted": false,
+      "pitch_delivered": false,
+      "qa_completed": false,
+      "jury_convinced": false,
+      "jury_hesitant": false,
+      "jury_rejected": false
+    }
+  },
+  "initial_events": [
+    {
+      "event_id": "alexandre_intro",
+      "type": "chat",
+      "actor": "alexandre_morel",
+      "content": "Bonne nouvelle ! J'ai réussi à nous décrocher un passage devant le jury de Technowest jeudi matin. C'est un incubateur généraliste mais ils ont un bon réseau santé et ils ont accompagné 2-3 startups medtech. Le format : tu envoies un one-pager avant, puis 5 minutes de pitch oral et 10 minutes de questions. Je t'ai mis le template dans les documents. Remplis-le et envoie-le-moi, je te donne mon avis avant qu'on le soumette.",
+      "attachments": [
+        { "id": "one_pager_template", "label": "Template One-Pager" }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1_onepager",
+      "title": "Préparer le one-pager",
+      "objective": "Remplir le template du one-pager avec les infos d'Orisio et l'envoyer par mail.",
+      "phase_focus": "Le joueur remplit le one-pager. Il peut discuter avec Alexandre pour des conseils. Le one-pager doit couvrir : problème, solution, marché, modèle, traction, équipe, demande.",
+      "duration_target_min": 7,
+      "max_duration_sec": 600,
+      "active_channels": ["mail", "chat"],
+      "ai_actors": ["alexandre_morel"],
+      "mail_config": {
+        "enabled": true,
+        "kind": "one_pager_submission",
+        "defaults": {
+          "to": "jury@technowest.fr",
+          "cc": "a.morel@orisio.fr",
+          "subject": "Candidature Orisio — One-pager"
+        },
+        "require_attachments": false,
+        "on_send_flags": { "one_pager_submitted": true },
+        "send_label": "Soumettre le one-pager",
+        "send_advances_phase": true
+      },
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "problem_defined",
+            "description": "Le one-pager décrit un problème concret et chiffré",
+            "points": 2
+          },
+          {
+            "criterion_id": "market_sized",
+            "description": "Le marché est chiffré (nombre d'établissements, TAM)",
+            "points": 2
+          },
+          {
+            "criterion_id": "team_presented",
+            "description": "L'équipe est présentée avec des rôles clairs",
+            "points": 1
+          },
+          {
+            "criterion_id": "business_model_clear",
+            "description": "Le modèle économique est précisé (prix, récurrence)",
+            "points": 2
+          },
+          {
+            "criterion_id": "honest_about_stage",
+            "description": "Le joueur est honnête sur le stade du projet (pas de produit, pas de client)",
+            "points": 1
+          }
+        ]
+      },
+      "completion_rules": {
+        "any_flags": ["one_pager_submitted"]
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2_pitch"
+    },
+    {
+      "phase_id": "phase_2_pitch",
+      "title": "Elevator pitch (40 secondes)",
+      "objective": "Délivrer un elevator pitch de 40 secondes. Problème, solution, pourquoi toi. Chrono lancé.",
+      "phase_focus": "Le joueur a EXACTEMENT 40 secondes pour pitcher. Le jury écoute en silence. Le pitch doit couvrir en 3-4 phrases max : quel problème, quelle solution, pourquoi cette équipe. Pas de blabla, pas d'intro, pas de remerciements.",
+      "intro_message": "Le chrono est lancé. 40 secondes. Go.",
+      "interaction_mode": "voice_qa",
+      "voice_qa_config": {
+        "max_duration_sec": 40,
+        "jury_silent_during_pitch": true,
+        "strict_timer": true
+      },
+      "duration_target_min": 1,
+      "max_duration_sec": 50,
+      "active_channels": ["voice"],
+      "ai_actors": [],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "problem_stated",
+            "description": "Le problème est énoncé clairement en une phrase",
+            "points": 2
+          },
+          {
+            "criterion_id": "solution_stated",
+            "description": "La solution est expliquée concrètement",
+            "points": 2
+          },
+          {
+            "criterion_id": "team_credibility",
+            "description": "Le joueur mentionne pourquoi son équipe est légitime (chirurgien cofondateur)",
+            "points": 2
+          },
+          {
+            "criterion_id": "under_40_seconds",
+            "description": "Le pitch tient en 40 secondes ou moins",
+            "points": 2
+          }
+        ]
+      },
+      "completion_rules": {
+        "max_exchanges": 1
+      },
+      "on_complete": {
+        "set_flags": { "pitch_delivered": true }
+      },
+      "auto_advance": true,
+      "next_phase": "phase_3_qa"
+    },
+    {
+      "phase_id": "phase_3_qa",
+      "title": "Questions du jury",
+      "objective": "Répondre aux questions des 3 membres du jury. Ils vont challenger le projet, le marché, la tech et ta capacité d'exécution.",
+      "phase_focus": "Les 3 jurés enchaînent les questions sans temps mort. Le rythme est rapide : une question, une réponse, on passe à la suivante. Claire attaque sur le business (marché, pricing, cycle de vente), Thomas challenge la tech (HDS, stack, faisabilité), Isabelle teste la connaissance terrain (parcours patient, bloc opératoire, adoption). Le joueur n'a pas le temps de réfléchir 30 secondes — c'est du tac au tac.",
+      "interaction_mode": "voice_qa",
+      "voice_qa_config": {
+        "max_duration_sec": 300,
+        "jury_takes_turns": true,
+        "rapid_fire": true
+      },
+      "duration_target_min": 5,
+      "max_duration_sec": 360,
+      "active_channels": ["voice"],
+      "ai_actors": ["claire_dumont", "thomas_vidal", "isabelle_morin"],
+      "entry_events": [
+        {
+          "event_id": "jury_starts",
+          "actor": "claire_dumont",
+          "content": "Merci pour cette présentation. On va prendre quelques minutes pour vous poser des questions. Je commence.",
+          "channel": "voice",
+          "delay_ms": 0
+        }
+      ],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "handles_business_questions",
+            "description": "Répond de manière crédible aux questions business (marché, pricing, cycle de vente)",
+            "points": 3
+          },
+          {
+            "criterion_id": "handles_tech_questions",
+            "description": "Répond aux questions techniques sans survendre (HDS, MVP scope, faisabilité)",
+            "points": 3
+          },
+          {
+            "criterion_id": "handles_health_questions",
+            "description": "Montre une bonne connaissance du terrain hospitalier",
+            "points": 3
+          },
+          {
+            "criterion_id": "honest_about_unknowns",
+            "description": "Admet ce qu'il ne sait pas au lieu de bluffer",
+            "points": 2
+          }
+        ]
+      },
+      "completion_rules": {
+        "max_exchanges": 8
+      },
+      "on_complete": {
+        "set_flags": { "qa_completed": true }
+      },
+      "auto_advance": true
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Accepté",
+      "priority": 1,
+      "content": "Le jury a été convaincu. Orisio intègre la promotion d'automne de Technowest. Tu as accès au mentorat, aux locaux et au réseau d'établissements de santé de l'incubateur.",
+      "conditions": {
+        "min_score": 15
+      }
+    },
+    {
+      "ending_id": "partial_success",
+      "label": "Liste d'attente",
+      "priority": 2,
+      "content": "Le jury est intéressé mais pas totalement convaincu. Tu es en liste d'attente. Claire Dumont te propose de re-postuler dans 3 mois avec un MVP fonctionnel.",
+      "conditions": {
+        "min_score": 8
+      }
+    },
+    {
+      "ending_id": "failure",
+      "label": "Refusé",
+      "priority": 3,
+      "content": "Le jury n'a pas été convaincu. Le projet manquait de clarté, le marché n'était pas assez défini, ou les réponses aux questions n'étaient pas à la hauteur. Il faudra trouver un autre chemin."
+    }
+  ],
+  "default_ending": {
+    "ending_id": "partial_success",
+    "label": "Liste d'attente",
+    "content": "Le jury reste sur une impression mitigée. Orisio est en liste d'attente."
+  },
+  "competencies_evaluated": [
+    "Synthèse et rédaction (one-pager)",
+    "Communication orale (pitch)",
+    "Résistance à la pression (questions jury)",
+    "Connaissance marché et terrain"
+  ]
+}

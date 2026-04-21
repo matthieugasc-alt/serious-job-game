@@ -6,7 +6,7 @@ import {
   saveCampaign,
   loadRules,
   resolveOutcome,
-  applyDelta,
+  applyOutcomeToCampaign,
 } from '@/app/lib/founder';
 
 /**
@@ -67,31 +67,33 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 
-  // Apply deltas
+  // Apply deltas + flags via unified helper
   const stateBefore = { ...campaign.state };
-  campaign.state = applyDelta(campaign.state, outcome.deltas);
+  const updatedCampaign = applyOutcomeToCampaign(campaign, outcome);
 
   // Record completion
-  campaign.completedScenarios.push({
+  updatedCampaign.completedScenarios.push({
     scenarioId,
     outcomeId: outcome.outcomeId,
     signal: outcome.signal,
-    stateAfter: { ...campaign.state },
+    stateAfter: { ...updatedCampaign.state },
     completedAt: new Date().toISOString(),
   });
 
+  // Clear checkpoint (anti-rollback: scenario is done)
+  updatedCampaign.checkpoint = null;
+
   // Advance to next scenario
-  campaign.currentScenarioIndex += 1;
-  campaign.pendingScenarioId = null;
-  campaign.lastMicroDebrief = outcome.microDebrief;
+  updatedCampaign.currentScenarioIndex += 1;
+  updatedCampaign.pendingScenarioId = null;
 
   // Check if all scenarios done
   const scenarioKeys = Object.keys(rules.scenarios);
-  if (campaign.currentScenarioIndex >= scenarioKeys.length) {
-    campaign.status = 'completed';
+  if (updatedCampaign.currentScenarioIndex >= scenarioKeys.length) {
+    updatedCampaign.status = 'completed';
   }
 
-  saveCampaign(campaign);
+  saveCampaign(updatedCampaign);
 
   return NextResponse.json({
     outcome: {
@@ -102,8 +104,8 @@ export async function POST(req: NextRequest) {
     },
     microDebrief: outcome.microDebrief,
     stateBefore,
-    stateAfter: campaign.state,
+    stateAfter: updatedCampaign.state,
     deltas: outcome.deltas,
-    campaign,
+    campaign: updatedCampaign,
   });
 }

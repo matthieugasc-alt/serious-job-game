@@ -1,0 +1,356 @@
+{
+  "scenario_id": "founder_02_mvp",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Construire le MVP",
+    "subtitle": "Cadrer le produit, contenir le perfectionnisme et négocier le dev",
+    "description": "Alexandre veut un produit parfait. Le devis est 2x trop cher. Tu dois recadrer ton CPO, tailler dans le scope et négocier avec le prestataire pour sortir un MVP avec tes 15 000 €.",
+    "job_family": "founder",
+    "difficulty": "intermediate",
+    "estimated_duration_min": 25,
+    "tags": ["MVP", "négociation", "prestataire", "scope", "budget", "cofondateur"],
+    "show_objective": false,
+    "show_background_fact": false
+  },
+  "introduction": {
+    "header": {
+      "tag": "Founder Mode · Scénario 2",
+      "title": "Construire le MVP",
+      "subtitle": "Mois 5–6 — MVP utilisable"
+    },
+    "cards": [
+      {
+        "title": "La situation",
+        "content": "<p>Alexandre a fait le boulot terrain : 10 entretiens avec des chirurgiens et une note de cadrage produit. Le problème : sa vision, c'est un produit complet à 150 000 €. Tu as 15 000 €.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ta mission",
+        "content": "<p><strong>Phase 1</strong> — Discuter avec Alexandre pour recentrer le scope sur un vrai MVP.</p><p><strong>Phase 2</strong> — Négocier par mail avec le prestataire NovaDev pour obtenir un devis réaliste.</p><p><strong>Phase 3</strong> — Valider la proposition finale (scope réduit ou equity).</p>",
+        "column": "right"
+      },
+      {
+        "title": "Les documents",
+        "content": "<p>Alexandre t'envoie 3 documents :</p><p>• Synthèse des entretiens (10 chirurgiens)</p><p>• Sa note de cadrage produit (7 modules, 30 semaines…)</p><p>• Un devis NovaDev à 32 150 € HT</p>",
+        "column": "left"
+      },
+      {
+        "title": "Conseil",
+        "content": "<p>La synthèse des entretiens contient du signal et du bruit. Les chirurgiens ont dit beaucoup de choses — pas tout n'est pertinent pour un MVP.</p><p>Le bon réflexe : identifier LE pain point universel et construire uniquement autour de ça.</p>",
+        "column": "right",
+        "type": "tip"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Orisio a un CTO et une place en incubateur. Alexandre Morel a fait de la discovery terrain avec 10 chirurgiens. Il arrive avec une note de cadrage ambitieuse et un devis prestataire bien trop cher.",
+    "mission": "Recadrer la vision produit d'Alexandre, identifier le scope MVP minimal, et négocier un devis réaliste avec NovaDev.",
+    "initial_situation": "15 000 € de trésorerie. Devis à 32 150 € HT (38 580 € TTC). Il faut réduire de moitié ou trouver un arrangement.",
+    "trigger": "Alexandre t'envoie la synthèse, sa note et le devis en mode « regarde, c'est prêt, on lance »."
+  },
+  "timeline": {
+    "scenario_start": "2026-01-10T09:00:00",
+    "sim_speed_multiplier": 1
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "(joueur)",
+      "role": "CEO, Orisio",
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#5b5fc7",
+        "initials": "CEO"
+      }
+    },
+    {
+      "actor_id": "alexandre_morel",
+      "name": "Alexandre Morel",
+      "role": "CPO & Cofondateur, Orisio",
+      "personality": "Perfectionniste, passionné, résistant au scope cut. Convaincu que sortir un produit incomplet va griller la crédibilité d'Orisio auprès des chirurgiens.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/alexandre_morel.md",
+      "avatar": {
+        "color": "#1565C0",
+        "initials": "AM"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Ton associé chirurgien",
+      "tts_voice": "onyx"
+    },
+    {
+      "actor_id": "thomas_novadev",
+      "name": "Thomas Vidal",
+      "role": "Directeur technique, NovaDev Solutions",
+      "personality": "Pro, direct, raisonnable. Ouvert à la négociation mais a ses limites. Peut proposer de l'equity si le cash ne suffit pas.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/thomas_novadev.md",
+      "avatar": {
+        "color": "#37474F",
+        "initials": "TV"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Prestataire dev — NovaDev",
+      "tts_voice": "echo"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "synthese_entretiens",
+        "label": "Synthèse des entretiens — 10 chirurgiens",
+        "file_path": "documents/synthese_entretiens.md",
+        "contains": ["entretiens", "chirurgiens", "annulations", "planning", "bloc", "cadre de bloc"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "note_cadrage",
+        "label": "Note de cadrage produit — Alexandre Morel",
+        "file_path": "documents/note_cadrage_produit.md",
+        "contains": ["cadrage", "modules", "architecture", "planning", "budget", "150k"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "devis_novadev",
+        "label": "Devis NovaDev — 32 150 € HT",
+        "file_path": "documents/devis_prestataire.md",
+        "contains": ["devis", "NovaDev", "développement", "backend", "frontend", "déploiement"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "devis_renegocie",
+        "label": "Devis révisé NovaDev (scope réduit / equity)",
+        "file_path": "documents/devis_renegocie.md",
+        "contains": ["devis", "réduit", "equity", "option A", "option B", "20k"],
+        "usable_as_pj": true
+      }
+    ]
+  },
+  "constraints": {
+    "budget_disponible": 15000,
+    "alexandre_resiste_au_scope_cut": true,
+    "novadev_deadline": "10 jours pour répondre"
+  },
+  "state": {
+    "flags": {
+      "alexandre_convinced": false,
+      "scope_reduced": false,
+      "novadev_contacted": false,
+      "novadev_negotiated": false,
+      "proposal_signed": false,
+      "equity_given_to_novadev": false,
+      "full_cash_deal": false
+    }
+  },
+  "initial_events": [
+    {
+      "event_id": "alexandre_sends_docs",
+      "type": "chat",
+      "actor": "alexandre_morel",
+      "content": "Salut ! Grosse session de boulot. Je t'envoie tout : la synthèse des 10 entretiens que j'ai faits avec les chirurgiens, ma note de cadrage pour le produit, et le devis de NovaDev que j'ai demandé. Franchement c'est du solide, je pense qu'on tient un truc. Le devis est à 32k€ HT, c'est un investissement mais le produit sera complet. On lance ?",
+      "attachments": [
+        { "id": "synthese_entretiens", "label": "Synthèse entretiens" },
+        { "id": "note_cadrage", "label": "Note de cadrage produit" },
+        { "id": "devis_novadev", "label": "Devis NovaDev — 32 150 € HT" }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1_alexandre",
+      "title": "Recadrer la vision produit",
+      "objective": "Discuter avec Alexandre pour le convaincre de réduire le scope. Sa note prévoit 7 modules et 150k€ — il faut revenir à l'essentiel.",
+      "phase_focus": "Discussion avec Alexandre. Il défend sa vision maximaliste. Le joueur doit utiliser les entretiens chirurgiens pour montrer que le pain point universel c'est l'annulation de créneaux, pas tout le reste. Alexandre résiste mais finit par se ranger si les arguments sont bons.",
+      "duration_target_min": 8,
+      "max_duration_sec": 600,
+      "active_channels": ["chat"],
+      "ai_actors": ["alexandre_morel"],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "identified_core_painpoint",
+            "description": "Le joueur identifie l'annulation de créneaux comme le problème central à résoudre",
+            "points": 3,
+            "sets_flag": "core_painpoint_identified"
+          },
+          {
+            "criterion_id": "used_interview_data",
+            "description": "Le joueur cite des verbatims ou des chiffres de la synthèse d'entretiens pour appuyer ses arguments",
+            "points": 2
+          },
+          {
+            "criterion_id": "scope_cut_proposed",
+            "description": "Le joueur propose un scope réduit concret (ex: planning + annulations seulement)",
+            "points": 3,
+            "sets_flag": "scope_reduced"
+          },
+          {
+            "criterion_id": "alexandre_convinced",
+            "description": "Alexandre finit par accepter le scope réduit",
+            "points": 2,
+            "sets_flag": "alexandre_convinced"
+          }
+        ]
+      },
+      "completion_rules": {
+        "any_flags": ["alexandre_convinced"],
+        "max_exchanges": 14
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2_negotiation"
+    },
+    {
+      "phase_id": "phase_2_negotiation",
+      "title": "Négocier avec NovaDev",
+      "objective": "Négocier par mail avec Thomas Vidal (NovaDev) pour obtenir un devis dans ton budget de 15 000 €. Tu peux proposer un scope réduit, un paiement échelonné, ou de l'equity.",
+      "phase_focus": "Échange de mails en quasi-direct avec Thomas de NovaDev. Le joueur doit expliquer ce qu'il veut garder, ce qu'il veut couper, et négocier le prix. Thomas est raisonnable mais ne fera pas de cadeau. Il peut proposer une option equity si le joueur en parle.",
+      "duration_target_min": 8,
+      "max_duration_sec": 600,
+      "active_channels": ["mail", "chat"],
+      "ai_actors": ["thomas_novadev", "alexandre_morel"],
+      "entry_events": [
+        {
+          "event_id": "alex_transition",
+          "actor": "alexandre_morel",
+          "content": "OK, on est alignés sur le scope. Écris à Thomas de NovaDev pour renégocier le devis. Son mail c'est thomas@novadev.fr. Sois direct, explique ce qu'on garde et ce qu'on coupe.",
+          "channel": "chat",
+          "delay_ms": 0
+        }
+      ],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "clear_scope_communicated",
+            "description": "Le joueur communique un scope précis à NovaDev (pas juste « faites moins cher »)",
+            "points": 3
+          },
+          {
+            "criterion_id": "budget_stated",
+            "description": "Le joueur annonce clairement son budget max",
+            "points": 2
+          },
+          {
+            "criterion_id": "negotiation_professional",
+            "description": "Le ton est professionnel et respectueux dans la négociation",
+            "points": 1
+          },
+          {
+            "criterion_id": "deal_reached",
+            "description": "Un accord est trouvé avec NovaDev (cash ou equity)",
+            "points": 3,
+            "sets_flag": "novadev_negotiated"
+          }
+        ]
+      },
+      "completion_rules": {
+        "any_flags": ["novadev_negotiated"],
+        "max_exchanges": 10
+      },
+      "auto_advance": true,
+      "next_phase": "phase_3_sign"
+    },
+    {
+      "phase_id": "phase_3_sign",
+      "title": "Valider la proposition finale",
+      "objective": "NovaDev envoie sa proposition finale. Décide : tu signes en full cash, tu acceptes la version equity, ou tu renégocies encore.",
+      "phase_focus": "Thomas envoie le devis révisé avec 2 options (scope réduit cash ou scope complet avec equity). Le joueur doit choisir et signer. Alexandre donne son avis.",
+      "duration_target_min": 5,
+      "max_duration_sec": 420,
+      "active_channels": ["mail", "chat"],
+      "ai_actors": ["thomas_novadev", "alexandre_morel"],
+      "entry_events": [
+        {
+          "event_id": "novadev_final_proposal",
+          "actor": "thomas_novadev",
+          "channel": "mail",
+          "subject": "Re: Proposition révisée — Orisio",
+          "content": "Suite à nos échanges, voici ma proposition révisée avec deux options. L'option A c'est du cash pur avec un scope réduit à 20k€ HT. L'option B c'est le scope complet mais avec 15k€ en cash et 3% d'equity. Les deux sont sur la table, à vous de voir. Par contre il me faut une réponse sous 10 jours, après ça mon équipe sera prise.",
+          "delay_ms": 2000,
+          "attachments": [
+            { "id": "devis_renegocie", "label": "Devis révisé — Options A & B" }
+          ]
+        }
+      ],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "made_clear_decision",
+            "description": "Le joueur prend une décision claire (option A, option B ou autre)",
+            "points": 2,
+            "sets_flag": "proposal_signed"
+          },
+          {
+            "criterion_id": "equity_considered_carefully",
+            "description": "Le joueur pèse le pour et le contre de donner de l'equity à un prestataire",
+            "points": 2
+          },
+          {
+            "criterion_id": "confirmed_by_mail",
+            "description": "Le joueur confirme sa décision par mail formel à NovaDev",
+            "points": 2
+          }
+        ]
+      },
+      "completion_rules": {
+        "any_flags": ["proposal_signed"]
+      },
+      "auto_advance": true
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "MVP bien cadré",
+      "priority": 1,
+      "content": "Tu as réussi à convaincre Alexandre de réduire le scope, négocié un prix réaliste avec NovaDev, et gardé le contrôle du budget. Le MVP sera livré en 7 semaines, centré sur le vrai pain point : le remplacement des créneaux annulés.",
+      "conditions": {
+        "core_flags": ["alexandre_convinced", "scope_reduced", "proposal_signed"],
+        "min_core_flags": 3
+      }
+    },
+    {
+      "ending_id": "partial_success",
+      "label": "MVP livré mais coûteux",
+      "priority": 2,
+      "content": "Le MVP sera livré, mais tu as dû faire des concessions (equity au prestataire ou budget dépassé). Le produit est viable mais la trésorerie est sous tension.",
+      "conditions": {
+        "core_flags": ["proposal_signed"],
+        "min_core_flags": 1
+      }
+    },
+    {
+      "ending_id": "failure",
+      "label": "Pas de MVP",
+      "priority": 3,
+      "content": "La négociation a échoué. Le scope n'a pas été réduit à temps, le budget n'a pas été bouclé, et NovaDev est passée à un autre projet. Retour à la case départ."
+    }
+  ],
+  "default_ending": {
+    "ending_id": "partial_success",
+    "label": "MVP livré mais coûteux",
+    "content": "Le MVP finit par être livré, mais dans des conditions sous-optimales."
+  },
+  "competencies_evaluated": [
+    "Gestion de cofondateur (recadrage respectueux)",
+    "Priorisation produit (scope cut)",
+    "Négociation prestataire (budget/equity)",
+    "Prise de décision sous contrainte financière"
+  ]
+}

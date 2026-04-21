@@ -80,6 +80,7 @@ interface FounderState {
   techDebt: number;
   investorConfidence: number;
   marketValidation: number;
+  elapsedMonths: number;
 }
 
 interface MicroDebrief {
@@ -134,9 +135,10 @@ const SIGNALS: Record<string, { label: string; bg: string; border: string; text:
 };
 
 // ── Runway helpers ─────────────────────────────────────────────
+const MONTHLY_BURN = 250; // 250€/mois de frais de structure
 function computeRunway(treasury: number): number {
   if (treasury <= 0) return 0;
-  return Math.floor(treasury / 2500);
+  return Math.floor(treasury / MONTHLY_BURN);
 }
 
 function runwayColor(months: number): string {
@@ -426,7 +428,7 @@ export default function FounderDashboardPage() {
           />
         </div>
         <p style={S.runwayDetail}>
-          {st.treasury.toLocaleString("fr-FR")} € / ~2 500 €/mois de burn
+          {st.treasury.toLocaleString("fr-FR")} € / {MONTHLY_BURN} €/mois de burn · Mois {st.elapsedMonths || 0}
         </p>
       </section>
 
@@ -673,6 +675,7 @@ function DebriefOverlay({ outcome, onDismiss }: { outcome: OutcomeResult; onDism
   const visibleDeltas = [
     { label: "Trésorerie", key: "treasury", after: stateAfter.treasury, unit: " €" },
     { label: "Ownership", key: "ownership", after: stateAfter.ownership, unit: "%" },
+    { label: "Temps écoulé", key: "elapsedMonths", after: stateAfter.elapsedMonths, unit: " mois" },
     { label: "MRR", key: "mrr", after: stateAfter.mrr, unit: " €" },
     { label: "Masse salariale", key: "payroll", after: stateAfter.payroll, unit: " €" },
   ].filter((d) => deltas[d.key] !== 0);

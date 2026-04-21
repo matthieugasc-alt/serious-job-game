@@ -1,5 +1,10 @@
 {
-  "version": "1.0",
+  "version": "1.1",
+
+  "constants": {
+    "burnRateMonthly": 250,
+    "burnStartsAfterScenario": 0
+  },
 
   "initialState": {
     "treasury": 15000,
@@ -9,7 +14,8 @@
     "productQuality": 0,
     "techDebt": 0,
     "investorConfidence": 30,
-    "marketValidation": 10
+    "marketValidation": 10,
+    "elapsedMonths": 0
   },
 
   "pitch": {
@@ -38,9 +44,9 @@
       "cpo": {
         "name": "Alexandre Morel",
         "role": "Chief Product Officer. Il definit le besoin, valide les fonctionnalites, ouvre les portes des hopitaux.",
-        "background": "Chirurgien orthopediste au CHU de Bordeaux. 12 ans d'experience. Il vit le probleme tous les jours.",
-        "commitment": "Mi-temps. Il garde son poste a l'hopital. Il ne peut pas se permettre de quitter.",
-        "value": "Sans lui, pas d'acces au terrain. Pas de test clinique, pas de feedback utilisateur, pas de credibilite face aux directeurs de CHU. Il est irremplacable."
+        "background": "Chirurgien orthopediste a la Clinique Saint-Augustin (Bordeaux). 12 ans d'experience. Il vit le probleme tous les jours.",
+        "commitment": "Mi-temps. Il garde son poste a la clinique. Il ne peut pas se permettre de quitter.",
+        "value": "Sans lui, pas d'acces au terrain. Pas de test clinique, pas de feedback utilisateur, pas de credibilite face aux directeurs d'etablissements. Il est irremplacable."
       }
     },
     "stakes": {
@@ -62,74 +68,333 @@
       "order": 0,
       "title": "Trouver un CTO",
       "scenarioId": "founder_00_cto",
+      "invisibleEffects": "Pas de dette technique (pas de produit). Impact sur la confiance investisseurs : un fondateur qui repere un piege juridique inspire confiance. Pas de burn (pre-structure).",
       "outcomes": {
         "success": {
-          "outcomeId": "clean_execution",
+          "outcomeId": "clean_pacte",
           "label": "Recrutement maitrise",
-          "summary": "Tu as trouve un CTO freelance solide a des conditions raisonnables. Pas de co-fondateur technique, mais un executant fiable qui peut demarrer vite.",
+          "summary": "Tu as repere le piege dans le pacte, ajoute la clause d'exclusivite et invoque le bad leaver quand le CTO t'a trahi. Equity recuperee, zero perte financiere.",
           "signal": "robust",
           "deltas": {
-            "treasury": -2000,
-            "ownership": -5,
+            "treasury": 0,
+            "ownership": -10,
             "mrr": 0,
             "payroll": 0,
-            "productQuality": 20,
-            "techDebt": 5,
-            "investorConfidence": 5,
-            "marketValidation": 0
+            "productQuality": 0,
+            "techDebt": 0,
+            "investorConfidence": 15,
+            "marketValidation": 0,
+            "elapsedMonths": 0
           },
+          "setsFlags": { "hasAdvisoryBoard": false },
           "microDebrief": {
-            "decision": "Tu as recrute un CTO freelance senior avec 5% d'equity et un TJM raisonnable.",
-            "impact": "Le developpement peut demarrer dans deux semaines. Ta tresorerie absorbe le cout.",
-            "strength": "Tu as su renoncer au CTO co-fondateur ideal pour avancer vite. C'est un reflexe de fondateur.",
-            "risk": "Un freelance n'a pas le meme engagement qu'un co-fondateur. Si le projet se complique, il peut partir.",
-            "advice": "Ton prochain defi : convaincre un incubateur. Prepare un pitch qui compense l'absence de CTO co-fondateur."
+            "decision": "Tu as lu le pacte ligne par ligne, repere l'absence de clause d'exclusivite et impose sa correction.",
+            "impact": "Quand le CTO a ete pris en flagrant delit de double emploi, tu avais les armes juridiques. Bad leaver active, equity recuperee.",
+            "strength": "La rigueur juridique, c'est un reflexe de fondateur. Tu l'as eu des le scenario 0.",
+            "risk": "Tu n'as toujours pas de CTO. Mais tu n'as pas perdu d'argent ni d'equity.",
+            "advice": "Il faut repartir a la recherche. Mais cette fois tu sais quoi verifier dans un pacte."
           }
         },
         "partial_success": {
-          "outcomeId": "costly_progress",
-          "label": "Recrutement couteux",
-          "summary": "Tu as un CTO, mais tu as lache trop d'equity ou paye trop cher. Le travail avance, mais le prix est eleve pour une startup sans revenu.",
+          "outcomeId": "dirty_pacte_negotiated",
+          "label": "Pacte bancal, negociation de sortie",
+          "summary": "Le pacte n'avait pas de clause d'exclusivite. Le CTO a negocie son depart. Tu as perdu du temps et un peu d'argent.",
           "signal": "costly",
           "deltas": {
-            "treasury": -5000,
-            "ownership": -12,
+            "treasury": -1000,
+            "ownership": -5,
             "mrr": 0,
             "payroll": 0,
-            "productQuality": 15,
-            "techDebt": 10,
-            "investorConfidence": 0,
-            "marketValidation": 0
+            "productQuality": 0,
+            "techDebt": 0,
+            "investorConfidence": -5,
+            "marketValidation": 0,
+            "elapsedMonths": 0
           },
+          "setsFlags": { "hasAdvisoryBoard": false },
           "microDebrief": {
-            "decision": "Tu as recrute un CTO mais les conditions sont desequilibrees — trop d'equity cedee ou budget trop eleve.",
-            "impact": "Le dev demarre mais ta tresorerie fond. Tu passes sous les 10k avant meme d'avoir un produit.",
-            "strength": "Tu as quand meme quelqu'un pour construire. C'est mieux que zero.",
-            "risk": "12 points d'equity cedees des le scenario 0, c'est un signal de dilution excessive. Les investisseurs le verront.",
-            "advice": "Au prochain tour, surveille chaque euro. Tu n'as plus de marge."
+            "decision": "Tu n'as pas repere l'absence de clause d'exclusivite mais tu as su negocier la sortie du CTO.",
+            "impact": "1 000 € de frais de sortie et du temps perdu. Le pacte est une lecon couteuse.",
+            "strength": "Tu as su limiter la casse en negociation. C'est un reflexe utile.",
+            "risk": "Le precedent est pose : tu as paye pour te debarrasser d'un cofondateur. Ca ne doit pas devenir une habitude.",
+            "advice": "Prochaine fois, fais relire chaque document par un avocat. Chaque ligne."
           }
         },
         "failure": {
-          "outcomeId": "strategic_delay",
-          "label": "Temps perdu",
-          "summary": "Tu n'as recrute personne. Le temps passe a chercher le candidat ideal t'a coute deux mois. Alexandre commence a s'impatienter.",
+          "outcomeId": "paid_to_leave",
+          "label": "CTO paye pour partir — 2 500 € perdus",
+          "summary": "Le pacte etait mal redige, le CTO avait la position de force. Tu as du payer 2 500 € pour qu'il parte.",
           "signal": "delayed",
           "deltas": {
-            "treasury": -1000,
+            "treasury": -2500,
+            "ownership": -5,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 0,
+            "techDebt": 0,
+            "investorConfidence": -15,
+            "marketValidation": 0,
+            "elapsedMonths": 0
+          },
+          "setsFlags": { "hasAdvisoryBoard": false },
+          "microDebrief": {
+            "decision": "Tu as signe le pacte sans reperer le piege de l'article 6. Le CTO est parti avec 2 500 €.",
+            "impact": "Ta tresorerie passe de 15 000 € a 12 500 €. Chaque euro perdu ici, c'est du budget MVP en moins.",
+            "strength": "Tu as quand meme fini par te separer du CTO. Mieux vaut une perte seche qu'un cofondateur toxique.",
+            "risk": "Les investisseurs verront cette erreur. Un fondateur qui signe un pacte sans le lire, ca refroidit.",
+            "advice": "Le pacte d'associes n'est pas une formalite. C'est un contrat de mariage professionnel. Ne le signe plus jamais sans avocat."
+          }
+        }
+      }
+    },
+
+    "founder_01_incubator": {
+      "order": 1,
+      "title": "Entree en incubateur",
+      "scenarioId": "founder_01_incubator",
+      "invisibleEffects": "Advisory board = credibilite + acces reseau. Pas d'impact produit ni dette tech. Le mois passe = premier burn reel. L'investor confidence monte fort si advisory board (les BAs regardent ca).",
+      "outcomes": {
+        "success": {
+          "outcomeId": "incubator_accepted",
+          "label": "Accepte — Advisory board constitue",
+          "summary": "Le jury a ete convaincu. Orisio integre Technowest. Tu accedes au mentorat, aux locaux et au reseau sante. Ton advisory board est constitue avec les 3 jures.",
+          "signal": "robust",
+          "deltas": {
+            "treasury": -250,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 0,
+            "techDebt": 0,
+            "investorConfidence": 20,
+            "marketValidation": 10,
+            "elapsedMonths": 1
+          },
+          "setsFlags": { "hasAdvisoryBoard": true },
+          "microDebrief": {
+            "decision": "Pitch solide, one-pager clair, reponses credibles aux questions du jury.",
+            "impact": "Tu integres Technowest. Mentorat, locaux, reseau sante. Et surtout : un advisory board avec Claire Dumont, Thomas Vidal et Dr. Morin.",
+            "strength": "Tu sais synthetiser et convaincre sous pression. C'est la competence numero 1 d'un fondateur.",
+            "risk": "L'incubateur n'est pas une garantie. C'est un accelerateur de contacts, pas un distributeur de clients.",
+            "advice": "L'advisory board va t'ouvrir des portes pour le test clinique. Utilise-le."
+          }
+        },
+        "partial_success": {
+          "outcomeId": "incubator_waitlist",
+          "label": "Liste d'attente — Pas d'advisory board",
+          "summary": "Le jury est interesse mais pas convaincu. Tu es en liste d'attente. Pas d'acces au mentorat ni au reseau.",
+          "signal": "fragile",
+          "deltas": {
+            "treasury": -250,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 0,
+            "techDebt": 0,
+            "investorConfidence": -5,
+            "marketValidation": 0,
+            "elapsedMonths": 1
+          },
+          "setsFlags": { "hasAdvisoryBoard": false },
+          "microDebrief": {
+            "decision": "Le pitch ou les reponses n'ont pas totalement convaincu le jury.",
+            "impact": "Liste d'attente. Pas de mentorat, pas de reseau, pas d'advisory board. Tu avances seul.",
+            "strength": "Tu as eu le courage de pitcher. Beaucoup de fondateurs n'arrivent meme pas a cette etape.",
+            "risk": "Sans advisory board, les investisseurs verront un fondateur isole. C'est un signal faible.",
+            "advice": "N'attends pas Technowest. Continue d'avancer et re-postule avec un MVP."
+          }
+        },
+        "failure": {
+          "outcomeId": "incubator_rejected",
+          "label": "Refuse",
+          "summary": "Le jury n'a pas ete convaincu. Pas d'incubateur. Tu avances sans filet ni reseau.",
+          "signal": "delayed",
+          "deltas": {
+            "treasury": -250,
             "ownership": 0,
             "mrr": 0,
             "payroll": 0,
             "productQuality": 0,
             "techDebt": 0,
             "investorConfidence": -10,
-            "marketValidation": 0
+            "marketValidation": 0,
+            "elapsedMonths": 1
           },
+          "setsFlags": { "hasAdvisoryBoard": false },
           "microDebrief": {
-            "decision": "Tu as passe deux mois a chercher le CTO parfait sans recruter personne.",
-            "impact": "Pas de produit, pas d'avancement. 1000€ brules en cafes et deplacements. La fenetre Segur continue de se fermer.",
-            "strength": "Tu n'as pas cede d'equity dans la panique. C'est une forme de discipline.",
-            "risk": "Alexandre doute. Il a mis sa reputation en jeu en s'associant avec toi. Deux mois sans rien, ca pese.",
-            "advice": "Arrete de chercher la perfection. Recrute quelqu'un de correct et avance."
+            "decision": "Le pitch manquait de clarte, le marche n'etait pas assez defini, ou les reponses n'etaient pas a la hauteur.",
+            "impact": "Pas d'incubateur, pas de reseau, pas d'advisory board. Tu avances seul.",
+            "strength": "L'echec au pitch n'est pas fatal. Beaucoup de startups reussissent sans incubateur.",
+            "risk": "Sans reseau et sans advisory board, chaque etape sera plus lente et plus difficile.",
+            "advice": "Concentre-toi sur le produit. Un MVP qui tourne vaut plus que tous les pitchs du monde."
+          }
+        }
+      }
+    },
+
+    "founder_02_mvp": {
+      "order": 2,
+      "title": "Construire le MVP",
+      "scenarioId": "founder_02_mvp",
+      "invisibleEffects": "C'EST ICI que la dette technique devient reelle. Scope reduit = techDebt basse (code propre, peu de features, facile a maintenir). Scope complet = techDebt HAUTE (beaucoup de features developpees trop vite par 1 dev seul, tests insuffisants, architecture fragile). La qualite produit augmente avec le scope mais la dette aussi. Le cash est le KPI principal : devis NovaDev + burn mensuel de 250€ inclus dans les deltas.",
+      "outcomes": {
+        "success": {
+          "outcomeId": "mvp_lean",
+          "label": "MVP bien cadre — Scope reduit, cash maitrise",
+          "summary": "Scope reduit a l'essentiel (planning + annulations). NovaDev livre en 7 semaines a ~12k. Code propre, dette technique minimale. Il te reste de la tresorerie.",
+          "signal": "robust",
+          "deltas": {
+            "treasury": -12500,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 35,
+            "techDebt": 5,
+            "investorConfidence": 10,
+            "marketValidation": 15,
+            "elapsedMonths": 2
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Scope reduit a l'essentiel. Deal cash a 12 000 € avec NovaDev, livre en 7 semaines. Burn de 500 € sur la periode.",
+            "impact": "MVP fonctionnel, code propre, dette technique quasi nulle. Il te reste environ 2 500 € en tresorerie — c'est serre mais tu as un produit.",
+            "strength": "Tu as su dire non a ton cofondateur perfectionniste ET negocier ferme. Le code est propre parce que le scope est petit.",
+            "risk": "Le MVP est minimal. 2 features seulement. Si le test terrain revele des manques critiques, il faudra trouver de l'argent vite.",
+            "advice": "Lance le test terrain IMMEDIATEMENT. Chaque jour sans feedback utilisateur est un jour perdu."
+          }
+        },
+        "partial_success": {
+          "outcomeId": "mvp_costly",
+          "label": "MVP livre mais couteux — Equity cedee",
+          "summary": "Tu as cede 3% d'equity a NovaDev pour obtenir le scope complet. Le produit est riche mais la dette technique est reelle : 1 dev seul, 4 mois de rush.",
+          "signal": "costly",
+          "deltas": {
+            "treasury": -16000,
+            "ownership": -3,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 50,
+            "techDebt": 30,
+            "investorConfidence": 0,
+            "marketValidation": 15,
+            "elapsedMonths": 4
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Deal equity : 15 000 € cash + 3% d'equity a NovaDev pour le scope complet. 4 mois de dev. Burn de 1 000 € sur la periode.",
+            "impact": "Le produit est riche en features mais la dette technique est lourde : un seul dev qui a rush 7 modules en 4 mois. Ca TIENDRA pour le test, mais chaque nouvelle feature sera douloureuse.",
+            "strength": "Tu as un produit complet. C'est un argument de vente.",
+            "risk": "3% d'equity chez un prestataire, c'est un signal negatif pour les investisseurs. Et la dette technique va te rattraper.",
+            "advice": "Ne touche PLUS au code avant d'avoir des retours terrain. Le prochain investissement tech doit etre guide par les utilisateurs, pas par Alexandre."
+          }
+        },
+        "failure": {
+          "outcomeId": "mvp_bloated",
+          "label": "MVP surdimensionne — 7 mois, tresorerie a sec",
+          "summary": "Tu as suivi Alexandre. Scope complet, 28 semaines de dev, equity cedee. La dette technique est massive, la tresorerie est a sec.",
+          "signal": "delayed",
+          "deltas": {
+            "treasury": -16750,
+            "ownership": -3,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 60,
+            "techDebt": 50,
+            "investorConfidence": -10,
+            "marketValidation": 5,
+            "elapsedMonths": 7
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Vision perfectionniste d'Alexandre suivie a la lettre. 7 modules, 28 semaines. 15 000 € + 3% equity + 1 750 € de burn.",
+            "impact": "Le produit est complet sur le papier mais la dette technique est MASSIVE : 1 dev seul qui a construit 7 modules en parallele de ses autres missions. Tests insuffisants, architecture fragile, bugs latents.",
+            "strength": "Si le produit marche, il est plus complet que ce que proposent les concurrents.",
+            "risk": "7 mois sans revenu, tresorerie a sec, dette technique a 50%. Le moindre bug en test terrain sera catastrophique parce qu'il n'y a plus d'argent pour corriger.",
+            "advice": "Tu n'as plus AUCUNE marge. Le test doit fonctionner du premier coup ou c'est termine."
+          }
+        }
+      }
+    },
+
+    "founder_03_clinical": {
+      "order": 3,
+      "title": "Test clinique",
+      "scenarioId": "founder_03_clinical",
+      "invisibleEffects": "Le temps est le vrai cout ici. Chaque mois = 250€ de burn + 1 mois de runway en moins. La validation marche monte si le contrat est propre et le test demarre. La confiance investisseurs depend du type d'etablissement (CHU = prestigieux mais lent). La dette technique ne bouge pas (pas de dev pendant la contractualisation). Si PI compromise (CHU toxique), la confiance investisseurs CHUTE.",
+      "outcomes": {
+        "success": {
+          "outcomeId": "pilot_clean",
+          "label": "Pilote rapide — Clinique, 1 mois, PI protegee",
+          "summary": "Clinique Saint-Augustin. Contrat propre, 1 mois de contractualisation. PI protegee, reference commerciale acquise. Le test demarre.",
+          "signal": "robust",
+          "deltas": {
+            "treasury": -250,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 10,
+            "techDebt": 0,
+            "investorConfidence": 10,
+            "marketValidation": 25,
+            "elapsedMonths": 1
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Choix pragmatique : Clinique Saint-Augustin. Contrat simple, PI preservee, reference autorisee.",
+            "impact": "1 mois. 250 € de burn. Le test demarre vite et dans de bonnes conditions. Tu as le droit d'utiliser le nom de la clinique.",
+            "strength": "Tu as choisi la vitesse et le pragmatisme. 5 salles c'est petit mais c'est suffisant pour valider.",
+            "risk": "Un petit etablissement = une petite reference. Pour lever des fonds, il faudra un deuxieme test plus gros.",
+            "advice": "Documente TOUT pendant le test. Metriques, verbatims, gains mesures. C'est ton dossier pour le prochain etablissement."
+          }
+        },
+        "partial_success": {
+          "outcomeId": "pilot_slow",
+          "label": "Pilote correct — Saint-Martin, 3 mois, clause groupe",
+          "summary": "Hopital Prive Saint-Martin. Contrat correct mais clause Ramsay. 3 mois de contractualisation. Reference limitee.",
+          "signal": "fragile",
+          "deltas": {
+            "treasury": -750,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 10,
+            "techDebt": 0,
+            "investorConfidence": 5,
+            "marketValidation": 20,
+            "elapsedMonths": 3
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Saint-Martin : 8 salles, groupe Ramsay. Contrat negocie mais clause de validation groupe et reference commerciale limitee.",
+            "impact": "3 mois avant que le test demarre. 750 € de burn. La PI est protegee mais tu ne peux pas utiliser le nom librement.",
+            "strength": "Tu as negocie les pires clauses. L'etablissement est credible, 8 salles c'est un vrai terrain de test.",
+            "risk": "3 mois c'est long. Et la clause groupe peut ralentir toute collaboration future avec Ramsay.",
+            "advice": "Pendant l'attente, prepare les metriques du test. Ne reste pas les bras croises."
+          }
+        },
+        "failure": {
+          "outcomeId": "pilot_toxic",
+          "label": "Pilote toxique — CHU, 6 mois, PI en danger",
+          "summary": "CHU de Bordeaux. 6 mois de contractualisation, contrat toxique. PI potentiellement compromise, interessement sur les revenus, tresorerie saignee.",
+          "signal": "delayed",
+          "deltas": {
+            "treasury": -1500,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 10,
+            "techDebt": 5,
+            "investorConfidence": -15,
+            "marketValidation": 10,
+            "elapsedMonths": 6
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "CHU de Bordeaux pour le prestige. Contrat toxique : cession PI, interessement 5%, licence perpetuelle.",
+            "impact": "6 mois de contractualisation. 1 500 € de burn. Et si tu as signe le contrat tel quel : ta PI est compromise et 5% de tes futurs revenus partent au CHU.",
+            "strength": "Le CHU est une reference prestigieuse, si tu arrives a en sortir indemne.",
+            "risk": "Si la PI est cedee, les investisseurs fuiront. Si l'interessement est signe, ton business model est ampute de 5% a vie sur le public.",
+            "advice": "La prochaine fois, privilegie un etablissement ou tu peux signer en 2 semaines. Le prestige ne paie pas les factures."
           }
         }
       }

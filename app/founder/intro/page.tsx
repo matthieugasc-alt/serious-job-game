@@ -143,11 +143,30 @@ export default function FounderIntroPage() {
           d'équipe technique, pas de client, pas de revenu.
         </p>
 
+        {/* ── Séparateur ───────────────────────────────────────── */}
+        <div style={S.separator} />
+
+        {/* ── Bloc 5 : Acculturation ───────────────────────────── */}
+        <p style={S.body}>
+          Avant de plonger, fais ce que ferait n'importe quel entrepreneur à
+          qui un ami propose de s'associer :{" "}
+          <span style={S.emphasis}>
+            renseigne-toi un minimum sur le marché
+          </span>
+          .
+        </p>
+        <p style={S.body}>
+          Qui sont les acteurs ? Combien d'établissements sont concernés ?
+          Quels outils existent déjà ? Est-ce qu'il y a une fenêtre de tir ?
+          Tu n'as pas besoin d'être expert — juste assez informé pour savoir
+          si tu veux te lancer.
+        </p>
+
         {/* ── Urgence finale ───────────────────────────────────── */}
         <div style={S.urgencyBox}>
           <p style={S.urgencyText}>
-            La première urgence est claire : trouver quelqu'un capable de
-            construire.
+            Première étape : trouver quelqu'un capable de construire le
+            produit. C'est maintenant.
           </p>
         </div>
       </article>

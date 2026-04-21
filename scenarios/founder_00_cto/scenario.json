@@ -1,0 +1,597 @@
+{
+  "scenario_id": "founder_00_cto",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Trouver un CTO",
+    "subtitle": "Recruter le bon profil technique pour ta startup",
+    "description": "Alexandre Morel t'a ramené 3 CV d'un événement e-santé à Bordeaux. Tu dois rencontrer chaque candidat, choisir ton CTO, et signer un pacte d'associés. Mais attention : tout le monde n'a pas les mêmes intentions.",
+    "job_family": "founder",
+    "difficulty": "intermediate",
+    "estimated_duration_min": 25,
+    "tags": ["recrutement", "CTO", "startup", "pacte", "négociation", "e-santé"],
+    "show_objective": false,
+    "show_background_fact": false
+  },
+  "introduction": {
+    "header": {
+      "tag": "Founder Mode · Scénario 0",
+      "title": "Trouver un CTO",
+      "subtitle": "Mois 1 — Formation de l'équipe"
+    },
+    "cards": [
+      {
+        "title": "La situation",
+        "content": "<p>Tu viens de lancer <strong>Orisio</strong> avec Alexandre Morel, chirurgien à Bordeaux. Vous avez une idée, 15 000 € et… c'est tout.</p><p>Alexandre revient d'un meetup e-santé avec 3 CV de profils techniques intéressés par le projet.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ta mission",
+        "content": "<p><strong>Phase 1</strong> — Rencontrer les 3 candidats (3 min d'entretien chacun, par chat).</p><p><strong>Phase 2</strong> — Envoyer un mail formel à l'un d'eux avec ta proposition (salaire, equity, rôle).</p><p><strong>Phase 3</strong> — Le candidat accepte et propose un pacte d'associés. À toi de le relire attentivement.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Les candidats",
+        "content": "<p><strong>Sofia Renault</strong> — 31 ans, ex-lead dev MedFlow, ex-Doctolib. Centrale Lyon.</p><p><strong>Marc Lefèvre</strong> — 28 ans, dev senior Betclic, passé par Atos/CNAM. ENSEEIHT.</p><p><strong>Karim Benzarti</strong> — 24 ans, dev web en agence. DUT Info. Side project médical.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Conseil",
+        "content": "<p>Tu as la note de ton avocate dans les documents. Lis-la <strong>avant</strong> de signer quoi que ce soit.</p><p>Un bon CTO à ce stade veut être cofondateur, pas salarié. Mais cofondateur ne veut pas dire carte blanche.</p>",
+        "column": "right",
+        "type": "tip"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Tu es CEO d'Orisio, une startup e-santé qui veut optimiser l'occupation des blocs opératoires. Alexandre Morel, chirurgien et cofondateur (CPO), t'a rapporté 3 CV d'un événement e-santé bordelais. Tu dois recruter un CTO cofondateur pour lancer le développement du produit.",
+    "mission": "Rencontrer les 3 candidats, choisir le bon profil, faire une proposition formelle et sécuriser le pacte d'associés.",
+    "initial_situation": "Pas de produit, pas d'équipe technique, 15 000 € de trésorerie. Tu dois trouver quelqu'un capable de construire. Alexandre t'envoie les CV et te propose de les rencontrer ce soir dans un café à Bordeaux.",
+    "trigger": "Alexandre t'écrit pour te briefer sur les 3 profils."
+  },
+  "timeline": {
+    "scenario_start": "2025-09-15T18:00:00",
+    "sim_speed_multiplier": 1
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "(joueur)",
+      "role": "CEO, Orisio",
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#5b5fc7",
+        "initials": "CEO"
+      }
+    },
+    {
+      "actor_id": "alexandre_morel",
+      "name": "Alexandre Morel",
+      "role": "CPO & Cofondateur, Orisio — Chirurgien orthopédiste",
+      "personality": "Enthousiaste, perfectionniste, parfois naïf sur le business. Tutoie le joueur.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/alexandre_morel.md",
+      "avatar": {
+        "color": "#1565C0",
+        "initials": "AM"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Ton associé chirurgien",
+      "tts_voice": "onyx"
+    },
+    {
+      "actor_id": "sofia_renault",
+      "name": "Sofia Renault",
+      "role": "Candidate CTO — Ex-lead dev MedFlow, ex-Doctolib",
+      "personality": "Directe, compétente, exigeante. Teste le joueur.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/sofia_renault.md",
+      "avatar": {
+        "color": "#6A1B9A",
+        "initials": "SR"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Candidate CTO",
+      "tts_voice": "nova"
+    },
+    {
+      "actor_id": "marc_lefevre",
+      "name": "Marc Lefèvre",
+      "role": "Candidat CTO — Dev senior Betclic",
+      "personality": "Confiant, sympa, bon en entretien. Masque son manque d'engagement.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/marc_lefevre.md",
+      "avatar": {
+        "color": "#2E7D32",
+        "initials": "ML"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Candidat CTO",
+      "tts_voice": "echo"
+    },
+    {
+      "actor_id": "karim_benzarti",
+      "name": "Karim Benzarti",
+      "role": "Candidat CTO — Dev web junior, agence Pixel33",
+      "personality": "Enthousiaste, humble, sincère. Dit oui à tout.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/karim_benzarti.md",
+      "avatar": {
+        "color": "#E65100",
+        "initials": "KB"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Candidat CTO",
+      "tts_voice": "fable"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "cv_sofia",
+        "label": "CV — Sofia Renault",
+        "file_path": "documents/cv_sofia_renault.md",
+        "contains": ["CV", "Sofia", "Centrale Lyon", "MedFlow", "Doctolib", "HDS"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "cv_marc",
+        "label": "CV — Marc Lefèvre",
+        "file_path": "documents/cv_marc_lefevre.md",
+        "contains": ["CV", "Marc", "Betclic", "ENSEEIHT", "Atos", "CNAM"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "cv_karim",
+        "label": "CV — Karim Benzarti",
+        "file_path": "documents/cv_karim_benzarti.md",
+        "contains": ["CV", "Karim", "Pixel33", "DUT", "MedBoard"],
+        "usable_as_pj": true
+      },
+      {
+        "doc_id": "note_avocat",
+        "label": "Note — Me Dufresne (avocate)",
+        "file_path": "documents/note_avocat.md",
+        "contains": ["pacte", "associés", "vesting", "equity", "exclusivité", "BSPCE", "SAS"],
+        "usable_as_pj": false
+      },
+      {
+        "doc_id": "pacte_associes",
+        "label": "Pacte d'associés (proposé par le CTO)",
+        "file_path": "documents/pacte_associes.md",
+        "contains": ["pacte", "vesting", "leaver", "capital", "non-concurrence"],
+        "usable_as_pj": true
+      }
+    ]
+  },
+  "constraints": {
+    "budget_max_mensuel": 3500,
+    "equity_pool_max": 20,
+    "note_avocate_disponible": true
+  },
+  "state": {
+    "flags": {
+      "sofia_interviewed": false,
+      "marc_interviewed": false,
+      "karim_interviewed": false,
+      "offer_sent": false,
+      "offer_accepted": false,
+      "pacte_received": false,
+      "pacte_signed_clean": false,
+      "pacte_signed_dirty": false,
+      "twist_revealed": false,
+      "bad_leaver_triggered": false,
+      "cto_negotiation_won": false,
+      "cto_paid_to_leave": false
+    }
+  },
+  "initial_events": [
+    {
+      "event_id": "alexandre_intro",
+      "type": "chat",
+      "actor": "alexandre_morel",
+      "content": "Salut ! Écoute, le meetup e-santé de ce soir c'était top. J'ai rencontré 3 profils techniques intéressants, je t'ai envoyé leurs CV. Il y a une ancienne de Doctolib qui a l'air solide, un dev de Betclic qui connaît un peu le milieu santé, et un junior motivé qui a même un side project médical. On pourrait les voir tous les trois cette semaine, qu'est-ce que t'en penses ?",
+      "attachments": [
+        { "id": "cv_sofia", "label": "CV — Sofia Renault" },
+        { "id": "cv_marc", "label": "CV — Marc Lefèvre" },
+        { "id": "cv_karim", "label": "CV — Karim Benzarti" }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1_sofia",
+      "title": "Entretien avec Sofia Renault",
+      "objective": "Rencontrer Sofia (3 min). Évaluer ses compétences, sa motivation et ses conditions.",
+      "phase_focus": "Entretien uniquement avec Sofia Renault. Le joueur pose des questions, Sofia répond. Pas de négociation à ce stade.",
+      "duration_target_min": 3,
+      "max_duration_sec": 240,
+      "active_channels": ["chat"],
+      "ai_actors": ["sofia_renault"],
+      "entry_events": [
+        {
+          "event_id": "sofia_arrive",
+          "actor": "alexandre_morel",
+          "content": "Sofia Renault vient d'arriver. Je te laisse avec elle, je reviens dans quelques minutes.",
+          "channel": "chat",
+          "delay_ms": 0
+        },
+        {
+          "event_id": "sofia_hello",
+          "actor": "sofia_renault",
+          "content": "Bonsoir. Alexandre m'a parlé du projet, ça a l'air intéressant. Optimisation des blocs opératoires, c'est un vrai sujet — j'ai bossé sur du parcours patient chez MedFlow, c'est pas si loin. Qu'est-ce que vous avez aujourd'hui concrètement ?",
+          "channel": "chat",
+          "delay_ms": 2000
+        }
+      ],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "asked_why_left",
+            "description": "Le joueur demande pourquoi Sofia a quitté MedFlow",
+            "points": 2,
+            "sets_flag": "sofia_reasons_explored"
+          },
+          {
+            "criterion_id": "asked_conditions",
+            "description": "Le joueur explore les prétentions salariales ou equity de Sofia",
+            "points": 2,
+            "sets_flag": "sofia_conditions_explored"
+          },
+          {
+            "criterion_id": "asked_tech",
+            "description": "Le joueur pose des questions techniques (HDS, stack, architecture)",
+            "points": 1
+          }
+        ]
+      },
+      "completion_rules": {
+        "max_exchanges": 8
+      },
+      "on_complete": {
+        "set_flags": { "sofia_interviewed": true }
+      },
+      "auto_advance": true,
+      "next_phase": "phase_1_marc"
+    },
+    {
+      "phase_id": "phase_1_marc",
+      "title": "Entretien avec Marc Lefèvre",
+      "objective": "Rencontrer Marc (3 min). Évaluer ses compétences, son engagement réel et ses conditions.",
+      "phase_focus": "Entretien uniquement avec Marc Lefèvre. Le joueur pose des questions, Marc répond.",
+      "duration_target_min": 3,
+      "max_duration_sec": 240,
+      "active_channels": ["chat"],
+      "ai_actors": ["marc_lefevre"],
+      "entry_events": [
+        {
+          "event_id": "marc_transition",
+          "actor": "alexandre_morel",
+          "content": "OK Sofia est partie. Marc Lefèvre est là, je te l'envoie.",
+          "channel": "chat",
+          "delay_ms": 0
+        },
+        {
+          "event_id": "marc_hello",
+          "actor": "marc_lefevre",
+          "content": "Salut ! Marc Lefèvre, enchanté. Alexandre m'a pitch le projet rapidement, ça a l'air cool. Je bosse chez Betclic en ce moment sur de l'API temps réel, donc la charge et la perf c'est mon quotidien. Vous en êtes où ?",
+          "channel": "chat",
+          "delay_ms": 2000
+        }
+      ],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "asked_availability",
+            "description": "Le joueur demande à Marc s'il est disponible full-time",
+            "points": 3,
+            "sets_flag": "marc_availability_explored"
+          },
+          {
+            "criterion_id": "asked_commitment",
+            "description": "Le joueur creuse l'engagement de Marc (quitter Betclic, timeline)",
+            "points": 2,
+            "sets_flag": "marc_commitment_explored"
+          },
+          {
+            "criterion_id": "asked_other_projects",
+            "description": "Le joueur demande s'il a d'autres projets en parallèle",
+            "points": 2
+          }
+        ]
+      },
+      "completion_rules": {
+        "max_exchanges": 8
+      },
+      "on_complete": {
+        "set_flags": { "marc_interviewed": true }
+      },
+      "auto_advance": true,
+      "next_phase": "phase_1_karim"
+    },
+    {
+      "phase_id": "phase_1_karim",
+      "title": "Entretien avec Karim Benzarti",
+      "objective": "Rencontrer Karim (3 min). Évaluer son niveau réel et son potentiel.",
+      "phase_focus": "Entretien uniquement avec Karim Benzarti. Le joueur pose des questions, Karim répond.",
+      "duration_target_min": 3,
+      "max_duration_sec": 240,
+      "active_channels": ["chat"],
+      "ai_actors": ["karim_benzarti"],
+      "entry_events": [
+        {
+          "event_id": "karim_transition",
+          "actor": "alexandre_morel",
+          "content": "Dernier ! Karim Benzarti. Il a l'air un peu nerveux mais motivé. Go.",
+          "channel": "chat",
+          "delay_ms": 0
+        },
+        {
+          "event_id": "karim_hello",
+          "actor": "karim_benzarti",
+          "content": "Bonsoir ! Karim Benzarti. Merci de me recevoir. J'ai lu le pitch qu'Alexandre m'a envoyé, j'ai plein de questions. C'est un projet qui me parle vraiment — j'ai un side project dans le médical justement.",
+          "channel": "chat",
+          "delay_ms": 2000
+        }
+      ],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "asked_tech_level",
+            "description": "Le joueur évalue le niveau technique réel de Karim (HDS, architecture, scaling)",
+            "points": 3,
+            "sets_flag": "karim_level_assessed"
+          },
+          {
+            "criterion_id": "asked_side_project",
+            "description": "Le joueur demande des détails sur le projet MedBoard",
+            "points": 1
+          }
+        ]
+      },
+      "completion_rules": {
+        "max_exchanges": 8
+      },
+      "on_complete": {
+        "set_flags": { "karim_interviewed": true }
+      },
+      "auto_advance": true,
+      "next_phase": "phase_2_offer"
+    },
+    {
+      "phase_id": "phase_2_offer",
+      "title": "Proposition formelle",
+      "objective": "Envoyer un mail de proposition formelle au candidat de ton choix. Précise le rôle, le package (salaire et/ou equity) et les conditions.",
+      "phase_focus": "Le joueur rédige un email de proposition formelle. Il peut écrire à Sofia, Marc ou Karim.",
+      "duration_target_min": 5,
+      "max_duration_sec": 420,
+      "active_channels": ["mail", "chat"],
+      "ai_actors": ["alexandre_morel", "sofia_renault", "marc_lefevre", "karim_benzarti"],
+      "entry_events": [
+        {
+          "event_id": "alex_debrief",
+          "actor": "alexandre_morel",
+          "content": "Bon, t'as vu les trois. Qu'est-ce que t'en penses ? Moi j'ai bien aimé l'énergie de Karim, mais c'est toi qui décides. Envoie un mail à celui ou celle que tu veux, avec ta proposition. Salaire, equity, rôle — sois clair.",
+          "channel": "chat",
+          "delay_ms": 0
+        }
+      ],
+      "mail_config": {
+        "enabled": true,
+        "kind": "offer_cto",
+        "defaults": {
+          "to": "",
+          "cc": "",
+          "subject": "Proposition — Orisio"
+        },
+        "require_attachments": false,
+        "on_send_flags": { "offer_sent": true },
+        "send_label": "Envoyer la proposition",
+        "send_advances_phase": true
+      },
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "clear_role",
+            "description": "Le mail précise clairement le rôle proposé (CTO, cofondateur, salarié…)",
+            "points": 2
+          },
+          {
+            "criterion_id": "salary_equity",
+            "description": "Le mail inclut une proposition chiffrée (salaire et/ou equity)",
+            "points": 2
+          },
+          {
+            "criterion_id": "fulltime_mentioned",
+            "description": "Le mail mentionne explicitement un engagement full-time",
+            "points": 3,
+            "sets_flag": "fulltime_required_in_offer"
+          }
+        ]
+      },
+      "completion_rules": {
+        "any_flags": ["offer_sent"]
+      },
+      "on_complete": {
+        "set_flags": { "offer_sent": true }
+      },
+      "auto_advance": true,
+      "next_phase": "phase_3_pacte"
+    },
+    {
+      "phase_id": "phase_3_pacte",
+      "title": "Le pacte d'associés",
+      "objective": "Le candidat accepte et t'envoie un pacte d'associés rédigé par son avocat. Relis-le attentivement avant de signer.",
+      "phase_focus": "Le candidat choisi répond positivement et envoie un pacte. Le joueur doit le relire, repérer les clauses manquantes (notamment l'exclusivité/full-time du CTO) et négocier des modifications si nécessaire.",
+      "duration_target_min": 7,
+      "max_duration_sec": 600,
+      "active_channels": ["chat", "mail"],
+      "ai_actors": ["alexandre_morel", "sofia_renault", "marc_lefevre", "karim_benzarti"],
+      "entry_events": [
+        {
+          "event_id": "candidate_accepts",
+          "actor": "sofia_renault",
+          "content": "J'ai bien reçu ta proposition. C'est aligné avec ce que je cherche. Par contre, il faut qu'on fasse les choses proprement. Mon avocat a rédigé un pacte d'associés, je te l'envoie. Lis-le, dis-moi si ça te va, et on signe.",
+          "channel": "chat",
+          "delay_ms": 3000
+        },
+        {
+          "event_id": "pacte_sent",
+          "actor": "sofia_renault",
+          "channel": "mail",
+          "subject": "Pacte d'associés — Orisio",
+          "content": "Comme discuté, voici le pacte rédigé par mon avocat Me Fabre. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine.",
+          "delay_ms": 5000,
+          "attachments": [
+            { "id": "pacte_associes", "label": "Pacte d'associés — Orisio SAS" }
+          ]
+        }
+      ],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "spotted_missing_exclusivity",
+            "description": "Le joueur repère que l'article 6 (engagements CTO) ne mentionne ni full-time ni exclusivité",
+            "points": 5,
+            "sets_flag": "pacte_signed_clean"
+          },
+          {
+            "criterion_id": "asked_modification",
+            "description": "Le joueur demande une modification du pacte avant de signer",
+            "points": 3
+          },
+          {
+            "criterion_id": "consulted_lawyer_note",
+            "description": "Le joueur fait référence à la note de Me Dufresne",
+            "points": 2
+          },
+          {
+            "criterion_id": "signed_without_checking",
+            "description": "Le joueur accepte le pacte tel quel sans soulever la clause manquante",
+            "points": 0,
+            "sets_flag": "pacte_signed_dirty"
+          }
+        ]
+      },
+      "completion_rules": {
+        "any_flags": ["pacte_signed_clean", "pacte_signed_dirty"]
+      },
+      "on_complete": {
+        "set_flags": { "pacte_received": true }
+      },
+      "auto_advance": true,
+      "next_phase": "phase_4_twist"
+    },
+    {
+      "phase_id": "phase_4_twist",
+      "title": "Le coup de fil d'Alexandre",
+      "objective": "Alexandre t'apprend que le CTO travaille à mi-temps pour une autre startup. Gère la crise.",
+      "phase_focus": "Plot twist. Alexandre a découvert que le CTO a accepté un poste à 50% dans une autre startup. Si le pacte est bien rédigé (clause d'exclusivité), le joueur peut déclencher la clause de bad leaver. Sinon, le CTO a une position de force et négocie son départ.",
+      "duration_target_min": 5,
+      "max_duration_sec": 420,
+      "active_channels": ["chat", "mail"],
+      "ai_actors": ["alexandre_morel", "sofia_renault", "marc_lefevre", "karim_benzarti"],
+      "entry_events": [
+        {
+          "event_id": "alex_panic",
+          "actor": "alexandre_morel",
+          "content": "Attends je viens d'apprendre un truc. Je suis tombé sur LinkedIn sur un post de notre CTO qui se présente comme « CTO & Co-founder » d'une AUTRE startup — un truc de téléconsultation. Mi-temps chez nous, mi-temps chez eux. C'est quoi ce bordel ?? On avait dit full-time !",
+          "channel": "chat",
+          "delay_ms": 3000
+        }
+      ],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "invoked_bad_leaver",
+            "description": "Le joueur invoque la clause de bad leaver ou d'exclusivité du pacte",
+            "points": 5,
+            "sets_flag": "bad_leaver_triggered"
+          },
+          {
+            "criterion_id": "formal_mail_sent",
+            "description": "Le joueur envoie un mail formel au CTO constatant la rupture",
+            "points": 3
+          },
+          {
+            "criterion_id": "negotiated_exit",
+            "description": "Le joueur négocie une sortie (avec ou sans compensation)",
+            "points": 2,
+            "sets_flag": "cto_negotiation_won"
+          },
+          {
+            "criterion_id": "paid_to_leave",
+            "description": "Le joueur accepte de payer 2 500 € pour le départ du CTO (pacte mal rédigé)",
+            "points": 0,
+            "sets_flag": "cto_paid_to_leave"
+          }
+        ]
+      },
+      "completion_rules": {
+        "any_flags": ["bad_leaver_triggered", "cto_negotiation_won", "cto_paid_to_leave"]
+      },
+      "auto_advance": true
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "success",
+      "label": "Recrutement maîtrisé",
+      "priority": 1,
+      "content": "Tu as choisi un bon profil, négocié un pacte solide avec une clause d'exclusivité, et quand le CTO a trahi ta confiance, tu avais les armes juridiques pour agir. Clause de bad leaver activée, equity récupérée. Tu repars sans CTO, mais sans dégâts.",
+      "conditions": {
+        "core_flags": ["pacte_signed_clean", "bad_leaver_triggered"],
+        "min_core_flags": 2
+      }
+    },
+    {
+      "ending_id": "partial_success",
+      "label": "Recrutement partiel",
+      "priority": 2,
+      "content": "Tu as recruté un CTO mais le pacte avait des failles. Quand la trahison est arrivée, tu as dû négocier. Le CTO part, mais la leçon est claire : un pacte d'associés se lit ligne par ligne.",
+      "conditions": {
+        "core_flags": ["pacte_signed_dirty", "cto_negotiation_won"],
+        "min_core_flags": 1
+      }
+    },
+    {
+      "ending_id": "failure",
+      "label": "Recrutement raté",
+      "priority": 3,
+      "content": "Le pacte mal rédigé t'a coûté cher. Le CTO part avec 2 500 € et du temps perdu. Tu retournes à la case départ — sans CTO, avec moins d'argent et une leçon douloureuse.",
+      "conditions": {
+        "core_flags": ["cto_paid_to_leave"],
+        "min_core_flags": 1
+      }
+    }
+  ],
+  "default_ending": {
+    "ending_id": "partial_success",
+    "label": "Recrutement partiel",
+    "content": "Le scénario s'est terminé sans résolution claire. Le recrutement reste en suspens."
+  },
+  "competencies_evaluated": [
+    "Évaluation de profils techniques",
+    "Négociation de package (salaire/equity)",
+    "Lecture juridique (pacte d'associés)",
+    "Gestion de crise (trahison cofondateur)"
+  ]
+}

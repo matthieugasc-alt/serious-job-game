@@ -199,6 +199,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const debriefCalledRef = useRef(false);
   const debriefSavedRef = useRef(false);
 
+  // ── Anti-rollback (Founder mode) ──
+  const isFounderScenario = scenarioId.startsWith("founder_");
+  const [resumeBanner, setResumeBanner] = useState<{
+    penaltyMonths: number;
+    phaseIndex: number;
+  } | null>(null);
+  const checkpointDoneRef = useRef(false);
+
   // ── Voice mode state ──
   const [isRecording, setIsRecording] = useState(false);
   const [voiceTranscript, setVoiceTranscript] = useState("");
@@ -285,6 +293,30 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const simulatedTime = view?.simulatedTime ? fmtTime(view.simulatedTime) : "--:--";
   const actors = scenario?.actors || [];
   const visibleContacts = actors.filter((a: any) => a.visible_in_contacts || a.actor_id === "player");
+
+  // ── Founder checkpoint: notify server on phase advance ──
+  function notifyCheckpointAdvance(completedPhaseId: string, newPhaseIndex: number) {
+    if (!isFounderScenario) return;
+    fetch("/api/founder/checkpoint", {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({
+        scenarioId,
+        action: "advance",
+        completedPhaseId,
+        phaseIndex: newPhaseIndex,
+      }),
+    }).catch((e) => console.warn("[founder] checkpoint advance failed:", e));
+  }
+
+  function notifyCheckpointClear() {
+    if (!isFounderScenario) return;
+    fetch("/api/founder/checkpoint", {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({ scenarioId, action: "clear" }),
+    }).catch((e) => console.warn("[founder] checkpoint clear failed:", e));
+  }
 
   // ── Keep refs in sync for closures ──
   sessionRef.current = session;
@@ -491,6 +523,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     if (!debriefData || debriefSavedRef.current || !scenario) return;
     debriefSavedRef.current = true;
 
+    // Clear Founder checkpoint — scenario is finished
+    notifyCheckpointClear();
+
     const phases = debriefData.phases || [];
     const avgScore =
       phases.length > 0
@@ -586,12 +621,60 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             attachments: [],
           });
         }
+
+        // ── Founder anti-rollback: check for resume ──
+        if (scenarioId.startsWith("founder_") && !checkpointDoneRef.current) {
+          checkpointDoneRef.current = true;
+          try {
+            const cpRes = await fetch("/api/founder/checkpoint", {
+              method: "POST",
+              headers: apiHeaders(),
+              body: JSON.stringify({ scenarioId, action: "enter" }),
+            });
+            if (cpRes.ok) {
+              const cpData = await cpRes.json();
+              if (cpData.isResume && cpData.resumePhaseIndex > 0) {
+                // Fast-forward: mark earlier phases as completed and jump to resume phase
+                for (let i = 0; i < cpData.resumePhaseIndex; i++) {
+                  const ph = data.phases[i];
+                  const phId = ph?.phase_id || (ph as any)?.id;
+                  if (phId && !s.completedPhases.includes(phId)) {
+                    s.completedPhases.push(phId);
+                  }
+                }
+                s.currentPhaseIndex = cpData.resumePhaseIndex;
+                injectPhaseEntryEvents(s);
+                // Set up mail draft for resume phase
+                const resumePhase = data.phases[cpData.resumePhaseIndex];
+                if (resumePhase?.mail_config?.defaults) {
+                  updateMailDraft(s, resumePhase.phase_id, {
+                    to: "",
+                    cc: "",
+                    subject: resumePhase.mail_config.defaults.subject || "",
+                    body: "",
+                    attachments: [],
+                  });
+                }
+              }
+              if (cpData.penaltyApplied) {
+                setResumeBanner({
+                  penaltyMonths: cpData.penaltyMonths,
+                  phaseIndex: cpData.resumePhaseIndex,
+                });
+              }
+            }
+          } catch (e) {
+            console.warn("[founder] checkpoint check failed:", e);
+          }
+        }
+
         setSession(s);
         setLoading(false);
 
-        // Auto-select the first AI actor of phase 1 as the active conversation
-        const phase1Actor = data.phases[0]?.ai_actors?.[0];
-        if (phase1Actor) setSelectedContact(phase1Actor);
+        // Auto-select the first AI actor of the active phase
+        const activePhaseIdx = s.currentPhaseIndex || 0;
+        const activePhaseActor = data.phases[activePhaseIdx]?.ai_actors?.[0];
+        if (activePhaseActor) setSelectedContact(activePhaseActor);
 
         // Load ALL AI actor prompts
         const aiActors = data.actors.filter((a: any) => a.controlled_by === "ai" && a.prompt_file);
@@ -696,10 +779,20 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     }
   }, [session?.simulatedTime, session?.currentPhaseIndex]);
 
-  // ── Reset phase start real time when phase changes ──
+  // ── Reset phase start real time when phase changes + notify checkpoint ──
+  const prevPhaseIndexRef = useRef<number>(0);
   useEffect(() => {
-    if (!session) return;
+    if (!session || !scenario) return;
     phaseStartRealTimeRef.current = Date.now();
+
+    // Notify checkpoint on phase advance (not on initial load)
+    const idx = session.currentPhaseIndex;
+    if (idx > prevPhaseIndexRef.current && isFounderScenario) {
+      const prevPhase = scenario.phases[prevPhaseIndexRef.current];
+      const prevId = prevPhase?.phase_id || (prevPhase as any)?.id || `phase_${prevPhaseIndexRef.current}`;
+      notifyCheckpointAdvance(prevId, idx);
+    }
+    prevPhaseIndexRef.current = idx;
   }, [session?.currentPhaseIndex]);
 
   // ── Auto-advance based on max_duration_sec (real wall-clock time) ──
@@ -1724,6 +1817,74 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             </div>
           ))}
           <style>{`@keyframes toastSlideIn{from{opacity:0;transform:translateX(100px)}to{opacity:1;transform:translateX(0)}}`}</style>
+        </div>
+      )}
+
+      {/* ═══════ FOUNDER RESUME PENALTY BANNER ═══════ */}
+      {resumeBanner && (
+        <div
+          style={{
+            background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
+            border: "1px solid #f59e0b",
+            borderRadius: 0,
+            padding: "12px 20px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            flexShrink: 0,
+            zIndex: 100,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontSize: 20 }}>⏱</span>
+            <div>
+              <div style={{ fontWeight: 700, fontSize: 13, color: "#92400e" }}>
+                Reprise après interruption
+              </div>
+              <div style={{ fontSize: 12, color: "#78350f", marginTop: 2 }}>
+                Vous reprenez au début de cette phase. Cette interruption vous a coûté{" "}
+                <strong>{resumeBanner.penaltyMonths} mois</strong> de délai.
+              </div>
+            </div>
+          </div>
+          <button
+            onClick={() => setResumeBanner(null)}
+            style={{
+              background: "rgba(146,64,14,0.1)",
+              border: "1px solid rgba(146,64,14,0.2)",
+              borderRadius: 6,
+              padding: "4px 12px",
+              color: "#92400e",
+              fontSize: 12,
+              fontWeight: 600,
+              cursor: "pointer",
+              flexShrink: 0,
+            }}
+          >
+            Compris
+          </button>
+        </div>
+      )}
+
+      {/* ═══════ FOUNDER SAVE INFO (persistent) ═══════ */}
+      {isFounderScenario && !resumeBanner && !view.isFinished && (
+        <div
+          style={{
+            background: "#f0f0ff",
+            borderBottom: "1px solid rgba(91,95,199,0.15)",
+            padding: "6px 20px",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+            zIndex: 99,
+          }}
+        >
+          <span style={{ fontSize: 12, color: "#5b5fc7" }}>💾</span>
+          <span style={{ fontSize: 11, color: "#5b5fc7", fontWeight: 500 }}>
+            Votre progression est sauvegardée au début de chaque phase.
+          </span>
         </div>
       )}
 

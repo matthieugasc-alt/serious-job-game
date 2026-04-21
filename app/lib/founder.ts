@@ -21,6 +21,7 @@ export const BOUNDS: Record<FounderStateKey, { min: number; max: number }> = {
   techDebt:           { min: 0,   max: 100 },
   investorConfidence: { min: 0,   max: 100 },
   marketValidation:   { min: 0,   max: 100 },
+  elapsedMonths:      { min: 0,   max: Infinity },
 };
 
 // ── State ───────────────────────────────────────────────────────
@@ -34,6 +35,7 @@ export interface FounderState {
   techDebt:           number;
   investorConfidence: number;
   marketValidation:   number;
+  elapsedMonths:      number;
 }
 
 export type FounderStateKey = keyof FounderState;
@@ -41,6 +43,7 @@ export type FounderStateKey = keyof FounderState;
 export const FOUNDER_STATE_KEYS: readonly FounderStateKey[] = [
   'treasury', 'ownership', 'mrr', 'payroll',
   'productQuality', 'techDebt', 'investorConfidence', 'marketValidation',
+  'elapsedMonths',
 ] as const;
 
 // ── Delta ───────────────────────────────────────────────────────
@@ -82,12 +85,17 @@ export interface FounderMicroDebrief {
   advice?:  string;
 }
 
+export interface FounderCampaignFlags {
+  hasAdvisoryBoard?: boolean;
+}
+
 export interface FounderOutcome {
   outcomeId:    string;
   label:        string;
   summary:      string;
   signal:       FounderSignal;
   deltas:       FounderStateDelta;
+  setsFlags?:   FounderCampaignFlags;
   microDebrief: FounderMicroDebrief;
 }
 
@@ -126,6 +134,17 @@ export interface CompletedScenarioEntry {
   completedAt: string;
 }
 
+// ── Checkpoint (anti-rollback) ──────────────────────────────────
+
+export interface FounderCheckpoint {
+  scenarioId:       string;
+  phaseIndex:       number;
+  completedPhases:  string[];   // phases already validated before this one
+  abandonCount:     number;     // how many times the player left mid-scenario
+  penaltiesApplied: number;     // how many penalties already applied (avoids double-apply)
+  savedAt:          string;
+}
+
 export interface FounderCampaign {
   id:                    string;
   userId:                string;
@@ -136,6 +155,9 @@ export interface FounderCampaign {
   state:                 FounderState;
   completedScenarios:    CompletedScenarioEntry[];
   lastMicroDebrief:      FounderMicroDebrief | null;
+  hasAdvisoryBoard:      boolean;
+  burnRateMonthly:       number;  // 250€/month, applied from scenario 1 onwards
+  checkpoint:            FounderCheckpoint | null;
 }
 
 // ── Campaign CRUD ───────────────────────────────────────────────
@@ -188,6 +210,9 @@ export function createCampaign(userId: string): FounderCampaign {
     state: { ...rules.initialState },
     completedScenarios: [],
     lastMicroDebrief: null,
+    hasAdvisoryBoard: false,
+    burnRateMonthly: 250,
+    checkpoint: null,
   };
   saveCampaign(campaign);
   return campaign;
@@ -214,4 +239,165 @@ export function resolveOutcome(
   }
 
   return outcome;
+}
+
+// ── Apply Outcome to Campaign ──────────────────────────────────
+
+export function applyOutcomeToCampaign(
+  campaign: FounderCampaign,
+  outcome: FounderOutcome,
+): FounderCampaign {
+  const updated = { ...campaign };
+
+  // Apply state deltas (treasury, ownership, elapsedMonths, etc.)
+  updated.state = applyDelta(campaign.state, outcome.deltas);
+
+  // Apply campaign flags
+  if (outcome.setsFlags) {
+    if (outcome.setsFlags.hasAdvisoryBoard !== undefined) {
+      updated.hasAdvisoryBoard = outcome.setsFlags.hasAdvisoryBoard;
+    }
+  }
+
+  // Store debrief
+  updated.lastMicroDebrief = outcome.microDebrief;
+
+  return updated;
+}
+
+// ── Treasury Projection ────────────────────────────────────────
+
+export function projectTreasury(campaign: FounderCampaign): {
+  currentTreasury: number;
+  monthlyBurn: number;
+  monthsRemaining: number;
+  runwayDate: string;
+} {
+  const { treasury, elapsedMonths } = campaign.state;
+  const burn = campaign.burnRateMonthly || 250;
+
+  const monthsRemaining = burn > 0 ? Math.floor(treasury / burn) : Infinity;
+
+  // Approximate runway date from campaign start
+  const startDate = new Date(campaign.createdAt);
+  const runwayEnd = new Date(startDate);
+  runwayEnd.setMonth(runwayEnd.getMonth() + elapsedMonths + monthsRemaining);
+
+  return {
+    currentTreasury: treasury,
+    monthlyBurn: burn,
+    monthsRemaining,
+    runwayDate: runwayEnd.toISOString().split('T')[0],
+  };
+}
+
+// ── Anti-Rollback: Checkpoint & Penalty ───────────────────────
+
+/** Penalty for abandoning a scenario mid-phase */
+export const ABANDON_PENALTY = {
+  months: 0.5,   // +0.5 mois écoulé
+} as const;
+
+/**
+ * Find the active (non-completed) campaign for a user.
+ * Returns null if no active campaign exists.
+ */
+export function findActiveCampaign(userId: string): FounderCampaign | null {
+  const campaigns = listCampaignsForUser(userId);
+  return campaigns.find((c) => c.status !== 'completed') || null;
+}
+
+/**
+ * Handle a player entering a scenario play page.
+ * - If no checkpoint: first entry → create checkpoint, no penalty.
+ * - If checkpoint exists for same scenario: abandon detected → apply penalty once,
+ *   return resume info.
+ */
+export function handleScenarioEntry(
+  campaign: FounderCampaign,
+  scenarioId: string,
+): {
+  isResume: boolean;
+  penaltyApplied: boolean;
+  penaltyMonths: number;
+  resumePhaseIndex: number;
+  resumeCompletedPhases: string[];
+  campaign: FounderCampaign;
+} {
+  const cp = campaign.checkpoint;
+
+  // Case 1: No checkpoint or different scenario → first entry
+  if (!cp || cp.scenarioId !== scenarioId) {
+    campaign.checkpoint = {
+      scenarioId,
+      phaseIndex: 0,
+      completedPhases: [],
+      abandonCount: 0,
+      penaltiesApplied: 0,
+      savedAt: new Date().toISOString(),
+    };
+    saveCampaign(campaign);
+    return {
+      isResume: false,
+      penaltyApplied: false,
+      penaltyMonths: 0,
+      resumePhaseIndex: 0,
+      resumeCompletedPhases: [],
+      campaign,
+    };
+  }
+
+  // Case 2: Checkpoint exists for this scenario → it's a resume (abandon detected)
+  cp.abandonCount += 1;
+
+  // Apply penalty only once per abandon (not if already penalized for this abandon)
+  let penaltyApplied = false;
+  let penaltyMonths = 0;
+  if (cp.abandonCount > cp.penaltiesApplied) {
+    penaltyMonths = ABANDON_PENALTY.months;
+    // Apply to campaign state
+    campaign.state.elapsedMonths = Math.round(
+      (campaign.state.elapsedMonths + penaltyMonths) * 10
+    ) / 10; // keep 1 decimal for 0.5
+    cp.penaltiesApplied = cp.abandonCount;
+    penaltyApplied = true;
+  }
+
+  cp.savedAt = new Date().toISOString();
+  campaign.checkpoint = cp;
+  saveCampaign(campaign);
+
+  return {
+    isResume: true,
+    penaltyApplied,
+    penaltyMonths,
+    resumePhaseIndex: cp.phaseIndex,
+    resumeCompletedPhases: [...cp.completedPhases],
+    campaign,
+  };
+}
+
+/**
+ * Update checkpoint when a phase is completed (advance to next phase).
+ */
+export function advanceCheckpoint(
+  campaign: FounderCampaign,
+  completedPhaseId: string,
+  newPhaseIndex: number,
+): void {
+  if (!campaign.checkpoint) return;
+  campaign.checkpoint.phaseIndex = newPhaseIndex;
+  if (!campaign.checkpoint.completedPhases.includes(completedPhaseId)) {
+    campaign.checkpoint.completedPhases.push(completedPhaseId);
+  }
+  campaign.checkpoint.savedAt = new Date().toISOString();
+  saveCampaign(campaign);
+}
+
+/**
+ * Clear checkpoint when scenario is finished (no longer needed).
+ */
+export function clearCheckpoint(campaign: FounderCampaign): void {
+  campaign.checkpoint = null;
+  saveCampaign(campaign);
 }
