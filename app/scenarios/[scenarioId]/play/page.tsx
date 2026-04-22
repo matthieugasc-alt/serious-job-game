@@ -1919,9 +1919,15 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     setAmendmentInput("");
     setPacteAmendments((prev) => [...prev, text]);
     setPacteThread((prev) => [...prev, { role: "player", content: text }]);
-    // Set flag
+    // Set flag — if the player mentions anything related to exclusivity/Article 6,
+    // set pacte_signed_clean immediately (they noticed the trap)
+    const mentionsExclusivity = /exclusivit|full.?time|temps.?(plein|complet)|article.?6|clause.?6|travail.*ailleurs|autre.*projet|autre.*activit|concurren|non.?concur|plein.?temps|consacr|dedi|engag.*plein|restrict|interdi|emp[eê]ch|ne.*(pas|peut).*(travaill|exerc)|uniquement.*orisio|100.?%|à temps complet/i.test(text);
     if (session) {
-      const next = { ...session, flags: { ...session.flags, asked_modification: true } };
+      const flagUpdates: Record<string, any> = { asked_modification: true };
+      if (mentionsExclusivity) {
+        flagUpdates.pacte_signed_clean = true;
+      }
+      const next = { ...session, flags: { ...session.flags, ...flagUpdates } };
       setSession(next);
     }
     // Get CTO response via AI
@@ -1955,9 +1961,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       const data = await res.json();
       const reply = data?.reply || data?.response || "Je vais vérifier avec mon avocat.";
       setPacteThread((prev) => [...prev, { role: "cto", content: reply }]);
-      // Check if reply indicates acceptance of exclusivity
-      if (/accept|d'accord|on ajoute|logique|ok.*clause/i.test(reply) &&
-          /exclusivit|full.?time|temps.?plein/i.test(text)) {
+      // Check if reply indicates acceptance of exclusivity/amendment
+      const replyAccepts = /accept|d'accord|on ajoute|logique|ok|pas de probl[eè]me|entendu|valid|je signe|bonne id[ée]e|c'est not[ée]|c'est fait|modifi|ajout/i.test(reply);
+      const playerAsksExclusivity = /exclusivit|full.?time|temps.?(plein|complet)|article.?6|clause.?6|travail.*ailleurs|autre.*projet|autre.*activit|concurren|non.?concur|plein.?temps|consacr|dedi|engag.*plein|restrict|interdi|emp[eê]ch|ne.*(pas|peut).*(travaill|exerc)|uniquement.*orisio|100.?%|à temps complet/i.test(text);
+      if (replyAccepts && playerAsksExclusivity) {
         if (session) {
           const next = { ...session, flags: { ...session.flags, pacte_signed_clean: true } };
           setSession(next);
@@ -2822,12 +2829,15 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                             next.flags.pacte_signed_dirty = true;
                           }
                           // Check both chat amendments AND direct edits on the pacte
+                          // Broad regex: catch any mention of exclusivity, full-time, competing,
+                          // working elsewhere, other projects, dedication, Article 6 issues, etc.
+                          const exclusivityRegex = /exclusivit|full.?time|temps.?(plein|complet)|article.?6|clause.?6|travail.*ailleurs|autre.*projet|autre.*activit|projet.*ext|activit.*ext|concurren|non.?concur|plein.?temps|consacr.*100|consacr.*total|dedi.*100|d[ée]di.*total|engag.*plein|obligation.*cto|restrict|interdi.*autre|emp[eê]ch|ne.*(pas|peut).*(travaill|exerc|développ)|uniquement.*orisio|100.?%|à temps complet/i;
                           const hasExclusivityAmendment = pacteAmendments.some((a) =>
-                            /exclusivit|full.?time|temps.?plein|article.?6/i.test(a)
+                            exclusivityRegex.test(a)
                           );
-                          // Check if user edited the document directly (contentEditable)
-                          const pacteText = pacteContentRef.current?.innerText || "";
-                          const hasDirectEdit = pacteEdited && /exclusivit|full.?time|temps.?plein|concurren.*cto|activit.*ext|projet.*ext/i.test(pacteText);
+                          // If the player directly edited the pacte text, they made the effort
+                          // to amend the document — this counts as a clean pacte
+                          const hasDirectEdit = pacteEdited;
                           if (hasExclusivityAmendment || hasDirectEdit || next.flags.pacte_signed_clean) {
                             next.flags.pacte_signed_clean = true;
                             next.flags.pacte_signed_dirty = false;
