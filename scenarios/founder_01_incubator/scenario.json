@@ -305,7 +305,7 @@
         {
           "event_id": "jury_starts",
           "actor": "claire_dumont",
-          "content": "Merci pour cette présentation. On va prendre quelques minutes pour vous poser des questions. Je commence.",
+          "content": "Merci pour cette présentation. On va vous poser quelques questions. Je commence : vous ciblez quel type d'établissements exactement, et vous avez une idée de la taille de ce marché ?",
           "channel": "voice",
           "delay_ms": 0
         }
@@ -335,7 +335,7 @@
         ]
       },
       "completion_rules": {
-        "max_exchanges": 8
+        "max_exchanges": 16
       },
       "on_complete": {
         "set_flags": { "qa_completed": true }

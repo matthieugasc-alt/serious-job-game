@@ -201,6 +201,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const pacteThreadEndRef = useRef<HTMLDivElement>(null);
   const pacteContentRef = useRef<HTMLDivElement>(null);
   const [pacteEdited, setPacteEdited] = useState(false);
+  // ── One-pager editor (scenario 1+) ──
+  const [showOnePagerEditor, setShowOnePagerEditor] = useState(false);
+  const [onePagerEdited, setOnePagerEdited] = useState(false);
+  const [onePagerSubmitted, setOnePagerSubmitted] = useState(false);
+  const onePagerContentRef = useRef<HTMLDivElement>(null);
   const [showContactPicker, setShowContactPicker] = useState<"to" | "cc" | null>(null);
   const [interviewStarted, setInterviewStarted] = useState(false);
   // (docContent state removed — Founder documents are now served as PDFs directly)
@@ -1435,6 +1440,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // play the scenario.
   // ══════════════════════════════════════════════════════════════════
 
+  // ── Jury round-robin index for voice_qa with multiple ai_actors ──
+  const juryTurnIndexRef = useRef(0);
+
   // Shared helper used by voice_qa onSilence to push the accumulated
   // transcript as a player message and trigger the AI reply.
   function dispatchVoiceQAMessage(newText: string) {
@@ -1443,7 +1451,21 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     const scen = scenarioRef.current;
     const v = viewRef.current;
     if (!sess || !scen || !v) return;
-    const targetActor = scen.phases[sess.currentPhaseIndex]?.ai_actors?.[0] || "enfants_cmj";
+    const phaseActors: string[] = scen.phases[sess.currentPhaseIndex]?.ai_actors || [];
+    // Round-robin through jury members (or single actor for simpler scenarios)
+    let targetActor: string;
+    if (phaseActors.length > 1) {
+      // Find who asked the last question (entry event or AI message) and pick the NEXT one
+      const lastAiMsg = [...(v.conversation || [])].reverse().find((m: any) => m.role === "npc" && phaseActors.includes(m.actor));
+      if (lastAiMsg) {
+        const lastIdx = phaseActors.indexOf(lastAiMsg.actor);
+        targetActor = phaseActors[(lastIdx + 1) % phaseActors.length];
+      } else {
+        targetActor = phaseActors[0];
+      }
+    } else {
+      targetActor = phaseActors[0] || "npc";
+    }
     const next = cloneSession(sess);
     addPlayerMessage(next, newText, targetActor);
     setSession(next);
@@ -2928,6 +2950,290 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         );
       })()}
 
+      {/* ═══════ ONE-PAGER EDITOR OVERLAY (Scenario 1+) ═══════ */}
+      {showOnePagerEditor && (() => {
+        const onePagerDoc = scenario?.resources?.documents?.find((d: any) => d.doc_id === "one_pager_template");
+        const onePagerPdfPath = (onePagerDoc as any)?.file_path || "";
+        return (
+          <div style={{
+            position: "fixed", inset: 0, zIndex: 10001,
+            background: "rgba(0,0,0,0.7)", display: "flex",
+            alignItems: "center", justifyContent: "center", padding: 20,
+          }}>
+            <div style={{
+              background: "#fff", borderRadius: 16, maxWidth: 800, width: "100%",
+              maxHeight: "92vh", display: "flex", flexDirection: "column",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.3)",
+            }}>
+              {/* Header bar */}
+              <div style={{
+                padding: "14px 24px", background: "linear-gradient(135deg, #1a1a2e, #16213e)",
+                borderRadius: "16px 16px 0 0",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: "#5b5fc7", display: "flex", alignItems: "center",
+                    justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#fff",
+                  }}>📝</div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>
+                      One-Pager — Orisio
+                    </h2>
+                    <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                      Remplis chaque section puis soumets au jury
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowOnePagerEditor(false)}
+                  style={{
+                    background: "rgba(255,255,255,0.1)", border: "none", fontSize: 18,
+                    color: "#fff", cursor: "pointer", padding: "4px 10px", borderRadius: 6,
+                  }}
+                >
+                  ✕
+                </button>
+              </div>
+
+              {/* Progress indicator */}
+              <div style={{
+                padding: "8px 24px", background: "#f8f9fa", borderBottom: "1px solid #e8e8e8",
+                display: "flex", alignItems: "center", gap: 12, fontSize: 12,
+              }}>
+                <span style={{ color: "#16a34a", fontWeight: 700 }}>1. Remplir le document</span>
+                <span style={{ color: "#ccc" }}>→</span>
+                <span style={{ color: onePagerEdited ? "#16a34a" : "#666", fontWeight: onePagerEdited ? 700 : 500 }}>2. Relire</span>
+                <span style={{ color: "#ccc" }}>→</span>
+                <span style={{ color: onePagerSubmitted ? "#16a34a" : "#666", fontWeight: onePagerSubmitted ? 700 : 500 }}>3. Soumettre</span>
+              </div>
+
+              {/* Instruction banner */}
+              {!onePagerSubmitted && (
+                <div style={{
+                  padding: "10px 24px", background: "#eff6ff", borderBottom: "1px solid #bfdbfe",
+                  display: "flex", alignItems: "center", gap: 10, fontSize: 12,
+                }}>
+                  <span style={{ fontSize: 16 }}>✏️</span>
+                  <span style={{ color: "#1e40af", fontWeight: 600 }}>
+                    Cliquez sur le texte entre crochets pour le remplacer par vos informations.
+                  </span>
+                  {onePagerEdited && (
+                    <span style={{ marginLeft: "auto", color: "#16a34a", fontWeight: 700, fontSize: 11 }}>
+                      Modifié
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Editable one-pager content */}
+              <div
+                ref={onePagerContentRef}
+                contentEditable={!onePagerSubmitted}
+                suppressContentEditableWarning
+                onInput={() => { if (!onePagerEdited) setOnePagerEdited(true); }}
+                style={{
+                  flex: 1, overflow: "auto", background: "#fff", padding: "32px 40px",
+                  fontSize: 14, lineHeight: 1.8, color: "#1a1a2e",
+                  fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
+                  outline: "none",
+                  cursor: !onePagerSubmitted ? "text" : "default",
+                }}
+              >
+                {/* Title */}
+                <div style={{ textAlign: "center", marginBottom: 28 }}>
+                  <h1 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 8px", color: "#1a1a2e", letterSpacing: -0.5 }}>
+                    <span style={{ color: "#9ca3af", fontStyle: "italic" }}>[NOM DE LA STARTUP]</span>
+                  </h1>
+                  <p style={{ fontSize: 14, color: "#9ca3af", fontStyle: "italic", margin: 0 }}>
+                    [Tagline — une phrase qui résume ce que vous faites]
+                  </p>
+                </div>
+                <hr style={{ border: "none", borderTop: "2px solid #5b5fc7", margin: "16px 0 24px", width: 60 }} />
+
+                {/* Problème */}
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Problème</h2>
+                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                  [Décrivez le problème que vous résolvez. Soyez concret : qui souffre, pourquoi, combien ça coûte. 3-4 phrases max.]
+                </p>
+
+                {/* Solution */}
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Solution</h2>
+                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                  [Décrivez votre produit/service. Ce qu&apos;il fait, comment il fonctionne, en quoi il est différent. Pas de jargon. 3-4 phrases max.]
+                </p>
+
+                {/* Marché */}
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Marché</h2>
+                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                  [Taille du marché cible. Nombre d&apos;établissements/utilisateurs potentiels. Segment initial visé. Chiffrez.]
+                </p>
+
+                {/* Modèle économique */}
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Modèle économique</h2>
+                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                  [Comment vous gagnez de l&apos;argent. Prix, récurrence, panier moyen. Soyez précis.]
+                </p>
+
+                {/* Traction */}
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Traction</h2>
+                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                  [Ce que vous avez déjà accompli. Entretiens, pilotes, lettres d&apos;intention, premiers revenus. Chiffres concrets uniquement.]
+                </p>
+
+                {/* Équipe */}
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Équipe</h2>
+                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                  [Qui vous êtes. Noms, rôles, pourquoi vous êtes les bonnes personnes pour ce projet. 2-3 lignes par personne.]
+                </p>
+
+                {/* Demande */}
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Demande</h2>
+                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                  [Ce que vous attendez de l&apos;incubateur. Soyez spécifique : mentorat, réseau, financement, locaux, introductions.]
+                </p>
+
+                {/* Contact */}
+                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Contact</h2>
+                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
+                  [Nom — email — téléphone]
+                </p>
+              </div>
+
+              {/* PDF link */}
+              {onePagerPdfPath && (
+                <div style={{ padding: "6px 24px", borderTop: "1px solid #e8e8e8", background: "#fafafa", textAlign: "center" }}>
+                  <a
+                    href={onePagerPdfPath.startsWith("/") ? onePagerPdfPath : `/api/download?file=${encodeURIComponent(onePagerPdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
+                    target="_blank" rel="noopener noreferrer"
+                    style={{
+                      fontSize: 11, padding: "4px 12px", borderRadius: 6,
+                      background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
+                      border: "1px solid rgba(91,95,199,0.2)",
+                    }}
+                  >
+                    Voir aussi le template PDF original
+                  </a>
+                </div>
+              )}
+
+              {/* Submit area */}
+              <div style={{
+                padding: "16px 24px", borderTop: "2px solid #5b5fc7",
+                background: onePagerSubmitted ? "#f0fdf4" : "#f8f9fa",
+              }}>
+                {!onePagerSubmitted ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 4 }}>
+                        {onePagerEdited
+                          ? "Votre one-pager est prêt à être soumis."
+                          : "Remplissez le document avant de soumettre."}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#888" }}>
+                        Le one-pager sera envoyé au jury de Technowest.
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        // 1. Mark as submitted
+                        setOnePagerSubmitted(true);
+                        // 2. Extract the one-pager text from the contentEditable div
+                        const onePagerText = onePagerContentRef.current?.innerText || "";
+                        // 3. Set flags and send mail
+                        if (session && scenario) {
+                          const next = cloneSession(session);
+                          next.flags.one_pager_submitted = true;
+                          // Fill the mail draft
+                          const phase = scenario.phases[next.currentPhaseIndex];
+                          const phaseId = phase?.phase_id;
+                          if (phaseId) {
+                            const defaults = (phase?.mail_config?.defaults || {}) as any;
+                            updateMailDraft(next, phaseId, {
+                              to: defaults.to || "jury@technowest.fr",
+                              cc: defaults.cc || "",
+                              subject: defaults.subject || "Candidature Orisio — One-pager",
+                              body: `Bonjour,\n\nVeuillez trouver ci-dessous le one-pager de notre startup Orisio.\n\n---\n\n${onePagerText}\n\n---\n\nCordialement,\n${displayPlayerName || "CEO"}\nOrisio`,
+                              attachments: [{ id: "one_pager_template", label: "One-Pager — Orisio" }],
+                            });
+                            // Send the mail
+                            const mailKind = phase?.mail_config?.kind || "one_pager_submission";
+                            sendCurrentPhaseMail(next, mailKind);
+                            // Advance phase
+                            if (phase?.mail_config?.send_advances_phase) {
+                              completeCurrentPhaseAndAdvance(next);
+                              resolveDynamicActors(next);
+                              injectPhaseEntryEvents(next);
+                              const newPhase = scenario.phases[next.currentPhaseIndex];
+                              if (newPhase?.mail_config?.defaults) {
+                                updateMailDraft(next, newPhase.phase_id, {
+                                  to: "", cc: "",
+                                  subject: newPhase.mail_config.defaults.subject || "",
+                                  body: "", attachments: [],
+                                });
+                              }
+                              // Notify checkpoint for Founder mode
+                              if (isFounderScenario && phaseId) {
+                                notifyCheckpointAdvance(phaseId, next.currentPhaseIndex);
+                              }
+                            }
+                          }
+                          setSession(next);
+                        }
+                        // Close the editor
+                        setShowOnePagerEditor(false);
+                        playNotificationSound();
+                      }}
+                      disabled={!onePagerEdited}
+                      style={{
+                        padding: "12px 32px", flexShrink: 0,
+                        background: onePagerEdited
+                          ? "linear-gradient(135deg, #5b5fc7, #4a4eb3)"
+                          : "#ccc",
+                        border: onePagerEdited ? "2px solid rgba(91,95,199,0.4)" : "2px solid #ddd",
+                        borderRadius: 10,
+                        color: "#fff", fontSize: 15, fontWeight: 800,
+                        cursor: onePagerEdited ? "pointer" : "not-allowed",
+                        boxShadow: onePagerEdited ? "0 4px 16px rgba(91,95,199,0.3)" : "none",
+                        transition: "all 0.2s",
+                        opacity: onePagerEdited ? 1 : 0.5,
+                      }}
+                      onMouseEnter={(e) => { if (onePagerEdited) { e.currentTarget.style.transform = "scale(1.02)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(91,95,199,0.4)"; } }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = onePagerEdited ? "0 4px 16px rgba(91,95,199,0.3)" : "none"; }}
+                    >
+                      📤 Soumettre le one-pager
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0" }}>
+                    <span style={{ fontSize: 20 }}>✅</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
+                        One-pager soumis au jury
+                      </div>
+                      <div style={{ fontSize: 11, color: "#666" }}>
+                        Le jury va maintenant l&apos;examiner. Prépare ton pitch.
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowOnePagerEditor(false)}
+                      style={{
+                        marginLeft: "auto", padding: "8px 16px",
+                        background: "#5b5fc7", border: "none", borderRadius: 8,
+                        color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {showBriefingOverlay && (
         <div
           style={{
@@ -3200,80 +3506,117 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         /* ═══ VOICE Q&A MODE ═══ */
         <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "linear-gradient(180deg, #f8f9fc 0%, #eef0f5 100%)" }}>
 
-          {/* Children row */}
-          <div style={{ padding: "20px 24px 12px", flexShrink: 0 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
-              🏫 Les enfants du CMJ
-            </div>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
-              {((currentPhaseConfig as any)?.voice_qa_config?.children_names || []).map((childName: string) => {
-                const hasHand = raisedHands.includes(childName);
-                const childColors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7DC6F"];
-                const colorIdx = childName.charCodeAt(0) % childColors.length;
-                return (
-                  <button
-                    key={childName}
-                    onClick={async () => {
-                      if (!hasHand || qaWaiting || isSpeakingTTS) return;
-                      setQaWaiting(true);
-                      // Remove hand
-                      setRaisedHands(prev => prev.filter(n => n !== childName));
-                      try {
-                        // Generate child question
-                        const question = await generateNPCMessage(
-                          "enfants_cmj",
-                          `INSTRUCTION: C'est ${childName} qui lève la main. Réponds UNIQUEMENT avec la réplique de ${childName}. UN SEUL enfant (${childName}), UNE question courte (1-2 phrases). Ne fais parler AUCUN autre enfant.`
-                        );
-                        // Add to conversation
-                        const next = cloneSession(session);
-                        addAIMessage(next, question, "enfants_cmj");
-                        setSession(next);
-                        // TTS will auto-trigger via the effect
-                      } catch (err) {
-                        console.error("Erreur génération question:", err);
-                      } finally {
-                        setQaWaiting(false);
-                      }
-                    }}
-                    disabled={!hasHand || qaWaiting || isSpeakingTTS}
-                    style={{
-                      display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
-                      padding: "8px 12px", borderRadius: 12,
-                      background: hasHand ? "#fff" : "#f0f0f0",
-                      border: hasHand ? "2px solid #5b5fc7" : "2px solid transparent",
-                      cursor: hasHand && !qaWaiting ? "pointer" : "default",
-                      opacity: hasHand ? 1 : 0.5,
-                      transition: "all .2s",
-                      boxShadow: hasHand ? "0 2px 8px rgba(91,95,199,0.15)" : "none",
-                      transform: hasHand ? "translateY(-2px)" : "none",
-                    }}
-                  >
-                    <div style={{
-                      width: 44, height: 44, borderRadius: "50%",
-                      background: childColors[colorIdx],
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      fontSize: 20, position: "relative",
-                    }}>
-                      <span style={{ fontWeight: 700, color: "#fff", fontSize: 16 }}>
-                        {childName[0]}
+          {/* Participants row — adapts to children (CMJ) or jury (incubator) */}
+          {(currentPhaseConfig as any)?.voice_qa_config?.children_names ? (
+            /* ── Children mode (CMJ) ── */
+            <div style={{ padding: "20px 24px 12px", flexShrink: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+                🏫 Les enfants du CMJ
+              </div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {((currentPhaseConfig as any).voice_qa_config.children_names || []).map((childName: string) => {
+                  const hasHand = raisedHands.includes(childName);
+                  const childColors = ["#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4", "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7DC6F"];
+                  const colorIdx = childName.charCodeAt(0) % childColors.length;
+                  return (
+                    <button
+                      key={childName}
+                      onClick={async () => {
+                        if (!hasHand || qaWaiting || isSpeakingTTS) return;
+                        setQaWaiting(true);
+                        setRaisedHands(prev => prev.filter(n => n !== childName));
+                        try {
+                          const question = await generateNPCMessage(
+                            "enfants_cmj",
+                            `INSTRUCTION: C'est ${childName} qui lève la main. Réponds UNIQUEMENT avec la réplique de ${childName}. UN SEUL enfant (${childName}), UNE question courte (1-2 phrases). Ne fais parler AUCUN autre enfant.`
+                          );
+                          const next = cloneSession(session);
+                          addAIMessage(next, question, "enfants_cmj");
+                          setSession(next);
+                        } catch (err) {
+                          console.error("Erreur génération question:", err);
+                        } finally {
+                          setQaWaiting(false);
+                        }
+                      }}
+                      disabled={!hasHand || qaWaiting || isSpeakingTTS}
+                      style={{
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                        padding: "8px 12px", borderRadius: 12,
+                        background: hasHand ? "#fff" : "#f0f0f0",
+                        border: hasHand ? "2px solid #5b5fc7" : "2px solid transparent",
+                        cursor: hasHand && !qaWaiting ? "pointer" : "default",
+                        opacity: hasHand ? 1 : 0.5,
+                        transition: "all .2s",
+                        boxShadow: hasHand ? "0 2px 8px rgba(91,95,199,0.15)" : "none",
+                        transform: hasHand ? "translateY(-2px)" : "none",
+                      }}
+                    >
+                      <div style={{
+                        width: 44, height: 44, borderRadius: "50%",
+                        background: childColors[colorIdx],
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 20, position: "relative",
+                      }}>
+                        <span style={{ fontWeight: 700, color: "#fff", fontSize: 16 }}>
+                          {childName[0]}
+                        </span>
+                        {hasHand && (
+                          <span style={{
+                            position: "absolute", top: -8, right: -8, fontSize: 20,
+                            animation: "handWave 1s ease-in-out infinite",
+                          }}>
+                            🙋
+                          </span>
+                        )}
+                      </div>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: hasHand ? "#333" : "#999" }}>
+                        {childName}
                       </span>
-                      {hasHand && (
-                        <span style={{
-                          position: "absolute", top: -8, right: -8, fontSize: 20,
-                          animation: "handWave 1s ease-in-out infinite",
-                        }}>
-                          🙋
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ) : currentPhaseAiActors.length > 0 ? (
+            /* ── Jury / multi-actor panel ── */
+            <div style={{ padding: "16px 24px 12px", flexShrink: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: 1, marginBottom: 12 }}>
+                🎙️ Le jury
+              </div>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                {currentPhaseAiActors.map((actorId: string) => {
+                  const info = getActorInfo(actorId);
+                  // Highlight the actor whose turn it is (last NPC who spoke)
+                  const lastNpc = [...conversation].reverse().find((m: any) => m.role === "npc" && currentPhaseAiActors.includes(m.actor));
+                  const isActive = lastNpc?.actor === actorId;
+                  return (
+                    <div
+                      key={actorId}
+                      style={{
+                        display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
+                        padding: "8px 14px", borderRadius: 12,
+                        background: isActive ? "#fff" : "#f5f5f5",
+                        border: isActive ? "2px solid " + info.color : "2px solid transparent",
+                        transition: "all .2s",
+                        boxShadow: isActive ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
+                      }}
+                    >
+                      <Avatar initials={info.initials} color={info.color} size={40} status={info.status} />
+                      <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? "#333" : "#888" }}>
+                        {info.name.split(" ")[0]}
+                      </span>
+                      {isActive && (
+                        <span style={{ fontSize: 9, color: info.color, fontWeight: 700 }}>
+                          En train de parler
                         </span>
                       )}
                     </div>
-                    <span style={{ fontSize: 11, fontWeight: 600, color: hasHand ? "#333" : "#999" }}>
-                      {childName}
-                    </span>
-                  </button>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ) : null}
 
           {/* Interaction area */}
           <div style={{ flex: 1, display: "flex", flexDirection: "column", padding: "0 24px", overflow: "auto" }}>
@@ -3652,7 +3995,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         >
                           {msg.content}
                         </div>
-                        {/* Attachments (documents sent in chat) — click opens PDF in new tab */}
+                        {/* Attachments (documents sent in chat) — click opens PDF or editor */}
                         {msg.attachments && msg.attachments.length > 0 && (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
                             {msg.attachments.map((att: any) => {
@@ -3660,6 +4003,27 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                               const fp = (attDoc as any)?.file_path || "";
                               const isPublicPdf = fp.startsWith("/") && fp.endsWith(".pdf");
                               const docUrl = isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
+                              // One-pager template: open editor instead of PDF
+                              const isOnePagerTemplate = att.id === "one_pager_template";
+                              if (isOnePagerTemplate) {
+                                return (
+                                  <button
+                                    key={att.id}
+                                    onClick={() => setShowOnePagerEditor(true)}
+                                    style={{
+                                      display: "inline-flex", alignItems: "center", gap: 4,
+                                      padding: "6px 14px", background: onePagerSubmitted ? "#f0fdf4" : (isPlayer ? "rgba(255,255,255,0.15)" : "#fff"),
+                                      border: onePagerSubmitted ? "1px solid #86efac" : (isPlayer ? "1px solid rgba(255,255,255,0.25)" : "1px solid #5b5fc7"),
+                                      borderRadius: 8, fontSize: 11, fontWeight: 700,
+                                      color: onePagerSubmitted ? "#16a34a" : (isPlayer ? "#fff" : "#5b5fc7"),
+                                      cursor: "pointer",
+                                      animation: !onePagerSubmitted ? "none" : "none",
+                                    }}
+                                  >
+                                    {onePagerSubmitted ? "✅" : "📝"} {onePagerSubmitted ? "One-pager soumis" : "Ouvrir et remplir le one-pager"}
+                                  </button>
+                                );
+                              }
                               return (
                                 <a
                                   key={att.id}
@@ -3949,6 +4313,44 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                             onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(255,215,0,0.3)"; }}
                           >
                             ✍️ Ouvrir et signer le pacte
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── "Ouvrir et remplir le one-pager" — only in phase_1_onepager ── */}
+                    {currentPhaseId === "phase_1_onepager" && (
+                      <div style={{ marginTop: 16 }}>
+                        {onePagerSubmitted ? (
+                          <div style={{
+                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
+                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
+                            display: "flex", alignItems: "center", gap: 10,
+                          }}>
+                            <span style={{ fontSize: 20 }}>✅</span>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>One-pager soumis</div>
+                              <div style={{ fontSize: 11, color: "#666" }}>
+                                Le jury va examiner votre candidature. Préparez votre pitch.
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowOnePagerEditor(true)}
+                            style={{
+                              width: "100%", padding: "14px 24px",
+                              background: "linear-gradient(135deg, #5b5fc7, #4a4eb3)",
+                              border: "2px solid rgba(91,95,199,0.4)", borderRadius: 12,
+                              color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer",
+                              boxShadow: "0 4px 16px rgba(91,95,199,0.3)",
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                              transition: "all 0.2s",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(91,95,199,0.4)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(91,95,199,0.3)"; }}
+                          >
+                            📝 Ouvrir et remplir le one-pager
                           </button>
                         )}
                       </div>
