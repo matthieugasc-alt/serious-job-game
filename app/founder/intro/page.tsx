@@ -37,6 +37,8 @@ export default function FounderIntroPage() {
         setCreating(false);
         return;
       }
+      // Persist campaign ID for debrief redirects
+      localStorage.setItem("founder_campaign_id", campaign.id);
 
       // If existing campaign: check if scenario 0 is already completed
       if (data.existing) {

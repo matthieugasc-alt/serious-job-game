@@ -148,35 +148,35 @@
       {
         "doc_id": "cv_sofia",
         "label": "CV — Sofia Renault",
-        "file_path": "documents/cv_sofia_renault.md",
+        "file_path": "/scenarios/founder_00_cto/documents/cv_sofia_renault.pdf",
         "contains": ["CV", "Sofia", "Centrale Lyon", "MedFlow", "Doctolib", "HDS"],
         "usable_as_pj": true
       },
       {
         "doc_id": "cv_marc",
         "label": "CV — Marc Lefèvre",
-        "file_path": "documents/cv_marc_lefevre.md",
+        "file_path": "/scenarios/founder_00_cto/documents/cv_marc_lefevre.pdf",
         "contains": ["CV", "Marc", "Betclic", "ENSEEIHT", "Atos", "CNAM"],
         "usable_as_pj": true
       },
       {
         "doc_id": "cv_karim",
         "label": "CV — Karim Benzarti",
-        "file_path": "documents/cv_karim_benzarti.md",
+        "file_path": "/scenarios/founder_00_cto/documents/cv_karim_benzarti.pdf",
         "contains": ["CV", "Karim", "Pixel33", "DUT", "MedBoard"],
         "usable_as_pj": true
       },
       {
         "doc_id": "note_avocat",
         "label": "Note — Me Dufresne (avocate)",
-        "file_path": "documents/note_avocat.md",
+        "file_path": "/scenarios/founder_00_cto/documents/note_avocat.pdf",
         "contains": ["pacte", "associés", "vesting", "equity", "BSPCE", "SAS"],
         "usable_as_pj": false
       },
       {
         "doc_id": "pacte_associes",
         "label": "Pacte d'associés (proposé par le CTO)",
-        "file_path": "documents/pacte_associes.md",
+        "file_path": "/scenarios/founder_00_cto/documents/pacte_associes.pdf",
         "contains": ["pacte", "vesting", "leaver", "capital", "non-concurrence"],
         "usable_as_pj": true,
         "available_from_phase": "phase_3_pacte"
@@ -267,7 +267,7 @@
         ]
       },
       "completion_rules": {
-        "max_exchanges": 8
+        "max_exchanges": 40
       },
       "on_complete": {
         "set_flags": { "sofia_interviewed": true }
@@ -323,7 +323,7 @@
         ]
       },
       "completion_rules": {
-        "max_exchanges": 8
+        "max_exchanges": 40
       },
       "on_complete": {
         "set_flags": { "marc_interviewed": true }
@@ -373,7 +373,7 @@
         ]
       },
       "completion_rules": {
-        "max_exchanges": 8
+        "max_exchanges": 40
       },
       "on_complete": {
         "set_flags": { "karim_interviewed": true }
@@ -446,8 +446,8 @@
       "title": "Réponse du candidat",
       "objective": "Le candidat répond à ta proposition. Attends sa réponse et discute avec Alexandre.",
       "phase_focus": "Le candidat choisi répond positivement à la proposition. Il annonce que son avocat prépare un pacte d'associés. Alexandre te conseille de relire la note de Me Dufresne avant de signer quoi que ce soit.",
-      "duration_target_min": 2,
-      "max_duration_sec": 180,
+      "duration_target_min": 1,
+      "max_duration_sec": 45,
       "active_channels": ["chat"],
       "ai_actors": ["alexandre_morel", "chosen_cto"],
       "dynamic_actor": "chosen_cto",
@@ -471,7 +471,7 @@
         "criteria": []
       },
       "completion_rules": {
-        "max_exchanges": 4
+        "max_exchanges": 3
       },
       "on_complete": {
         "set_flags": { "offer_accepted": true }
@@ -496,7 +496,7 @@
           "channel": "mail",
           "subject": "Pacte d'associés — Orisio",
           "content": "Comme discuté, voici le pacte rédigé par mon avocat Me Fabre. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine. Renvoie-moi le pacte signé et on lance les démarches.",
-          "delay_ms": 1500,
+          "delay_ms": 500,
           "attachments": [
             { "id": "pacte_associes", "label": "Pacte d'associés — Orisio SAS" }
           ]
@@ -506,7 +506,7 @@
           "actor": "alexandre_morel",
           "content": "J'ai vu que tu as reçu le pacte. Prends le temps de bien le lire — c'est le genre de document qu'on regrette de ne pas avoir lu le jour où ça se passe mal.",
           "channel": "chat",
-          "delay_ms": 5000
+          "delay_ms": 3000
         }
       ],
       "mail_config": {

@@ -196,9 +196,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [showSignatureView, setShowSignatureView] = useState(false);
   const [pacteAmendments, setPacteAmendments] = useState<string[]>([]);
   const [amendmentInput, setAmendmentInput] = useState("");
+  const [pacteThread, setPacteThread] = useState<Array<{ role: "player" | "cto"; content: string }>>([]);
+  const [pacteThreadLoading, setPacteThreadLoading] = useState(false);
   const [showContactPicker, setShowContactPicker] = useState<"to" | "cc" | null>(null);
   const [interviewStarted, setInterviewStarted] = useState(false);
-  const [docContent, setDocContent] = useState<Record<string, string>>({});
+  // (docContent state removed — Founder documents are now served as PDFs directly)
   const [debriefData, setDebriefData] = useState<any>(null);
   const [debriefLoading, setDebriefLoading] = useState(false);
   const [debriefError, setDebriefError] = useState<string | null>(null);
@@ -832,10 +834,15 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             if (fRes.ok) {
               const fData = await fRes.json();
               const campaigns = fData.campaigns || (fData.campaign ? [fData.campaign] : []);
-              const hasActiveCampaign = campaigns.some((c: any) => c.status !== "completed");
+              const activeCampaign = campaigns.find((c: any) => c.status !== "completed");
+              const hasActiveCampaign = !!activeCampaign;
               const hasCompletedScenario = campaigns.some((c: any) =>
                 (c.completedScenarios || []).some((cs: any) => cs.scenarioId === scenarioId)
               );
+              // Persist campaign ID for debrief redirects
+              if (activeCampaign?.id) {
+                localStorage.setItem("founder_campaign_id", activeCampaign.id);
+              }
               // If no active campaign AND scenario not completed → blocked
               if (!hasActiveCampaign && !hasCompletedScenario) {
                 router.replace("/?locked=founder");
@@ -1144,36 +1151,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     });
   }, []);
 
-  // ── Fetch markdown document content for Founder docs ──
-  useEffect(() => {
-    if (!scenario) return;
-    const docs = (scenario as any).resources?.documents || [];
-    for (const doc of docs) {
-      const fp = doc.file_path;
-      if (!fp || docContent[fp]) continue;
-      // Fetch via download API with scenarioId
-      fetch(`/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`)
-        .then((res) => res.ok ? res.text() : null)
-        .then((text) => {
-          if (!text) return;
-          // Replace [CEO] placeholder with player pseudo
-          const playerPseudo = displayPlayerName || "CEO";
-          const withPseudo = text.replace(/\[CEO\]/g, playerPseudo);
-          // Simple markdown to HTML conversion
-          const html = withPseudo
-            .replace(/^### (.+)$/gm, '<h3 style="margin:12px 0 6px;font-size:13px;font-weight:700;color:#333">$1</h3>')
-            .replace(/^## (.+)$/gm, '<h2 style="margin:16px 0 8px;font-size:14px;font-weight:700;color:#222">$1</h2>')
-            .replace(/^# (.+)$/gm, '<h1 style="margin:16px 0 10px;font-size:16px;font-weight:700;color:#111">$1</h1>')
-            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-            .replace(/^- (.+)$/gm, '<li style="margin:2px 0;padding-left:4px">$1</li>')
-            .replace(/^---$/gm, '<hr style="border:none;border-top:1px solid #e0e0e0;margin:12px 0"/>')
-            .replace(/\n\n/g, '<br/><br/>')
-            .replace(/\n/g, '<br/>');
-          setDocContent((prev) => ({ ...prev, [fp]: html }));
-        })
-        .catch(() => {});
-    }
-  }, [scenario, scenarioId]);
+  // (Markdown document fetch removed — all Founder documents are now served as PDFs)
 
   // ── Auto-scroll chat ──
   useEffect(() => {
@@ -1868,11 +1846,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // ════════════════════════════════════════════════════════════════════
 
   function getActorInfo(actorId: string) {
-    const a = actors.find((x: any) => x.actor_id === actorId);
+    // Resolve "chosen_cto" to actual CTO actor
+    const resolved = actorId === "chosen_cto" && chosenCtoId ? chosenCtoId : actorId;
+    const a = actors.find((x: any) => x.actor_id === resolved);
     return {
-      name: a?.name || actorId,
+      name: a?.name || resolved,
       color: a?.avatar?.color || "#666",
-      initials: a?.avatar?.initials || getInitials(a?.name || actorId),
+      initials: a?.avatar?.initials || getInitials(a?.name || resolved),
       status: (a as any)?.contact_status || "offline",
     };
   }
@@ -1939,13 +1919,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             <h2 style={{ fontSize: 18, color: "#333", marginBottom: 8 }}>Scénario terminé</h2>
             <p style={{ fontSize: 14, color: "#888", marginBottom: 20 }}>Le débrief n'a pas pu être généré : {debriefError}</p>
             <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
-              <button onClick={() => router.push(`/scenarios/${scenarioId}`)} style={{ padding: "10px 24px", background: "#5b5fc7", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
-                Rejouer
-              </button>
-              {isFounderScenario && (
-                <button onClick={() => { const cid = typeof window !== "undefined" ? localStorage.getItem("founder_campaign_id") : null; router.push(cid ? `/founder/${cid}` : "/founder"); }}
+              {isFounderScenario ? (
+                <button onClick={() => { const cid = typeof window !== "undefined" ? localStorage.getItem("founder_campaign_id") : null; router.push(cid ? `/founder/${cid}` : "/founder/intro"); }}
                   style={{ padding: "10px 24px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
                   Continuer la campagne
+                </button>
+              ) : (
+                <button onClick={() => router.push(`/scenarios/${scenarioId}`)} style={{ padding: "10px 24px", background: "#5b5fc7", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
+                  Rejouer
                 </button>
               )}
               <button onClick={() => router.push("/")} style={{ padding: "10px 24px", background: "#fff", color: "#666", border: "1px solid #ddd", borderRadius: 8, cursor: "pointer", fontWeight: 600 }}>
@@ -2035,12 +2016,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 </div>
               )}
 
-              {/* Actions */}
+              {/* Actions — Founder: only "Continuer la campagne", no replay */}
               <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
                 <button
                   onClick={() => {
                     const cid = typeof window !== "undefined" ? localStorage.getItem("founder_campaign_id") : null;
-                    router.push(cid ? `/founder/${cid}` : "/founder");
+                    router.push(cid ? `/founder/${cid}` : "/founder/intro");
                   }}
                   style={{
                     padding: "14px 32px", background: "linear-gradient(135deg, #16a34a, #15803d)",
@@ -2049,16 +2030,6 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   }}
                 >
                   Continuer la campagne →
-                </button>
-                <button
-                  onClick={() => router.push(`/scenarios/${scenarioId}`)}
-                  style={{
-                    padding: "14px 24px", background: "#fff", color: "#666",
-                    border: "1px solid #ddd", borderRadius: 10, cursor: "pointer",
-                    fontWeight: 600, fontSize: 13,
-                  }}
-                >
-                  Rejouer
                 </button>
               </div>
             </div>
@@ -2169,29 +2140,32 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
             {/* Actions */}
             <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", paddingBottom: 40 }}>
-              <button
-                onClick={() => router.push(`/scenarios/${scenarioId}`)}
-                style={{ padding: "12px 28px", background: "#5b5fc7", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14, boxShadow: "0 2px 8px rgba(91,95,199,.3)" }}
-              >
-                Rejouer le scénario
-              </button>
-              {isFounderScenario && (
+              {isFounderScenario ? (
                 <button
                   onClick={() => {
                     const cid = typeof window !== "undefined" ? localStorage.getItem("founder_campaign_id") : null;
-                    router.push(cid ? `/founder/${cid}` : "/founder");
+                    router.push(cid ? `/founder/${cid}` : "/founder/intro");
                   }}
                   style={{ padding: "12px 28px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14, boxShadow: "0 2px 8px rgba(22,163,74,.3)" }}
                 >
                   Continuer la campagne
                 </button>
+              ) : (
+                <>
+                  <button
+                    onClick={() => router.push(`/scenarios/${scenarioId}`)}
+                    style={{ padding: "12px 28px", background: "#5b5fc7", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14, boxShadow: "0 2px 8px rgba(91,95,199,.3)" }}
+                  >
+                    Rejouer le scénario
+                  </button>
+                  <button
+                    onClick={() => router.push("/history")}
+                    style={{ padding: "12px 28px", background: "#fff", color: "#5b5fc7", border: "1px solid #5b5fc7", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14 }}
+                  >
+                    Historique
+                  </button>
+                </>
               )}
-              <button
-                onClick={() => router.push("/history")}
-                style={{ padding: "12px 28px", background: "#fff", color: "#5b5fc7", border: "1px solid #5b5fc7", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14 }}
-              >
-                Historique
-              </button>
               <button
                 onClick={() => router.push("/")}
                 style={{ padding: "12px 28px", background: "#fff", color: "#666", border: "1px solid #ddd", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14 }}
@@ -2472,157 +2446,199 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 <span style={{ color: "#999" }}>4. Renvoyer par mail</span>
               </div>
 
-              {/* Document viewer — markdown rendered inline + fallback buttons */}
-              <div style={{ flex: 1, overflow: "auto", background: "#fafbfc", display: "flex", flexDirection: "column" }}>
-                {pactePdfPath && docContent[pactePdfPath] ? (
-                  <div style={{ padding: "20px 24px", flex: 1 }}>
-                    <div
-                      style={{ fontSize: 12, lineHeight: 1.7, color: "#333" }}
-                      dangerouslySetInnerHTML={{ __html: docContent[pactePdfPath] }}
-                    />
-                  </div>
-                ) : (
-                  <div style={{ padding: "40px 24px", textAlign: "center", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
-                    <div style={{ fontSize: 36 }}>📄</div>
-                    <div style={{ fontSize: 13, color: "#666" }}>
-                      {pactePdfPath ? "Le document est en cours de chargement..." : "Document non disponible."}
+              {/* Document viewer — embedded PDF */}
+              <div style={{ flex: 1, overflow: "hidden", background: "#fafbfc", display: "flex", flexDirection: "column" }}>
+                {pactePdfPath ? (
+                  <>
+                    {pactePdfPath.startsWith("/") && pactePdfPath.endsWith(".pdf") ? (
+                      <iframe
+                        src={pactePdfPath}
+                        style={{ flex: 1, border: "none", width: "100%", minHeight: 400 }}
+                        title="Pacte d'associés"
+                      />
+                    ) : (
+                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
+                        <div style={{ textAlign: "center" }}>
+                          <div style={{ fontSize: 36, marginBottom: 12 }}>📄</div>
+                          <a
+                            href={pactePdfPath.startsWith("/") ? pactePdfPath : `/api/download?file=${encodeURIComponent(pactePdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{ fontSize: 14, color: "#5b5fc7", fontWeight: 600, textDecoration: "none" }}
+                          >
+                            Ouvrir le pacte dans un nouvel onglet
+                          </a>
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ padding: "8px 24px 10px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0 }}>
+                      <a
+                        href={pactePdfPath.startsWith("/") ? pactePdfPath : `/api/download?file=${encodeURIComponent(pactePdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                          padding: "8px 14px", borderRadius: 8, fontSize: 11, fontWeight: 600,
+                          background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
+                          border: "1px solid rgba(91,95,199,0.2)",
+                        }}
+                      >
+                        Ouvrir dans un nouvel onglet
+                      </a>
                     </div>
-                  </div>
-                )}
-                {/* Fallback access buttons — always visible */}
-                {pactePdfPath && (
-                  <div style={{ padding: "10px 24px 14px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0 }}>
-                    <a
-                      href={`/api/download?file=${encodeURIComponent(pactePdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{
-                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                        padding: "8px 14px", borderRadius: 8, fontSize: 11, fontWeight: 600,
-                        background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
-                        border: "1px solid rgba(91,95,199,0.2)",
-                      }}
-                    >
-                      📄 Ouvrir dans un nouvel onglet
-                    </a>
-                    <a
-                      href={`/api/download?file=${encodeURIComponent(pactePdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
-                      download
-                      style={{
-                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                        padding: "8px 14px", borderRadius: 8, fontSize: 11, fontWeight: 600,
-                        background: "#5b5fc7", color: "#fff", textDecoration: "none",
-                      }}
-                    >
-                      ⬇ Télécharger
-                    </a>
+                  </>
+                ) : (
+                  <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div style={{ fontSize: 13, color: "#666" }}>Document non disponible.</div>
                   </div>
                 )}
               </div>
 
-              {/* Amendment / Negotiation panel */}
+              {/* Negotiation thread — inline comment thread on the pacte */}
               {!pacteSigned && currentPhaseId === "phase_3_pacte" && (
                 <div style={{
-                  padding: "12px 24px", borderTop: "1px solid #e8e8e8",
-                  background: "#fefce8",
+                  maxHeight: 260, display: "flex", flexDirection: "column",
+                  borderTop: "1px solid #e8e8e8", background: "#fafafa",
                 }}>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8 }}>
+                  {/* Thread header */}
+                  <div style={{ padding: "10px 24px 6px", display: "flex", alignItems: "center", gap: 8 }}>
                     <span style={{ fontSize: 14 }}>💬</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#92400e" }}>
-                      Demandes de modification ({pacteAmendments.length})
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>
+                      Négociation{pacteThread.length > 0 ? ` (${pacteThread.length})` : ""}
                     </span>
-                    <span style={{ fontSize: 11, color: "#a16207" }}>
-                      — Ajoutez vos remarques avant de signer, ou discutez par chat avec le CTO
+                    <span style={{ fontSize: 11, color: "#888" }}>
+                      — Discutez les clauses directement avec le CTO
                     </span>
                   </div>
-                  {pacteAmendments.length > 0 && (
-                    <ul style={{ margin: "0 0 8px", padding: "0 0 0 20px", fontSize: 12, color: "#333", lineHeight: 1.6 }}>
-                      {pacteAmendments.map((a, i) => (
-                        <li key={i} style={{ marginBottom: 4 }}>
-                          {a}
-                          <button
-                            onClick={() => setPacteAmendments((prev) => prev.filter((_, idx) => idx !== i))}
-                            style={{ background: "none", border: "none", color: "#dc2626", cursor: "pointer", fontSize: 11, marginLeft: 6 }}
-                          >
-                            ✕
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
+                  {/* Thread messages */}
+                  {pacteThread.length > 0 && (
+                    <div style={{ flex: 1, overflowY: "auto", padding: "4px 24px 8px" }}>
+                      {pacteThread.map((msg, i) => {
+                        const isCto = msg.role === "cto";
+                        const ctoInfo = getActorInfo(chosenCtoId || "sofia_renault");
+                        return (
+                          <div key={i} style={{
+                            display: "flex", gap: 8, marginBottom: 8,
+                            flexDirection: isCto ? "row" : "row-reverse",
+                          }}>
+                            <div style={{
+                              width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+                              background: isCto ? ctoInfo.color : "#5b5fc7",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 10, fontWeight: 700, color: "#fff",
+                            }}>
+                              {isCto ? ctoInfo.initials : (displayPlayerName || "CEO").charAt(0).toUpperCase()}
+                            </div>
+                            <div style={{
+                              padding: "6px 12px", borderRadius: 10, fontSize: 12, lineHeight: 1.5,
+                              maxWidth: "75%", wordBreak: "break-word",
+                              background: isCto ? "#fff" : "#5b5fc7",
+                              color: isCto ? "#333" : "#fff",
+                              border: isCto ? "1px solid #e8e8e8" : "none",
+                            }}>
+                              {msg.content}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {pacteThreadLoading && (
+                        <div style={{ fontSize: 11, color: "#888", fontStyle: "italic", padding: "4px 0" }}>
+                          {getActorInfo(chosenCtoId || "sofia_renault").name} est en train de répondre...
+                        </div>
+                      )}
+                    </div>
                   )}
-                  <div style={{ display: "flex", gap: 8 }}>
+                  {/* Input */}
+                  <div style={{ padding: "8px 24px 10px", display: "flex", gap: 8 }}>
                     <input
                       type="text"
                       value={amendmentInput}
                       onChange={(e) => setAmendmentInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && amendmentInput.trim()) {
-                          setPacteAmendments((prev) => [...prev, amendmentInput.trim()]);
+                      onKeyDown={async (e) => {
+                        if (e.key === "Enter" && amendmentInput.trim() && !pacteThreadLoading) {
+                          const text = amendmentInput.trim();
                           setAmendmentInput("");
-                          // Set flag that player asked for modifications
+                          setPacteAmendments((prev) => [...prev, text]);
+                          setPacteThread((prev) => [...prev, { role: "player", content: text }]);
+                          // Set flag
                           if (session) {
                             const next = { ...session, flags: { ...session.flags, asked_modification: true } };
                             setSession(next);
                           }
+                          // Get CTO response via AI
+                          setPacteThreadLoading(true);
+                          try {
+                            const ctoId = chosenCtoId || "sofia_renault";
+                            const activePrompt = aiPromptsMapRef.current[ctoId] || aiPromptRef.current;
+                            const threadContext = pacteThread.slice(-6).map((m) => ({
+                              role: m.role === "player" ? "user" : "assistant",
+                              content: m.content,
+                            }));
+                            threadContext.push({ role: "user", content: text });
+                            const res = await fetch("/api/chat", {
+                              method: "POST",
+                              headers: apiHeaders(),
+                              body: JSON.stringify({
+                                playerName: displayPlayerName,
+                                message: text,
+                                phaseTitle: "Négociation du pacte d'associés",
+                                phaseObjective: "Le CEO discute les clauses du pacte avec le CTO. Réponds en tant que CTO, directement, à la 1ère personne.",
+                                phaseFocus: "Discussion sur une clause du pacte d'associés. Le CEO fait un commentaire ou demande une modification. Réponds de manière directe et naturelle.",
+                                phasePrompt: "",
+                                criteria: [],
+                                mode: "exploratory",
+                                narrative: scenario?.narrative || {},
+                                conversationHistory: threadContext,
+                                playerHistory: [text],
+                                roleplayPrompt: activePrompt,
+                              }),
+                            });
+                            const data = await res.json();
+                            const reply = data?.reply || data?.response || "Je vais vérifier avec mon avocat.";
+                            setPacteThread((prev) => [...prev, { role: "cto", content: reply }]);
+                            // Check if reply indicates acceptance of exclusivity
+                            if (/accept|d'accord|on ajoute|logique|ok.*clause/i.test(reply) &&
+                                /exclusivit|full.?time|temps.?plein/i.test(text)) {
+                              if (session) {
+                                const next = { ...session, flags: { ...session.flags, pacte_signed_clean: true } };
+                                setSession(next);
+                              }
+                            }
+                          } catch {
+                            setPacteThread((prev) => [...prev, { role: "cto", content: "Je vais vérifier avec mon avocat et te reviens." }]);
+                          }
+                          setPacteThreadLoading(false);
                         }
                       }}
-                      placeholder="Ex: Modifier l'article 6, ajouter une clause..."
+                      placeholder="Commenter une clause, demander une modification..."
+                      disabled={pacteThreadLoading}
                       style={{
                         flex: 1, padding: "8px 12px", border: "1px solid #d4d4d8",
                         borderRadius: 8, fontSize: 12, outline: "none",
+                        opacity: pacteThreadLoading ? 0.6 : 1,
                       }}
                     />
                     <button
-                      onClick={() => {
-                        if (amendmentInput.trim()) {
-                          setPacteAmendments((prev) => [...prev, amendmentInput.trim()]);
-                          setAmendmentInput("");
-                          if (session) {
-                            const next = { ...session, flags: { ...session.flags, asked_modification: true } };
-                            setSession(next);
-                          }
-                        }
+                      onClick={async () => {
+                        if (!amendmentInput.trim() || pacteThreadLoading) return;
+                        // Trigger the same logic as Enter key
+                        const fakeEvent = { key: "Enter", preventDefault: () => {} } as any;
+                        const input = document.querySelector<HTMLInputElement>('[placeholder="Commenter une clause, demander une modification..."]');
+                        if (input) input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
                       }}
                       style={{
-                        padding: "8px 16px", background: "#f59e0b", border: "none",
-                        borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700,
-                        cursor: amendmentInput.trim() ? "pointer" : "not-allowed",
-                        opacity: amendmentInput.trim() ? 1 : 0.5,
+                        padding: "8px 16px", background: amendmentInput.trim() && !pacteThreadLoading ? "#5b5fc7" : "#ccc",
+                        border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700,
+                        cursor: amendmentInput.trim() && !pacteThreadLoading ? "pointer" : "not-allowed",
                       }}
                     >
-                      Ajouter
+                      Envoyer
                     </button>
-                    {pacteAmendments.length > 0 && (
-                      <button
-                        onClick={() => {
-                          // Send amendments to CTO via chat
-                          if (session && scenario) {
-                            const ctoId = chosenCtoId || "sofia_renault";
-                            const amendText = "J'ai des remarques sur le pacte avant de signer :\n" +
-                              pacteAmendments.map((a, i) => `${i + 1}. ${a}`).join("\n");
-                            const next = cloneSession(session);
-                            addPlayerMessage(next, amendText, ctoId);
-                            setSession(next);
-                            setPlayerInput("");
-                            setMainView("chat");
-                            setSelectedContact(ctoId);
-                            setShowSignatureView(false);
-                          }
-                        }}
-                        style={{
-                          padding: "8px 16px", background: "#5b5fc7", border: "none",
-                          borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700,
-                          cursor: "pointer", whiteSpace: "nowrap",
-                        }}
-                      >
-                        💬 Envoyer au CTO
-                      </button>
-                    )}
                   </div>
                 </div>
               )}
 
-              {/* Signature area — DocuSign style */}
+              {/* Signature area — one-click sign + send */}
               <div style={{
                 padding: "16px 24px", borderTop: "2px solid #ffd700",
                 background: pacteSigned ? "#f0fdf4" : "#fffbeb",
@@ -2635,28 +2651,67 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       </div>
                       <div style={{ fontSize: 11, color: "#888" }}>
                         {pacteAmendments.length > 0
-                          ? `${pacteAmendments.length} modification(s) notée(s) — vous pouvez signer avec réserves ou discuter d'abord avec le CTO.`
-                          : "Relisez le document, ajoutez vos remarques si besoin, puis signez."}
+                          ? `${pacteAmendments.length} remarque(s) envoyée(s) au CTO.`
+                          : "Relisez le document, discutez les clauses si besoin, puis signez et envoyez."}
                       </div>
                     </div>
                     <button
                       onClick={() => {
+                        // 1. Mark as signed
                         setPacteSigned(true);
-                        if (session) {
-                          const next = { ...session, flags: { ...session.flags } };
+                        // 2. Set flags
+                        if (session && scenario) {
+                          const next = cloneSession(session);
                           if (!next.flags.pacte_signed_clean) {
                             next.flags.pacte_signed_dirty = true;
                           }
-                          // If player added amendments mentioning exclusivity, mark clean
                           const hasExclusivityAmendment = pacteAmendments.some((a) =>
                             /exclusivit|full.?time|temps.?plein|article.?6/i.test(a)
                           );
-                          if (hasExclusivityAmendment) {
+                          if (hasExclusivityAmendment || next.flags.pacte_signed_clean) {
                             next.flags.pacte_signed_clean = true;
                             next.flags.pacte_signed_dirty = false;
                           }
+                          // 3. Auto-fill mail draft and send
+                          const phase = scenario.phases[next.currentPhaseIndex];
+                          const phaseId = phase?.phase_id;
+                          if (phaseId) {
+                            const ctoId = chosenCtoId || "sofia_renault";
+                            const ctoActor = actors.find((a: any) => a.actor_id === ctoId);
+                            const ctoName = ctoActor?.name || "CTO";
+                            const amendSummary = pacteAmendments.length > 0
+                              ? `\n\nRemarques notées :\n${pacteAmendments.map((a, i) => `${i + 1}. ${a}`).join("\n")}`
+                              : "";
+                            updateMailDraft(next, phaseId, {
+                              to: ctoName,
+                              cc: "",
+                              subject: "RE: Pacte d'associés — Orisio",
+                              body: `Bonjour,\n\nJ'ai relu et signé le pacte d'associés.${amendSummary}\n\nCordialement,\n${displayPlayerName || "CEO"}`,
+                              attachments: [{ id: "pacte_associes", label: "Pacte d'associés — Orisio SAS" }],
+                            });
+                            // 4. Send the mail
+                            const mailKind = phase?.mail_config?.kind || "pacte_response";
+                            sendCurrentPhaseMail(next, mailKind);
+                            // 5. Advance phase
+                            if (phase?.mail_config?.send_advances_phase) {
+                              completeCurrentPhaseAndAdvance(next);
+                              resolveDynamicActors(next);
+                              injectPhaseEntryEvents(next);
+                              const newPhase = scenario.phases[next.currentPhaseIndex];
+                              if (newPhase?.mail_config?.defaults) {
+                                updateMailDraft(next, newPhase.phase_id, {
+                                  to: "", cc: "",
+                                  subject: newPhase.mail_config.defaults.subject || "",
+                                  body: "", attachments: [],
+                                });
+                              }
+                            }
+                          }
                           setSession(next);
                         }
+                        // 6. Close popup
+                        setShowSignatureView(false);
+                        playNotificationSound();
                       }}
                       style={{
                         padding: "12px 32px", flexShrink: 0,
@@ -2669,39 +2724,29 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.02)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(255,215,0,0.4)"; }}
                       onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(255,215,0,0.3)"; }}
                     >
-                      ✍️ {pacteAmendments.length > 0 ? "Signer avec réserves" : "Signer le pacte"}
+                      ✍️ Signer et envoyer
                     </button>
                   </div>
                 ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div style={{
-                      width: 52, height: 52, borderRadius: 12, flexShrink: 0,
-                      background: "linear-gradient(135deg, #5b5fc7, #7c7fff)",
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      color: "#fff", fontSize: 22, fontWeight: 700,
-                      fontFamily: "'Georgia', serif", fontStyle: "italic",
-                    }}>
-                      {(displayPlayerName || "CEO").charAt(0)}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 15, fontWeight: 700, color: "#5b5fc7", fontFamily: "'Georgia', serif", fontStyle: "italic" }}>
-                        {displayPlayerName || "CEO"}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0" }}>
+                    <span style={{ fontSize: 20 }}>✅</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
+                        Pacte signé et envoyé
                       </div>
-                      <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>
-                        ✅ Signé le {new Date().toLocaleDateString("fr-FR")} à {new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                      <div style={{ fontSize: 11, color: "#666" }}>
+                        {displayPlayerName || "CEO"} — {new Date().toLocaleDateString("fr-FR")}
                       </div>
                     </div>
                     <button
-                      onClick={() => { setShowSignatureView(false); setMainView("mail"); setShowCompose(true); }}
+                      onClick={() => setShowSignatureView(false)}
                       style={{
-                        padding: "12px 24px", flexShrink: 0,
-                        background: "linear-gradient(135deg, #5b5fc7, #4a4eb3)",
-                        border: "none", borderRadius: 10, color: "#fff",
-                        fontSize: 14, fontWeight: 700, cursor: "pointer",
-                        boxShadow: "0 4px 16px rgba(91,95,199,0.25)",
+                        marginLeft: "auto", padding: "8px 16px",
+                        background: "#5b5fc7", border: "none", borderRadius: 8,
+                        color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer",
                       }}
                     >
-                      📧 Renvoyer par mail
+                      Fermer
                     </button>
                   </div>
                 )}
@@ -3429,25 +3474,31 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         >
                           {msg.content}
                         </div>
-                        {/* Attachments (documents sent in chat) */}
+                        {/* Attachments (documents sent in chat) — click opens PDF in new tab */}
                         {msg.attachments && msg.attachments.length > 0 && (
                           <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
                             {msg.attachments.map((att: any) => {
                               const attDoc = scenario?.resources?.documents?.find((d: any) => d.doc_id === att.id);
+                              const fp = (attDoc as any)?.file_path || "";
+                              const isPublicPdf = fp.startsWith("/") && fp.endsWith(".pdf");
+                              const docUrl = isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
                               return (
-                                <button
+                                <a
                                   key={att.id}
-                                  onClick={() => { if (attDoc) { setSelectedDocId(attDoc.doc_id); setRightPanel("docs"); } }}
+                                  href={attDoc ? docUrl : "#"}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                   style={{
                                     display: "inline-flex", alignItems: "center", gap: 4,
                                     padding: "4px 10px", background: isPlayer ? "rgba(255,255,255,0.15)" : "#fff",
                                     border: isPlayer ? "1px solid rgba(255,255,255,0.25)" : "1px solid #ddd",
                                     borderRadius: 8, fontSize: 11, fontWeight: 600,
                                     color: isPlayer ? "#fff" : "#5b5fc7", cursor: attDoc ? "pointer" : "default",
+                                    textDecoration: "none",
                                   }}
                                 >
                                   📑 {att.label}
-                                </button>
+                                </a>
                               );
                             })}
                           </div>
@@ -3661,9 +3712,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#ddd"; e.currentTarget.style.background = "#fff"; }}
                                 onClick={() => {
                                   if (doc) {
-                                    // Open document in the docs panel
-                                    setSelectedDocId(doc.doc_id);
-                                    setRightPanel("docs");
+                                    // Open PDF in new tab
+                                    const fp = (doc as any).file_path || "";
+                                    const isPublicPdf = fp.startsWith("/") && fp.endsWith(".pdf");
+                                    const url = isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
+                                    window.open(url, "_blank");
                                   }
                                 }}
                               >
@@ -4070,161 +4123,84 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             {/* ── Documents panel ── */}
             {rightPanel === "docs" && (
               <div>
-                {selectedDoc ? (
-                  /* Document detail view */
-                  <div>
-                    <button
-                      onClick={() => setSelectedDocId(null)}
-                      style={{ background: "none", border: "none", color: "#5b5fc7", cursor: "pointer", fontSize: 12, fontWeight: 600, marginBottom: 12, padding: 0 }}
-                    >
-                      ← Retour à la liste
-                    </button>
-                    <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "#333" }}>
-                      📑 {selectedDoc.label}
-                    </h3>
-                    {/* Document viewer — markdown or image */}
-                    {(selectedDoc as any).file_path ? (
-                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {/* Rendered markdown content */}
-                        {docContent[(selectedDoc as any).file_path] ? (
-                          <div
-                            style={{
-                              maxHeight: 480, overflowY: "auto", padding: "16px 20px",
-                              border: "1px solid #e2e4ea", borderRadius: 8, background: "#fafbfc",
-                              fontSize: 12, lineHeight: 1.7, color: "#333",
-                            }}
-                            dangerouslySetInnerHTML={{ __html: docContent[(selectedDoc as any).file_path] }}
-                          />
-                        ) : (
-                          <div style={{
-                            padding: "40px 20px", textAlign: "center", color: "#999",
-                            border: "1px solid #e2e4ea", borderRadius: 8, background: "#fafbfc",
-                          }}>
-                            Chargement du document...
-                          </div>
-                        )}
-                        <div style={{ display: "flex", gap: 8 }}>
-                          <a
-                            href={`/api/download?file=${encodeURIComponent((selectedDoc as any).file_path)}&scenarioId=${encodeURIComponent(scenarioId)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{
-                              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                              padding: "10px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                              background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
-                              border: "1px solid rgba(91,95,199,0.2)",
-                            }}
-                          >
-                            📄 Ouvrir le document
-                          </a>
-                          <a
-                            href={`/api/download?file=${encodeURIComponent((selectedDoc as any).file_path)}&scenarioId=${encodeURIComponent(scenarioId)}`}
-                            download
-                            style={{
-                              flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                              padding: "10px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                              background: "#5b5fc7", color: "#fff", textDecoration: "none",
-                            }}
-                          >
-                            ⬇ Télécharger
-                          </a>
-                        </div>
-                      </div>
-                    ) : (selectedDoc as any).image_path ? (
-                      <div style={{ marginBottom: 12, textAlign: "center" }}>
-                        <img
-                          src={(selectedDoc as any).image_path}
-                          alt={(selectedDoc as any).label}
-                          style={{ maxWidth: "100%", borderRadius: 8, border: "1px solid #e8e8e8", boxShadow: "0 2px 8px rgba(0,0,0,0.08)" }}
-                        />
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: 12, color: "#999", fontStyle: "italic" }}>
-                        Ce document est disponible dans votre dossier de travail.
-                      </div>
-                    )}
-                    {((selectedDoc as any).usable_as_pj || (selectedDoc as any).usable_as_attachment) && (
-                      <div style={{ marginTop: 10, fontSize: 11, color: "#44b553", fontWeight: 600 }}>
-                        ✓ Joignable en pièce jointe
-                      </div>
-                    )}
-                    {/* ── Pacte signing status ── */}
-                    {selectedDoc.doc_id === "pacte_associes" && currentPhaseId === "phase_3_pacte" && (
-                      <div style={{ marginTop: 16 }}>
-                        {pacteSigned ? (
-                          <div style={{
-                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
-                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
-                            display: "flex", alignItems: "center", gap: 10,
-                          }}>
-                            <span style={{ fontSize: 20 }}>✅</span>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Pacte signé</div>
-                              <div style={{ fontSize: 11, color: "#666" }}>Renvoyez-le par mail au CTO pour finaliser.</div>
+                {/* Document list — click opens PDF in new tab */}
+                <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
+                  {allDocuments.map((doc: any) => {
+                    const hasPJ = doc.usable_as_pj || doc.usable_as_attachment;
+                    const fp = (doc as any).file_path || "";
+                    const isPublicPdf = fp.startsWith("/") && fp.endsWith(".pdf");
+                    const docUrl = isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
+                    return (
+                      <li
+                        key={doc.doc_id}
+                        style={{
+                          padding: "10px", marginBottom: 4, borderRadius: 6,
+                          background: "#fff", border: "1px solid #e8e8e8",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontSize: 13, fontWeight: 500, color: "#333", display: "flex", alignItems: "center", gap: 6 }}>
+                              <span>📑</span>
+                              {doc.label}
                             </div>
-                          </div>
-                        ) : (
-                          <div style={{
-                            padding: "12px 18px", background: "#f0f0ff",
-                            border: "1px solid rgba(91,95,199,0.2)", borderRadius: 10,
-                            display: "flex", alignItems: "center", gap: 10,
-                          }}>
-                            <span style={{ fontSize: 16 }}>📧</span>
-                            <div style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>
-                              Pour signer ce pacte, ouvrez le <strong>mail du CTO</strong> dans votre boîte de réception.
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  /* Document list */
-                  <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                    {allDocuments.map((doc: any) => {
-                      const hasPJ = doc.usable_as_pj || doc.usable_as_attachment;
-                      const hasImage = !!(doc as any).image_path;
-                      const hasPDF = !!(doc as any).file_path && (doc as any).file_path.endsWith(".pdf");
-                      const icon = hasImage ? "🖼️" : hasPDF ? "📑" : "📋";
-                      return (
-                        <li
-                          key={doc.doc_id}
-                          onClick={() => setSelectedDocId(doc.doc_id)}
-                          style={{
-                            padding: "10px", marginBottom: 4, borderRadius: 6,
-                            cursor: "pointer", background: "#fff",
-                            border: "1px solid #e8e8e8",
-                            transition: "all .1s",
-                          }}
-                          onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#5b5fc7")}
-                          onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#e8e8e8")}
-                        >
-                          <div style={{ fontSize: 13, fontWeight: 500, color: "#333", display: "flex", alignItems: "center", gap: 6 }}>
-                            <span>{icon}</span>
-                            {doc.label}
-                          </div>
-                          <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
-                            {hasPDF && (
+                            <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
                               <span style={{ fontSize: 10, color: "#c2410c", background: "#fff7ed", padding: "1px 6px", borderRadius: 8, fontWeight: 600 }}>
                                 PDF
                               </span>
-                            )}
-                            {hasPJ && (
-                              <span style={{ fontSize: 10, color: "#5b5fc7", background: "#f0f0ff", padding: "1px 6px", borderRadius: 8 }}>
-                                PJ
-                              </span>
-                            )}
-                            {hasImage && (
-                              <span style={{ fontSize: 10, color: "#44b553", background: "#f0fff4", padding: "1px 6px", borderRadius: 8 }}>
-                                Consultable
-                              </span>
+                              {hasPJ && (
+                                <span style={{ fontSize: 10, color: "#5b5fc7", background: "#f0f0ff", padding: "1px 6px", borderRadius: 8 }}>
+                                  PJ
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
+                            <a
+                              href={docUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 4,
+                                padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
+                                border: "1px solid rgba(91,95,199,0.2)", cursor: "pointer",
+                              }}
+                            >
+                              Ouvrir
+                            </a>
+                            <a
+                              href={docUrl}
+                              download
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                display: "flex", alignItems: "center", gap: 4,
+                                padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                background: "#fff", color: "#666", textDecoration: "none",
+                                border: "1px solid #ddd", cursor: "pointer",
+                              }}
+                            >
+                              ⬇
+                            </a>
+                          </div>
+                        </div>
+                        {/* Pacte signing status */}
+                        {doc.doc_id === "pacte_associes" && currentPhaseId === "phase_3_pacte" && (
+                          <div style={{ marginTop: 8 }}>
+                            {pacteSigned ? (
+                              <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>✅ Pacte signé</div>
+                            ) : (
+                              <div style={{ fontSize: 11, color: "#555" }}>
+                                Pour signer, ouvrez le <strong>mail du CTO</strong>.
+                              </div>
                             )}
                           </div>
-                        </li>
-                      );
-                    })}
-                  </ul>
-                )}
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
             )}
           </div>
