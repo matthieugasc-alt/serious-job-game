@@ -1419,9 +1419,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     const phase = scenario.phases[session.currentPhaseIndex] as any;
     if (phase?.interaction_mode !== "voice_qa") return;
     if (isRecording || presentationDone) return;
+    // Reset isSending on phase transition to avoid stale state blocking dispatch
+    setIsSending(false);
     const caps = voiceCapabilities || detectVoiceCapabilities();
     if (!caps.hasSpeechRecognition) return; // backend mode → manual mic click
-    const t = setTimeout(() => startRecognition("fr-FR", true), 1500);
+    // Only enable auto-send (onSilence → dispatch) when there are active AI actors.
+    // During pitch phases (empty ai_actors), record but don't auto-dispatch.
+    const hasActiveActors = (phase.ai_actors || []).length > 0;
+    const t = setTimeout(() => startRecognition("fr-FR", hasActiveActors), 1500);
     return () => clearTimeout(t);
   }, [session?.currentPhaseIndex, voiceCapabilities?.recommendedMode]);
 
@@ -1452,6 +1457,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     const v = viewRef.current;
     if (!sess || !scen || !v) return;
     const phaseActors: string[] = scen.phases[sess.currentPhaseIndex]?.ai_actors || [];
+    // Don't dispatch during pitch phases (no active AI actors)
+    if (phaseActors.length === 0) return;
     // Round-robin through jury members (or single actor for simpler scenarios)
     let targetActor: string;
     if (phaseActors.length > 1) {

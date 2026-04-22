@@ -173,7 +173,7 @@
       "event_id": "alexandre_intro",
       "type": "chat",
       "actor": "alexandre_morel",
-      "content": "Bonne nouvelle ! J'ai réussi à nous décrocher un passage devant le jury de Technowest jeudi matin. C'est un incubateur généraliste mais ils ont un bon réseau santé et ils ont accompagné 2-3 startups medtech. Le format : tu envoies un one-pager avant, puis 5 minutes de pitch oral et 10 minutes de questions. Je t'ai mis le template dans les documents. Remplis-le et envoie-le-moi, je te donne mon avis avant qu'on le soumette.",
+      "content": "Bonne nouvelle ! J'ai réussi à nous décrocher un passage devant le jury de Technowest jeudi matin. C'est un incubateur généraliste mais ils ont un bon réseau santé et ils ont accompagné 2-3 startups medtech. Le format : tu envoies un one-pager avant, puis 40 secondes d'elevator pitch à l'oral et 5 minutes de questions du jury. C'est court et intense. Je t'ai mis le template dans les documents. Remplis-le et envoie-le-moi, je te donne mon avis avant qu'on le soumette.",
       "attachments": [
         { "id": "one_pager_template", "label": "Template One-Pager" }
       ]
