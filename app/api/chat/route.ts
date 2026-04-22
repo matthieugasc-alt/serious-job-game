@@ -135,6 +135,13 @@ MODE AUTONOMY:
     let finalRoleplayPrompt: string;
 
     if (roleplayPromptTemplate) {
+      // Format conversation history as readable dialogue (not JSON)
+      const formattedConversation = Array.isArray(recentConversation) && recentConversation.length > 0
+        ? recentConversation
+            .map((m: any) => `[${m.role === "user" ? playerName : "Toi"}] : ${m.content}`)
+            .join("\n")
+        : "(début de conversation)";
+
       // Interpolate variables in the provided template
       const variables = {
         playerName,
@@ -145,7 +152,7 @@ MODE AUTONOMY:
         narrative: narrative,
         mode,
         modeGuidance,
-        recentConversation,
+        recentConversation: formattedConversation,
         message,
       };
       finalRoleplayPrompt = sanitize(

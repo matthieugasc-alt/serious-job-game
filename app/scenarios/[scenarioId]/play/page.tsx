@@ -1073,6 +1073,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   }, [session?.currentPhaseIndex]);
 
   // ── Auto-advance based on max_duration_sec (real wall-clock time) ──
+  // CRITICAL: interviewStarted is in the dependency array so that when
+  // the player clicks "Faire entrer le candidat", this effect re-runs
+  // and actually creates the timer interval for manual_start phases.
   useEffect(() => {
     if (!session || !scenario) return;
     const phase = scenario.phases[session.currentPhaseIndex] as any;
@@ -1109,8 +1112,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             const next = cloneSession(prev);
             addAIMessage(next, "⏱ Le temps imparti pour cette phase est écoulé. Passons à la suite.", "system");
             completeCurrentPhaseAndAdvance(next);
-            injectPhaseEntryEvents(next);
+            // For manual_start phases, only inject intro events
             const newPhase = scenario.phases[next.currentPhaseIndex];
+            if ((newPhase as any)?.manual_start) {
+              injectIntroEventsOnly(next);
+              setInterviewStarted(false);
+            } else {
+              injectPhaseEntryEvents(next);
+            }
             if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
             return next;
           });
@@ -1118,7 +1127,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       }
     }, 1000);
     return () => clearInterval(iv);
-  }, [session?.currentPhaseIndex, !!session, !!scenario]);
+  }, [session?.currentPhaseIndex, !!session, !!scenario, interviewStarted]);
 
   // ── Flush timed events ──
   useEffect(() => {
@@ -1696,6 +1705,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
   async function sendMessage() {
     if (!playerInput.trim() || !session || !scenario || !view) return;
+    // Block sending if the phase timer has already fired (hard stop)
+    const curPhase = scenario.phases[session.currentPhaseIndex] as any;
+    const curPhaseId = curPhase?.phase_id || `phase_${session.currentPhaseIndex}`;
+    if (phaseMaxDurationTriggeredRef.current === curPhaseId) return;
     const text = playerInput;
     setPlayerInput("");
     // Re-focus immediately so player can keep typing
@@ -1759,6 +1772,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       }
 
       const data = await res.json();
+      // Discard AI response if timer has fired while waiting for the API
+      if (phaseMaxDurationTriggeredRef.current === curPhaseId) return;
       playNotificationSound();
 
       // Use sessionRef for latest state (player may have sent more messages since)
