@@ -69,6 +69,7 @@ function LoginPageInner() {
       localStorage.setItem("auth_token", data.token);
       localStorage.setItem("user_name", data.user?.name || data.name || "");
       localStorage.setItem("user_role", data.user?.role || "user");
+      localStorage.setItem("founder_access", data.user?.founderAccess ? "true" : "false");
 
       router.push(redirectTo);
     } catch (err) {
@@ -109,6 +110,7 @@ function LoginPageInner() {
       localStorage.setItem("auth_token", data.token);
       localStorage.setItem("user_name", data.user?.name || data.name || "");
       localStorage.setItem("user_role", data.user?.role || "user");
+      localStorage.setItem("founder_access", data.user?.founderAccess ? "true" : "false");
 
       router.push(redirectTo);
     } catch (err) {

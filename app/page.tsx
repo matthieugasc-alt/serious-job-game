@@ -303,6 +303,7 @@ export default function ScenarioSelectionPage() {
   const [userName, setUserName] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userToken, setUserToken] = useState<string | null>(null);
+  const [founderAccess, setFounderAccess] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [allCategories, setAllCategories] = useState<string[]>([]);
   const [mySpaces, setMySpaces] = useState<Array<{
@@ -320,8 +321,10 @@ export default function ScenarioSelectionPage() {
       const token = localStorage.getItem("auth_token");
       const name = localStorage.getItem("user_name");
       const role = localStorage.getItem("user_role");
+      const fAccess = localStorage.getItem("founder_access");
       if (role) setUserRole(role);
       if (token) setUserToken(token);
+      if (fAccess === "true" || role === "super_admin" || role === "admin") setFounderAccess(true);
       if (name && name !== "undefined" && name.trim() !== "") {
         setUserName(name);
       } else if (token) {
@@ -650,8 +653,8 @@ export default function ScenarioSelectionPage() {
           </div>
         )}
 
-        {/* Founder Mode Entry */}
-        {userName && (
+        {/* Founder Mode Entry — only visible if admin granted founderAccess */}
+        {userName && founderAccess && (
           <div
             onClick={async () => {
               const token = localStorage.getItem("auth_token");

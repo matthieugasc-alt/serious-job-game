@@ -28,6 +28,7 @@ export type StoredUser = {
   status?: UserStatus;
   createdBy?: string;
   coachProfile?: CoachProfile;
+  founderAccess?: boolean;
 };
 
 export type PublicUser = Omit<StoredUser, 'passwordHash'>;
@@ -115,6 +116,7 @@ function toPublicUser(user: StoredUser): PublicUser {
     status: user.status,
     createdBy: user.createdBy,
     coachProfile: user.coachProfile,
+    founderAccess: user.founderAccess,
   };
 }
 
@@ -414,6 +416,20 @@ export function updateUserStatus(userId: string, status: UserStatus): { success:
     return { success: true };
   } catch (error) {
     return { success: false, error: 'Failed to update status' };
+  }
+}
+
+export function updateFounderAccess(userId: string, founderAccess: boolean): { success: boolean; error?: string } {
+  try {
+    const users = loadUsers();
+    const user = users.find((u) => u.id === userId);
+    if (!user) return { success: false, error: 'User not found' };
+
+    user.founderAccess = founderAccess;
+    saveUsers(users);
+    return { success: true };
+  } catch (error) {
+    return { success: false, error: 'Failed to update founder access' };
   }
 }
 

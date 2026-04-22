@@ -12,6 +12,16 @@ export default function FounderIntroPage() {
   const [creating, setCreating] = useState(false);
   const [pseudo, setPseudo] = useState("");
 
+  // Gate: check founder access
+  if (typeof window !== "undefined") {
+    const fAccess = localStorage.getItem("founder_access");
+    const role = localStorage.getItem("user_role");
+    if (fAccess !== "true" && role !== "super_admin" && role !== "admin") {
+      router.push("/");
+      return null;
+    }
+  }
+
   async function handleLaunch() {
     if (!pseudo.trim()) return;
     setCreating(true);

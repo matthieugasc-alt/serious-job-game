@@ -199,6 +199,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [pacteThread, setPacteThread] = useState<Array<{ role: "player" | "cto"; content: string }>>([]);
   const [pacteThreadLoading, setPacteThreadLoading] = useState(false);
   const pacteThreadEndRef = useRef<HTMLDivElement>(null);
+  const pacteContentRef = useRef<HTMLDivElement>(null);
+  const [pacteEdited, setPacteEdited] = useState(false);
   const [showContactPicker, setShowContactPicker] = useState<"to" | "cc" | null>(null);
   const [interviewStarted, setInterviewStarted] = useState(false);
   // (docContent state removed — Founder documents are now served as PDFs directly)
@@ -449,6 +451,32 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   scenarioRef.current = scenario;
   viewRef.current = view;
   isSendingRef.current = isSending;
+
+  // ── Block browser back button during gameplay ──
+  useEffect(() => {
+    if (!scenario) return; // Wait until scenario is loaded
+
+    // Push a dummy state so back button triggers popstate instead of leaving
+    window.history.pushState({ inGame: true }, "");
+
+    function handlePopState() {
+      // Re-push state to trap again
+      window.history.pushState({ inGame: true }, "");
+    }
+
+    function handleBeforeUnload(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+
+    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("beforeunload", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, [scenario]);
 
   // ── Debug logs (only when ?debug=1) ──
   const prevPhaseIdRef = useRef<string | null>(null);
@@ -2450,8 +2478,35 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 <span style={{ color: "#999" }}>4. Renvoyer par mail</span>
               </div>
 
+              {/* Editable instruction banner */}
+              {!pacteSigned && currentPhaseId === "phase_3_pacte" && (
+                <div style={{
+                  padding: "10px 24px", background: "#fffbeb", borderBottom: "1px solid #fde68a",
+                  display: "flex", alignItems: "center", gap: 10, fontSize: 12,
+                }}>
+                  <span style={{ fontSize: 16 }}>✏️</span>
+                  <span style={{ color: "#92400e", fontWeight: 600 }}>
+                    Si des amendements sont à apporter, écrivez directement sur le pacte en cliquant sur le texte à modifier.
+                  </span>
+                  {pacteEdited && (
+                    <span style={{ marginLeft: "auto", color: "#16a34a", fontWeight: 700, fontSize: 11 }}>
+                      Modifié
+                    </span>
+                  )}
+                </div>
+              )}
               {/* Document viewer — inline HTML rendering of the pacte */}
-              <div style={{ flex: 1, overflow: "auto", background: "#fff", padding: "24px 32px", fontSize: 13, lineHeight: 1.7, color: "#1a1a2e", fontFamily: "Georgia, 'Times New Roman', serif" }}>
+              <div
+                ref={pacteContentRef}
+                contentEditable={!pacteSigned && currentPhaseId === "phase_3_pacte"}
+                suppressContentEditableWarning
+                onInput={() => { if (!pacteEdited) setPacteEdited(true); }}
+                style={{
+                  flex: 1, overflow: "auto", background: "#fff", padding: "24px 32px", fontSize: 13, lineHeight: 1.7, color: "#1a1a2e", fontFamily: "Georgia, 'Times New Roman', serif",
+                  outline: "none",
+                  cursor: !pacteSigned && currentPhaseId === "phase_3_pacte" ? "text" : "default",
+                }}
+              >
                 {/* Title & header */}
                 <div style={{ textAlign: "center", marginBottom: 24 }}>
                   <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px", letterSpacing: 0.5 }}>Pacte d&apos;Associés — Orisio SAS</h1>
@@ -2657,7 +2712,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       Négociation{pacteThread.length > 0 ? ` (${pacteThread.length})` : ""}
                     </span>
                     <span style={{ fontSize: 11, color: "#888" }}>
-                      — Discutez les clauses directement avec le CTO
+                      — Discutez les clauses avec le CTO ou modifiez le texte ci-dessus
                     </span>
                   </div>
                   {/* Thread messages */}
@@ -2747,9 +2802,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         Signataire : {displayPlayerName || "CEO"} — Président, Orisio SAS
                       </div>
                       <div style={{ fontSize: 11, color: "#888" }}>
-                        {pacteAmendments.length > 0
+                        {pacteEdited && pacteAmendments.length > 0
+                          ? `Document modifié + ${pacteAmendments.length} remarque(s) envoyée(s).`
+                          : pacteEdited
+                          ? "Document modifié directement. Signez pour valider vos changements."
+                          : pacteAmendments.length > 0
                           ? `${pacteAmendments.length} remarque(s) envoyée(s) au CTO.`
-                          : "Relisez le document, discutez les clauses si besoin, puis signez et envoyez."}
+                          : "Relisez le document, modifiez-le directement si besoin, puis signez et envoyez."}
                       </div>
                     </div>
                     <button
@@ -2762,10 +2821,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                           if (!next.flags.pacte_signed_clean) {
                             next.flags.pacte_signed_dirty = true;
                           }
+                          // Check both chat amendments AND direct edits on the pacte
                           const hasExclusivityAmendment = pacteAmendments.some((a) =>
                             /exclusivit|full.?time|temps.?plein|article.?6/i.test(a)
                           );
-                          if (hasExclusivityAmendment || next.flags.pacte_signed_clean) {
+                          // Check if user edited the document directly (contentEditable)
+                          const pacteText = pacteContentRef.current?.innerText || "";
+                          const hasDirectEdit = pacteEdited && /exclusivit|full.?time|temps.?plein|concurren.*cto|activit.*ext|projet.*ext/i.test(pacteText);
+                          if (hasExclusivityAmendment || hasDirectEdit || next.flags.pacte_signed_clean) {
                             next.flags.pacte_signed_clean = true;
                             next.flags.pacte_signed_dirty = false;
                           }
@@ -2776,9 +2839,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                             const ctoId = chosenCtoId || "sofia_renault";
                             const ctoActor = actors.find((a: any) => a.actor_id === ctoId);
                             const ctoName = ctoActor?.name || "CTO";
-                            const amendSummary = pacteAmendments.length > 0
-                              ? `\n\nRemarques notées :\n${pacteAmendments.map((a, i) => `${i + 1}. ${a}`).join("\n")}`
+                            const chatRemarks = pacteAmendments.length > 0
+                              ? `\n\nRemarques envoyées :\n${pacteAmendments.map((a, i) => `${i + 1}. ${a}`).join("\n")}`
                               : "";
+                            const directEditNote = pacteEdited ? "\n\nDes modifications ont été apportées directement sur le texte du pacte." : "";
+                            const amendSummary = chatRemarks + directEditNote;
                             updateMailDraft(next, phaseId, {
                               to: ctoName,
                               cc: "",

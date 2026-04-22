@@ -21,6 +21,7 @@ interface PublicUser {
   status?: string;
   createdBy?: string;
   coachProfile?: { level: string; certifiedAt?: string };
+  founderAccess?: boolean;
 }
 
 interface OrgData {
@@ -276,6 +277,7 @@ function UsersTab({ token }: { token: string }) {
   const [orgMembers, setOrgMembers] = useState<Record<string, OrgMember[]>>({});
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [togglingFounder, setTogglingFounder] = useState<string | null>(null);
 
   useEffect(() => {
     loadData();
@@ -329,6 +331,24 @@ function UsersTab({ token }: { token: string }) {
     }
   }
 
+  async function toggleFounderAccess(userId: string, currentValue: boolean) {
+    setTogglingFounder(userId);
+    try {
+      const res = await fetch("/api/auth/users/founder-access", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ userId, founderAccess: !currentValue }),
+      });
+      if (res.ok) {
+        setUsers((prev) => prev.map((u) => u.id === userId ? { ...u, founderAccess: !currentValue } : u));
+      }
+    } catch (err) {
+      console.error("Failed to toggle founder access:", err);
+    } finally {
+      setTogglingFounder(null);
+    }
+  }
+
   // Build user → org mapping
   function getUserOrg(userId: string): { org: OrgData; role: string } | null {
     for (const org of orgs) {
@@ -369,13 +389,15 @@ function UsersTab({ token }: { token: string }) {
   function renderUserRow(user: PublicUser) {
     const orgInfo = getUserOrg(user.id);
     const roleBadge = getRoleBadge(user.role);
+    const hasFounder = user.founderAccess === true;
+    const isToggling = togglingFounder === user.id;
 
     return (
       <div
         key={user.id}
         style={{
           display: "grid",
-          gridTemplateColumns: "1.5fr 2fr 1fr 1.5fr 1fr",
+          gridTemplateColumns: "1.5fr 2fr 1fr 1.5fr 0.8fr 0.8fr",
           gap: 12,
           padding: "14px 16px",
           background: "rgba(255,255,255,0.03)",
@@ -424,6 +446,17 @@ function UsersTab({ token }: { token: string }) {
             <span style={{ color: COLORS.successText }}>Actif</span>
           )}
         </div>
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: isToggling ? "wait" : "pointer" }}>
+            <input
+              type="checkbox"
+              checked={hasFounder}
+              disabled={isToggling}
+              onChange={() => toggleFounderAccess(user.id, hasFounder)}
+              style={{ width: 16, height: 16, cursor: isToggling ? "wait" : "pointer", accentColor: COLORS.primary }}
+            />
+          </label>
+        </div>
       </div>
     );
   }
@@ -456,7 +489,7 @@ function UsersTab({ token }: { token: string }) {
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1.5fr 2fr 1fr 1.5fr 1fr",
+            gridTemplateColumns: "1.5fr 2fr 1fr 1.5fr 0.8fr 0.8fr",
             gap: 12,
             padding: "8px 16px",
             fontSize: 11,
@@ -473,6 +506,7 @@ function UsersTab({ token }: { token: string }) {
           <div>Role</div>
           <div>Rattachement</div>
           <div>Statut</div>
+          <div style={{ textAlign: "center" }}>Orisio</div>
         </div>
 
         {groupUsers.length === 0 ? (
