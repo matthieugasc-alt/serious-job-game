@@ -77,7 +77,7 @@
           "signal": "robust",
           "deltas": {
             "treasury": 0,
-            "ownership": -10,
+            "ownership": 0,
             "mrr": 0,
             "payroll": 0,
             "productQuality": 0,
@@ -98,11 +98,11 @@
         "partial_success": {
           "outcomeId": "dirty_pacte_negotiated",
           "label": "Pacte bancal, negociation de sortie",
-          "summary": "Le pacte n'avait pas de clause d'exclusivite. Le CTO a negocie son depart. Tu as perdu du temps et un peu d'argent.",
+          "summary": "Le pacte n'avait pas de clause d'exclusivite. Le CTO a negocie son depart. Tu as perdu du temps et 1 000 € de frais de sortie.",
           "signal": "costly",
           "deltas": {
             "treasury": -1000,
-            "ownership": -5,
+            "ownership": 0,
             "mrr": 0,
             "payroll": 0,
             "productQuality": 0,
@@ -127,7 +127,7 @@
           "signal": "delayed",
           "deltas": {
             "treasury": -2500,
-            "ownership": -5,
+            "ownership": 0,
             "mrr": 0,
             "payroll": 0,
             "productQuality": 0,

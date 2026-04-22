@@ -198,6 +198,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [amendmentInput, setAmendmentInput] = useState("");
   const [pacteThread, setPacteThread] = useState<Array<{ role: "player" | "cto"; content: string }>>([]);
   const [pacteThreadLoading, setPacteThreadLoading] = useState(false);
+  const pacteThreadEndRef = useRef<HTMLDivElement>(null);
   const [showContactPicker, setShowContactPicker] = useState<"to" | "cc" | null>(null);
   const [interviewStarted, setInterviewStarted] = useState(false);
   // (docContent state removed — Founder documents are now served as PDFs directly)
@@ -689,6 +690,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         improvements: risk ? [risk] : [],
         pedagogical_advice: advice,
       };
+      // Save to debriefData for the game record save effect, then redirect
+      // to the campaign dashboard which has its own debrief overlay with deltas.
+      // This avoids showing TWO debrief screens.
       setDebriefData(founderDebrief);
       setDebriefLoading(false);
       return;
@@ -1718,6 +1722,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     const rawTarget = selectedContact || scenario.phases[session.currentPhaseIndex]?.ai_actors?.[0] || "npc";
     const targetActor = resolveActor(rawTarget);
 
+    // Block sending to actors not active in the current phase
+    if (!currentPhaseAiActors.includes(targetActor)) {
+      setPlayerInput(text); // restore the message
+      return;
+    }
+
     // Add player message to session immediately (optimistic)
     const next = cloneSession(session);
     addPlayerMessage(next, text, targetActor);
@@ -1873,6 +1883,65 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   }
 
   // ════════════════════════════════════════════════════════════════════
+  // PACTE NEGOTIATION — send amendment message to CTO via AI
+  // ════════════════════════════════════════════════════════════════════
+  async function sendPacteNegotiationMessage() {
+    const text = amendmentInput.trim();
+    if (!text || pacteThreadLoading) return;
+    setAmendmentInput("");
+    setPacteAmendments((prev) => [...prev, text]);
+    setPacteThread((prev) => [...prev, { role: "player", content: text }]);
+    // Set flag
+    if (session) {
+      const next = { ...session, flags: { ...session.flags, asked_modification: true } };
+      setSession(next);
+    }
+    // Get CTO response via AI
+    setPacteThreadLoading(true);
+    try {
+      const ctoId = chosenCtoId || "sofia_renault";
+      const activePrompt = aiPromptsMapRef.current[ctoId] || aiPromptRef.current;
+      const threadContext = pacteThread.slice(-6).map((m) => ({
+        role: m.role === "player" ? "user" : "assistant",
+        content: m.content,
+      }));
+      threadContext.push({ role: "user", content: text });
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          playerName: displayPlayerName,
+          message: text,
+          phaseTitle: "Négociation du pacte d'associés",
+          phaseObjective: "Le CEO discute les clauses du pacte avec le CTO. Réponds en tant que CTO, directement, à la 1ère personne.",
+          phaseFocus: "Discussion sur une clause du pacte d'associés. Le CEO fait un commentaire ou demande une modification. Réponds de manière directe et naturelle.",
+          phasePrompt: "",
+          criteria: [],
+          mode: "standard",
+          narrative: scenario?.narrative || {},
+          recentConversation: threadContext,
+          playerMessages: [text],
+          roleplayPrompt: activePrompt,
+        }),
+      });
+      const data = await res.json();
+      const reply = data?.reply || data?.response || "Je vais vérifier avec mon avocat.";
+      setPacteThread((prev) => [...prev, { role: "cto", content: reply }]);
+      // Check if reply indicates acceptance of exclusivity
+      if (/accept|d'accord|on ajoute|logique|ok.*clause/i.test(reply) &&
+          /exclusivit|full.?time|temps.?plein/i.test(text)) {
+        if (session) {
+          const next = { ...session, flags: { ...session.flags, pacte_signed_clean: true } };
+          setSession(next);
+        }
+      }
+    } catch {
+      setPacteThread((prev) => [...prev, { role: "cto", content: "Je vais vérifier avec mon avocat et te reviens." }]);
+    }
+    setPacteThreadLoading(false);
+  }
+
+  // ════════════════════════════════════════════════════════════════════
   // LOADING / ERROR
   // ════════════════════════════════════════════════════════════════════
 
@@ -1954,100 +2023,20 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     }
 
     // ══════════════════════════════════════════════════════════════
-    // FOUNDER MICRO-DEBRIEF (no score, no success/failure label)
+    // FOUNDER MODE — skip play-page debrief, redirect to campaign dashboard
+    // The campaign dashboard has its own DebriefOverlay with outcome deltas.
+    // Showing a debrief here too would cause a DOUBLE DEBRIEF.
     // ══════════════════════════════════════════════════════════════
     if (debriefData && isFounderScenario && debriefData.isFounderDebrief) {
+      // Auto-redirect to campaign dashboard (which shows its own debrief)
+      const cid = typeof window !== "undefined" ? localStorage.getItem("founder_campaign_id") : null;
+      router.push(cid ? `/founder/${cid}` : "/founder/intro");
       return (
         <div style={{ minHeight: "100vh", background: "#f3f2f1", fontFamily: "'Segoe UI', system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <div style={{ maxWidth: 600, width: "100%", padding: 20 }}>
-            {/* Header */}
-            <div style={{
-              background: "linear-gradient(135deg, #1a1a2e, #16213e)",
-              borderRadius: "16px 16px 0 0", padding: "28px 32px", textAlign: "center",
-            }}>
-              <div style={{ fontSize: 11, fontWeight: 700, color: "rgba(255,255,255,0.5)", letterSpacing: 1.5, textTransform: "uppercase", marginBottom: 8 }}>
-                Founder Mode · Résolution
-              </div>
-              <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: "#fff" }}>
-                {scenario.meta?.title || "Scénario terminé"}
-              </h1>
-            </div>
-
-            {/* Micro-debrief body */}
-            <div style={{
-              background: "#fff", borderRadius: "0 0 16px 16px",
-              boxShadow: "0 8px 32px rgba(0,0,0,0.1)",
-              padding: "28px 32px",
-            }}>
-              {/* Decision */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
-                  Ta décision
-                </div>
-                <p style={{ margin: 0, fontSize: 14, color: "#333", lineHeight: 1.6 }}>
-                  {debriefData.decision}
-                </p>
-              </div>
-
-              {/* Impact */}
-              <div style={{ marginBottom: 20, padding: "14px 18px", background: "#f8f9fa", borderRadius: 10, borderLeft: "3px solid #5b5fc7" }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
-                  Impact
-                </div>
-                <p style={{ margin: 0, fontSize: 14, color: "#333", lineHeight: 1.6 }}>
-                  {debriefData.impact}
-                </p>
-              </div>
-
-              {/* Strength */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#16a34a", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
-                  Point fort
-                </div>
-                <p style={{ margin: 0, fontSize: 14, color: "#333", lineHeight: 1.6 }}>
-                  {debriefData.strength}
-                </p>
-              </div>
-
-              {/* Risk */}
-              <div style={{ marginBottom: debriefData.advice ? 20 : 28 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: "#b45309", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
-                  Risque identifié
-                </div>
-                <p style={{ margin: 0, fontSize: 14, color: "#333", lineHeight: 1.6 }}>
-                  {debriefData.risk}
-                </p>
-              </div>
-
-              {/* Advice (optional) */}
-              {debriefData.advice && (
-                <div style={{ marginBottom: 28, padding: "14px 18px", background: "#f0f0ff", borderRadius: 10, borderLeft: "3px solid #8b8fc7" }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
-                    Conseil
-                  </div>
-                  <p style={{ margin: 0, fontSize: 13, color: "#444", lineHeight: 1.6, fontStyle: "italic" }}>
-                    {debriefData.advice}
-                  </p>
-                </div>
-              )}
-
-              {/* Actions — Founder: only "Continuer la campagne", no replay */}
-              <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
-                <button
-                  onClick={() => {
-                    const cid = typeof window !== "undefined" ? localStorage.getItem("founder_campaign_id") : null;
-                    router.push(cid ? `/founder/${cid}` : "/founder/intro");
-                  }}
-                  style={{
-                    padding: "14px 32px", background: "linear-gradient(135deg, #16a34a, #15803d)",
-                    color: "#fff", border: "none", borderRadius: 10, cursor: "pointer",
-                    fontWeight: 700, fontSize: 15, boxShadow: "0 4px 16px rgba(22,163,74,0.3)",
-                  }}
-                >
-                  Continuer la campagne →
-                </button>
-              </div>
-            </div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ width: 40, height: 40, border: "3px solid #e0e0e0", borderTopColor: "#5b5fc7", borderRadius: "50%", animation: "spin .8s linear infinite", margin: "0 auto 16px" }} />
+            <p style={{ color: "#666", fontSize: 14 }}>Application des conséquences...</p>
+            <style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style>
           </div>
         </div>
       );
@@ -2461,53 +2450,199 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 <span style={{ color: "#999" }}>4. Renvoyer par mail</span>
               </div>
 
-              {/* Document viewer — embedded PDF */}
-              <div style={{ flex: 1, overflow: "hidden", background: "#fafbfc", display: "flex", flexDirection: "column" }}>
-                {pactePdfPath ? (
-                  <>
-                    {pactePdfPath.startsWith("/") && pactePdfPath.endsWith(".pdf") ? (
-                      <iframe
-                        src={pactePdfPath}
-                        style={{ flex: 1, border: "none", width: "100%", minHeight: 400 }}
-                        title="Pacte d'associés"
-                      />
-                    ) : (
-                      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
-                        <div style={{ textAlign: "center" }}>
-                          <div style={{ fontSize: 36, marginBottom: 12 }}>📄</div>
-                          <a
-                            href={pactePdfPath.startsWith("/") ? pactePdfPath : `/api/download?file=${encodeURIComponent(pactePdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            style={{ fontSize: 14, color: "#5b5fc7", fontWeight: 600, textDecoration: "none" }}
-                          >
-                            Ouvrir le pacte dans un nouvel onglet
-                          </a>
-                        </div>
-                      </div>
-                    )}
-                    <div style={{ padding: "8px 24px 10px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0 }}>
-                      <a
-                        href={pactePdfPath.startsWith("/") ? pactePdfPath : `/api/download?file=${encodeURIComponent(pactePdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        style={{
-                          flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                          padding: "8px 14px", borderRadius: 8, fontSize: 11, fontWeight: 600,
-                          background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
-                          border: "1px solid rgba(91,95,199,0.2)",
-                        }}
-                      >
-                        Ouvrir dans un nouvel onglet
-                      </a>
-                    </div>
-                  </>
-                ) : (
-                  <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                    <div style={{ fontSize: 13, color: "#666" }}>Document non disponible.</div>
-                  </div>
-                )}
+              {/* Document viewer — inline HTML rendering of the pacte */}
+              <div style={{ flex: 1, overflow: "auto", background: "#fff", padding: "24px 32px", fontSize: 13, lineHeight: 1.7, color: "#1a1a2e", fontFamily: "Georgia, 'Times New Roman', serif" }}>
+                {/* Title & header */}
+                <div style={{ textAlign: "center", marginBottom: 24 }}>
+                  <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px", letterSpacing: 0.5 }}>Pacte d&apos;Associés — Orisio SAS</h1>
+                  <p style={{ fontSize: 12, color: "#888", fontStyle: "italic", margin: 0 }}>
+                    Rédigé par Me Antoine Fabre, avocat conseil de {(() => { const ctoA = actors.find((a: any) => a.actor_id === (chosenCtoId || "sofia_renault")); return ctoA?.name || "le CTO"; })()}
+                  </p>
+                </div>
+                <hr style={{ border: "none", borderTop: "1px solid #d4d4d8", margin: "16px 0" }} />
+
+                {/* Parties */}
+                <p style={{ fontWeight: 600 }}>Entre :</p>
+                <ol style={{ paddingLeft: 20, margin: "4px 0 12px" }}>
+                  <li><strong>{displayPlayerName || "CEO"}</strong> (« CEO »)</li>
+                  <li><strong>Alexandre Morel</strong> (« CPO »), né le 14 mars 1986, demeurant 45 rue Judaïque, 33000 Bordeaux</li>
+                  <li><strong>{(() => { const ctoA = actors.find((a: any) => a.actor_id === (chosenCtoId || "sofia_renault")); return ctoA?.name || "CTO"; })()}</strong> (« CTO »)</li>
+                </ol>
+                <p>Ci-après dénommés ensemble « les Associés ».</p>
+                <p><strong>Société :</strong> Orisio SAS, en cours d&apos;immatriculation, siège social à Bordeaux.</p>
+                <hr style={{ border: "none", borderTop: "1px solid #e8e8e8", margin: "16px 0" }} />
+
+                {/* Article 1 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 1 — Objet</h2>
+                <p>Le présent pacte définit les droits et obligations des Associés entre eux, en complément des statuts de la Société. En cas de contradiction, le pacte prévaut entre les Associés.</p>
+
+                {/* Article 2 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 2 — Capital et répartition</h2>
+                <p>Capital social : <strong>1 000 €</strong>, divisé en 1 000 actions de 1 € chacune.</p>
+                <table style={{ width: "100%", borderCollapse: "collapse", margin: "8px 0 12px", fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ background: "#f8f9fa", borderBottom: "2px solid #d4d4d8" }}>
+                      <th style={{ padding: "6px 10px", textAlign: "left" }}>Associé</th>
+                      <th style={{ padding: "6px 10px", textAlign: "center" }}>Actions</th>
+                      <th style={{ padding: "6px 10px", textAlign: "center" }}>% du capital</th>
+                      <th style={{ padding: "6px 10px", textAlign: "left" }}>Apport</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr style={{ borderBottom: "1px solid #e8e8e8" }}>
+                      <td style={{ padding: "6px 10px" }}>{displayPlayerName || "CEO"}</td>
+                      <td style={{ padding: "6px 10px", textAlign: "center" }}>500</td>
+                      <td style={{ padding: "6px 10px", textAlign: "center" }}>50%</td>
+                      <td style={{ padding: "6px 10px" }}>500 € en numéraire</td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid #e8e8e8" }}>
+                      <td style={{ padding: "6px 10px" }}>Alexandre Morel</td>
+                      <td style={{ padding: "6px 10px", textAlign: "center" }}>250</td>
+                      <td style={{ padding: "6px 10px", textAlign: "center" }}>25%</td>
+                      <td style={{ padding: "6px 10px" }}>250 € en numéraire</td>
+                    </tr>
+                    <tr style={{ borderBottom: "1px solid #e8e8e8" }}>
+                      <td style={{ padding: "6px 10px" }}>{(() => { const ctoA = actors.find((a: any) => a.actor_id === (chosenCtoId || "sofia_renault")); return ctoA?.name || "CTO"; })()}</td>
+                      <td style={{ padding: "6px 10px", textAlign: "center" }}>250</td>
+                      <td style={{ padding: "6px 10px", textAlign: "center" }}>25%</td>
+                      <td style={{ padding: "6px 10px" }}>250 € en numéraire</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* Article 3 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 3 — Rôles et gouvernance</h2>
+                <p><strong>{displayPlayerName || "CEO"}</strong> : Président de la SAS. Responsable de la stratégie commerciale, du business development et des opérations.</p>
+                <p><strong>Alexandre Morel</strong> : Directeur Produit. Responsable de la vision médicale, du lien avec le terrain clinique et de la validation des parcours utilisateurs.</p>
+                <p><strong>{(() => { const ctoA = actors.find((a: any) => a.actor_id === (chosenCtoId || "sofia_renault")); return ctoA?.name || "CTO"; })()}</strong> : Directeur Technique. Responsable de l&apos;architecture logicielle, du développement produit et des choix technologiques.</p>
+
+                {/* Article 4 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 4 — Engagements du CEO</h2>
+                <p>Le CEO s&apos;engage à :</p>
+                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
+                  <li>Exercer ses fonctions à plein temps (5 jours/semaine minimum)</li>
+                  <li>Investir 15 000 € en compte courant d&apos;associé dans les 30 jours suivant l&apos;immatriculation</li>
+                  <li>Ne pas exercer d&apos;autre activité professionnelle rémunérée</li>
+                </ul>
+
+                {/* Article 5 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 5 — Engagements du CPO</h2>
+                <p>Alexandre Morel s&apos;engage à :</p>
+                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
+                  <li>Consacrer un minimum de 2 jours par semaine au projet</li>
+                  <li>Assurer le lien avec le terrain clinique (retours utilisateurs, accès aux blocs, introductions)</li>
+                  <li>Informer la Société de toute évolution de ses engagements professionnels extérieurs</li>
+                </ul>
+
+                {/* Article 6 — THE TRAP: no full-time, no exclusivity (intentionally looks normal) */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 6 — Engagements du CTO</h2>
+                <p>Le CTO s&apos;engage à :</p>
+                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
+                  <li>Assurer la direction technique de la Société</li>
+                  <li>Définir et mettre en œuvre l&apos;architecture logicielle</li>
+                  <li>Recruter et encadrer l&apos;équipe technique le moment venu</li>
+                </ul>
+
+                {/* Article 7 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 7 — Vesting</h2>
+                <p>Les actions de chaque Associé sont soumises à un vesting de 4 ans :</p>
+                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
+                  <li><strong>Cliff</strong> : 12 mois. Aucune action n&apos;est considérée comme acquise avant le premier anniversaire.</li>
+                  <li><strong>Acquisition</strong> : 25% des actions à la fin du cliff, puis acquisition mensuelle linéaire sur les 36 mois suivants.</li>
+                  <li><strong>Point de départ</strong> : date d&apos;immatriculation de la Société.</li>
+                </ul>
+
+                {/* Article 8 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 8 — Clause de leaver</h2>
+                <p><strong>Good leaver</strong> (départ justifié : maladie, accord mutuel, révocation sans faute) :</p>
+                <ul style={{ paddingLeft: 20, margin: "4px 0 8px" }}>
+                  <li>L&apos;Associé sortant conserve ses actions acquises (vestées).</li>
+                  <li>Les actions non acquises sont rachetées par la Société à leur valeur nominale.</li>
+                </ul>
+                <p><strong>Bad leaver</strong> (démission volontaire avant 24 mois, faute grave, activité concurrente) :</p>
+                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
+                  <li>La totalité des actions non acquises est rachetée à leur valeur nominale.</li>
+                  <li>50% des actions acquises est rachetée à leur valeur nominale.</li>
+                </ul>
+
+                {/* Article 9 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 9 — Non-concurrence</h2>
+                <p>Chaque Associé s&apos;interdit, pendant la durée de son association et pendant 24 mois après son départ, d&apos;exercer une activité concurrente dans le domaine de l&apos;optimisation des blocs opératoires et de la planification chirurgicale, en France.</p>
+
+                {/* Article 10 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 10 — Décisions stratégiques</h2>
+                <p>Les décisions suivantes nécessitent une majorité de <strong>75% du capital</strong> :</p>
+                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
+                  <li>Levée de fonds ou émission de nouvelles actions</li>
+                  <li>Cession d&apos;actifs significatifs (&gt; 5 000 €)</li>
+                  <li>Recrutement d&apos;un nouvel associé</li>
+                  <li>Pivot stratégique du produit</li>
+                  <li>Dissolution de la Société</li>
+                  <li>Révocation d&apos;un Associé de ses fonctions</li>
+                </ul>
+
+                {/* Article 11 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 11 — Droit de préemption</h2>
+                <p>En cas de projet de cession d&apos;actions par un Associé, les autres Associés disposent d&apos;un droit de préemption. L&apos;Associé cédant doit notifier son projet par écrit avec le prix proposé. Les autres disposent de 30 jours pour exercer leur droit.</p>
+
+                {/* Article 12 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 12 — Clause de sortie conjointe (tag-along)</h2>
+                <p>Si un Associé détenant plus de 50% du capital reçoit une offre de rachat, les autres Associés peuvent exiger d&apos;être inclus dans la cession aux mêmes conditions.</p>
+
+                {/* Article 13 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 13 — Résolution des conflits</h2>
+                <p>En cas de désaccord persistant :</p>
+                <ol style={{ paddingLeft: 20, margin: "4px 0" }}>
+                  <li>Médiation par un tiers désigné d&apos;un commun accord (30 jours)</li>
+                  <li>Si échec : arbitrage selon les règles du CMAP (Centre de Médiation et d&apos;Arbitrage de Paris)</li>
+                </ol>
+
+                {/* Article 14 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 14 — Confidentialité</h2>
+                <p>Les Associés s&apos;engagent à ne divulguer aucune information confidentielle relative à la Société, son produit, ses clients et ses données, pendant la durée du pacte et 3 ans après sa cessation.</p>
+
+                {/* Article 15 */}
+                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 15 — Durée</h2>
+                <p>Le présent pacte prend effet à la date d&apos;immatriculation de la Société et reste en vigueur tant que les signataires sont actionnaires.</p>
+
+                <hr style={{ border: "none", borderTop: "1px solid #d4d4d8", margin: "20px 0" }} />
+                <p style={{ fontSize: 12, color: "#888" }}>Fait en trois exemplaires originaux, à Bordeaux, le {new Date().toLocaleDateString("fr-FR")}.</p>
+                <table style={{ width: "100%", borderCollapse: "collapse", margin: "8px 0", fontSize: 12 }}>
+                  <thead>
+                    <tr style={{ borderBottom: "1px solid #d4d4d8" }}>
+                      <th style={{ padding: "6px 10px", textAlign: "center", width: "33%" }}>{displayPlayerName || "CEO"}</th>
+                      <th style={{ padding: "6px 10px", textAlign: "center", width: "33%" }}>Alexandre Morel</th>
+                      <th style={{ padding: "6px 10px", textAlign: "center", width: "33%" }}>{(() => { const ctoA = actors.find((a: any) => a.actor_id === (chosenCtoId || "sofia_renault")); return ctoA?.name || "CTO"; })()}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr>
+                      <td style={{ padding: "6px 10px", textAlign: "center", color: "#888" }}>Signature :</td>
+                      <td style={{ padding: "6px 10px", textAlign: "center", color: "#888" }}>Signature :</td>
+                      <td style={{ padding: "6px 10px", textAlign: "center", color: "#888" }}>Signature :</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
+
+              {/* Link to open PDF in new tab (complementary) */}
+              {pactePdfPath && (
+                <div style={{ padding: "6px 24px 8px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0, background: "#fafafa" }}>
+                  <a
+                    href={pactePdfPath.startsWith("/") ? pactePdfPath : `/api/download?file=${encodeURIComponent(pactePdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{
+                      flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                      padding: "6px 14px", borderRadius: 8, fontSize: 11, fontWeight: 600,
+                      background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
+                      border: "1px solid rgba(91,95,199,0.2)",
+                    }}
+                  >
+                    Ouvrir aussi en PDF dans un nouvel onglet
+                  </a>
+                </div>
+              )}
 
               {/* Negotiation thread — inline comment thread on the pacte */}
               {!pacteSigned && currentPhaseId === "phase_3_pacte" && (
@@ -2527,7 +2662,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   </div>
                   {/* Thread messages */}
                   {pacteThread.length > 0 && (
-                    <div style={{ flex: 1, overflowY: "auto", padding: "4px 24px 8px" }}>
+                    <div style={{ flex: 1, overflowY: "auto", padding: "4px 24px 8px" }} ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}>
                       {pacteThread.map((msg, i) => {
                         const isCto = msg.role === "cto";
                         const ctoInfo = getActorInfo(chosenCtoId || "sofia_renault");
@@ -2569,60 +2704,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       type="text"
                       value={amendmentInput}
                       onChange={(e) => setAmendmentInput(e.target.value)}
-                      onKeyDown={async (e) => {
+                      onKeyDown={(e) => {
                         if (e.key === "Enter" && amendmentInput.trim() && !pacteThreadLoading) {
-                          const text = amendmentInput.trim();
-                          setAmendmentInput("");
-                          setPacteAmendments((prev) => [...prev, text]);
-                          setPacteThread((prev) => [...prev, { role: "player", content: text }]);
-                          // Set flag
-                          if (session) {
-                            const next = { ...session, flags: { ...session.flags, asked_modification: true } };
-                            setSession(next);
-                          }
-                          // Get CTO response via AI
-                          setPacteThreadLoading(true);
-                          try {
-                            const ctoId = chosenCtoId || "sofia_renault";
-                            const activePrompt = aiPromptsMapRef.current[ctoId] || aiPromptRef.current;
-                            const threadContext = pacteThread.slice(-6).map((m) => ({
-                              role: m.role === "player" ? "user" : "assistant",
-                              content: m.content,
-                            }));
-                            threadContext.push({ role: "user", content: text });
-                            const res = await fetch("/api/chat", {
-                              method: "POST",
-                              headers: apiHeaders(),
-                              body: JSON.stringify({
-                                playerName: displayPlayerName,
-                                message: text,
-                                phaseTitle: "Négociation du pacte d'associés",
-                                phaseObjective: "Le CEO discute les clauses du pacte avec le CTO. Réponds en tant que CTO, directement, à la 1ère personne.",
-                                phaseFocus: "Discussion sur une clause du pacte d'associés. Le CEO fait un commentaire ou demande une modification. Réponds de manière directe et naturelle.",
-                                phasePrompt: "",
-                                criteria: [],
-                                mode: "exploratory",
-                                narrative: scenario?.narrative || {},
-                                conversationHistory: threadContext,
-                                playerHistory: [text],
-                                roleplayPrompt: activePrompt,
-                              }),
-                            });
-                            const data = await res.json();
-                            const reply = data?.reply || data?.response || "Je vais vérifier avec mon avocat.";
-                            setPacteThread((prev) => [...prev, { role: "cto", content: reply }]);
-                            // Check if reply indicates acceptance of exclusivity
-                            if (/accept|d'accord|on ajoute|logique|ok.*clause/i.test(reply) &&
-                                /exclusivit|full.?time|temps.?plein/i.test(text)) {
-                              if (session) {
-                                const next = { ...session, flags: { ...session.flags, pacte_signed_clean: true } };
-                                setSession(next);
-                              }
-                            }
-                          } catch {
-                            setPacteThread((prev) => [...prev, { role: "cto", content: "Je vais vérifier avec mon avocat et te reviens." }]);
-                          }
-                          setPacteThreadLoading(false);
+                          e.preventDefault();
+                          sendPacteNegotiationMessage();
                         }
                       }}
                       placeholder="Commenter une clause, demander une modification..."
@@ -2634,12 +2719,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       }}
                     />
                     <button
-                      onClick={async () => {
+                      onClick={() => {
                         if (!amendmentInput.trim() || pacteThreadLoading) return;
-                        // Trigger the same logic as Enter key
-                        const fakeEvent = { key: "Enter", preventDefault: () => {} } as any;
-                        const input = document.querySelector<HTMLInputElement>('[placeholder="Commenter une clause, demander une modification..."]');
-                        if (input) input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" }));
+                        sendPacteNegotiationMessage();
                       }}
                       style={{
                         padding: "8px 16px", background: amendmentInput.trim() && !pacteThreadLoading ? "#5b5fc7" : "#ccc",
@@ -3337,32 +3419,38 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             </h3>
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
               {visibleContacts.filter((a: any) => a.actor_id !== "player").map((actor: any) => {
-                const status = actor.contact_status || (actor.interaction_modes?.includes("unreachable") ? "offline" : "available");
+                const resolvedId = resolveActor(actor.actor_id);
+                const isInPhase = currentPhaseAiActors.includes(resolvedId);
+                const baseStatus = actor.contact_status || (actor.interaction_modes?.includes("unreachable") ? "offline" : "available");
+                const status = isInPhase ? baseStatus : "busy";
                 const color = actor.avatar?.color || "#666";
                 const ini = actor.avatar?.initials || getInitials(actor.name);
                 const isSelected = selectedContact === actor.actor_id;
                 const unread = contactUnreadCounts[actor.actor_id] || 0;
                 // Last message preview
                 const lastMsg = [...conversation].reverse().find((m: any) => m.actor === actor.actor_id && m.role === "npc");
-                const preview = lastMsg ? (lastMsg.content.length > 40 ? lastMsg.content.slice(0, 40) + "..." : lastMsg.content) : (actor.contact_preview || "");
+                const preview = isInPhase
+                  ? (lastMsg ? (lastMsg.content.length > 40 ? lastMsg.content.slice(0, 40) + "..." : lastMsg.content) : (actor.contact_preview || ""))
+                  : "Occupé";
                 return (
                   <li
                     key={actor.actor_id}
-                    onClick={() => { setSelectedContact(actor.actor_id); setMainView("chat"); }}
+                    onClick={() => { if (!isInPhase) return; setSelectedContact(actor.actor_id); setMainView("chat"); }}
                     style={{
                       display: "flex", alignItems: "center", gap: 10,
                       padding: "10px 8px", borderRadius: 8,
-                      marginBottom: 2, cursor: "pointer",
-                      background: isSelected ? "#f0f0ff" : "transparent",
-                      borderLeft: isSelected ? "3px solid #5b5fc7" : "3px solid transparent",
+                      marginBottom: 2, cursor: isInPhase ? "pointer" : "not-allowed",
+                      background: isSelected && isInPhase ? "#f0f0ff" : "transparent",
+                      borderLeft: isSelected && isInPhase ? "3px solid #5b5fc7" : "3px solid transparent",
+                      opacity: isInPhase ? 1 : 0.45,
                       transition: "all .1s",
                     }}
-                    onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = "#f8f8fb"; }}
+                    onMouseEnter={(e) => { if (!isSelected && isInPhase) e.currentTarget.style.background = "#f8f8fb"; }}
                     onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
                   >
                     <div style={{ position: "relative" }}>
                       <Avatar initials={ini} color={color} size={36} status={status} />
-                      {unread > 0 && (
+                      {unread > 0 && isInPhase && (
                         <span style={{
                           position: "absolute", top: -2, right: -4,
                           background: "#e94b3c", color: "#fff", borderRadius: 10,
@@ -3373,7 +3461,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: isSelected ? 700 : 600, color: isSelected ? "#5b5fc7" : "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <div style={{ fontSize: 13, fontWeight: isSelected && isInPhase ? 700 : 600, color: !isInPhase ? "#aaa" : (isSelected ? "#5b5fc7" : "#333"), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {actor.name}
                       </div>
                       <div style={{ fontSize: 11, color: "#999", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>

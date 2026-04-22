@@ -527,8 +527,8 @@
       "title": "Réponse du candidat",
       "objective": "Le candidat répond à ta proposition. Attends sa réponse et discute avec Alexandre.",
       "phase_focus": "Le candidat choisi répond positivement à la proposition. Il annonce que son avocat prépare un pacte d'associés. Alexandre te conseille de relire la note de Me Dufresne avant de signer quoi que ce soit.",
-      "duration_target_min": 1,
-      "max_duration_sec": 45,
+      "duration_target_min": 0,
+      "max_duration_sec": 8,
       "active_channels": [
         "chat"
       ],
@@ -543,14 +543,14 @@
           "actor": "chosen_cto",
           "content": "J'ai bien reçu ta proposition. C'est aligné avec ce que je cherche. Je suis partant(e). Mon avocat Me Fabre va rédiger un pacte d'associés, je te l'envoie dans la journée.",
           "channel": "chat",
-          "delay_ms": 1500
+          "delay_ms": 500
         },
         {
           "event_id": "alex_advice",
           "actor": "alexandre_morel",
           "content": "Super nouvelle ! Par contre, avant de signer quoi que ce soit, relis bien la note de Me Dufresne qu'on a dans les documents. On est en train d'accueillir quelqu'un dans le capital — faut que tout soit carré.",
           "channel": "chat",
-          "delay_ms": 4000
+          "delay_ms": 2500
         }
       ],
       "scoring": {
@@ -590,7 +590,7 @@
           "channel": "mail",
           "subject": "Pacte d'associés — Orisio",
           "content": "Comme discuté, voici le pacte rédigé par mon avocat Me Fabre. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine. Renvoie-moi le pacte signé et on lance les démarches.",
-          "delay_ms": 500,
+          "delay_ms": 0,
           "attachments": [
             {
               "id": "pacte_associes",
