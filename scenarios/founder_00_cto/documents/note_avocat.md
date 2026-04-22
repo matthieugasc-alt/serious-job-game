@@ -53,16 +53,10 @@ C'est la meilleure protection contre un cofondateur qui partirait après 6 mois.
 ## 5. Clauses essentielles du pacte
 
 - **Non-concurrence** : 2 ans, périmètre e-santé / blocs opératoires
-- **Exclusivité** : le CEO à 100%, le CTO à 100%, Alexandre à minimum 2 jours/semaine. C'est le point le plus important du pacte. Chaque associé full-time doit s'engager contractuellement à ne pas exercer d'autre activité professionnelle en parallèle. Sans cette clause, vous n'avez aucune garantie.
+- **Exclusivité** : le CEO à 100%, le CTO à 100%, Alexandre à minimum 2 jours/semaine
 - **Droit de préemption** : si un associé veut vendre, les autres ont priorité
 - **Clause de sortie conjointe (tag-along)** : protège le minoritaire en cas de rachat
 - **Deadlock** : mécanisme de résolution si vous n'arrivez plus à prendre de décisions ensemble (médiation puis clause de buy-or-sell)
-
-## 6. Points d'attention
-
-- Alexandre est chirurgien. Vérifiez qu'il n'a **pas de clause d'exclusivité** dans son contrat avec la clinique.
-- Quand le CTO entre au pacte, **faites relire le document par votre propre avocat**, même si le CTO arrive avec un pacte « déjà prêt » rédigé par le sien. Ne signez jamais un pacte que vous n'avez pas fait relire. Les omissions comptent autant que les clauses présentes.
-- Le pacte d'associés est votre filet de sécurité. C'est le document que vous lirez le jour où ça se passera mal. Rédigez-le pour ce jour-là, pas pour aujourd'hui.
 
 ## Honoraires
 

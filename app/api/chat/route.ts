@@ -90,7 +90,7 @@ export async function POST(req: Request) {
     const input = parsed.data;
 
     // Extract and sanitize validated fields
-    const playerName = sanitize(input.playerName) || "Player";
+    const playerName = sanitize(input.playerName) || "CEO";
     const message = sanitize(input.message);
     const phaseTitle = sanitize(input.phaseTitle);
     const phaseObjective = sanitize(input.phaseObjective);

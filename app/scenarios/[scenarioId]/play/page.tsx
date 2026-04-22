@@ -197,6 +197,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [pacteAmendments, setPacteAmendments] = useState<string[]>([]);
   const [amendmentInput, setAmendmentInput] = useState("");
   const [showContactPicker, setShowContactPicker] = useState<"to" | "cc" | null>(null);
+  const [interviewStarted, setInterviewStarted] = useState(false);
+  const [docContent, setDocContent] = useState<Record<string, string>>({});
   const [debriefData, setDebriefData] = useState<any>(null);
   const [debriefLoading, setDebriefLoading] = useState(false);
   const [debriefError, setDebriefError] = useState<string | null>(null);
@@ -275,8 +277,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // ── Derived values ──
   const displayPlayerName =
     typeof window !== "undefined"
-      ? localStorage.getItem(`sjg_playerName_${scenarioId}`) || "Joueur"
-      : "Joueur";
+      ? (isFounderScenario
+          ? localStorage.getItem("founder_username") || ""
+          : localStorage.getItem(`sjg_playerName_${scenarioId}`) || "Joueur")
+      : "";
 
   const allDocumentsRaw = scenario?.resources?.documents || [];
   const currentPhaseId = scenario?.phases?.[session?.currentPhaseIndex]?.phase_id ?? null;
@@ -362,6 +366,55 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         phase.dynamic_actor = "resolved";
       }
     }
+  }
+
+  // ── Manual interview start: inject only the intro (delay_ms=0) events ──
+  function injectIntroEventsOnly(sess: any) {
+    const phase = sess.scenario?.phases?.[sess.currentPhaseIndex];
+    if (!phase?.entry_events) return;
+    const phId = phase.phase_id || `phase_${sess.currentPhaseIndex}`;
+    for (const ev of phase.entry_events) {
+      const evKey = `${phId}__${ev.event_id}`;
+      if (sess.injectedPhaseEntryEvents.includes(evKey)) continue;
+      if (ev.delay_ms === 0) {
+        // Inject immediately (Alexandre's transition message)
+        sess.injectedPhaseEntryEvents.push(evKey);
+        addAIMessage(sess, ev.content, ev.actor);
+        if (ev.attachments) {
+          const lastMsg = sess.chatMessages[sess.chatMessages.length - 1];
+          if (lastMsg) lastMsg.attachments = ev.attachments;
+        }
+      }
+      // Skip non-zero delay events — they'll be injected when player clicks "Faire entrer"
+    }
+  }
+
+  // ── Handle "Faire entrer le candidat" click ──
+  function handleStartInterview() {
+    if (!session || !scenario) return;
+    setInterviewStarted(true);
+    phaseStartRealTimeRef.current = Date.now(); // Reset timer on actual interview start
+    const next = cloneSession(session);
+    // Inject the remaining entry events (candidate hello, etc.)
+    const phase = scenario.phases[next.currentPhaseIndex];
+    if (phase?.entry_events) {
+      const phId = phase.phase_id || `phase_${next.currentPhaseIndex}`;
+      for (const ev of phase.entry_events) {
+        const evKey = `${phId}__${ev.event_id}`;
+        if (next.injectedPhaseEntryEvents.includes(evKey)) continue;
+        // Schedule as timed event
+        next.injectedPhaseEntryEvents.push(evKey);
+        next.pendingTimedEvents.push({
+          fireAt: new Date(Date.now() + (ev.delay_ms || 0)).toISOString(),
+          actor: ev.actor,
+          content: ev.content,
+          channel: ev.channel || "chat",
+          eventId: ev.event_id,
+          attachments: ev.attachments,
+        });
+      }
+    }
+    setSession(next);
   }
 
   // ── Founder checkpoint: notify server on phase advance ──
@@ -862,7 +915,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         }
 
         // ── Inject entry_events for the active phase (critical for phase 0!) ──
-        injectPhaseEntryEvents(s);
+        const activePhaseData = data.phases[s.currentPhaseIndex || 0];
+        if ((activePhaseData as any)?.manual_start) {
+          // For manual_start phases, only inject intro events (delay_ms=0)
+          injectIntroEventsOnly(s);
+          setInterviewStarted(false);
+        } else {
+          injectPhaseEntryEvents(s);
+        }
 
         setSession(s);
         setLoading(false);
@@ -926,8 +986,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       const next = cloneSession(session);
       completeCurrentPhaseAndAdvance(next);
       resolveDynamicActors(next);
-      injectPhaseEntryEvents(next);
       const newPhase = scenario.phases[next.currentPhaseIndex];
+      // For manual_start phases, only inject Alexandre's intro (delay_ms=0)
+      if ((newPhase as any)?.manual_start) {
+        injectIntroEventsOnly(next);
+        setInterviewStarted(false);
+      } else {
+        injectPhaseEntryEvents(next);
+      }
       if (newPhase?.mail_config?.defaults) {
         updateMailDraft(next, newPhase.phase_id, {
           to: newPhase.mail_config.defaults.to || "",
@@ -986,6 +1052,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   useEffect(() => {
     if (!session || !scenario) return;
     phaseStartRealTimeRef.current = Date.now();
+    // Reset manual interview gate on phase change
+    setInterviewStarted(false);
 
     // Notify checkpoint on phase advance (not on initial load)
     const idx = session.currentPhaseIndex;
@@ -1003,6 +1071,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     const phase = scenario.phases[session.currentPhaseIndex] as any;
     const maxSec = phase?.max_duration_sec;
     if (!maxSec || typeof maxSec !== "number") return;
+    // Don't start timer for manual_start phases until interview has started
+    if (phase?.manual_start && !interviewStarted) return;
     const phaseId = phase?.phase_id || `phase_${session.currentPhaseIndex}`;
     if (phaseMaxDurationTriggeredRef.current === phaseId) return;
 
@@ -1073,6 +1143,37 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       mode: caps.recommendedMode,
     });
   }, []);
+
+  // ── Fetch markdown document content for Founder docs ──
+  useEffect(() => {
+    if (!scenario) return;
+    const docs = (scenario as any).resources?.documents || [];
+    for (const doc of docs) {
+      const fp = doc.file_path;
+      if (!fp || docContent[fp]) continue;
+      // Fetch via download API with scenarioId
+      fetch(`/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`)
+        .then((res) => res.ok ? res.text() : null)
+        .then((text) => {
+          if (!text) return;
+          // Replace [CEO] placeholder with player pseudo
+          const playerPseudo = displayPlayerName || "CEO";
+          const withPseudo = text.replace(/\[CEO\]/g, playerPseudo);
+          // Simple markdown to HTML conversion
+          const html = withPseudo
+            .replace(/^### (.+)$/gm, '<h3 style="margin:12px 0 6px;font-size:13px;font-weight:700;color:#333">$1</h3>')
+            .replace(/^## (.+)$/gm, '<h2 style="margin:16px 0 8px;font-size:14px;font-weight:700;color:#222">$1</h2>')
+            .replace(/^# (.+)$/gm, '<h1 style="margin:16px 0 10px;font-size:16px;font-weight:700;color:#111">$1</h1>')
+            .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+            .replace(/^- (.+)$/gm, '<li style="margin:2px 0;padding-left:4px">$1</li>')
+            .replace(/^---$/gm, '<hr style="border:none;border-top:1px solid #e0e0e0;margin:12px 0"/>')
+            .replace(/\n\n/g, '<br/><br/>')
+            .replace(/\n/g, '<br/>');
+          setDocContent((prev) => ({ ...prev, [fp]: html }));
+        })
+        .catch(() => {});
+    }
+  }, [scenario, scenarioId]);
 
   // ── Auto-scroll chat ──
   useEffect(() => {
@@ -2360,26 +2461,61 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
               {/* Progress indicator */}
               <div style={{
                 padding: "8px 24px", background: "#f8f9fa", borderBottom: "1px solid #e8e8e8",
-                display: "flex", alignItems: "center", gap: 16, fontSize: 12,
+                display: "flex", alignItems: "center", gap: 12, fontSize: 12,
               }}>
                 <span style={{ color: "#16a34a", fontWeight: 700 }}>1. Relire le document</span>
                 <span style={{ color: "#ccc" }}>→</span>
-                <span style={{ color: pacteSigned ? "#16a34a" : "#666", fontWeight: pacteSigned ? 700 : 500 }}>2. Signer</span>
+                <span style={{ color: pacteAmendments.length > 0 || pacteSigned ? "#16a34a" : "#666", fontWeight: pacteAmendments.length > 0 || pacteSigned ? 700 : 500 }}>2. Remarques</span>
                 <span style={{ color: "#ccc" }}>→</span>
-                <span style={{ color: "#999" }}>3. Renvoyer par mail</span>
+                <span style={{ color: pacteSigned ? "#16a34a" : "#666", fontWeight: pacteSigned ? 700 : 500 }}>3. Signer</span>
+                <span style={{ color: "#ccc" }}>→</span>
+                <span style={{ color: "#999" }}>4. Renvoyer par mail</span>
               </div>
 
-              {/* PDF viewer */}
-              <div style={{ flex: 1, overflow: "hidden", background: "#f0f0f0" }}>
-                {pactePdfPath ? (
-                  <iframe
-                    src={pactePdfPath}
-                    style={{ width: "100%", height: "100%", border: "none", minHeight: 400 }}
-                    title="Pacte d'associés"
-                  />
+              {/* Document viewer — markdown rendered inline + fallback buttons */}
+              <div style={{ flex: 1, overflow: "auto", background: "#fafbfc", display: "flex", flexDirection: "column" }}>
+                {pactePdfPath && docContent[pactePdfPath] ? (
+                  <div style={{ padding: "20px 24px", flex: 1 }}>
+                    <div
+                      style={{ fontSize: 12, lineHeight: 1.7, color: "#333" }}
+                      dangerouslySetInnerHTML={{ __html: docContent[pactePdfPath] }}
+                    />
+                  </div>
                 ) : (
-                  <div style={{ padding: 40, textAlign: "center", color: "#999" }}>
-                    Document non disponible.
+                  <div style={{ padding: "40px 24px", textAlign: "center", flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+                    <div style={{ fontSize: 36 }}>📄</div>
+                    <div style={{ fontSize: 13, color: "#666" }}>
+                      {pactePdfPath ? "Le document est en cours de chargement..." : "Document non disponible."}
+                    </div>
+                  </div>
+                )}
+                {/* Fallback access buttons — always visible */}
+                {pactePdfPath && (
+                  <div style={{ padding: "10px 24px 14px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0 }}>
+                    <a
+                      href={`/api/download?file=${encodeURIComponent(pactePdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        padding: "8px 14px", borderRadius: 8, fontSize: 11, fontWeight: 600,
+                        background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
+                        border: "1px solid rgba(91,95,199,0.2)",
+                      }}
+                    >
+                      📄 Ouvrir dans un nouvel onglet
+                    </a>
+                    <a
+                      href={`/api/download?file=${encodeURIComponent(pactePdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
+                      download
+                      style={{
+                        flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        padding: "8px 14px", borderRadius: 8, fontSize: 11, fontWeight: 600,
+                        background: "#5b5fc7", color: "#fff", textDecoration: "none",
+                      }}
+                    >
+                      ⬇ Télécharger
+                    </a>
                   </div>
                 )}
               </div>
@@ -2430,7 +2566,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                           }
                         }
                       }}
-                      placeholder="Ex: Ajouter clause d'exclusivité à l'article 6..."
+                      placeholder="Ex: Modifier l'article 6, ajouter une clause..."
                       style={{
                         flex: 1, padding: "8px 12px", border: "1px solid #d4d4d8",
                         borderRadius: 8, fontSize: 12, outline: "none",
@@ -2945,11 +3081,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       <Avatar initials={actor.initials} color={actor.color} size={36} status={actor.status} />
                     )}
                     {isPlayer && (
-                      <Avatar initials={getInitials(displayPlayerName)} color="#5b5fc7" size={36} />
+                      <Avatar initials={displayPlayerName ? getInitials(displayPlayerName) : "CEO"} color="#5b5fc7" size={36} />
                     )}
                     <div>
                       <div style={{ fontSize: 11, color: "#888", marginBottom: 3, textAlign: isPlayer ? "right" : "left" }}>
-                        {isPlayer ? displayPlayerName : actor?.name}
+                        {isPlayer ? (displayPlayerName || "CEO") : actor?.name}
                         {isCurrentlySpeaking && <span style={{ marginLeft: 8, color: "#5b5fc7" }}>🔊 En train de parler...</span>}
                       </div>
                       <div style={{
@@ -3271,12 +3407,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         <Avatar initials={actor.initials} color={actor.color} size={32} status={actor.status} />
                       )}
                       {isPlayer && (
-                        <Avatar initials={getInitials(displayPlayerName)} color="#5b5fc7" size={32} />
+                        <Avatar initials={displayPlayerName ? getInitials(displayPlayerName) : "CEO"} color="#5b5fc7" size={32} />
                       )}
                       <div>
                         {/* Sender name */}
                         <div style={{ fontSize: 11, color: "#888", marginBottom: 2, textAlign: isPlayer ? "right" : "left" }}>
-                          {isPlayer ? displayPlayerName : actor?.name}
+                          {isPlayer ? (displayPlayerName || "CEO") : actor?.name}
                           {typeBadge && <span style={{ marginLeft: 6, fontSize: 10, color: "#5b5fc7" }}>{typeBadge}</span>}
                         </div>
                         {/* Bubble */}
@@ -3330,33 +3466,63 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 <div ref={chatEndRef} />
               </div>
 
-              {/* Input bar */}
-              <div style={{ padding: "10px 16px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0, background: "#fafafa" }}>
-                <input
-                  ref={inputRef}
-                  type="text"
-                  value={playerInput}
-                  onChange={(e) => setPlayerInput(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
-                  placeholder="Votre message..."
-                  style={{
-                    flex: 1, padding: "10px 14px", border: "1px solid #ddd", borderRadius: 20,
-                    fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff", color: "#111",
-                  }}
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={!playerInput.trim()}
-                  style={{
-                    padding: "8px 20px", borderRadius: 20, border: "none",
-                    background: playerInput.trim() ? "#5b5fc7" : "#ccc",
-                    color: "#fff", cursor: playerInput.trim() ? "pointer" : "not-allowed",
-                    fontWeight: 600, fontSize: 13,
-                  }}
-                >
-                  Envoyer
-                </button>
-              </div>
+              {/* Input bar — or "Faire entrer le candidat" gate for manual_start phases */}
+              {(currentPhaseConfig as any)?.manual_start && !interviewStarted ? (
+                <div style={{
+                  padding: "16px", borderTop: "1px solid #e8e8e8", flexShrink: 0,
+                  background: "linear-gradient(135deg, #f8f9ff, #f0f0ff)",
+                  display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
+                }}>
+                  <div style={{ fontSize: 12, color: "#666", textAlign: "center" }}>
+                    Prenez le temps de lire les CV dans l'onglet Documents avant de commencer l'entretien.
+                  </div>
+                  <button
+                    onClick={handleStartInterview}
+                    style={{
+                      padding: "12px 32px", borderRadius: 12, border: "none",
+                      background: "linear-gradient(135deg, #5b5fc7, #4a4eb3)",
+                      color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 14,
+                      boxShadow: "0 4px 16px rgba(91,95,199,0.25)",
+                      transition: "all 0.2s",
+                    }}
+                    onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.02)"; }}
+                    onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+                  >
+                    Faire entrer {(() => {
+                      const candidateName = (currentPhaseConfig as any)?.ai_actors?.[0];
+                      const actor = actors.find((a: any) => a.actor_id === candidateName);
+                      return actor?.name?.split(" ")[0] || "le candidat";
+                    })()}
+                  </button>
+                </div>
+              ) : (
+                <div style={{ padding: "10px 16px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0, background: "#fafafa" }}>
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={playerInput}
+                    onChange={(e) => setPlayerInput(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
+                    placeholder="Votre message..."
+                    style={{
+                      flex: 1, padding: "10px 14px", border: "1px solid #ddd", borderRadius: 20,
+                      fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff", color: "#111",
+                    }}
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={!playerInput.trim()}
+                    style={{
+                      padding: "8px 20px", borderRadius: 20, border: "none",
+                      background: playerInput.trim() ? "#5b5fc7" : "#ccc",
+                      color: "#fff", cursor: playerInput.trim() ? "pointer" : "not-allowed",
+                      fontWeight: 600, fontSize: 13,
+                    }}
+                  >
+                    Envoyer
+                  </button>
+                </div>
+              )}
             </>
           )}
 
@@ -3457,7 +3623,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 600 }}>{getActorInfo(selectedMail.from).name}</div>
                         <div style={{ fontSize: 11, color: "#888" }}>
-                          À : {selectedMail.to || displayPlayerName}
+                          À : {selectedMail.to || displayPlayerName || "CEO"}
                           {selectedMail.cc && <span> — Cc : {selectedMail.cc}</span>}
                         </div>
                       </div>
@@ -3515,6 +3681,45 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                             );
                           })}
                         </div>
+                      </div>
+                    )}
+
+                    {/* ── "Ouvrir et signer le pacte" — only in phase_3_pacte, only on the pacte mail ── */}
+                    {currentPhaseId === "phase_3_pacte" &&
+                      selectedMail.attachments?.some((a: any) => a.id === "pacte_associes") && (
+                      <div style={{ marginTop: 16 }}>
+                        {pacteSigned ? (
+                          <div style={{
+                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
+                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
+                            display: "flex", alignItems: "center", gap: 10,
+                          }}>
+                            <span style={{ fontSize: 20 }}>✅</span>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Pacte signé</div>
+                              <div style={{ fontSize: 11, color: "#666" }}>
+                                Renvoyez le pacte signé par mail au CTO pour finaliser.
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowSignatureView(true)}
+                            style={{
+                              width: "100%", padding: "14px 24px",
+                              background: "linear-gradient(135deg, #ffd700, #ffb300)",
+                              border: "2px solid #e6a800", borderRadius: 12,
+                              color: "#1a1a2e", fontSize: 14, fontWeight: 800, cursor: "pointer",
+                              boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                              transition: "all 0.2s",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(255,215,0,0.4)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(255,215,0,0.3)"; }}
+                          >
+                            ✍️ Ouvrir et signer le pacte
+                          </button>
+                        )}
                       </div>
                     )}
 
@@ -3877,20 +4082,30 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     <h3 style={{ margin: "0 0 12px", fontSize: 14, fontWeight: 600, color: "#333" }}>
                       📑 {selectedDoc.label}
                     </h3>
-                    {/* PDF viewer + download */}
-                    {(selectedDoc as any).file_path && (selectedDoc as any).file_path.endsWith(".pdf") ? (
+                    {/* Document viewer — markdown or image */}
+                    {(selectedDoc as any).file_path ? (
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        <iframe
-                          src={(selectedDoc as any).file_path}
-                          style={{
-                            width: "100%", height: 480, border: "1px solid #e2e4ea",
-                            borderRadius: 8, background: "#f8f8fa",
-                          }}
-                          title={selectedDoc.label}
-                        />
+                        {/* Rendered markdown content */}
+                        {docContent[(selectedDoc as any).file_path] ? (
+                          <div
+                            style={{
+                              maxHeight: 480, overflowY: "auto", padding: "16px 20px",
+                              border: "1px solid #e2e4ea", borderRadius: 8, background: "#fafbfc",
+                              fontSize: 12, lineHeight: 1.7, color: "#333",
+                            }}
+                            dangerouslySetInnerHTML={{ __html: docContent[(selectedDoc as any).file_path] }}
+                          />
+                        ) : (
+                          <div style={{
+                            padding: "40px 20px", textAlign: "center", color: "#999",
+                            border: "1px solid #e2e4ea", borderRadius: 8, background: "#fafbfc",
+                          }}>
+                            Chargement du document...
+                          </div>
+                        )}
                         <div style={{ display: "flex", gap: 8 }}>
                           <a
-                            href={(selectedDoc as any).file_path}
+                            href={`/api/download?file=${encodeURIComponent((selectedDoc as any).file_path)}&scenarioId=${encodeURIComponent(scenarioId)}`}
                             target="_blank"
                             rel="noopener noreferrer"
                             style={{
@@ -3900,10 +4115,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                               border: "1px solid rgba(91,95,199,0.2)",
                             }}
                           >
-                            🔍 Ouvrir en plein écran
+                            📄 Ouvrir le document
                           </a>
                           <a
-                            href={`/api/download?file=${encodeURIComponent((selectedDoc as any).file_path)}`}
+                            href={`/api/download?file=${encodeURIComponent((selectedDoc as any).file_path)}&scenarioId=${encodeURIComponent(scenarioId)}`}
+                            download
                             style={{
                               flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                               padding: "10px 16px", borderRadius: 8, fontSize: 12, fontWeight: 600,
@@ -3932,7 +4148,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         ✓ Joignable en pièce jointe
                       </div>
                     )}
-                    {/* ── Signature visuelle du pacte ── */}
+                    {/* ── Pacte signing status ── */}
                     {selectedDoc.doc_id === "pacte_associes" && currentPhaseId === "phase_3_pacte" && (
                       <div style={{ marginTop: 16 }}>
                         {pacteSigned ? (
@@ -3944,23 +4160,20 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                             <span style={{ fontSize: 20 }}>✅</span>
                             <div>
                               <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Pacte signé</div>
-                              <div style={{ fontSize: 11, color: "#666" }}>Vous pouvez maintenant le renvoyer par mail.</div>
+                              <div style={{ fontSize: 11, color: "#666" }}>Renvoyez-le par mail au CTO pour finaliser.</div>
                             </div>
                           </div>
                         ) : (
-                          <button
-                            onClick={() => setShowSignatureView(true)}
-                            style={{
-                              width: "100%", padding: "12px 20px",
-                              background: "linear-gradient(135deg, #5b5fc7, #4a4eb3)",
-                              border: "1px solid rgba(91,95,199,0.4)", borderRadius: 10,
-                              color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                              boxShadow: "0 4px 16px rgba(91,95,199,0.2)",
-                              display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
-                            }}
-                          >
-                            ✍️ Ouvrir la vue de signature
-                          </button>
+                          <div style={{
+                            padding: "12px 18px", background: "#f0f0ff",
+                            border: "1px solid rgba(91,95,199,0.2)", borderRadius: 10,
+                            display: "flex", alignItems: "center", gap: 10,
+                          }}>
+                            <span style={{ fontSize: 16 }}>📧</span>
+                            <div style={{ fontSize: 12, color: "#555", lineHeight: 1.5 }}>
+                              Pour signer ce pacte, ouvrez le <strong>mail du CTO</strong> dans votre boîte de réception.
+                            </div>
+                          </div>
                         )}
                       </div>
                     )}

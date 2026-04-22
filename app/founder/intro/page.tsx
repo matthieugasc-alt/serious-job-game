@@ -10,9 +10,12 @@ import { useRouter } from "next/navigation";
 export default function FounderIntroPage() {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
+  const [pseudo, setPseudo] = useState("");
 
   async function handleLaunch() {
+    if (!pseudo.trim()) return;
     setCreating(true);
+    localStorage.setItem("founder_username", pseudo.trim());
     const token = localStorage.getItem("auth_token");
     if (!token) {
       router.push("/login?redirect=/founder/intro");
@@ -191,6 +194,24 @@ export default function FounderIntroPage() {
             produit. C'est maintenant.
           </p>
         </div>
+
+        {/* ── Pseudo ──────────────────────────────────────────── */}
+        <div style={S.pseudoSection}>
+          <label htmlFor="founder-pseudo" style={S.pseudoLabel}>
+            Choisis ton prénom de CEO
+          </label>
+          <input
+            id="founder-pseudo"
+            type="text"
+            value={pseudo}
+            onChange={(e) => setPseudo(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter" && pseudo.trim()) handleLaunch(); }}
+            placeholder="Ex : Thomas, Marie, Alex…"
+            maxLength={24}
+            autoComplete="off"
+            style={S.pseudoInput}
+          />
+        </div>
       </article>
 
       {/* ── Footer ──────────────────────────────────────────────── */}
@@ -200,11 +221,11 @@ export default function FounderIntroPage() {
         </button>
         <button
           onClick={handleLaunch}
-          disabled={creating}
+          disabled={creating || !pseudo.trim()}
           style={{
             ...S.launchBtn,
-            opacity: creating ? 0.7 : 1,
-            cursor: creating ? "not-allowed" : "pointer",
+            opacity: creating || !pseudo.trim() ? 0.5 : 1,
+            cursor: creating || !pseudo.trim() ? "not-allowed" : "pointer",
           }}
         >
           {creating ? "Création..." : "Lancer ma startup →"}
@@ -353,6 +374,37 @@ const S: Record<string, React.CSSProperties> = {
     lineHeight: 1.6,
     color: "#c4c6ff",
     letterSpacing: -0.1,
+  },
+
+  // Pseudo input
+  pseudoSection: {
+    marginTop: 28,
+    padding: "20px 24px",
+    background: "rgba(255,255,255,0.03)",
+    borderRadius: 12,
+    border: "1px solid rgba(255,255,255,0.08)",
+  },
+  pseudoLabel: {
+    display: "block",
+    fontSize: 13,
+    fontWeight: 700,
+    color: "rgba(255,255,255,0.6)",
+    marginBottom: 10,
+    letterSpacing: 0.2,
+  },
+  pseudoInput: {
+    width: "100%",
+    padding: "12px 16px",
+    background: "rgba(255,255,255,0.06)",
+    border: "1px solid rgba(255,255,255,0.1)",
+    borderRadius: 8,
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: 600,
+    fontFamily: "inherit",
+    outline: "none",
+    boxSizing: "border-box" as const,
+    letterSpacing: 0.3,
   },
 
   // Footer

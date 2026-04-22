@@ -27,7 +27,7 @@
       },
       {
         "title": "Ta mission",
-        "content": "<p><strong>Phase 1</strong> — Rencontrer les 3 candidats (3 min d'entretien chacun, par chat).</p><p><strong>Phase 2</strong> — Envoyer un mail formel à l'un d'eux avec ta proposition (salaire, equity, rôle).</p><p><strong>Phase 3</strong> — Le candidat accepte et propose un pacte d'associés. À toi de le relire attentivement.</p>",
+        "content": "<p><strong>Phase 1</strong> — Rencontrer les 3 candidats (5 min d'entretien chacun, par chat).</p><p><strong>Phase 2</strong> — Envoyer un mail formel à l'un d'eux avec ta proposition (salaire, equity, rôle).</p><p><strong>Phase 3</strong> — Le candidat accepte et propose un pacte d'associés. À toi de le relire attentivement.</p>",
         "column": "right"
       },
       {
@@ -56,7 +56,7 @@
   "actors": [
     {
       "actor_id": "player",
-      "name": "(joueur)",
+      "name": "Toi",
       "role": "CEO, Orisio",
       "controlled_by": "player",
       "avatar": {
@@ -148,37 +148,38 @@
       {
         "doc_id": "cv_sofia",
         "label": "CV — Sofia Renault",
-        "file_path": "/scenarios/founder_00_cto/documents/cv_sofia_renault.pdf",
+        "file_path": "documents/cv_sofia_renault.md",
         "contains": ["CV", "Sofia", "Centrale Lyon", "MedFlow", "Doctolib", "HDS"],
         "usable_as_pj": true
       },
       {
         "doc_id": "cv_marc",
         "label": "CV — Marc Lefèvre",
-        "file_path": "/scenarios/founder_00_cto/documents/cv_marc_lefevre.pdf",
+        "file_path": "documents/cv_marc_lefevre.md",
         "contains": ["CV", "Marc", "Betclic", "ENSEEIHT", "Atos", "CNAM"],
         "usable_as_pj": true
       },
       {
         "doc_id": "cv_karim",
         "label": "CV — Karim Benzarti",
-        "file_path": "/scenarios/founder_00_cto/documents/cv_karim_benzarti.pdf",
+        "file_path": "documents/cv_karim_benzarti.md",
         "contains": ["CV", "Karim", "Pixel33", "DUT", "MedBoard"],
         "usable_as_pj": true
       },
       {
         "doc_id": "note_avocat",
         "label": "Note — Me Dufresne (avocate)",
-        "file_path": "/scenarios/founder_00_cto/documents/note_avocat.pdf",
-        "contains": ["pacte", "associés", "vesting", "equity", "exclusivité", "BSPCE", "SAS"],
+        "file_path": "documents/note_avocat.md",
+        "contains": ["pacte", "associés", "vesting", "equity", "BSPCE", "SAS"],
         "usable_as_pj": false
       },
       {
         "doc_id": "pacte_associes",
         "label": "Pacte d'associés (proposé par le CTO)",
-        "file_path": "/scenarios/founder_00_cto/documents/pacte_associes.pdf",
+        "file_path": "documents/pacte_associes.md",
         "contains": ["pacte", "vesting", "leaver", "capital", "non-concurrence"],
-        "usable_as_pj": true
+        "usable_as_pj": true,
+        "available_from_phase": "phase_3_pacte"
       }
     ]
   },
@@ -221,10 +222,11 @@
     {
       "phase_id": "phase_1_sofia",
       "title": "Entretien avec Sofia Renault",
-      "objective": "Rencontrer Sofia (3 min). Évaluer ses compétences, sa motivation et ses conditions.",
+      "objective": "Rencontrer Sofia (5 min). Évaluer ses compétences, sa motivation et ses conditions.",
       "phase_focus": "Entretien uniquement avec Sofia Renault. Le joueur pose des questions, Sofia répond. Pas de négociation à ce stade.",
-      "duration_target_min": 3,
-      "max_duration_sec": 240,
+      "duration_target_min": 5,
+      "max_duration_sec": 360,
+      "manual_start": true,
       "active_channels": ["chat"],
       "ai_actors": ["sofia_renault"],
       "entry_events": [
@@ -276,10 +278,11 @@
     {
       "phase_id": "phase_1_marc",
       "title": "Entretien avec Marc Lefèvre",
-      "objective": "Rencontrer Marc (3 min). Évaluer ses compétences, son engagement réel et ses conditions.",
+      "objective": "Rencontrer Marc (5 min). Évaluer ses compétences, son engagement réel et ses conditions.",
       "phase_focus": "Entretien uniquement avec Marc Lefèvre. Le joueur pose des questions, Marc répond.",
-      "duration_target_min": 3,
-      "max_duration_sec": 240,
+      "duration_target_min": 5,
+      "max_duration_sec": 360,
+      "manual_start": true,
       "active_channels": ["chat"],
       "ai_actors": ["marc_lefevre"],
       "entry_events": [
@@ -331,10 +334,11 @@
     {
       "phase_id": "phase_1_karim",
       "title": "Entretien avec Karim Benzarti",
-      "objective": "Rencontrer Karim (3 min). Évaluer son niveau réel et son potentiel.",
+      "objective": "Rencontrer Karim (5 min). Évaluer son niveau réel et son potentiel.",
       "phase_focus": "Entretien uniquement avec Karim Benzarti. Le joueur pose des questions, Karim répond.",
-      "duration_target_min": 3,
-      "max_duration_sec": 240,
+      "duration_target_min": 5,
+      "max_duration_sec": 360,
+      "manual_start": true,
       "active_channels": ["chat"],
       "ai_actors": ["karim_benzarti"],
       "entry_events": [
@@ -458,7 +462,7 @@
         {
           "event_id": "alex_advice",
           "actor": "alexandre_morel",
-          "content": "Super nouvelle ! Par contre, avant de signer quoi que ce soit, relis bien la note de Me Dufresne qu'on a dans les documents. Elle insiste sur un point : chaque associé full-time doit avoir une clause d'exclusivité dans le pacte. C'est ta protection.",
+          "content": "Super nouvelle ! Par contre, avant de signer quoi que ce soit, relis bien la note de Me Dufresne qu'on a dans les documents. On est en train d'accueillir quelqu'un dans le capital — faut que tout soit carré.",
           "channel": "chat",
           "delay_ms": 4000
         }
@@ -500,7 +504,7 @@
         {
           "event_id": "alex_reminder",
           "actor": "alexandre_morel",
-          "content": "J'ai vu que tu as reçu le pacte. Prends le temps de le lire. Compare bien avec la note de Me Dufresne. Si tu veux modifier quelque chose, discute avec le CTO par chat avant de signer.",
+          "content": "J'ai vu que tu as reçu le pacte. Prends le temps de bien le lire — c'est le genre de document qu'on regrette de ne pas avoir lu le jour où ça se passe mal.",
           "channel": "chat",
           "delay_ms": 5000
         }
@@ -573,14 +577,14 @@
         {
           "event_id": "alex_advice_twist",
           "actor": "alexandre_morel",
-          "content": "Regarde bien le pacte qu'on a signé. Si on a une clause d'exclusivité, on peut activer le bad leaver et récupérer ses parts. Sinon… on est mal. Tu dois agir maintenant.",
+          "content": "On dépend à 100% de cette personne pour la tech. Et là elle fait du 50/50 avec un autre projet. Relis le pacte — est-ce qu'on a quelque chose pour se protéger dans cette situation ?",
           "channel": "chat",
           "delay_ms": 5000
         },
         {
           "event_id": "alex_push_action",
           "actor": "alexandre_morel",
-          "content": "Soit tu appliques le pacte, soit tu acceptes de perdre le contrôle. Si tu ne réagis pas maintenant, tu poses un précédent dangereux. Écris un mail de rupture formel au CTO — c'est le seul moyen de protéger Orisio.",
+          "content": "Soit tu appliques le pacte, soit tu acceptes de perdre le contrôle. Si tu ne réagis pas maintenant, tu poses un précédent dangereux.",
           "channel": "chat",
           "delay_ms": 12000
         }

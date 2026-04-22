@@ -126,7 +126,7 @@ function normalizeDebrief(data: any): DebriefResponse {
 // ── Build the evaluation prompt ────────────────────────────────────
 
 function buildPrompt(body: any): string {
-  const playerName = body?.playerName || "Joueur";
+  const playerName = body?.playerName || "CEO";
   const scenarioTitle = body?.scenarioTitle || "Scénario";
 
   // Extract phases with their competencies from scenario definition
