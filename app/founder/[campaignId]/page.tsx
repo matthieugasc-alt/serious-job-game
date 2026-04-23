@@ -291,6 +291,18 @@ export default function FounderDashboardPage() {
     }
   }
 
+  // ── Block browser back button — prevent returning to completed scenario ──
+  useEffect(() => {
+    // Push a dummy state so pressing "back" pops this instead of leaving
+    window.history.pushState({ founderDashboard: true }, "");
+    const handlePopState = (e: PopStateEvent) => {
+      // Re-push so the user stays on this page
+      window.history.pushState({ founderDashboard: true }, "");
+    };
+    window.addEventListener("popstate", handlePopState);
+    return () => window.removeEventListener("popstate", handlePopState);
+  }, []);
+
   // ── Guard: redirect to S0 if it hasn't been completed yet ──
   // MUST be called before any early return to respect Rules of Hooks
   const hasCompletedS0 = (campaign?.completedScenarios || []).some(

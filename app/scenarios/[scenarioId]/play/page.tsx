@@ -693,6 +693,24 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     if (!view?.isFinished || !scenario || !session || debriefCalledRef.current) return;
     debriefCalledRef.current = true;
 
+    // Stop any TTS audio still playing from the last phase
+    if (ttsAudioRef.current) {
+      ttsAudioRef.current.pause();
+      ttsAudioRef.current = null;
+    }
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      window.speechSynthesis.cancel();
+    }
+    setIsSpeakingTTS(false);
+    setSpeakingActorId(null);
+
+    // Stop mic if still recording
+    if (voiceSessionRef.current) {
+      voiceSessionRef.current.cancel().catch(() => {});
+      voiceSessionRef.current = null;
+    }
+    setIsRecording(false);
+
     // ── FOUNDER MODE: build micro-debrief locally (no classic debrief API) ──
     if (isFounderScenario) {
       const flags = session.flags || {};
@@ -1425,23 +1443,17 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     speakTTS(lastMsg.content, lang, lastMsg.actor);
   }, [conversation.length, session?.currentPhaseIndex]);
 
-  // ── Auto-start mic in voice_qa mode (push-to-talk) ──
-  // Mic starts automatically so player can speak immediately.
-  // Player clicks the mic button to stop recording and submit their message.
-  // No silence-based auto-send — explicit toggle only.
+  // ── Push-to-talk: mic starts OFF ──
+  // Player reads the instructions first, then clicks the mic button to start.
+  // No auto-start, no silence-based auto-send.
   useEffect(() => {
     if (!session || !scenario) return;
     const phase = scenario.phases[session.currentPhaseIndex] as any;
     if (phase?.interaction_mode !== "voice_qa") return;
-    if (isRecording || presentationDone) return;
     // Reset isSending on phase transition to avoid stale state blocking dispatch
     setIsSending(false);
-    const caps = voiceCapabilities || detectVoiceCapabilities();
-    if (!caps.hasSpeechRecognition) return; // backend mode → manual mic click
-    // Push-to-talk: always start WITHOUT auto-send. Player clicks mic to stop & submit.
-    const t = setTimeout(() => startRecognition("fr-FR", false), 1500);
-    return () => clearTimeout(t);
-  }, [session?.currentPhaseIndex, voiceCapabilities?.recommendedMode]);
+    // Mic stays OFF — player clicks to start when ready
+  }, [session?.currentPhaseIndex]);
 
   // ════════════════════════════════════════════════════════════════════
   // SPEECH UTILITIES
@@ -1675,7 +1687,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       const res = await fetch("/api/tts", {
         method: "POST",
         headers: apiHeaders(),
-        body: JSON.stringify({ text, voice, speed: 1.0 }),
+        body: JSON.stringify({ text, voice, speed: 1.15 }),
       });
 
       if (!res.ok) {
@@ -1724,7 +1736,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(text);
       utterance.lang = lang;
-      utterance.rate = 0.95;
+      utterance.rate = 1.1;
       utterance.pitch = 1.0;
       const voices = speechSynthesis.getVoices();
       const langPrefix = lang.split("-")[0];
