@@ -335,7 +335,7 @@
         ]
       },
       "completion_rules": {
-        "max_exchanges": 16
+        "max_exchanges": 12
       },
       "on_complete": {
         "set_flags": { "qa_completed": true }

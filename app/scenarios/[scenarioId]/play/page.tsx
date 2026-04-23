@@ -254,6 +254,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const lastSentTranscriptRef = useRef("");
   const isSendingRef = useRef(false);
 
+  // ── Pitch timer (40s countdown) ──
+  const [pitchTimerActive, setPitchTimerActive] = useState(false);
+  const [pitchSecondsLeft, setPitchSecondsLeft] = useState(40);
+  const [pitchCutoff, setPitchCutoff] = useState(false); // true after 40s or manual stop
+  const pitchTimerRef = useRef<any>(null);
+  const pitchStartRef = useRef<number | null>(null);
+
   // ── Auth token for API calls ──
   const authTokenRef = useRef<string | null>(
     typeof window !== "undefined" ? localStorage.getItem("auth_token") : null
@@ -1428,6 +1435,43 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       });
     }, (config.hand_raise_interval_sec || 15) * 1000);
     return () => clearInterval(iv);
+  }, [session?.currentPhaseIndex]);
+
+  // ── Pitch timer: countdown + auto-cutoff at 40s ──
+  useEffect(() => {
+    if (!pitchTimerActive) return;
+    pitchStartRef.current = Date.now();
+    setPitchSecondsLeft(40);
+    setPitchCutoff(false);
+    const iv = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - (pitchStartRef.current || Date.now())) / 1000);
+      const remaining = Math.max(0, 40 - elapsed);
+      setPitchSecondsLeft(remaining);
+      if (remaining <= 0) {
+        clearInterval(iv);
+        setPitchTimerActive(false);
+        setPitchCutoff(true);
+        // Auto-stop mic and dispatch transcript
+        if (voiceSessionRef.current) {
+          stopRecognition().then((result) => {
+            const pending = result.transcript.trim();
+            if (pending && result.source !== "error") {
+              dispatchVoiceQAMessage(pending);
+            }
+          }).catch(() => {});
+        }
+      }
+    }, 250);
+    pitchTimerRef.current = iv;
+    return () => { clearInterval(iv); pitchTimerRef.current = null; };
+  }, [pitchTimerActive]);
+
+  // ── Reset pitch state on phase transition ──
+  useEffect(() => {
+    setPitchTimerActive(false);
+    setPitchCutoff(false);
+    setPitchSecondsLeft(40);
+    if (pitchTimerRef.current) { clearInterval(pitchTimerRef.current); pitchTimerRef.current = null; }
   }, [session?.currentPhaseIndex]);
 
   // ── Auto-TTS for AI messages in voice_qa mode ──
@@ -3713,108 +3757,171 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             </div>
           </div>
 
-          {/* Yuki sidebar + mic area */}
-          <div style={{ padding: "12px 24px 20px", borderTop: "1px solid #e0e0e0", background: "#fff", flexShrink: 0 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+          {/* Mic area — push-to-talk with pitch timer */}
+          {(() => {
+            const isPitchPhase = currentPhaseAiActors.length === 0;
+            const micDisabled = isPitchPhase && pitchCutoff;
+            const yukiActor = actors.find((a: any) => a.actor_id === "yuki_tanaka");
+            // Timer color based on remaining seconds
+            const timerColor = pitchSecondsLeft <= 5 ? "#e94b3c" : pitchSecondsLeft <= 15 ? "#f5a623" : "#4ade80";
 
-              {/* Yuki avatar */}
-              {(() => {
-                const yukiActor = actors.find((a: any) => a.actor_id === "yuki_tanaka");
-                if (!yukiActor) return null;
-                return (
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Avatar
-                      initials={yukiActor.avatar?.initials || "YT"}
-                      color={yukiActor.avatar?.color || "#C62828"}
-                      size={40}
-                      status={speakingActorId === "yuki_tanaka" ? "busy" : "available"}
-                    />
-                    <div>
-                      <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>Yuki Tanaka</div>
-                      <div style={{ fontSize: 10, color: speakingActorId === "yuki_tanaka" ? "#C62828" : "#999" }}>
-                        {speakingActorId === "yuki_tanaka" ? "🔊 Speaking..." : "Ready"}
+            return (
+              <div style={{ padding: "12px 24px 20px", borderTop: "1px solid #e0e0e0", background: "#fff", flexShrink: 0 }}>
+
+                {/* Pitch timer bar */}
+                {isPitchPhase && (
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
+                      <span style={{ fontSize: 12, fontWeight: 700, color: "#666", textTransform: "uppercase", letterSpacing: 1 }}>
+                        ⏱️ Elevator pitch
+                      </span>
+                      <span style={{
+                        fontSize: 22, fontWeight: 800, fontFamily: "monospace",
+                        color: timerColor,
+                        transition: "color .3s",
+                      }}>
+                        {pitchTimerActive || pitchCutoff
+                          ? `${String(Math.floor(pitchSecondsLeft / 60)).padStart(1, "0")}:${String(pitchSecondsLeft % 60).padStart(2, "0")}`
+                          : "0:40"}
+                      </span>
+                    </div>
+                    {/* Progress bar */}
+                    <div style={{ width: "100%", height: 6, borderRadius: 3, background: "#f0f0f0", overflow: "hidden" }}>
+                      <div style={{
+                        width: `${((40 - pitchSecondsLeft) / 40) * 100}%`,
+                        height: "100%", borderRadius: 3,
+                        background: timerColor,
+                        transition: "width .25s linear, background .3s",
+                      }} />
+                    </div>
+                    {pitchCutoff && (
+                      <div style={{ marginTop: 8, fontSize: 12, fontWeight: 600, color: "#e94b3c", textAlign: "center" }}>
+                        ⏰ Temps écoulé — Passage aux questions du jury
+                      </div>
+                    )}
+                    {!pitchTimerActive && !pitchCutoff && !isRecording && (
+                      <div style={{ marginTop: 8, fontSize: 12, color: "#888", textAlign: "center" }}>
+                        Appuyez sur 🎙️ pour démarrer votre pitch (40 secondes)
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+
+                  {/* Yuki avatar (if present) */}
+                  {yukiActor && (
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <Avatar
+                        initials={yukiActor.avatar?.initials || "YT"}
+                        color={yukiActor.avatar?.color || "#C62828"}
+                        size={40}
+                        status={speakingActorId === "yuki_tanaka" ? "busy" : "available"}
+                      />
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>Yuki Tanaka</div>
+                        <div style={{ fontSize: 10, color: speakingActorId === "yuki_tanaka" ? "#C62828" : "#999" }}>
+                          {speakingActorId === "yuki_tanaka" ? "🔊 Speaking..." : "Ready"}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                );
-              })()}
+                  )}
 
-              <div style={{ flex: 1 }} />
+                  <div style={{ flex: 1 }} />
 
-              {/* Mic indicator + mute toggle */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                <div style={{
-                  display: "flex", alignItems: "center", gap: 8,
-                  background: isRecording ? "#fef2f2" : "#f0f0f0",
-                  padding: "8px 16px", borderRadius: 20,
-                  border: isRecording ? "1px solid #fca5a5" : "1px solid #ddd",
-                }}>
-                  <div style={{
-                    width: 12, height: 12, borderRadius: "50%",
-                    background: isRecording ? "#e94b3c" : "#999",
-                    animation: isRecording ? "micBlink 1s ease-in-out infinite" : "none",
-                  }} />
-                  <span style={{ fontSize: 12, fontWeight: 600, color: isRecording ? "#e94b3c" : "#999" }}>
-                    {voiceTranscribing
-                      ? "Transcription..."
-                      : isRecording
-                        ? (isSending ? "Analyse en cours..." : "🎤 Parlez puis appuyez sur 🔇 pour envoyer")
-                        : "Micro coupé — Appuyez sur 🎙️ pour parler"}
-                  </span>
-                </div>
-                {/* Push-to-talk is now the default for all browsers */}
-                {voiceFatalError && (
-                  <span style={{ fontSize: 11, color: "#c62828", fontWeight: 600 }} title={voiceFatalError.message}>
-                    ⚠️ {voiceFatalError.category === "permission_denied" ? "Micro refusé"
-                       : voiceFatalError.category === "mic_missing" ? "Aucun micro"
-                       : voiceFatalError.category === "mic_busy" ? "Micro occupé"
-                       : "Indisponible"}
-                  </span>
-                )}
-                <button
-                  onClick={() => {
-                    if (isRecording) {
-                      // Push-to-talk STOP: stop recording and dispatch the transcript
-                      if (autoSendTimerRef.current) { clearTimeout(autoSendTimerRef.current); autoSendTimerRef.current = null; }
-                      stopRecognition().then((result) => {
-                        const pending = result.transcript.trim();
-                        if (pending && result.source !== "error") {
-                          dispatchVoiceQAMessage(pending);
+                  {/* Mic indicator + toggle */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <div style={{
+                      display: "flex", alignItems: "center", gap: 8,
+                      background: micDisabled ? "#f5f5f5" : isRecording ? "#fef2f2" : "#f0f0f0",
+                      padding: "8px 16px", borderRadius: 20,
+                      border: micDisabled ? "1px solid #e0e0e0" : isRecording ? "1px solid #fca5a5" : "1px solid #ddd",
+                    }}>
+                      <div style={{
+                        width: 12, height: 12, borderRadius: "50%",
+                        background: micDisabled ? "#ccc" : isRecording ? "#e94b3c" : "#999",
+                        animation: isRecording && !micDisabled ? "micBlink 1s ease-in-out infinite" : "none",
+                      }} />
+                      <span style={{ fontSize: 12, fontWeight: 600, color: micDisabled ? "#bbb" : isRecording ? "#e94b3c" : "#999" }}>
+                        {micDisabled
+                          ? "⏰ Pitch terminé"
+                          : voiceTranscribing
+                            ? "Transcription..."
+                            : isRecording
+                              ? (isSending ? "Analyse en cours..." : "🎤 Parlez puis appuyez sur 🔇 pour envoyer")
+                              : isSpeakingTTS
+                                ? "🔊 Écoutez le jury..."
+                                : "Micro coupé — Appuyez sur 🎙️ pour parler"}
+                      </span>
+                    </div>
+                    {voiceFatalError && (
+                      <span style={{ fontSize: 11, color: "#c62828", fontWeight: 600 }} title={voiceFatalError.message}>
+                        ⚠️ {voiceFatalError.category === "permission_denied" ? "Micro refusé"
+                           : voiceFatalError.category === "mic_missing" ? "Aucun micro"
+                           : voiceFatalError.category === "mic_busy" ? "Micro occupé"
+                           : "Indisponible"}
+                      </span>
+                    )}
+                    <button
+                      disabled={micDisabled || isSending}
+                      onClick={() => {
+                        if (micDisabled || isSending) return;
+                        if (isRecording) {
+                          // Push-to-talk STOP: stop recording and dispatch
+                          if (autoSendTimerRef.current) { clearTimeout(autoSendTimerRef.current); autoSendTimerRef.current = null; }
+                          // For pitch phase: also stop the timer and mark cutoff
+                          if (isPitchPhase && pitchTimerActive) {
+                            if (pitchTimerRef.current) { clearInterval(pitchTimerRef.current); pitchTimerRef.current = null; }
+                            setPitchTimerActive(false);
+                            setPitchCutoff(true);
+                          }
+                          stopRecognition().then((result) => {
+                            const pending = result.transcript.trim();
+                            if (pending && result.source !== "error") {
+                              dispatchVoiceQAMessage(pending);
+                            }
+                          }).catch(() => {});
+                        } else {
+                          // Push-to-talk START
+                          startRecognition("fr-FR", false);
+                          // Start pitch timer on first mic activation
+                          if (isPitchPhase && !pitchCutoff && !pitchTimerActive) {
+                            setPitchTimerActive(true);
+                          }
                         }
-                      }).catch(() => {});
-                    } else {
-                      // Push-to-talk START: record without auto-send
-                      startRecognition("fr-FR", false);
-                    }
-                  }}
-                  style={{
-                    width: 44, height: 44, borderRadius: "50%",
-                    background: isRecording ? "#e94b3c" : "#5b5fc7",
-                    border: "none", color: "#fff", cursor: "pointer",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 20, transition: "all .2s",
-                  }}
-                >
-                  {isRecording ? "🔇" : "🎙️"}
-                </button>
-              </div>
-            </div>
+                      }}
+                      style={{
+                        width: 44, height: 44, borderRadius: "50%",
+                        background: micDisabled ? "#ccc" : isRecording ? "#e94b3c" : "#5b5fc7",
+                        border: "none", color: "#fff",
+                        cursor: micDisabled || isSending ? "not-allowed" : "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: 20, transition: "all .2s",
+                        opacity: micDisabled ? 0.5 : 1,
+                      }}
+                    >
+                      {micDisabled ? "🚫" : isRecording ? "🔇" : "🎙️"}
+                    </button>
+                  </div>
+                </div>
 
-            {/* Live transcription subtitle */}
-            {(voiceTranscript || interimText) && isRecording && (
-              <div style={{ marginTop: 10, padding: "8px 12px", background: "#f8f8ff", borderRadius: 8, border: "1px solid #e8e8ff" }}>
-                <span style={{ fontSize: 12, color: "#555", lineHeight: 1.4 }}>
-                  {voiceTranscript}
-                  {interimText && <span style={{ color: "#aaa", fontStyle: "italic" }}>{interimText}</span>}
-                </span>
-                {voiceTranscript && !isSending && isRecording && (
-                  <span style={{ fontSize: 10, color: "#7b7fff", marginLeft: 8 }}>
-                    (appuyez sur 🔇 pour envoyer)
-                  </span>
+                {/* Live transcription subtitle */}
+                {(voiceTranscript || interimText) && isRecording && !micDisabled && (
+                  <div style={{ marginTop: 10, padding: "8px 12px", background: "#f8f8ff", borderRadius: 8, border: "1px solid #e8e8ff" }}>
+                    <span style={{ fontSize: 12, color: "#555", lineHeight: 1.4 }}>
+                      {voiceTranscript}
+                      {interimText && <span style={{ color: "#aaa", fontStyle: "italic" }}>{interimText}</span>}
+                    </span>
+                    {voiceTranscript && !isSending && isRecording && (
+                      <span style={{ fontSize: 10, color: "#7b7fff", marginLeft: 8 }}>
+                        (appuyez sur 🔇 pour envoyer)
+                      </span>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            );
+          })()}
         </div>
 
       ) : (
