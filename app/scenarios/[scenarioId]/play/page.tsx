@@ -458,6 +458,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   isSendingRef.current = isSending;
 
   // ── Block browser back button during gameplay ──
+  const viewIsFinishedRef = useRef(false);
+  useEffect(() => { viewIsFinishedRef.current = view?.isFinished || false; }, [view?.isFinished]);
+
   useEffect(() => {
     if (!scenario) return; // Wait until scenario is loaded
 
@@ -465,11 +468,24 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     window.history.pushState({ inGame: true }, "");
 
     function handlePopState() {
-      // Re-push state to trap again
+      if (viewIsFinishedRef.current) {
+        // Scenario is finished (debrief showing) — allow back by redirecting properly
+        const isFounder = scenarioId.startsWith("founder_");
+        if (isFounder) {
+          const cid = localStorage.getItem("founder_campaign_id");
+          window.location.replace(cid ? `/founder/${cid}` : "/");
+        } else {
+          window.location.replace("/");
+        }
+        return;
+      }
+      // Still in game — re-push state to trap
       window.history.pushState({ inGame: true }, "");
     }
 
     function handleBeforeUnload(e: BeforeUnloadEvent) {
+      // Don't block unload if scenario is finished
+      if (viewIsFinishedRef.current) return;
       e.preventDefault();
       e.returnValue = "";
     }
@@ -1409,11 +1425,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     speakTTS(lastMsg.content, lang, lastMsg.actor);
   }, [conversation.length, session?.currentPhaseIndex]);
 
-  // ── Auto-start mic in voice_qa mode ──
-  // Only auto-start when native SpeechRecognition is available (silence-based
-  // auto-send requires real-time interim results). When only MediaRecorder is
-  // available (Firefox), the user must click the mic button to submit each
-  // turn — the UI indicator shows "Mode tour-par-tour" to make this explicit.
+  // ── Auto-start mic in voice_qa mode (push-to-talk) ──
+  // Mic starts automatically so player can speak immediately.
+  // Player clicks the mic button to stop recording and submit their message.
+  // No silence-based auto-send — explicit toggle only.
   useEffect(() => {
     if (!session || !scenario) return;
     const phase = scenario.phases[session.currentPhaseIndex] as any;
@@ -1423,10 +1438,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     setIsSending(false);
     const caps = voiceCapabilities || detectVoiceCapabilities();
     if (!caps.hasSpeechRecognition) return; // backend mode → manual mic click
-    // Only enable auto-send (onSilence → dispatch) when there are active AI actors.
-    // During pitch phases (empty ai_actors), record but don't auto-dispatch.
-    const hasActiveActors = (phase.ai_actors || []).length > 0;
-    const t = setTimeout(() => startRecognition("fr-FR", hasActiveActors), 1500);
+    // Push-to-talk: always start WITHOUT auto-send. Player clicks mic to stop & submit.
+    const t = setTimeout(() => startRecognition("fr-FR", false), 1500);
     return () => clearTimeout(t);
   }, [session?.currentPhaseIndex, voiceCapabilities?.recommendedMode]);
 
@@ -2093,8 +2106,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     // ══════════════════════════════════════════════════════════════
     if (debriefData && isFounderScenario && debriefData.isFounderDebrief) {
       // Auto-redirect to campaign dashboard (which shows its own debrief)
+      // Use replace so back button won't return to the play page
       const cid = typeof window !== "undefined" ? localStorage.getItem("founder_campaign_id") : null;
-      router.push(cid ? `/founder/${cid}` : "/founder/intro");
+      router.replace(cid ? `/founder/${cid}` : "/founder/intro");
       return (
         <div style={{ minHeight: "100vh", background: "#f3f2f1", fontFamily: "'Segoe UI', system-ui, sans-serif", display: "flex", alignItems: "center", justifyContent: "center" }}>
           <div style={{ textAlign: "center" }}>
@@ -3594,30 +3608,35 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
                 {currentPhaseAiActors.map((actorId: string) => {
                   const info = getActorInfo(actorId);
-                  // Highlight the actor whose turn it is (last NPC who spoke)
                   const lastNpc = [...conversation].reverse().find((m: any) => m.role === "npc" && currentPhaseAiActors.includes(m.actor));
-                  const isActive = lastNpc?.actor === actorId;
+                  const isLastSpeaker = lastNpc?.actor === actorId;
+                  const isActivelySpeaking = speakingActorId === actorId && isSpeakingTTS;
+                  const isHighlighted = isActivelySpeaking || isLastSpeaker;
                   return (
                     <div
                       key={actorId}
                       style={{
                         display: "flex", flexDirection: "column", alignItems: "center", gap: 4,
                         padding: "8px 14px", borderRadius: 12,
-                        background: isActive ? "#fff" : "#f5f5f5",
-                        border: isActive ? "2px solid " + info.color : "2px solid transparent",
+                        background: isHighlighted ? "#fff" : "#f5f5f5",
+                        border: isHighlighted ? "2px solid " + info.color : "2px solid transparent",
                         transition: "all .2s",
-                        boxShadow: isActive ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
+                        boxShadow: isHighlighted ? "0 2px 8px rgba(0,0,0,0.1)" : "none",
                       }}
                     >
                       <Avatar initials={info.initials} color={info.color} size={40} status={info.status} />
-                      <span style={{ fontSize: 11, fontWeight: 600, color: isActive ? "#333" : "#888" }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: isHighlighted ? "#333" : "#888" }}>
                         {info.name.split(" ")[0]}
                       </span>
-                      {isActive && (
+                      {isActivelySpeaking ? (
                         <span style={{ fontSize: 9, color: info.color, fontWeight: 700 }}>
-                          En train de parler
+                          🔊 En train de parler
                         </span>
-                      )}
+                      ) : isSending && isLastSpeaker ? (
+                        <span style={{ fontSize: 9, color: "#999", fontWeight: 600 }}>
+                          Réflexion...
+                        </span>
+                      ) : null}
                     </div>
                   );
                 })}
@@ -3727,18 +3746,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     {voiceTranscribing
                       ? "Transcription..."
                       : isRecording
-                        ? (isSending ? "Analyse en cours..." : "Micro actif — Parlez librement")
-                        : "Micro coupé"}
+                        ? (isSending ? "Analyse en cours..." : "🎤 Parlez puis appuyez sur 🔇 pour envoyer")
+                        : "Micro coupé — Appuyez sur 🎙️ pour parler"}
                   </span>
                 </div>
-                {/* Voice_qa warns if native SR is missing — auto-send-on-silence
-                    only works with native. Backend-only users must tap the mic
-                    button to submit each turn. */}
-                {voiceCapabilities && !voiceCapabilities.hasSpeechRecognition && voiceCapabilities.hasMediaRecorder && (
-                  <span style={{ fontSize: 11, color: "#b87500", fontWeight: 600 }} title="Sans reconnaissance temps réel, appuyez sur le micro pour envoyer chaque tour.">
-                    📢 Mode tour-par-tour
-                  </span>
-                )}
+                {/* Push-to-talk is now the default for all browsers */}
                 {voiceFatalError && (
                   <span style={{ fontSize: 11, color: "#c62828", fontWeight: 600 }} title={voiceFatalError.message}>
                     ⚠️ {voiceFatalError.category === "permission_denied" ? "Micro refusé"
@@ -3750,22 +3762,17 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 <button
                   onClick={() => {
                     if (isRecording) {
-                      // Mute — stop session (backend transcription result
-                      // ignored here; the last message was already dispatched
-                      // via onSilence or the final stop is just for "pause")
+                      // Push-to-talk STOP: stop recording and dispatch the transcript
                       if (autoSendTimerRef.current) { clearTimeout(autoSendTimerRef.current); autoSendTimerRef.current = null; }
                       stopRecognition().then((result) => {
-                        // If backend produced a trailing transcript that hadn't
-                        // been auto-sent yet, dispatch it now so no input is lost.
                         const pending = result.transcript.trim();
-                        const already = lastSentTranscriptRef.current.trim();
-                        if (pending && pending !== already && result.source !== "error") {
+                        if (pending && result.source !== "error") {
                           dispatchVoiceQAMessage(pending);
                         }
                       }).catch(() => {});
                     } else {
-                      // Unmute — restart with auto-send (if supported)
-                      startRecognition("fr-FR", true);
+                      // Push-to-talk START: record without auto-send
+                      startRecognition("fr-FR", false);
                     }
                   }}
                   style={{
@@ -3788,9 +3795,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   {voiceTranscript}
                   {interimText && <span style={{ color: "#aaa", fontStyle: "italic" }}>{interimText}</span>}
                 </span>
-                {voiceTranscript && !isSending && (
+                {voiceTranscript && !isSending && isRecording && (
                   <span style={{ fontSize: 10, color: "#7b7fff", marginLeft: 8 }}>
-                    (envoi auto apres une pause)
+                    (appuyez sur 🔇 pour envoyer)
                   </span>
                 )}
               </div>
