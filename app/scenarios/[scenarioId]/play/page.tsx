@@ -201,6 +201,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const pacteThreadEndRef = useRef<HTMLDivElement>(null);
   const pacteContentRef = useRef<HTMLDivElement>(null);
   const [pacteEdited, setPacteEdited] = useState(false);
+  // ── Contract signature (scenario 2+) ──
+  const [showContractSignature, setShowContractSignature] = useState(false);
+  const [contractSigned, setContractSigned] = useState(false);
   // ── One-pager editor (scenario 1+) ──
   const [showOnePagerEditor, setShowOnePagerEditor] = useState(false);
   const [onePagerEdited, setOnePagerEdited] = useState(false);
@@ -721,32 +724,71 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     // ── FOUNDER MODE: build micro-debrief locally (no classic debrief API) ──
     if (isFounderScenario) {
       const flags = session.flags || {};
-      const hasCleanPacte = !!flags.pacte_signed_clean;
-      const hasBadLeaver = !!flags.bad_leaver_triggered;
-      const paidToLeave = !!flags.cto_paid_to_leave;
-
       let decision = "";
       let impact = "";
       let strength = "";
       let risk = "";
       let advice = "";
+      let ending = "partial_success";
 
-      if (hasCleanPacte && hasBadLeaver) {
-        decision = "Tu as repéré la clause manquante dans le pacte et exigé son ajout. Quand le CTO a trahi, tu avais les armes juridiques pour agir.";
-        impact = "Clause de bad leaver activée. Le CTO sort avec 0 € d'indemnité. Equity récupérée. Trésorerie intacte.";
-        strength = "Lecture attentive du pacte et réflexe juridique au bon moment.";
-        risk = "Tu repars sans CTO. Il faudra en retrouver un rapidement.";
-      } else if (paidToLeave) {
-        decision = "Tu as signé le pacte sans repérer l'absence de clause d'exclusivité. Le CTO a exploité cette faille.";
-        impact = "Le CTO part avec 2 500 € d'indemnité. Ta trésorerie passe de 15 000 € à 12 500 €.";
-        strength = "Tu as quand même agi en envoyant un mail formel de rupture.";
-        risk = "Un pacte d'associés se lit ligne par ligne. Chaque clause manquante est un risque futur.";
-        advice = "Avant de signer tout document juridique, compare-le systématiquement avec les recommandations de ton avocat.";
+      if (scenarioId === "founder_00_cto") {
+        // Scenario 0 — CTO + pacte
+        const hasCleanPacte = !!flags.pacte_signed_clean;
+        const hasBadLeaver = !!flags.bad_leaver_triggered;
+        const paidToLeave = !!flags.cto_paid_to_leave;
+
+        if (hasCleanPacte && hasBadLeaver) {
+          decision = "Tu as repéré la clause manquante dans le pacte et exigé son ajout. Quand le CTO a trahi, tu avais les armes juridiques pour agir.";
+          impact = "Clause de bad leaver activée. Le CTO sort avec 0 € d'indemnité. Equity récupérée. Trésorerie intacte.";
+          strength = "Lecture attentive du pacte et réflexe juridique au bon moment.";
+          risk = "Tu repars sans CTO. Il faudra en retrouver un rapidement.";
+          ending = "success";
+        } else if (paidToLeave) {
+          decision = "Tu as signé le pacte sans repérer l'absence de clause d'exclusivité. Le CTO a exploité cette faille.";
+          impact = "Le CTO part avec 2 500 € d'indemnité. Ta trésorerie passe de 15 000 € à 12 500 €.";
+          strength = "Tu as quand même agi en envoyant un mail formel de rupture.";
+          risk = "Un pacte d'associés se lit ligne par ligne. Chaque clause manquante est un risque futur.";
+          advice = "Avant de signer tout document juridique, compare-le systématiquement avec les recommandations de ton avocat.";
+          ending = "failure";
+        } else {
+          decision = "Tu as confronté le CTO sur sa double activité et formalisé la rupture par mail.";
+          impact = "La situation est résolue. Le CTO quitte Orisio.";
+          strength = "Tu as pris une décision claire et tu l'as formalisée.";
+          risk = "Vérifie toujours que tes documents juridiques couvrent les cas critiques avant de les signer.";
+        }
+      } else if (scenarioId === "founder_02_mvp") {
+        // Scenario 2 — MVP + négociation NovaDev
+        const alexandreOk = !!flags.alexandre_convinced;
+        const scopeOk = !!flags.scope_reduced;
+        const dealDone = !!flags.novadev_negotiated;
+        const signed = !!flags.contract_signed;
+
+        if (signed && scopeOk) {
+          decision = "Tu as convaincu Alexandre de réduire le scope, négocié un prix serré avec NovaDev, et signé le contrat.";
+          impact = "Le MVP sera livré en 7 semaines. Planning + annulations. Budget maîtrisé.";
+          strength = "Capacité à recadrer un cofondateur passionné sans le braquer, et à négocier un prix réaliste.";
+          risk = "Le MVP est minimal — il faudra itérer vite après la V1 pour convaincre les premiers clients.";
+          ending = "success";
+        } else if (dealDone) {
+          decision = "Tu as trouvé un accord avec NovaDev, mais le prix négocié laisse peu de marge.";
+          impact = "Le MVP est lancé mais la trésorerie est sous tension.";
+          strength = "Tu as quand même réussi à lancer le développement.";
+          risk = "Avec un budget aussi serré, le moindre imprévu peut tout bloquer.";
+          ending = "partial_success";
+        } else {
+          decision = "La négociation n'a pas abouti dans les temps.";
+          impact = "Pas de MVP lancé. NovaDev est passée à un autre projet.";
+          strength = alexandreOk ? "Tu as au moins aligné ton cofondateur sur le scope." : "Le dialogue avec Alexandre était difficile.";
+          risk = "Sans MVP, Orisio perd du temps précieux. Il faudra trouver un autre prestataire.";
+          ending = "failure";
+        }
       } else {
-        decision = "Tu as confronté le CTO sur sa double activité et formalisé la rupture par mail.";
-        impact = "La situation est résolue. Le CTO quitte Orisio.";
-        strength = "Tu as pris une décision claire et tu l'as formalisée.";
-        risk = "Vérifie toujours que tes documents juridiques couvrent les cas critiques avant de les signer.";
+        // Generic founder debrief for other scenarios
+        decision = "Scénario terminé.";
+        impact = "Les résultats seront visibles sur le dashboard de campagne.";
+        strength = "Tu as complété cette étape.";
+        risk = "";
+        ending = session.scores?.total >= 8 ? "success" : "partial_success";
       }
 
       const founderDebrief = {
@@ -756,7 +798,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         strength,
         risk,
         advice,
-        ending: hasCleanPacte && hasBadLeaver ? "success" : paidToLeave ? "failure" : "partial_success",
+        ending,
         ending_narrative: decision,
         overall_summary: decision,
         phases: [],
@@ -3027,6 +3069,154 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         );
       })()}
 
+      {/* ═══════ CONTRACT SIGNATURE OVERLAY (Scenario 2 — NovaDev) ═══════ */}
+      {showContractSignature && (() => {
+        const contractContent = `<h1 style="text-align:center;color:#1a1a2e;margin-bottom:24px;">Contrat de prestation de développement</h1>
+<p><strong>Entre les soussignés :</strong></p>
+<p><strong>Le Client :</strong><br/>Orisio SAS, société par actions simplifiée<br/>Représentée par ${displayPlayerName || "CEO"} en qualité de Président</p>
+<p><strong>Le Prestataire :</strong><br/>NovaDev Solutions SARL<br/>Représentée par Thomas Vidal, Directeur technique<br/>12 rue Sainte-Catherine, 33000 Bordeaux</p>
+<hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;"/>
+<h2>Article 1 — Objet</h2>
+<p>Le Prestataire s'engage à réaliser pour le compte du Client le développement d'un MVP de la plateforme Orisio, selon le périmètre défini à l'Article 2.</p>
+<h2>Article 2 — Périmètre</h2>
+<p><strong>Module 1 — Planning temps réel du bloc opératoire</strong><br/>Affichage temps réel des salles et créneaux. Interface cadre de bloc et interface chirurgien.</p>
+<p><strong>Module 2 — Gestion des annulations et remplacements</strong><br/>Détection et notification des annulations. Système de proposition de remplacement. Notification email.</p>
+<p><strong>Infrastructure</strong><br/>Hébergement conforme HDS (OVH Healthcare). API REST sécurisée. Interface web responsive.</p>
+<h2>Article 3 — Prix et conditions de paiement</h2>
+<p>Le prix total de la prestation est fixé conformément à l'accord négocié entre les parties.</p>
+<p>Paiement en trois échéances : 30% à la signature, 40% à la livraison beta, 30% à la recette finale.</p>
+<h2>Article 4 — Délais</h2>
+<p>Prestation réalisée en <strong>7 semaines</strong> à compter de la signature.</p>
+<h2>Article 5 — Propriété intellectuelle</h2>
+<p>Le code source est la propriété exclusive du Client dès paiement intégral.</p>
+<h2>Article 6 — Confidentialité</h2>
+<p>Le Prestataire s'engage à maintenir la confidentialité de toutes les informations relatives au projet.</p>
+<h2>Article 7 — Garantie</h2>
+<p>Garantie de bon fonctionnement pendant <strong>3 mois</strong> après livraison. Corrections de bugs incluses.</p>
+<h2>Article 8 — Résiliation</h2>
+<p>Résiliation possible avec préavis de 15 jours. Le prorata du travail effectué est dû.</p>
+<hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;"/>
+<p style="margin-top:16px;"><strong>Pour le Prestataire — NovaDev Solutions :</strong><br/>Signature : Thomas Vidal ✓</p>
+<p><strong>Pour le Client — Orisio SAS :</strong><br/>Signature : _________________________</p>`;
+        return (
+          <div style={{
+            position: "fixed", inset: 0, zIndex: 10001,
+            background: "rgba(0,0,0,0.7)", display: "flex",
+            alignItems: "center", justifyContent: "center", padding: 20,
+          }}>
+            <div style={{
+              background: "#fff", borderRadius: 16, maxWidth: 800, width: "100%",
+              maxHeight: "92vh", display: "flex", flexDirection: "column",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.3)",
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: "14px 24px", background: "linear-gradient(135deg, #1a1a2e, #16213e)",
+                borderRadius: "16px 16px 0 0",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: "#ffd700", display: "flex", alignItems: "center",
+                    justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#1a1a2e",
+                  }}>✍️</div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>
+                      Signature — Contrat de prestation NovaDev
+                    </h2>
+                    <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                      Orisio SAS × NovaDev Solutions · {new Date().toLocaleDateString("fr-FR")}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowContractSignature(false)}
+                  style={{
+                    background: "rgba(255,255,255,0.1)", border: "none", fontSize: 18,
+                    color: "#fff", cursor: "pointer", padding: "4px 10px", borderRadius: 6,
+                  }}
+                >✕</button>
+              </div>
+
+              {/* Contract body */}
+              <div style={{ flex: 1, overflow: "auto", padding: "24px 32px" }}>
+                <div
+                  dangerouslySetInnerHTML={{ __html: contractContent }}
+                  style={{ fontSize: 13, lineHeight: 1.7, color: "#333" }}
+                />
+              </div>
+
+              {/* Signature bar */}
+              <div style={{
+                padding: "16px 24px", borderTop: "2px solid #ffd700",
+                background: contractSigned ? "#f0fdf4" : "#fffbeb",
+              }}>
+                {!contractSigned ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 4 }}>
+                        Signataire : {displayPlayerName || "CEO"} — Président, Orisio SAS
+                      </div>
+                      <div style={{ fontSize: 11, color: "#888" }}>
+                        Relisez le contrat puis signez pour lancer le développement du MVP.
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setContractSigned(true);
+                        if (session && scenario) {
+                          const next = cloneSession(session);
+                          next.flags.contract_signed = true;
+                          // Send confirmation mail
+                          const phase = scenario.phases[next.currentPhaseIndex];
+                          if (phase) {
+                            updateMailDraft(next, phase.phase_id, {
+                              to: "Thomas Vidal (NovaDev)",
+                              cc: "",
+                              subject: "RE: Contrat de prestation — MVP Orisio",
+                              body: `Bonjour Thomas,\n\nJ'ai relu et signé le contrat de prestation. On est partis.\n\nCordialement,\n${displayPlayerName || "CEO"}`,
+                              attachments: [{ id: "contrat_novadev", label: "Contrat signé" }],
+                            });
+                            sendCurrentPhaseMail(next, "contract_signature");
+                            completeCurrentPhaseAndAdvance(next);
+                            injectPhaseEntryEvents(next);
+                          }
+                          // Finish the scenario
+                          finishScenario(next);
+                          setSession(next);
+                        }
+                        setShowContractSignature(false);
+                        playNotificationSound();
+                      }}
+                      style={{
+                        padding: "12px 32px", flexShrink: 0,
+                        background: "linear-gradient(135deg, #ffd700, #ffb300)",
+                        border: "2px solid #e6a800", borderRadius: 10,
+                        color: "#1a1a2e", fontSize: 15, fontWeight: 800, cursor: "pointer",
+                        boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.02)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+                    >
+                      ✍️ Signer et lancer le MVP
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 20 }}>✅</span>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
+                      Contrat signé — MVP en cours de développement
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ═══════ ONE-PAGER EDITOR OVERLAY (Scenario 1+) ═══════ */}
       {showOnePagerEditor && (() => {
         const onePagerDoc = scenario?.resources?.documents?.find((d: any) => d.doc_id === "one_pager_template");
@@ -4446,6 +4636,45 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                             onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(255,215,0,0.3)"; }}
                           >
                             ✍️ Ouvrir et signer le pacte
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {/* ── "Ouvrir et signer le contrat" — only in phase_3_sign (scenario 2) ── */}
+                    {currentPhaseId === "phase_3_sign" &&
+                      selectedMail.attachments?.some((a: any) => a.id === "contrat_novadev") && (
+                      <div style={{ marginTop: 16 }}>
+                        {contractSigned ? (
+                          <div style={{
+                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
+                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
+                            display: "flex", alignItems: "center", gap: 10,
+                          }}>
+                            <span style={{ fontSize: 20 }}>✅</span>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Contrat signé</div>
+                              <div style={{ fontSize: 11, color: "#666" }}>
+                                Le développement du MVP est lancé. Livraison dans 7 semaines.
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => setShowContractSignature(true)}
+                            style={{
+                              width: "100%", padding: "14px 24px",
+                              background: "linear-gradient(135deg, #ffd700, #ffb300)",
+                              border: "2px solid #e6a800", borderRadius: 12,
+                              color: "#1a1a2e", fontSize: 14, fontWeight: 800, cursor: "pointer",
+                              boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                              transition: "all 0.2s",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+                          >
+                            ✍️ Ouvrir et signer le contrat
                           </button>
                         )}
                       </div>
