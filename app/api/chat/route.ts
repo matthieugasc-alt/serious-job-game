@@ -63,12 +63,16 @@ B. POSITION STABLE
 - Tu ne prends JAMAIS le rôle du joueur. Tu ne rédiges PAS de mail, de document ou de décision à sa place.
 - Tu ne prends JAMAIS le rôle d'un autre personnage.
 
-C. CONTINUITÉ STRICTE
+C. CONTINUITÉ STRICTE — ANTI-BOUCLE
 - Tu te souviens de TOUT l'historique de la conversation fourni.
 - Tu ne te réintroduis JAMAIS. Pas de "Bonjour", "Pour commencer", ou toute forme de redémarrage.
 - Tu ne répètes JAMAIS une information que tu as déjà donnée.
 - Tu ne reposes JAMAIS une question que tu as déjà posée.
-- Tu réagis TOUJOURS au dernier message du joueur, pas à un message imaginaire.
+- Tu ne reformules JAMAIS la même objection ou le même argument. Si tu l'as déjà dit, tu passes à autre chose.
+- Tu réagis TOUJOURS au dernier message du joueur en le prenant en compte EXPLICITEMENT.
+- Si le joueur répond à ta question : tu ACCEPTES sa réponse (accord ou désaccord) et tu AVANCES. Tu ne répètes PAS ta question.
+- Si le joueur te contredit : tu peux contre-argumenter UNE FOIS puis tu changes d'angle ou tu cèdes.
+- BOUCLER SUR LE MÊME SUJET EST INTERDIT. Après 2 échanges sur un sujet, tu dois OBLIGATOIREMENT passer au suivant.
 
 D. UNE SEULE INTENTION PAR MESSAGE
 Chaque message fait UNE SEULE chose :
@@ -211,6 +215,9 @@ MODE AUTONOMY:
 
     if (roleplayPromptTemplate) {
       // Interpolate variables in the provided template
+      // NOTE: recentConversation and message are now passed as structured
+      // chat messages (user/assistant), NOT interpolated into the prompt.
+      // This prevents the LLM from ignoring conversation context.
       const variables = {
         playerName,
         phaseTitle,
@@ -220,8 +227,8 @@ MODE AUTONOMY:
         narrative: narrative,
         mode,
         modeGuidance,
-        recentConversation: formattedConversation,
-        message,
+        recentConversation: "(voir historique de conversation ci-dessous)",
+        message: "(voir dernier message du joueur ci-dessous)",
       };
       finalRoleplayPrompt = sanitize(
         interpolatePrompt(roleplayPromptTemplate, variables)
@@ -287,14 +294,39 @@ Return STRICT JSON only:
 }
 `);
 
+    // ── Build structured messages for the LLM ──
+    // Instead of a single string, we pass the system prompt + conversation
+    // history as proper messages. This prevents the LLM from ignoring
+    // player responses and looping on the same reply.
+    const chatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+      { role: "system", content: finalRoleplayPrompt },
+    ];
+
+    // Add conversation history as proper user/assistant messages
+    if (Array.isArray(recentConversation) && recentConversation.length > 0) {
+      for (const msg of recentConversation) {
+        const m = msg as any;
+        const role = m.role === "user" ? "user" as const : "assistant" as const;
+        chatMessages.push({ role, content: sanitize(m.content || "") });
+      }
+    }
+
+    // Always end with the current player message
+    chatMessages.push({ role: "user", content: message });
+
+    // ── Extract last AI messages for anti-repetition check ──
+    const lastAiMessages = chatMessages
+      .filter(m => m.role === "assistant")
+      .slice(-3)
+      .map(m => m.content.trim().toLowerCase());
+
     // ── PARALLEL AI calls: roleplay + evaluation run simultaneously ──
-    // These two calls are independent — the evaluation only needs the
-    // player's messages, not the roleplay response. Running in parallel
-    // cuts perceived latency by ~50%.
     const [roleplayResponse, evalResponse] = await Promise.all([
-      client.responses.create({
+      client.chat.completions.create({
         model: "gpt-4.1-mini",
-        input: finalRoleplayPrompt,
+        messages: chatMessages,
+        max_tokens: 300,
+        temperature: 0.8,
       }),
       client.responses.create({
         model: "gpt-4.1-mini",
@@ -302,9 +334,53 @@ Return STRICT JSON only:
       }),
     ]);
 
-    const reply =
-      sanitize(roleplayResponse.output_text || "").trim() ||
+    let reply =
+      sanitize(roleplayResponse.choices?.[0]?.message?.content || "").trim() ||
       `Je ne suis pas sûr de bien comprendre, ${playerName}. Pouvez-vous préciser ?`;
+
+    // ── ANTI-REPETITION GUARD ──
+    // If the reply is nearly identical to any of the last 3 AI messages,
+    // force a retry with an explicit anti-repetition instruction.
+    const replyNorm = reply.trim().toLowerCase();
+    const isRepetition = lastAiMessages.some(prev => {
+      if (!prev) return false;
+      // Exact match or >80% overlap (Jaccard on words)
+      if (prev === replyNorm) return true;
+      const wordsA = new Set(prev.split(/\s+/));
+      const wordsB = new Set(replyNorm.split(/\s+/));
+      const intersection = [...wordsA].filter(w => wordsB.has(w)).length;
+      const union = new Set([...wordsA, ...wordsB]).size;
+      return union > 0 && intersection / union > 0.8;
+    });
+
+    if (isRepetition) {
+      // Retry with explicit anti-repetition constraint
+      const retryMessages = [
+        ...chatMessages,
+        {
+          role: "system" as const,
+          content: `ATTENTION : ta réponse précédente était IDENTIQUE à un message que tu as déjà envoyé. C'est INTERDIT.
+Tu DOIS :
+1. Réagir SPÉCIFIQUEMENT à ce que ${playerName} vient de dire : "${message}"
+2. Dire quelque chose de NOUVEAU que tu n'as jamais dit avant
+3. Faire AVANCER la conversation
+4. Si tu es d'accord avec le joueur, DIS-LE et passe au sujet suivant
+5. Ne JAMAIS répéter ta question ou ton objection précédente
+
+Si le joueur a répondu à ta question, ACCEPTE sa réponse et enchaîne.`,
+        },
+      ];
+      const retryResponse = await client.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: retryMessages,
+        max_tokens: 300,
+        temperature: 1.0, // higher temp to force diversity
+      });
+      const retryReply = sanitize(retryResponse.choices?.[0]?.message?.content || "").trim();
+      if (retryReply) {
+        reply = retryReply;
+      }
+    }
 
     let evaluation: {
       matched_criteria?: string[];

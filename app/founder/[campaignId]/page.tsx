@@ -362,6 +362,95 @@ export default function FounderDashboardPage() {
   const rwBg = runwayBg(runwayMonths);
   const rwBorder = runwayBorder(runwayMonths);
 
+  // ── Game Over detection: treasury depleted ──
+  const isGameOver = st.treasury <= 0 && completedCount > 0 && !isCompleted;
+
+  // ── GAME OVER SCREEN ──
+  if (isGameOver && !showDebrief) {
+    return (
+      <main style={S.main}>
+        <div style={S.ambientGlow} />
+        <div style={{
+          display: "flex", flexDirection: "column" as const, alignItems: "center",
+          justifyContent: "center", minHeight: "80vh", textAlign: "center" as const,
+          padding: "40px 24px", maxWidth: 600, margin: "0 auto",
+        }}>
+          <div style={{
+            fontSize: 64, marginBottom: 24,
+            animation: "pulse 2s ease-in-out infinite",
+          }}>💸</div>
+          <h1 style={{
+            fontSize: 32, fontWeight: 800, color: "#ef4444",
+            margin: "0 0 16px", letterSpacing: -0.5,
+          }}>
+            Trésorerie épuisée
+          </h1>
+          <p style={{
+            fontSize: 16, lineHeight: 1.6, color: "rgba(255,255,255,0.7)",
+            margin: "0 0 12px",
+          }}>
+            Orisio n'a plus de cash. Les charges fixes ont eu raison de ta trésorerie.
+          </p>
+          <p style={{
+            fontSize: 14, lineHeight: 1.6, color: "rgba(255,255,255,0.5)",
+            margin: "0 0 32px",
+          }}>
+            C'est la réalité de l'entrepreneuriat : sans cash, tout s'arrête.
+            Tu reprends à la dernière levée de fonds pour remettre du cash dans Orisio.
+          </p>
+
+          {/* KPI summary */}
+          <div style={{
+            display: "flex", gap: 16, flexWrap: "wrap" as const,
+            justifyContent: "center", marginBottom: 32,
+          }}>
+            {[
+              { label: "Trésorerie", value: `${st.treasury.toLocaleString("fr-FR")} €`, color: "#ef4444" },
+              { label: "Scénarios complétés", value: `${completedCount} / ${TOTAL_SCENARIOS}`, color: "#60a5fa" },
+              { label: "Mois écoulés", value: `${st.elapsedMonths || 0}`, color: "#fbbf24" },
+            ].map((kpi) => (
+              <div key={kpi.label} style={{
+                padding: "12px 20px", borderRadius: 12,
+                background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)",
+              }}>
+                <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4, textTransform: "uppercase" as const, letterSpacing: 1 }}>
+                  {kpi.label}
+                </div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: kpi.color }}>
+                  {kpi.value}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Jump to last fundraising scenario (S1 = incubator pitch, S6 = levée de fonds) */}
+          <button
+            onClick={() => {
+              // The "last fundraising" is the most recent fundraising scenario
+              // the player has passed or could have reached:
+              // - Scenarios 0-5: last fundraising = scenario 1 (incubateur/pitch)
+              // - Scenarios 6+: last fundraising = scenario 6 (levée de fonds)
+              const fundraisingIdx = FOUNDER_TIMELINE.findIndex(e => e.scenarioId === "founder_06_fundraising");
+              const targetIdx = nextIdx > fundraisingIdx ? fundraisingIdx : 1; // S1 = incubateur
+              debugJumpTo(targetIdx).then(() => loadData());
+            }}
+            style={{
+              padding: "14px 32px", borderRadius: 12,
+              background: "linear-gradient(135deg, #5b5fc7, #7c7fff)",
+              border: "none", color: "#fff", fontSize: 15, fontWeight: 700,
+              cursor: "pointer", transition: "all 0.2s",
+              boxShadow: "0 4px 20px rgba(91,95,199,0.3)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.03)"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+          >
+            💰 Reprendre à la dernière levée de fonds
+          </button>
+        </div>
+      </main>
+    );
+  }
+
   return (
     <main style={S.main}>
       {/* Ambient */}
