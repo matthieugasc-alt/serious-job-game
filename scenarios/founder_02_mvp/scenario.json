@@ -203,7 +203,11 @@
       "completion_rules": {
         "required_player_evidence": [
           {
-            "keywords": ["réduire", "réduit", "couper", "coupes", "enlever", "retirer", "supprimer", "virer", "prioriser", "priorité", "priorise", "essentiel", "minimum", "mvp", "focus", "concentrer", "recentrer", "scope", "moins de module", "moins de feature", "2 module", "3 module", "2 feature", "3 feature", "que 2", "que 3", "seulement 2", "seulement 3", "juste 2", "juste 3", "pas besoin de tout", "pas tout", "on garde que", "on fait que", "commencer par", "d'abord", "dans un premier temps", "pour commencer", "le plus important", "le plus urgent", "annulation", "planning"],
+            "keywords": ["réduire", "réduit", "couper", "coupes", "enlever", "retirer", "supprimer", "virer", "prioriser", "priorité", "priorise", "essentiel", "minimum", "mvp", "focus", "concentrer", "recentrer", "scope", "moins de module", "moins de feature", "2 module", "3 module", "2 feature", "3 feature", "que 2", "que 3", "seulement 2", "seulement 3", "juste 2", "juste 3", "pas besoin de tout", "pas tout", "on garde que", "on fait que", "commencer par", "d'abord", "dans un premier temps", "pour commencer", "le plus important", "le plus urgent"],
+            "min_matches": 1
+          },
+          {
+            "keywords": ["annulation", "annulations", "planning", "créneaux", "créneau", "remplacement", "rempla", "agenda", "calendrier", "bloc opératoire", "salle"],
             "min_matches": 1
           }
         ],
