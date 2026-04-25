@@ -528,6 +528,26 @@ function isCurrentPhaseValidatedByRules(session: SessionState): boolean {
       }
     }
 
+    // Check required_npc_evidence — hard gate on NPC/AI messages
+    // This ensures the AI character has actually confirmed something
+    // (e.g., Thomas says "I'll send the contract" before the phase can advance)
+    if (Array.isArray(completionRules.required_npc_evidence) && completionRules.required_npc_evidence.length > 0) {
+      const phaseConv = getPhaseConversation(session);
+      const npcText = phaseConv
+        .filter((m) => (m as any).role === "npc" || (m as any).role === "assistant")
+        .map((m) => m.content.toLowerCase())
+        .join(" ");
+      const allNpcEvidenceMet = completionRules.required_npc_evidence.every(
+        (evidence: { keywords: string[]; min_matches: number }) => {
+          const matched = evidence.keywords.filter((kw: string) => npcText.includes(kw.toLowerCase()));
+          return matched.length >= (evidence.min_matches || 1);
+        }
+      );
+      if (!allNpcEvidenceMet) {
+        return false; // Hard block: NPC hasn't confirmed the expected outcome
+      }
+    }
+
     // Check min_score: validate if phase score >= threshold
     if (completionRules.min_score !== undefined) {
       const phaseScore = session.scores[phaseId] || 0;
@@ -554,10 +574,19 @@ function isCurrentPhaseValidatedByRules(session: SessionState): boolean {
     }
 
     // Check max_exchanges: validate if message count exceeds threshold
+    // NOTE: max_exchanges does NOT bypass required_player_evidence.
+    // If the player never said the right things, the phase doesn't advance
+    // just because they sent enough messages. This prevents brute-forcing.
+    // max_exchanges only acts as a gate when combined with OTHER passing
+    // conditions (min_score, flags) — or as a standalone if there's no
+    // required_player_evidence defined.
     if (completionRules.max_exchanges !== undefined) {
       const phaseConversation = getPhaseConversation(session);
       const exchangeCount = phaseConversation.length;
       if (exchangeCount >= completionRules.max_exchanges) {
+        // If required_player_evidence was already checked and PASSED above
+        // (the function didn't return false at that check), then we can advance.
+        // If it FAILED, we already returned false earlier, so we won't reach here.
         return true;
       }
     }

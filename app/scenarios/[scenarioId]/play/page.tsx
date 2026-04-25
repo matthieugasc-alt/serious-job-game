@@ -204,6 +204,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // ── Contract signature (scenario 2+) ──
   const [showContractSignature, setShowContractSignature] = useState(false);
   const [contractSigned, setContractSigned] = useState(false);
+  const [contractVars, setContractVars] = useState<{
+    price: string;
+    features: string[];
+    equity: string | null;
+    rawMailBody: string;
+  }>({ price: "", features: [], equity: null, rawMailBody: "" });
   // ── One-pager editor (scenario 1+) ──
   const [showOnePagerEditor, setShowOnePagerEditor] = useState(false);
   const [onePagerEdited, setOnePagerEdited] = useState(false);
@@ -2003,6 +2009,60 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     }
 
     if (phase?.mail_config?.send_advances_phase) {
+      // ── Extract contract variables from negotiation proposal mail ──
+      if (mailKind === "negotiation_proposal" && phase?.phase_id === "phase_2_negotiation") {
+        const body = currentMailDraft?.body || "";
+        // Extract price: look for numbers followed by €, k€, euros
+        const priceMatch = body.match(/(\d[\d\s.,]*)\s*(?:€|euros?|k€|k\s*€)/i);
+        let extractedPrice = "";
+        if (priceMatch) {
+          const raw = priceMatch[1].replace(/\s/g, "").replace(",", ".");
+          // Handle "11k€" → "11000", "12 000 €" → "12000"
+          if (body.toLowerCase().includes("k€") || body.toLowerCase().includes("k €")) {
+            extractedPrice = String(Math.round(parseFloat(raw) * 1000));
+          } else {
+            extractedPrice = String(Math.round(parseFloat(raw)));
+          }
+        }
+        // Extract equity: look for X%
+        const equityMatch = body.match(/(\d+)\s*%/);
+        const extractedEquity = equityMatch ? equityMatch[1] + "%" : null;
+        // Extract features: look for known module keywords
+        const featureKeywords: Record<string, string> = {
+          "planning": "Planning du bloc opératoire",
+          "annulation": "Gestion des annulations et remplacements",
+          "scoring": "Scoring des chirurgiens",
+          "salle": "Gestion des salles et du matériel",
+          "suivi patient": "Suivi patient pré/post-opératoire",
+          "suivi": "Suivi patient pré/post-opératoire",
+          "équipe": "Gestion des équipes",
+          "rapport": "Rapport post-opératoire",
+          "post-op": "Rapport post-opératoire",
+          "matériel": "Gestion des salles et du matériel",
+          "notification": "Notifications (email)",
+          "créneau": "Gestion des annulations et remplacements",
+          "remplacement": "Gestion des annulations et remplacements",
+        };
+        const bodyLower = body.toLowerCase();
+        const extractedFeatures: string[] = [];
+        const seen = new Set<string>();
+        for (const [kw, label] of Object.entries(featureKeywords)) {
+          if (bodyLower.includes(kw) && !seen.has(label)) {
+            extractedFeatures.push(label);
+            seen.add(label);
+          }
+        }
+        if (extractedFeatures.length === 0) {
+          extractedFeatures.push("Fonctionnalités selon accord verbal");
+        }
+        setContractVars({
+          price: extractedPrice || "À définir",
+          features: extractedFeatures,
+          equity: extractedEquity,
+          rawMailBody: body,
+        });
+      }
+
       completeCurrentPhaseAndAdvance(next);
       resolveDynamicActors(next);
       injectPhaseEntryEvents(next);
@@ -2019,7 +2079,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
     // ── Auto-reply in chat when mail is sent in negotiation phase ──
     // When player sends a mail to NovaDev, Thomas replies via chat (instant messaging)
-    if (mailKind === "negotiation" && phase?.phase_id === "phase_2_negotiation") {
+    if (mailKind === "negotiation_proposal" && phase?.phase_id === "phase_2_negotiation") {
       const mailBody = currentMailDraft?.body || "";
       setSession(next);
       setShowCompose(false);
@@ -3129,6 +3189,18 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
       {/* ═══════ CONTRACT SIGNATURE OVERLAY (Scenario 2 — NovaDev) ═══════ */}
       {showContractSignature && (() => {
+        const cv = contractVars;
+        const priceDisplay = cv.price && cv.price !== "À définir"
+          ? `${parseInt(cv.price).toLocaleString("fr-FR")} € HT`
+          : "Selon accord verbal";
+        const featuresHtml = cv.features.length > 0
+          ? cv.features.map((f, i) => `<p><strong>Module ${i + 1} — ${f}</strong></p>`).join("")
+          : "<p>Fonctionnalités selon accord entre les parties.</p>";
+        const equityClause = cv.equity
+          ? `<h2>Article 4 — Participation au capital</h2>
+<p>En complément du prix cash, le Client cède au Prestataire <strong>${cv.equity} du capital</strong> d'Orisio SAS, via BSPCE avec vesting de 2 ans et cliff de 6 mois.</p>
+<p>Le Prestataire n'a pas de droit de vote ni de siège au board.</p>`
+          : "";
         const contractContent = `<h1 style="text-align:center;color:#1a1a2e;margin-bottom:24px;">Contrat de prestation de développement</h1>
 <p><strong>Entre les soussignés :</strong></p>
 <p><strong>Le Client :</strong><br/>Orisio SAS, société par actions simplifiée<br/>Représentée par ${displayPlayerName || "CEO"} en qualité de Président</p>
@@ -3136,22 +3208,22 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;"/>
 <h2>Article 1 — Objet</h2>
 <p>Le Prestataire s'engage à réaliser pour le compte du Client le développement d'un MVP de la plateforme Orisio, selon le périmètre défini à l'Article 2.</p>
-<h2>Article 2 — Périmètre</h2>
-<p><strong>Module 1 — Planning temps réel du bloc opératoire</strong><br/>Affichage temps réel des salles et créneaux. Interface cadre de bloc et interface chirurgien.</p>
-<p><strong>Module 2 — Gestion des annulations et remplacements</strong><br/>Détection et notification des annulations. Système de proposition de remplacement. Notification email.</p>
+<h2>Article 2 — Périmètre de la prestation</h2>
+${featuresHtml}
 <p><strong>Infrastructure</strong><br/>Hébergement conforme HDS (OVH Healthcare). API REST sécurisée. Interface web responsive.</p>
 <h2>Article 3 — Prix et conditions de paiement</h2>
-<p>Le prix total de la prestation est fixé conformément à l'accord négocié entre les parties.</p>
+<p>Le prix total de la prestation est fixé à <strong>${priceDisplay}</strong>.</p>
 <p>Paiement en trois échéances : 30% à la signature, 40% à la livraison beta, 30% à la recette finale.</p>
-<h2>Article 4 — Délais</h2>
+${equityClause}
+<h2>Article ${cv.equity ? "5" : "4"} — Délais de réalisation</h2>
 <p>Prestation réalisée en <strong>7 semaines</strong> à compter de la signature.</p>
-<h2>Article 5 — Propriété intellectuelle</h2>
+<h2>Article ${cv.equity ? "6" : "5"} — Propriété intellectuelle</h2>
 <p>Le code source est la propriété exclusive du Client dès paiement intégral.</p>
-<h2>Article 6 — Confidentialité</h2>
+<h2>Article ${cv.equity ? "7" : "6"} — Confidentialité</h2>
 <p>Le Prestataire s'engage à maintenir la confidentialité de toutes les informations relatives au projet.</p>
-<h2>Article 7 — Garantie</h2>
+<h2>Article ${cv.equity ? "8" : "7"} — Garantie</h2>
 <p>Garantie de bon fonctionnement pendant <strong>3 mois</strong> après livraison. Corrections de bugs incluses.</p>
-<h2>Article 8 — Résiliation</h2>
+<h2>Article ${cv.equity ? "9" : "8"} — Résiliation</h2>
 <p>Résiliation possible avec préavis de 15 jours. Le prorata du travail effectué est dû.</p>
 <hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;"/>
 <p style="margin-top:16px;"><strong>Pour le Prestataire — NovaDev Solutions :</strong><br/>Signature : Thomas Vidal ✓</p>

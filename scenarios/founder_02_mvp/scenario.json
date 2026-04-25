@@ -183,18 +183,17 @@
         "criteria": [
           {
             "criterion_id": "identified_core_painpoint",
-            "description": "Le joueur identifie l'annulation de créneaux ou le planning comme le problème central à résoudre en priorité",
-            "points": 3
+            "description": "Le joueur identifie l'annulation de créneaux ou le planning comme le problème central",
+            "points": 2
           },
           {
             "criterion_id": "scope_cut_proposed",
-            "description": "Le joueur propose explicitement de réduire le scope, de couper des modules, de ne garder que 2-3 features",
-            "points": 3,
-            "sets_flag": "scope_reduced"
+            "description": "Le joueur propose de réduire le scope à 2-3 features pour le MVP",
+            "points": 2
           },
           {
             "criterion_id": "budget_argument_used",
-            "description": "Le joueur mentionne la contrainte budget comme argument pour justifier la réduction",
+            "description": "Le joueur mentionne la contrainte budget pour justifier la réduction",
             "points": 2
           }
         ]
@@ -202,7 +201,7 @@
       "completion_rules": {
         "required_player_evidence": [
           {
-            "keywords": ["réduire", "réduit", "couper", "coupes", "enlever", "retirer", "supprimer", "virer", "prioriser", "priorité", "priorise", "essentiel", "minimum", "mvp", "focus", "concentrer", "recentrer", "scope", "moins de module", "moins de feature", "2 module", "3 module", "2 feature", "3 feature", "que 2", "que 3", "seulement 2", "seulement 3", "juste 2", "juste 3", "pas besoin de tout", "pas tout", "on garde que", "on fait que", "commencer par", "d'abord", "dans un premier temps", "pour commencer", "le plus important", "le plus urgent"],
+            "keywords": ["réduire", "réduit", "couper", "coupes", "enlever", "retirer", "supprimer", "virer", "prioriser", "priorité", "priorise", "essentiel", "minimum", "mvp", "focus", "concentrer", "recentrer", "scope", "moins de module", "moins de feature", "que 2", "que 3", "seulement 2", "seulement 3", "juste 2", "juste 3", "pas besoin de tout", "pas tout", "on garde que", "on fait que", "commencer par", "d'abord", "dans un premier temps", "pour commencer", "le plus important", "le plus urgent", "commence par"],
             "min_matches": 1
           },
           {
@@ -210,7 +209,7 @@
             "min_matches": 1
           }
         ],
-        "any_flags": ["scope_reduced"],
+        "min_score": 4,
         "max_exchanges": 30
       },
       "auto_advance": true,
@@ -227,12 +226,12 @@
       "ai_actors": ["thomas_novadev", "alexandre_morel"],
       "mail_config": {
         "enabled": true,
-        "kind": "negotiation",
+        "kind": "negotiation_proposal",
         "defaults": {
           "to": "thomas@novadev.fr",
-          "subject": "Orisio — Nouveau périmètre MVP"
+          "subject": "Orisio — Proposition MVP"
         },
-        "send_advances_phase": false
+        "send_advances_phase": true
       },
       "entry_events": [
         {
@@ -247,30 +246,29 @@
         "criteria": [
           {
             "criterion_id": "clear_scope_communicated",
-            "description": "Le joueur communique un scope précis à NovaDev",
-            "points": 3
+            "description": "Le joueur communique un scope précis à NovaDev (quelles features garder)",
+            "points": 2
           },
           {
-            "criterion_id": "budget_negotiated_well",
-            "description": "Le joueur négocie activement le prix (pas juste accepter le premier chiffre)",
-            "points": 3
+            "criterion_id": "budget_negotiated",
+            "description": "Le joueur négocie activement le prix (propose un montant, demande une baisse)",
+            "points": 2
           },
           {
             "criterion_id": "negotiation_professional",
             "description": "Le ton est professionnel et respectueux",
-            "points": 1
-          },
-          {
-            "criterion_id": "deal_reached",
-            "description": "Un accord est trouvé avec NovaDev",
-            "points": 2,
-            "sets_flag": "novadev_negotiated"
+            "points": 2
           }
         ]
       },
       "completion_rules": {
-        "any_flags": ["novadev_negotiated"],
-        "max_exchanges": 20
+        "required_npc_evidence": [
+          {
+            "keywords": ["envoyez-moi un mail", "envoyez-moi un email", "mail récapitulatif", "email récapitulatif", "je vous prépare le contrat derrière", "je prépare le contrat derrière"],
+            "min_matches": 1
+          }
+        ],
+        "min_score": 2
       },
       "auto_advance": true,
       "next_phase": "phase_3_sign"
