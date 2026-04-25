@@ -210,8 +210,14 @@ export default function FounderDashboardPage() {
       const campData = await campRes.json();
       setCampaign(campData.campaign);
 
+      // Only apply outcome if there's a pending scenario AND no active checkpoint
+      // (checkpoint = scenario in progress, not finished yet → don't resolve as lost)
       if (campData.campaign.pendingScenarioId) {
-        await checkAndApplyOutcome(campData.campaign);
+        const hasActiveCheckpoint = campData.campaign.checkpoint &&
+          campData.campaign.checkpoint.scenarioId === campData.campaign.pendingScenarioId;
+        if (!hasActiveCheckpoint) {
+          await checkAndApplyOutcome(campData.campaign);
+        }
       }
     } catch (err: any) {
       setError(err.message || "Erreur de chargement");

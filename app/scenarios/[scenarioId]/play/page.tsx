@@ -2016,6 +2016,64 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         });
       }
     }
+
+    // ── Auto-reply in chat when mail is sent in negotiation phase ──
+    // When player sends a mail to NovaDev, Thomas replies via chat (instant messaging)
+    if (mailKind === "negotiation" && phase?.phase_id === "phase_2_negotiation") {
+      const mailBody = currentMailDraft?.body || "";
+      setSession(next);
+      setShowCompose(false);
+      // Switch to chat view and trigger AI reply from Thomas
+      setMainView("chat");
+      setSelectedContact("thomas_novadev");
+      // Generate Thomas's chat response to the mail content
+      (async () => {
+        try {
+          const activePrompt = aiPromptsMapRef.current["thomas_novadev"] || aiPromptRef.current;
+          const convNow = buildRuntimeView(next).conversation || [];
+          const recentConv = convNow.slice(-10).map((m: any) => ({
+            role: m.role === "player" ? "user" : "assistant",
+            content: m.content,
+          }));
+          const playerOnlyMsgs = convNow
+            .filter((m: any) => m.role === "player")
+            .slice(-6)
+            .map((m: any) => m.content);
+          const mailSummary = `[Le joueur a envoyé un mail avec le contenu suivant : ${mailBody}]`;
+          const res = await fetch("/api/chat", {
+            method: "POST",
+            headers: apiHeaders(),
+            body: JSON.stringify({
+              playerName: displayPlayerName,
+              message: mailSummary,
+              phaseTitle: view.phaseTitle,
+              phaseObjective: view.phaseObjective,
+              phaseFocus: view.phaseFocus,
+              phasePrompt: view.phasePrompt,
+              criteria: view.criteria,
+              mode: view.adaptiveMode,
+              narrative: scenario.narrative,
+              recentConversation: recentConv,
+              playerMessages: [...playerOnlyMsgs, mailBody],
+              roleplayPrompt: activePrompt,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            playNotificationSound();
+            const final2 = cloneSession(next);
+            addPlayerMessage(final2, `[Mail envoyé à NovaDev] ${mailBody.substring(0, 200)}...`, "thomas_novadev");
+            addAIMessage(final2, data.reply, "thomas_novadev");
+            applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+            setSession(final2);
+          }
+        } catch (err) {
+          console.error("Error generating Thomas reply:", err);
+        }
+      })();
+      return; // Skip the normal setSession below
+    }
+
     setSession(next);
     setShowCompose(false);
   }
@@ -2450,7 +2508,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
               </div>
               <div style={{ fontSize: 12, color: "#78350f", marginTop: 2 }}>
                 Vous reprenez au début de cette phase. Cette interruption vous a coûté{" "}
-                <strong>{resumeBanner.penaltyMonths} mois</strong> de délai.
+                <strong>15 jours</strong> et <strong>125 €</strong> de charges.
               </div>
             </div>
           </div>

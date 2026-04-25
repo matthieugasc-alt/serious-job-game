@@ -295,7 +295,8 @@ export function projectTreasury(campaign: FounderCampaign): {
 
 /** Penalty for abandoning a scenario mid-phase */
 export const ABANDON_PENALTY = {
-  months: 0.5,   // +0.5 mois écoulé
+  months: 0.5,      // +0.5 mois écoulé (15 jours)
+  treasury: -125,   // burn de 15 jours à 250€/mois
 } as const;
 
 /**
@@ -403,10 +404,12 @@ export function handleScenarioEntry(
   let penaltyMonths = 0;
   if (cp.abandonCount > cp.penaltiesApplied) {
     penaltyMonths = ABANDON_PENALTY.months;
-    // Apply to campaign state
+    // Apply time penalty to campaign state
     campaign.state.elapsedMonths = Math.round(
       (campaign.state.elapsedMonths + penaltyMonths) * 10
     ) / 10; // keep 1 decimal for 0.5
+    // Apply treasury penalty (burn for 15 days)
+    campaign.state.treasury = Math.max(0, campaign.state.treasury + ABANDON_PENALTY.treasury);
     cp.penaltiesApplied = cp.abandonCount;
     penaltyApplied = true;
   }
