@@ -170,7 +170,7 @@ export function registerUser(
     saveUsers(users);
 
     const token = generateToken();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
     const sessions = loadSessions();
     sessions.push({ token, userId, createdAt: now, expiresAt });
@@ -204,7 +204,7 @@ export function loginUser(
 
     const token = generateToken();
     const now = new Date().toISOString();
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
 
     const sessions = loadSessions();
     sessions.push({ token, userId: user.id, createdAt: now, expiresAt });
@@ -218,6 +218,8 @@ export function loginUser(
 }
 
 // ─── Session Validation ────────────────────────────────────────
+
+const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 export function validateSession(token: string): { user: PublicUser } | null {
   try {
@@ -241,10 +243,13 @@ export function validateSession(token: string): { user: PublicUser } | null {
       return null;
     }
 
-    // Periodic cleanup
-    const beforeCount = sessions.length;
+    // Sliding window: extend session on each valid request
+    const newExpiry = new Date(Date.now() + SESSION_TTL_MS).toISOString();
+    session.expiresAt = newExpiry;
+
+    // Cleanup expired sessions + persist the extended expiry
     sessions = sessions.filter((s) => new Date(s.expiresAt) >= now);
-    if (beforeCount !== sessions.length) saveSessions(sessions);
+    saveSessions(sessions);
 
     return { user: toPublicUser(user) };
   } catch (error) {
