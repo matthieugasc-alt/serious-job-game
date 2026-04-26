@@ -2009,8 +2009,48 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     }
 
     if (phase?.mail_config?.send_advances_phase) {
+      // ── Check completion rules BEFORE advancing ──
+      // For phases with required_npc_evidence or min_score, we must verify
+      // the rules are met before allowing the mail to advance the phase.
+      const rulesPass = (() => {
+        const rules = (phase as any).completion_rules;
+        if (!rules) return true;
+        // Check required_npc_evidence
+        if (Array.isArray(rules.required_npc_evidence) && rules.required_npc_evidence.length > 0) {
+          const phaseConv = (view?.conversation || []);
+          const npcText = phaseConv
+            .filter((m: any) => m.role === "npc")
+            .map((m: any) => (m.content || "").toLowerCase())
+            .join(" ");
+          const allMet = rules.required_npc_evidence.every((ev: any) => {
+            const matched = (ev.keywords || []).filter((kw: string) => npcText.includes(kw.toLowerCase()));
+            return matched.length >= (ev.min_matches || 1);
+          });
+          if (!allMet) return false;
+        }
+        // Check required_player_evidence
+        if (Array.isArray(rules.required_player_evidence) && rules.required_player_evidence.length > 0) {
+          const phaseConv = (view?.conversation || []);
+          const playerText = phaseConv
+            .filter((m: any) => m.role === "player")
+            .map((m: any) => (m.content || "").toLowerCase())
+            .join(" ");
+          const allMet = rules.required_player_evidence.every((ev: any) => {
+            const matched = (ev.keywords || []).filter((kw: string) => playerText.includes(kw.toLowerCase()));
+            return matched.length >= (ev.min_matches || 1);
+          });
+          if (!allMet) return false;
+        }
+        // Check min_score
+        if (rules.min_score !== undefined) {
+          const phaseScore = session.scores?.[phase.phase_id] || 0;
+          if (phaseScore < rules.min_score) return false;
+        }
+        return true;
+      })();
+
       // ── Extract contract variables from negotiation proposal mail ──
-      if (mailKind === "negotiation_proposal" && phase?.phase_id === "phase_2_negotiation") {
+      if (rulesPass && mailKind === "negotiation_proposal" && phase?.phase_id === "phase_2_negotiation") {
         const body = currentMailDraft?.body || "";
         // Extract price: look for numbers followed by €, k€, euros
         const priceMatch = body.match(/(\d[\d\s.,]*)\s*(?:€|euros?|k€|k\s*€)/i);
@@ -2063,22 +2103,25 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         });
       }
 
-      completeCurrentPhaseAndAdvance(next);
-      resolveDynamicActors(next);
-      injectPhaseEntryEvents(next);
-      const newPhase = scenario.phases[next.currentPhaseIndex];
-      if (newPhase?.mail_config?.defaults) {
-        updateMailDraft(next, newPhase.phase_id, {
-          to: "",
-          cc: "",
-          subject: newPhase.mail_config.defaults.subject || "",
-          body: "", attachments: [],
-        });
+      if (rulesPass) {
+        completeCurrentPhaseAndAdvance(next);
+        resolveDynamicActors(next);
+        injectPhaseEntryEvents(next);
+        const newPhase = scenario.phases[next.currentPhaseIndex];
+        if (newPhase?.mail_config?.defaults) {
+          updateMailDraft(next, newPhase.phase_id, {
+            to: "",
+            cc: "",
+            subject: newPhase.mail_config.defaults.subject || "",
+            body: "", attachments: [],
+          });
+        }
       }
     }
 
     // ── Auto-reply in chat when mail is sent in negotiation phase ──
-    // When player sends a mail to NovaDev, Thomas replies via chat (instant messaging)
+    // First mail (rules not met = Thomas hasn't asked for recap yet) → trigger chat reply
+    // Second mail (rules met = after chat negotiation) → phase already advanced above
     if (mailKind === "negotiation_proposal" && phase?.phase_id === "phase_2_negotiation") {
       const mailBody = currentMailDraft?.body || "";
       setSession(next);
@@ -4773,7 +4816,7 @@ ${equityClause}
 
                     {/* ── "Ouvrir et signer le contrat" — only in phase_3_sign (scenario 2) ── */}
                     {currentPhaseId === "phase_3_sign" &&
-                      selectedMail.attachments?.some((a: any) => a.id === "contrat_novadev") && (
+                      (selectedMail.from === "thomas_novadev" || selectedMail.from === "Thomas Vidal") && (
                       <div style={{ marginTop: 16 }}>
                         {contractSigned ? (
                           <div style={{

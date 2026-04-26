@@ -137,9 +137,10 @@
       {
         "doc_id": "contrat_novadev",
         "label": "Contrat de prestation NovaDev",
-        "file_path": "/scenarios/founder_02_mvp/documents/contrat_novadev.html",
+        "file_path": "_internal_contract_",
         "contains": ["contrat", "prestation", "NovaDev", "signature", "conditions"],
-        "usable_as_pj": false
+        "usable_as_pj": false,
+        "hidden_until_phase": "phase_3_sign"
       }
     ]
   },
@@ -209,7 +210,7 @@
             "min_matches": 1
           }
         ],
-        "min_score": 4,
+        "min_score": 6,
         "max_exchanges": 30
       },
       "auto_advance": true,
@@ -270,7 +271,7 @@
         ],
         "min_score": 2
       },
-      "auto_advance": true,
+      "auto_advance": false,
       "next_phase": "phase_3_sign"
     },
     {
@@ -288,11 +289,8 @@
           "actor": "thomas_novadev",
           "channel": "mail",
           "subject": "Contrat de prestation — MVP Orisio",
-          "content": "Suite à notre accord, voici le contrat de prestation pour le développement du MVP Orisio. Relisez, signez, et on démarre la semaine prochaine.",
-          "delay_ms": 2000,
-          "attachments": [
-            { "id": "contrat_novadev", "label": "Contrat de prestation NovaDev" }
-          ]
+          "content": "Suite à notre accord, voici le contrat de prestation pour le développement du MVP Orisio. Cliquez sur le bouton ci-dessous pour relire et signer.",
+          "delay_ms": 2000
         }
       ],
       "scoring": {

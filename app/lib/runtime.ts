@@ -374,6 +374,11 @@ export function filterDocumentsByPhase(
     : -1; // no phase = before game start → only globals
 
   return documents.filter((d: any) => {
+    // Support hidden_until_phase: hide doc until player reaches that phase
+    if (d.hidden_until_phase) {
+      const requiredRank = progressionMap[d.hidden_until_phase];
+      if (requiredRank != null && currentRank < requiredRank) return false;
+    }
     if (!d.available_from_phase) return true; // globally available
     const requiredRank = progressionMap[d.available_from_phase];
     if (requiredRank == null) return true; // unknown phase → show by default
