@@ -170,7 +170,7 @@ function pushAction(session: SessionState, action: SessionAction) {
   session.actionLog.push(action);
 }
 
-function addInboxMail(
+export function addInboxMail(
   session: SessionState,
   {
     from,

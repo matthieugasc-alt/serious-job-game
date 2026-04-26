@@ -20,6 +20,7 @@ import {
   toggleMailAttachment,
   sendCurrentPhaseMail,
   filterDocumentsByPhase,
+  addInboxMail,
 } from "@/app/lib/runtime";
 import type { ScenarioDefinition } from "@/app/lib/types";
 import {
@@ -1973,6 +1974,28 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         data.score_delta || 0,
         data.flags_to_set || {}
       );
+
+      // ── Scénario 3 Phase 3: detect pivot to clinique via chat with Alexandre ──
+      if (scenarioId?.startsWith("founder_03") && final.flags.switched_to_clinique && !final.flags.pivot_contract_sent) {
+        final.flags.pivot_contract_sent = true;
+        // Update choice flags
+        final.flags.chose_chu = false;
+        final.flags.chose_saint_martin = false;
+        final.flags.chose_clinique = true;
+        // Inject clinique contract mail after a delay
+        const curPhaseId2 = scenario.phases[final.currentPhaseIndex]?.phase_id || "phase_3_contract";
+        final.pendingTimedEvents.push({
+          id: `${curPhaseId2}::pivot_contrat_mail`,
+          actor: "contact_etablissement",
+          content: "Suite à votre demande transmise par le Dr. Morel, veuillez trouver ci-joint la convention type pour le test pilote. Merci de retourner le document signé ou vos observations.",
+          dueAt: Date.now() + 5000,
+          phaseId: curPhaseId2,
+          type: "mail",
+          subject: "Convention de test — Clinique Saint-Augustin",
+          attachments: [{ id: "contrat_clinique", label: "Convention de test — Clinique Saint-Augustin" }],
+        });
+      }
+
       updateAdaptiveMode(final);
       scheduleInterruption(final);
       setSession(final);
@@ -2068,6 +2091,21 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       if (wasPhase1ScopeProposal) {
         next.flags.scope_reduced = true;
         next.flags.alexandre_convinced = true;
+      }
+
+      // ── Scénario 3 Phase 1: extract establishment choice from confirmation mail ──
+      if (mailKind === "choice_confirmation") {
+        const bodyLower = (currentMailDraft?.body || "").toLowerCase();
+        if (bodyLower.includes("chu") || bodyLower.includes("pellegrin") || bodyLower.includes("bordeaux")) {
+          next.flags.chose_chu = true;
+        } else if (bodyLower.includes("saint-martin") || bodyLower.includes("saint martin") || bodyLower.includes("ramsay")) {
+          next.flags.chose_saint_martin = true;
+        } else if (bodyLower.includes("saint-augustin") || bodyLower.includes("saint augustin") || bodyLower.includes("clinique")) {
+          next.flags.chose_clinique = true;
+        } else {
+          // Default: try to detect from conversation context — fallback to clinique
+          next.flags.chose_clinique = true;
+        }
       }
 
       // ── Extract contract variables from negotiation proposal mail ──
@@ -2268,6 +2306,126 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         }
       })();
       return; // Skip the normal setSession below
+    }
+
+    // ── Scénario 3 Phase 2: evaluate pitch mail and generate establishment response ──
+    if (mailKind === "pilot_pitch" && scenarioId?.startsWith("founder_03")) {
+      const mailBody = currentMailDraft?.body || "";
+      const bodyLower = mailBody.toLowerCase();
+
+      // Evaluate pitch quality based on concrete criteria
+      let pitchScore = 0;
+      const gratuitKeywords = ["gratuit", "sans engagement", "offert", "sans frais", "aucun coût", "0 €", "0€"];
+      if (gratuitKeywords.some(k => bodyLower.includes(k))) pitchScore += 2;
+      const valuePropKeywords = ["planning", "bloc", "opératoire", "annulation", "créneau", "optimis", "gestion"];
+      if (valuePropKeywords.filter(k => bodyLower.includes(k)).length >= 2) pitchScore += 2;
+      const dataKeywords = ["données", "hds", "hébergement", "certifié", "patient", "sécurité", "rgpd", "confidentiel"];
+      if (dataKeywords.some(k => bodyLower.includes(k))) pitchScore += 2;
+      const durationKeywords = ["8 semaines", "deux mois", "2 mois", "semaines", "durée"];
+      if (durationKeywords.some(k => bodyLower.includes(k))) pitchScore += 1;
+      // Professional tone: at least 3 sentences, not too short
+      if (mailBody.length > 150) pitchScore += 1;
+
+      // pitchScore >= 4 = good, < 4 = bad
+      const pitchIsGood = pitchScore >= 4;
+
+      // Determine which establishment was chosen
+      const choseCHU = !!next.flags.chose_chu;
+      const choseSM = !!next.flags.chose_saint_martin;
+      const choseClinique = !!next.flags.chose_clinique;
+
+      // Helper: advance to Phase 3 and inject the correct contract mail
+      const advanceToPhase3 = (s: typeof next) => {
+        completeCurrentPhaseAndAdvance(s);
+        resolveDynamicActors(s);
+        injectPhaseEntryEvents(s);
+        const p3 = scenario.phases[s.currentPhaseIndex];
+        if (p3?.mail_config?.defaults) {
+          updateMailDraft(s, p3.phase_id, {
+            to: "", cc: "", subject: p3.mail_config.defaults.subject || "",
+            body: "", attachments: [],
+          });
+        }
+        // Inject the contract mail dynamically based on establishment choice
+        const p3Id = p3?.phase_id || "phase_3_contract";
+        const contratMap: Record<string, { id: string; label: string }> = {
+          chose_chu: { id: "contrat_chu", label: "Convention de test — CHU de Bordeaux" },
+          chose_saint_martin: { id: "contrat_saint_martin", label: "Convention de test — Hôpital Saint-Martin" },
+          chose_clinique: { id: "contrat_clinique", label: "Convention de test — Clinique Saint-Augustin" },
+        };
+        const choiceKey = s.flags.chose_chu ? "chose_chu" : s.flags.chose_saint_martin ? "chose_saint_martin" : "chose_clinique";
+        const contrat = contratMap[choiceKey];
+        // Schedule the contract mail after a short delay
+        s.pendingTimedEvents.push({
+          id: `${p3Id}::contrat_mail`,
+          actor: "contact_etablissement",
+          content: "Suite à votre demande de test pilote, veuillez trouver ci-joint la convention type applicable. Merci de retourner le document signé ou de transmettre vos observations sous 10 jours ouvrés.",
+          dueAt: Date.now() + 5000,
+          phaseId: p3Id,
+          type: "mail",
+          subject: "Re: Orisio — Proposition de test pilote gratuit",
+          attachments: [contrat],
+        });
+      };
+
+      if (pitchIsGood) {
+        // ── PITCH ACCEPTED → advance to Phase 3 ──
+        next.flags.pitch_accepted = true;
+        advanceToPhase3(next);
+        setSession(next);
+        setShowCompose(false);
+      } else {
+        // ── PITCH REJECTED → fallback mechanism ──
+        next.flags.pitch_rejected = true;
+        setSession(next);
+        setShowCompose(false);
+
+        if (!choseClinique) {
+          // CHU or Saint-Martin refused → Alexandre intervenes, switches to clinique
+          setTimeout(() => {
+            const final2 = cloneSession(next);
+            const etablissement = choseCHU ? "le CHU" : "Saint-Martin";
+            // Contact sends rejection mail
+            addInboxMail(final2, {
+              from: "contact_etablissement",
+              subject: "Re: Orisio — Proposition de test pilote gratuit",
+              body: `Votre proposition ne nous paraît pas suffisamment aboutie en l'état. Nous vous invitons à revenir vers nous ultérieurement avec un dossier plus complet.`,
+              phaseId: view.phaseId,
+            });
+            playNotificationSound();
+            setSession(final2);
+
+            // Alexandre intervenes in chat after a short delay
+            setTimeout(() => {
+              const final3 = cloneSession(final2);
+              addAIMessage(final3, `Aïe… ${etablissement} a refusé. Bon écoute, on se rabat sur ma clinique. C'est du tout cuit — je connais tout le monde là-bas, je les appelle et c'est réglé en 24h. C'est pas prestigieux mais au moins on avance.`, "alexandre_morel");
+              // Switch to clinique and advance
+              final3.flags.switched_to_clinique = true;
+              final3.flags.chose_chu = false;
+              final3.flags.chose_saint_martin = false;
+              final3.flags.chose_clinique = true;
+              final3.flags.pitch_accepted = true;
+              advanceToPhase3(final3);
+              setSession(final3);
+              setMainView("chat");
+              setSelectedContact("alexandre_morel");
+            }, 2000);
+          }, 1500);
+        } else {
+          // Already chose clinique → Alexandre smooths things over
+          setTimeout(() => {
+            const final2 = cloneSession(next);
+            addAIMessage(final2, `T'as envoyé quoi comme mail ?! C'est MA clinique, c'est MA réputation ! Laisse, je vais appeler Renaud-Picard directement et arranger le coup. Mais la prochaine fois, fais-moi relire avant d'envoyer n'importe quoi.`, "alexandre_morel");
+            // Alexandre fixes it — advance anyway
+            final2.flags.pitch_accepted = true;
+            advanceToPhase3(final2);
+            setSession(final2);
+            setMainView("chat");
+            setSelectedContact("alexandre_morel");
+          }, 1500);
+        }
+      }
+      return;
     }
 
     setSession(next);

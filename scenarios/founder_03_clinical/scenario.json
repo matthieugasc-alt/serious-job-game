@@ -27,7 +27,7 @@
       },
       {
         "title": "Ta mission",
-        "content": "<p><strong>Phase 1</strong> — Discuter avec Alexandre pour choisir le bon établissement.</p><p><strong>Phase 2</strong> — Rédiger un mail pour proposer un test gratuit à l'établissement choisi.</p><p><strong>Phase 3</strong> — L'établissement t'envoie un contrat. Négocie les clauses problématiques.</p>",
+        "content": "<p><strong>Phase 1</strong> — Discuter avec Alexandre et formaliser ton choix d'établissement par mail.</p><p><strong>Phase 2</strong> — Rédiger un mail de prospection pour proposer un test gratuit.</p><p><strong>Phase 3</strong> — L'établissement t'envoie un contrat. Identifie les clauses toxiques et négocie.</p>",
         "column": "right"
       },
       {
@@ -139,21 +139,24 @@
         "label": "Contrat de test — CHU de Bordeaux",
         "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_chu_bordeaux.pdf",
         "contains": ["contrat", "PI", "intéressement", "CHU", "données", "SecNumCloud"],
-        "usable_as_pj": true
+        "usable_as_pj": true,
+        "hidden_until_phase": "phase_3_contract"
       },
       {
         "doc_id": "contrat_saint_martin",
         "label": "Contrat de test — Hôpital Saint-Martin",
         "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_hopital_saint_martin.pdf",
         "contains": ["contrat", "Ramsay", "référencement", "pilote"],
-        "usable_as_pj": true
+        "usable_as_pj": true,
+        "hidden_until_phase": "phase_3_contract"
       },
       {
         "doc_id": "contrat_clinique",
         "label": "Contrat de test — Clinique Saint-Augustin",
         "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_clinique_saint_augustin.pdf",
         "contains": ["contrat", "test", "8 semaines", "simple"],
-        "usable_as_pj": true
+        "usable_as_pj": true,
+        "hidden_until_phase": "phase_3_contract"
       }
     ]
   },
@@ -167,11 +170,16 @@
       "chose_chu": false,
       "chose_saint_martin": false,
       "chose_clinique": false,
+      "choice_confirmed": false,
       "pitch_mail_sent": false,
+      "pitch_accepted": false,
+      "pitch_rejected": false,
+      "switched_to_clinique": false,
       "contrat_received": false,
       "contrat_amended": false,
       "contrat_signed_clean": false,
-      "contrat_signed_toxic": false
+      "contrat_signed_toxic": false,
+      "pivot_contract_sent": false
     }
   },
   "initial_events": [
@@ -191,12 +199,25 @@
     {
       "phase_id": "phase_1_choose",
       "title": "Choisir l'établissement",
-      "objective": "Discuter avec Alexandre et choisir le premier établissement de test. Chacun a ses avantages et risques.",
-      "phase_focus": "Discussion avec Alexandre sur le choix d'établissement. Alexandre est contre la clinique (trop petit, c'est sa clinique, pas crédible) et pousse pour le CHU ou Saint-Martin. Le joueur peut argumenter. Le choix final lui appartient.",
+      "objective": "Discuter avec Alexandre et choisir le premier établissement de test. Puis formaliser ton choix par mail.",
+      "phase_focus": "Discussion avec Alexandre sur le choix d'établissement. Alexandre est contre la clinique (trop petit, c'est sa clinique, pas crédible) et pousse pour le CHU ou Saint-Martin. Le joueur peut argumenter. Quand il est prêt, il envoie un mail à Alexandre pour formaliser son choix.",
       "duration_target_min": 5,
       "max_duration_sec": 420,
-      "active_channels": ["chat"],
+      "active_channels": ["chat", "mail"],
       "ai_actors": ["alexandre_morel"],
+      "mail_config": {
+        "enabled": true,
+        "kind": "choice_confirmation",
+        "defaults": {
+          "to": "a.morel@orisio.fr",
+          "cc": "",
+          "subject": "Décision établissement pilote"
+        },
+        "require_attachments": false,
+        "on_send_flags": { "choice_confirmed": true },
+        "send_label": "Confirmer mon choix",
+        "send_advances_phase": true
+      },
       "scoring": {
         "criteria": [
           {
@@ -218,7 +239,7 @@
         ]
       },
       "completion_rules": {
-        "any_flags": ["chose_chu", "chose_saint_martin", "chose_clinique"],
+        "any_flags": ["choice_confirmed"],
         "max_exchanges": 10
       },
       "auto_advance": true,
@@ -228,7 +249,7 @@
       "phase_id": "phase_2_pitch_mail",
       "title": "Proposer le test gratuit",
       "objective": "Rédiger un mail au contact de l'établissement choisi pour proposer un test pilote gratuit d'Orisio.",
-      "phase_focus": "Le joueur rédige un mail de prospection. Il doit vendre le test gratuit, rassurer sur les données, et donner envie. Alexandre rappelle : test gratuit, pas de bla-bla, aller droit au but.",
+      "phase_focus": "Le joueur rédige un mail de prospection. Il doit vendre le test gratuit, rassurer sur les données, et donner envie. Alexandre rappelle : test gratuit, pas de bla-bla, aller droit au but. IMPORTANT : l'envoi du mail ne fait PAS avancer la phase. L'établissement va répondre (acceptation ou refus selon la qualité du mail). C'est la réponse qui débloque la suite.",
       "duration_target_min": 5,
       "max_duration_sec": 420,
       "active_channels": ["mail", "chat"],
@@ -253,7 +274,7 @@
         "require_attachments": false,
         "on_send_flags": { "pitch_mail_sent": true },
         "send_label": "Envoyer la proposition",
-        "send_advances_phase": true
+        "send_advances_phase": false
       },
       "scoring": {
         "criteria": [
@@ -264,23 +285,28 @@
           },
           {
             "criterion_id": "value_proposition_clear",
-            "description": "Le mail explique concrètement ce qu'Orisio fait (pas de jargon)",
+            "description": "Le mail explique concrètement ce qu'Orisio fait : optimisation planning, gestion annulations bloc opératoire",
             "points": 2
           },
           {
             "criterion_id": "data_reassurance",
-            "description": "Le mail rassure sur les données (pas de données patient, HDS)",
+            "description": "Le mail rassure sur les données : pas de données patient nominatives, hébergement HDS",
             "points": 2
           },
           {
+            "criterion_id": "duration_mentioned",
+            "description": "Le mail mentionne une durée concrète (8 semaines, 2 mois, etc.)",
+            "points": 1
+          },
+          {
             "criterion_id": "professional_tone",
-            "description": "Le mail est professionnel et adapté au destinataire (directeur/DSI)",
+            "description": "Le mail est professionnel et adapté au destinataire (directeur/DSI), pas de jargon marketing creux",
             "points": 1
           }
         ]
       },
       "completion_rules": {
-        "any_flags": ["pitch_mail_sent"]
+        "any_flags": ["pitch_accepted"]
       },
       "auto_advance": true,
       "next_phase": "phase_3_contract"
@@ -294,19 +320,7 @@
       "max_duration_sec": 720,
       "active_channels": ["mail", "chat"],
       "ai_actors": ["contact_etablissement", "alexandre_morel"],
-      "entry_events": [
-        {
-          "event_id": "establishment_responds",
-          "actor": "contact_etablissement",
-          "channel": "mail",
-          "subject": "Re: Orisio — Proposition de test pilote gratuit",
-          "content": "Suite à votre demande de test pilote, veuillez trouver ci-joint la convention type applicable. Merci de retourner le document signé ou de transmettre vos observations sous 10 jours ouvrés.",
-          "delay_ms": 3000,
-          "attachments": [
-            { "id": "contrat_chu", "label": "Convention de test — CHU" }
-          ]
-        }
-      ],
+      "entry_events": [],
       "scoring": {
         "criteria": [
           {
