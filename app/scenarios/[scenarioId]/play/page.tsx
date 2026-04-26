@@ -211,6 +211,15 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     equity: string | null;
     rawMailBody: string;
   }>({ price: "", features: [], equity: null, rawMailBody: "" });
+  // ── Clinical contract signature (scenario 3) ──
+  const [showClinicalContract, setShowClinicalContract] = useState(false);
+  const [clinicalContractSigned, setClinicalContractSigned] = useState(false);
+  const [clinicalContractEdited, setClinicalContractEdited] = useState(false);
+  const clinicalContractRef = useRef<HTMLDivElement>(null);
+  const [clinicalNegThread, setClinicalNegThread] = useState<Array<{ role: "player" | "juriste"; content: string }>>([]);
+  const [clinicalNegLoading, setClinicalNegLoading] = useState(false);
+  const [clinicalNegInput, setClinicalNegInput] = useState("");
+  const [clinicalContractRefused, setClinicalContractRefused] = useState(false);
   // ── One-pager editor (scenario 1+) ──
   const [showOnePagerEditor, setShowOnePagerEditor] = useState(false);
   const [onePagerEdited, setOnePagerEdited] = useState(false);
@@ -1905,6 +1914,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       setPlayerInput(text); // restore the message
       return;
     }
+    // Block chat with mail-only actors (e.g. establishment contacts)
+    const targetActorDef = actors.find((a: any) => a.actor_id === targetActor);
+    if ((targetActorDef as any)?.mail_only) {
+      setPlayerInput(text);
+      return;
+    }
 
     // Add player message to session immediately (optimistic)
     const next = cloneSession(session);
@@ -2199,6 +2214,26 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             subject: newPhase.mail_config.defaults.subject || "",
             body: "", attachments: [],
           });
+        }
+
+        // ── Scénario 3: Phase 1→2 transition — Alexandre sends a mail with the contact info ──
+        if (mailKind === "choice_confirmation" && scenarioId?.startsWith("founder_03")) {
+          const contactMap: Record<string, { name: string; email: string; label: string }> = {
+            chose_chu: { name: "Dr. Pierre Lemaire", email: "p.lemaire@chu-bordeaux.fr", label: "le CHU de Bordeaux" },
+            chose_saint_martin: { name: "Laurent Castex", email: "l.castex@hp-saintmartin.fr", label: "l'Hôpital Saint-Martin" },
+            chose_clinique: { name: "Dr. Claire Renaud-Picard", email: "c.renaud-picard@clinique-saint-augustin.fr", label: "la Clinique Saint-Augustin" },
+          };
+          const choiceKey = next.flags.chose_chu ? "chose_chu" : next.flags.chose_saint_martin ? "chose_saint_martin" : "chose_clinique";
+          const contact = contactMap[choiceKey];
+          const p2Id = newPhase?.phase_id || "phase_2_pitch_mail";
+          addInboxMail(next, {
+            from: "alexandre_morel",
+            subject: "Contact pour le test pilote",
+            body: `OK c'est acté, on part sur ${contact.label}. Le contact c'est ${contact.name} — ${contact.email}. Envoie-lui un mail propre pour proposer le test : gratuit, 8 semaines, sans engagement. Sois clair et pro, c'est notre premier contact officiel.`,
+            phaseId: p2Id,
+          });
+          // Switch to mail view
+          setMainView("mail");
         }
       }
     }
@@ -2556,6 +2591,48 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       setPacteThread((prev) => [...prev, { role: "cto", content: "Je vais vérifier avec mon avocat et te reviens." }]);
     }
     setPacteThreadLoading(false);
+  }
+
+  // ── Clinical contract negotiation (scenario 3 Phase 3) ──
+  async function sendClinicalNegotiationMessage() {
+    const text = clinicalNegInput.trim();
+    if (!text || clinicalNegLoading || !session || !scenario) return;
+    setClinicalNegInput("");
+    setClinicalNegThread((prev) => [...prev, { role: "player", content: text }]);
+    setClinicalNegLoading(true);
+    try {
+      const contactActor = session.flags.chose_chu ? "contact_chu" : session.flags.chose_saint_martin ? "contact_saint_martin" : "contact_clinique";
+      const activePrompt = aiPromptsMapRef.current[contactActor] || aiPromptRef.current;
+      const threadContext = clinicalNegThread.slice(-6).map((m) => ({
+        role: m.role === "player" ? "user" : "assistant",
+        content: m.content,
+      }));
+      threadContext.push({ role: "user", content: text });
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          playerName: displayPlayerName,
+          message: text,
+          phaseTitle: "Négociation du contrat de test",
+          phaseObjective: "Le joueur négocie les clauses du contrat de test pilote avec le juriste de l'établissement. Réponds en tant que juriste, sec et factuel.",
+          phaseFocus: "Discussion sur une clause du contrat. Le joueur fait un commentaire ou demande une modification. Réponds de manière sèche et juridique. Maximum 3-4 phrases.",
+          phasePrompt: "",
+          criteria: [],
+          mode: "standard",
+          narrative: scenario?.narrative || {},
+          recentConversation: threadContext,
+          playerMessages: [text],
+          roleplayPrompt: activePrompt,
+        }),
+      });
+      const data = await res.json();
+      const reply = data?.reply || data?.response || "Nous allons étudier votre demande.";
+      setClinicalNegThread((prev) => [...prev, { role: "juriste", content: reply }]);
+    } catch {
+      setClinicalNegThread((prev) => [...prev, { role: "juriste", content: "Nous reviendrons vers vous." }]);
+    }
+    setClinicalNegLoading(false);
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -3682,6 +3759,443 @@ ${equityClause}
         );
       })()}
 
+      {/* ═══════ CLINICAL CONTRACT SIGNATURE OVERLAY (Scenario 3) ═══════ */}
+      {showClinicalContract && (() => {
+        const isCHU = !!session?.flags?.chose_chu;
+        const isSM = !!session?.flags?.chose_saint_martin;
+        const isClinique = !!session?.flags?.chose_clinique || (!isCHU && !isSM);
+        const etablissementLabel = isCHU ? "CHU de Bordeaux (Pellegrin)" : isSM ? "Hôpital Privé Saint-Martin" : "Clinique Saint-Augustin";
+        const juristeName = isCHU ? "Me Laurent Gauthier" : isSM ? "Me Sophie Arnaud" : "Me Pauline Roche";
+        const contactActor = isCHU ? "contact_chu" : isSM ? "contact_saint_martin" : "contact_clinique";
+        const contactInfo = getActorInfo(contactActor);
+
+        // Build contract HTML based on establishment
+        const contractHtml = isCHU ? `
+<h1 style="text-align:center;color:#1a1a2e;margin-bottom:4px;">Convention de test pilote</h1>
+<p style="text-align:center;color:#888;font-size:12px;margin-bottom:24px;">CHU de Bordeaux — Pellegrin × Orisio SAS</p>
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:16px 0;"/>
+<p><strong>Entre :</strong></p>
+<p>Le CHU de Bordeaux, représenté par Dr. Pierre Lemaire, Directeur du pôle chirurgical<br/>
+Et Orisio SAS, représentée par ${displayPlayerName || "CEO"}, Président</p>
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:16px 0;"/>
+<h2>Article 1 — Objet</h2>
+<p>Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans le service de chirurgie orthopédique du CHU, sur une durée de 8 semaines.</p>
+<h2>Article 2 — Gratuité</h2>
+<p>Le test est réalisé à titre gracieux. Aucune facturation n'est émise pendant la période de test.</p>
+<h2>Article 3 — Données</h2>
+<p>Orisio s'engage à héberger les données sur une infrastructure certifiée HDS. Aucune donnée patient nominative n'est traitée.</p>
+<h2>Article 4 — Durée et renouvellement</h2>
+<p>8 semaines à compter de la mise en service. Renouvelable une fois par accord des parties.</p>
+<h2 style="color:#c62828;">Article 5 — Propriété intellectuelle</h2>
+<p>Les développements, adaptations et améliorations réalisés pendant la période de test, y compris ceux réalisés sur les données et dans les locaux du CHU, sont la <strong>propriété conjointe du CHU et d'Orisio</strong>. Le CHU dispose d'une <strong>licence perpétuelle, gratuite et irrévocable</strong> sur le code source existant d'Orisio utilisé pendant le test.</p>
+<h2 style="color:#c62828;">Article 6 — Intéressement</h2>
+<p>En contrepartie de l'accès à l'infrastructure du CHU, Orisio versera au CHU :</p>
+<ul><li><strong>5% des revenus</strong> générés par les ventes d'Orisio aux établissements publics de santé pendant 3 ans</li>
+<li><strong>1% du post-money</strong> en cas de levée de fonds réalisée dans les 24 mois suivant le test</li></ul>
+<h2>Article 7 — Confidentialité</h2>
+<p>Les parties s'engagent à maintenir la confidentialité des informations échangées.</p>
+<h2>Article 8 — Référence commerciale</h2>
+<p>L'utilisation du nom du CHU de Bordeaux à des fins commerciales ou promotionnelles est <strong>interdite sans validation préalable</strong> du service communication du CHU.</p>
+<h2>Article 9 — Hébergement</h2>
+<p>L'hébergement doit être certifié <strong>SecNumCloud</strong> (et pas uniquement HDS).</p>
+<h2>Article 10 — Conformité</h2>
+<p>Orisio s'engage à respecter l'ensemble des réglementations applicables (RGPD, HDS, etc.).</p>
+<h2 style="color:#c62828;">Article 11 — Résiliation</h2>
+<p>Le CHU peut résilier la convention <strong>à tout moment, sans préavis et sans indemnité</strong>.</p>
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:20px 0;"/>
+<p><strong>Pour le CHU de Bordeaux :</strong><br/>Dr. Pierre Lemaire ✓</p>
+<p><strong>Pour Orisio SAS :</strong><br/>Signature : _________________________</p>`
+        : isSM ? `
+<h1 style="text-align:center;color:#1a1a2e;margin-bottom:4px;">Convention de test pilote</h1>
+<p style="text-align:center;color:#888;font-size:12px;margin-bottom:24px;">Hôpital Privé Saint-Martin × Orisio SAS</p>
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:16px 0;"/>
+<p><strong>Entre :</strong></p>
+<p>L'Hôpital Privé Saint-Martin, représenté par Laurent Castex, DSI<br/>
+Et Orisio SAS, représentée par ${displayPlayerName || "CEO"}, Président</p>
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:16px 0;"/>
+<h2>Article 1 — Objet</h2>
+<p>Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans les blocs opératoires de l'Hôpital Saint-Martin, sur une durée de 8 semaines.</p>
+<h2>Article 2 — Gratuité</h2>
+<p>Le test est réalisé à titre gracieux.</p>
+<h2>Article 3 — Propriété intellectuelle</h2>
+<p>La propriété intellectuelle du logiciel Orisio reste la propriété exclusive d'Orisio SAS.</p>
+<h2>Article 4 — Données</h2>
+<p>Hébergement certifié HDS. Aucune donnée patient nominative n'est traitée.</p>
+<h2>Article 5 — Durée</h2>
+<p>8 semaines à compter de la mise en service.</p>
+<h2>Article 6 — Résiliation</h2>
+<p>Préavis de 15 jours par l'une ou l'autre des parties.</p>
+<h2>Article 7 — Référence commerciale</h2>
+<p>Référence anonymisée autorisée (« un hôpital privé de 8 salles »). Toute mention nommée requiert l'<strong>accord préalable de la direction de la communication du groupe</strong>.</p>
+<h2>Article 8 — Non-sollicitation</h2>
+<p>Orisio s'engage à ne pas solliciter le personnel de l'établissement pendant le test et les 6 mois suivant la fin du test.</p>
+<h2 style="color:#e65100;">Article 9 — Validation groupe</h2>
+<p>La signature définitive est soumise à la <strong>non-opposition du groupe Ramsay Santé</strong>. Délai indicatif : 15 jours ouvrés.</p>
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:20px 0;"/>
+<p><strong>Pour l'Hôpital Privé Saint-Martin :</strong><br/>Laurent Castex ✓</p>
+<p><strong>Pour Orisio SAS :</strong><br/>Signature : _________________________</p>`
+        : `
+<h1 style="text-align:center;color:#1a1a2e;margin-bottom:4px;">Convention de test pilote</h1>
+<p style="text-align:center;color:#888;font-size:12px;margin-bottom:24px;">Clinique Saint-Augustin × Orisio SAS</p>
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:16px 0;"/>
+<p><strong>Entre :</strong></p>
+<p>La Clinique Saint-Augustin, représentée par Dr. Claire Renaud-Picard, Directrice<br/>
+Et Orisio SAS, représentée par ${displayPlayerName || "CEO"}, Président</p>
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:16px 0;"/>
+<h2>Article 1 — Objet</h2>
+<p>Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans les blocs opératoires de la Clinique Saint-Augustin, sur une durée de 8 semaines.</p>
+<h2>Article 2 — Gratuité</h2>
+<p>Le test est réalisé à titre gracieux. Aucune facturation n'est émise.</p>
+<h2>Article 3 — Propriété intellectuelle</h2>
+<p>La propriété intellectuelle du logiciel Orisio reste la propriété exclusive d'Orisio SAS.</p>
+<h2>Article 4 — Données</h2>
+<p>Hébergement certifié HDS. Aucune donnée patient nominative n'est traitée.</p>
+<h2>Article 5 — Durée</h2>
+<p>8 semaines à compter de la mise en service, renouvelable par accord des parties.</p>
+<h2>Article 6 — Résiliation</h2>
+<p>Préavis de 7 jours par l'une ou l'autre des parties.</p>
+<h2>Article 7 — Référence commerciale</h2>
+<p>Orisio est autorisée à mentionner la Clinique Saint-Augustin comme établissement pilote.</p>
+<h2>Article 8 — Confidentialité</h2>
+<p>Les parties s'engagent à maintenir la confidentialité des informations échangées.</p>
+<hr style="border:none;border-top:1px solid #e0e0e0;margin:20px 0;"/>
+<p><strong>Pour la Clinique Saint-Augustin :</strong><br/>Dr. Claire Renaud-Picard ✓</p>
+<p><strong>Pour Orisio SAS :</strong><br/>Signature : _________________________</p>`;
+
+        return (
+          <div style={{
+            position: "fixed", inset: 0, zIndex: 10001,
+            background: "rgba(0,0,0,0.7)", display: "flex",
+            alignItems: "center", justifyContent: "center", padding: 20,
+          }}>
+            <div style={{
+              background: "#fff", borderRadius: 16, maxWidth: 800, width: "100%",
+              maxHeight: "92vh", display: "flex", flexDirection: "column",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.3)",
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: "14px 24px", background: "linear-gradient(135deg, #1a1a2e, #16213e)",
+                borderRadius: "16px 16px 0 0",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: "#ffd700", display: "flex", alignItems: "center",
+                    justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#1a1a2e",
+                  }}>✍️</div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>
+                      Signature — Convention de test pilote
+                    </h2>
+                    <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                      {etablissementLabel} × Orisio SAS · {new Date().toLocaleDateString("fr-FR")}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowClinicalContract(false)}
+                  style={{
+                    background: "rgba(255,255,255,0.1)", border: "none", fontSize: 18,
+                    color: "#fff", cursor: "pointer", padding: "4px 10px", borderRadius: 6,
+                  }}
+                >✕</button>
+              </div>
+
+              {/* Progress */}
+              <div style={{
+                padding: "8px 24px", background: "#f8f9fa", borderBottom: "1px solid #e8e8e8",
+                display: "flex", alignItems: "center", gap: 12, fontSize: 12,
+              }}>
+                <span style={{ color: "#16a34a", fontWeight: 700 }}>1. Relire le contrat</span>
+                <span style={{ color: "#ccc" }}>→</span>
+                <span style={{ color: clinicalNegThread.length > 0 || clinicalContractSigned ? "#16a34a" : "#666", fontWeight: clinicalNegThread.length > 0 || clinicalContractSigned ? 700 : 500 }}>2. Remarques</span>
+                <span style={{ color: "#ccc" }}>→</span>
+                <span style={{ color: clinicalContractSigned ? "#16a34a" : "#666", fontWeight: clinicalContractSigned ? 700 : 500 }}>3. Signer</span>
+              </div>
+
+              {/* Editable instruction banner */}
+              {!clinicalContractSigned && !clinicalContractRefused && (
+                <div style={{
+                  padding: "10px 24px", background: "#fffbeb", borderBottom: "1px solid #fde68a",
+                  display: "flex", alignItems: "center", gap: 10, fontSize: 12,
+                }}>
+                  <span style={{ fontSize: 16 }}>✏️</span>
+                  <span style={{ color: "#92400e", fontWeight: 600 }}>
+                    Cliquez sur le texte du contrat pour le modifier directement. Utilisez le chat ci-dessous pour négocier les clauses.
+                  </span>
+                  {clinicalContractEdited && (
+                    <span style={{ marginLeft: "auto", color: "#16a34a", fontWeight: 700, fontSize: 11 }}>
+                      Modifié
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Contract body — editable */}
+              <div
+                ref={clinicalContractRef}
+                contentEditable={!clinicalContractSigned && !clinicalContractRefused}
+                suppressContentEditableWarning
+                onInput={() => { if (!clinicalContractEdited) setClinicalContractEdited(true); }}
+                style={{
+                  flex: 1, overflow: "auto", background: "#fff", padding: "24px 32px",
+                  fontSize: 13, lineHeight: 1.7, color: "#1a1a2e",
+                  fontFamily: "Georgia, 'Times New Roman', serif",
+                  outline: "none",
+                  cursor: !clinicalContractSigned && !clinicalContractRefused ? "text" : "default",
+                }}
+                dangerouslySetInnerHTML={{ __html: contractHtml }}
+              />
+
+              {/* Negotiation thread */}
+              {!clinicalContractSigned && !clinicalContractRefused && (
+                <div style={{
+                  maxHeight: 220, display: "flex", flexDirection: "column",
+                  borderTop: "1px solid #e8e8e8", background: "#fafafa",
+                }}>
+                  <div style={{ padding: "10px 24px 6px", display: "flex", alignItems: "center", gap: 8 }}>
+                    <span style={{ fontSize: 14 }}>💬</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>
+                      Négociation{clinicalNegThread.length > 0 ? ` (${clinicalNegThread.length})` : ""}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#888" }}>
+                      — Discutez les clauses avec {juristeName}
+                    </span>
+                  </div>
+                  {clinicalNegThread.length > 0 && (
+                    <div style={{ flex: 1, overflowY: "auto", padding: "4px 24px 8px" }} ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}>
+                      {clinicalNegThread.map((msg, i) => {
+                        const isJuriste = msg.role === "juriste";
+                        return (
+                          <div key={i} style={{
+                            display: "flex", gap: 8, marginBottom: 8,
+                            flexDirection: isJuriste ? "row" : "row-reverse",
+                          }}>
+                            <div style={{
+                              width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
+                              background: isJuriste ? contactInfo.color : "#5b5fc7",
+                              display: "flex", alignItems: "center", justifyContent: "center",
+                              fontSize: 10, fontWeight: 700, color: "#fff",
+                            }}>
+                              {isJuriste ? contactInfo.initials : (displayPlayerName || "CEO").charAt(0).toUpperCase()}
+                            </div>
+                            <div style={{
+                              padding: "6px 12px", borderRadius: 10, fontSize: 12, lineHeight: 1.5,
+                              maxWidth: "75%", wordBreak: "break-word",
+                              background: isJuriste ? "#fff" : "#5b5fc7",
+                              color: isJuriste ? "#333" : "#fff",
+                              border: isJuriste ? "1px solid #e8e8e8" : "none",
+                            }}>
+                              {msg.content}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {clinicalNegLoading && (
+                        <div style={{ fontSize: 11, color: "#888", fontStyle: "italic", padding: "4px 0" }}>
+                          {juristeName} est en train de répondre...
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  <div style={{ padding: "8px 24px 10px", display: "flex", gap: 8 }}>
+                    <input
+                      type="text"
+                      value={clinicalNegInput}
+                      onChange={(e) => setClinicalNegInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && clinicalNegInput.trim() && !clinicalNegLoading) {
+                          e.preventDefault();
+                          sendClinicalNegotiationMessage();
+                        }
+                      }}
+                      placeholder="Commenter une clause, demander une modification..."
+                      disabled={clinicalNegLoading}
+                      style={{
+                        flex: 1, padding: "8px 12px", border: "1px solid #d4d4d8",
+                        borderRadius: 8, fontSize: 12, outline: "none",
+                        opacity: clinicalNegLoading ? 0.6 : 1,
+                      }}
+                    />
+                    <button
+                      onClick={() => { if (clinicalNegInput.trim() && !clinicalNegLoading) sendClinicalNegotiationMessage(); }}
+                      style={{
+                        padding: "8px 16px", background: clinicalNegInput.trim() && !clinicalNegLoading ? "#5b5fc7" : "#ccc",
+                        border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700,
+                        cursor: clinicalNegInput.trim() && !clinicalNegLoading ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      Envoyer
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Signature / Refusal area */}
+              <div style={{
+                padding: "16px 24px", borderTop: "2px solid #ffd700",
+                background: clinicalContractSigned ? "#f0fdf4" : clinicalContractRefused ? "#fef2f2" : "#fffbeb",
+              }}>
+                {clinicalContractRefused ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 20 }}>❌</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>
+                        Contrat refusé par l&apos;établissement
+                      </div>
+                      <div style={{ fontSize: 11, color: "#666" }}>
+                        Vos modifications ne sont pas acceptables. Discutez avec Alexandre pour trouver une alternative.
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => { setShowClinicalContract(false); setMainView("chat"); setSelectedContact("alexandre_morel"); }}
+                      style={{
+                        marginLeft: "auto", padding: "8px 16px",
+                        background: "#5b5fc7", border: "none", borderRadius: 8,
+                        color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      Parler à Alexandre
+                    </button>
+                  </div>
+                ) : !clinicalContractSigned ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 4 }}>
+                        Signataire : {displayPlayerName || "CEO"} — Président, Orisio SAS
+                      </div>
+                      <div style={{ fontSize: 11, color: "#888" }}>
+                        {clinicalContractEdited
+                          ? "Document modifié. La signature soumettra votre version à l'établissement."
+                          : "Relisez le contrat, modifiez-le si besoin, puis signez."}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        // Check if the contract was heavily modified (toxic changes detection)
+                        const editedContent = clinicalContractRef.current?.innerText || "";
+                        const editedLower = editedContent.toLowerCase();
+
+                        // Detect if player added unacceptable conditions
+                        const toxicPatterns = [
+                          /orisio.*propri[ée]t[ée].*(?:total|exclusi|int[ée]gral)/i,
+                          /aucun.*(?:droit|acc[eè]s).*(?:donn[ée]|code|logiciel).*(?:chu|h[oô]pital|[ée]tablissement|clinique)/i,
+                          /supprimer.*(?:article|clause).*(?:5|6|intéressement|propri)/i,
+                          /0\s*%|z[ée]ro.*pourcent|aucun.*int[ée]ressement/i,
+                        ];
+                        // Only check for CHU (which has toxic clauses worth negotiating)
+                        // For Clinique — accept anything (contract is already clean)
+                        const heavilyModified = isCHU && clinicalContractEdited && toxicPatterns.some(p => p.test(editedContent));
+
+                        if (heavilyModified) {
+                          // Refusal: the establishment rejects the player's counter-proposal
+                          setClinicalContractRefused(true);
+                          if (session && scenario) {
+                            const next = cloneSession(session);
+                            next.flags.contrat_signed_toxic = false;
+                            // Alexandre intervenes
+                            setTimeout(() => {
+                              const s2 = cloneSession(next);
+                              addAIMessage(s2, `Aïe, le CHU a refusé tes modifications. Franchement c'est mort avec eux. Écoute, on se rabat sur ma clinique. C'est 5 salles, c'est pas le CHU, mais au moins on signera en 3 jours. Je les appelle.`, "alexandre_morel");
+                              s2.flags.switched_to_clinique = true;
+                              s2.flags.chose_chu = false;
+                              s2.flags.chose_saint_martin = false;
+                              s2.flags.chose_clinique = true;
+                              // Reset clinical contract state for the new contract
+                              s2.flags.pivot_contract_sent = true;
+                              const curPhaseId3 = scenario.phases[s2.currentPhaseIndex]?.phase_id || "phase_3_contract";
+                              s2.pendingTimedEvents.push({
+                                id: `${curPhaseId3}::pivot_contrat_mail`,
+                                actor: "contact_clinique",
+                                content: "Suite à votre demande transmise par le Dr. Morel, veuillez trouver ci-joint la convention type pour le test pilote. Merci de retourner le document signé ou vos observations.",
+                                dueAt: Date.now() + 4000,
+                                phaseId: curPhaseId3,
+                                type: "mail",
+                                subject: "Convention de test — Clinique Saint-Augustin",
+                                attachments: [{ id: "contrat_clinique", label: "Convention de test — Clinique Saint-Augustin" }],
+                              });
+                              setSession(s2);
+                            }, 1500);
+                            setSession(next);
+                          }
+                          return;
+                        }
+
+                        // ── Sign the contract ──
+                        setClinicalContractSigned(true);
+                        if (session && scenario) {
+                          const next = cloneSession(session);
+                          // Determine if signed clean or toxic
+                          if (isCHU) {
+                            // CHU: toxic if PI clause or intéressement was NOT removed/modified
+                            const piRemoved = clinicalContractEdited || clinicalNegThread.some(m =>
+                              m.role === "player" && /propri[ée]t[ée]|PI|cession|licence/i.test(m.content)
+                            );
+                            const interetRemoved = clinicalContractEdited || clinicalNegThread.some(m =>
+                              m.role === "player" && /int[ée]ressement|5\s*%|1\s*%|revenue|post.?money/i.test(m.content)
+                            );
+                            if (piRemoved && interetRemoved) {
+                              next.flags.contrat_signed_clean = true;
+                            } else {
+                              next.flags.contrat_signed_toxic = true;
+                            }
+                          } else {
+                            // Saint-Martin and Clinique: always clean
+                            next.flags.contrat_signed_clean = true;
+                          }
+                          next.flags.contrat_received = true;
+                          // Finish the scenario
+                          finishScenario(next);
+                          setSession(next);
+                        }
+                        setShowClinicalContract(false);
+                        playNotificationSound();
+                      }}
+                      style={{
+                        padding: "12px 32px", flexShrink: 0,
+                        background: "linear-gradient(135deg, #ffd700, #ffb300)",
+                        border: "2px solid #e6a800", borderRadius: 10,
+                        color: "#1a1a2e", fontSize: 15, fontWeight: 800, cursor: "pointer",
+                        boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
+                        transition: "all 0.2s",
+                      }}
+                      onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.02)"; }}
+                      onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+                    >
+                      ✍️ Signer la convention
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 20 }}>✅</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
+                        Convention signée — Le test pilote peut démarrer
+                      </div>
+                      <div style={{ fontSize: 11, color: "#666" }}>
+                        {displayPlayerName || "CEO"} — {new Date().toLocaleDateString("fr-FR")}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setShowClinicalContract(false)}
+                      style={{
+                        marginLeft: "auto", padding: "8px 16px",
+                        background: "#5b5fc7", border: "none", borderRadius: 8,
+                        color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer",
+                      }}
+                    >
+                      Fermer
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ═══════ ONE-PAGER EDITOR OVERLAY (Scenario 1+) ═══════ */}
       {showOnePagerEditor && (() => {
         const onePagerDoc = scenario?.resources?.documents?.find((d: any) => d.doc_id === "one_pager_template");
@@ -4624,7 +5138,7 @@ ${equityClause}
               Contacts
             </h3>
             <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-              {visibleContacts.filter((a: any) => a.actor_id !== "player").map((actor: any) => {
+              {visibleContacts.filter((a: any) => a.actor_id !== "player" && !a.mail_only).map((actor: any) => {
                 const resolvedId = resolveActor(actor.actor_id);
                 const isInPhase = currentPhaseAiActors.includes(resolvedId);
                 const baseStatus = actor.contact_status || (actor.interaction_modes?.includes("unreachable") ? "offline" : "available");
@@ -5153,6 +5667,64 @@ ${equityClause}
                         )}
                       </div>
                     )}
+
+                    {/* ── "Ouvrir et signer la convention" — only in phase_3_contract (scenario 3) ── */}
+                    {currentPhaseId === "phase_3_contract" &&
+                      selectedMail.attachments?.some((a: any) => a.id?.startsWith("contrat_")) && (() => {
+                        // If this mail is the pivot contract (clinique after refusal), show button even if previous was refused
+                        const isPivotContract = session?.flags?.switched_to_clinique && selectedMail.attachments?.some((a: any) => a.id === "contrat_clinique");
+                        const effectiveRefused = clinicalContractRefused && !isPivotContract;
+                        return (
+                      <div style={{ marginTop: 16 }}>
+                        {clinicalContractSigned ? (
+                          <div style={{
+                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
+                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
+                            display: "flex", alignItems: "center", gap: 10,
+                          }}>
+                            <span style={{ fontSize: 20 }}>✅</span>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Convention signée</div>
+                              <div style={{ fontSize: 11, color: "#666" }}>
+                                Le test pilote peut démarrer.
+                              </div>
+                            </div>
+                          </div>
+                        ) : effectiveRefused ? (
+                          <div style={{
+                            padding: "14px 18px", background: "rgba(220,38,38,0.06)",
+                            border: "1px solid rgba(220,38,38,0.2)", borderRadius: 10,
+                            display: "flex", alignItems: "center", gap: 10,
+                          }}>
+                            <span style={{ fontSize: 20 }}>❌</span>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>Convention refusée</div>
+                              <div style={{ fontSize: 11, color: "#666" }}>
+                                Discutez avec Alexandre pour trouver une alternative.
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => { setClinicalContractEdited(false); setClinicalNegThread([]); setClinicalContractRefused(false); setShowClinicalContract(true); }}
+                            style={{
+                              width: "100%", padding: "14px 24px",
+                              background: "linear-gradient(135deg, #ffd700, #ffb300)",
+                              border: "2px solid #e6a800", borderRadius: 12,
+                              color: "#1a1a2e", fontSize: 14, fontWeight: 800, cursor: "pointer",
+                              boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                              transition: "all 0.2s",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+                          >
+                            ✍️ Ouvrir et signer la convention
+                          </button>
+                        )}
+                      </div>
+                        );
+                      })()}
 
                     {/* ── "Ouvrir et remplir le one-pager" — only in phase_1_onepager ── */}
                     {currentPhaseId === "phase_1_onepager" && (

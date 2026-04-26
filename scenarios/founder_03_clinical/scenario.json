@@ -93,6 +93,7 @@
         "initials": "PL"
       },
       "visible_in_contacts": true,
+      "mail_only": true,
       "contact_status": "available",
       "contact_preview": "CHU de Bordeaux — Direction",
       "tts_voice": "shimmer"
@@ -110,6 +111,7 @@
         "initials": "LC"
       },
       "visible_in_contacts": true,
+      "mail_only": true,
       "contact_status": "available",
       "contact_preview": "Hôpital Saint-Martin — DSI",
       "tts_voice": "shimmer"
@@ -127,6 +129,7 @@
         "initials": "CR"
       },
       "visible_in_contacts": true,
+      "mail_only": true,
       "contact_status": "available",
       "contact_preview": "Clinique Saint-Augustin — Direction",
       "tts_voice": "shimmer"
@@ -284,15 +287,7 @@
       "max_duration_sec": 420,
       "active_channels": ["mail", "chat"],
       "ai_actors": ["alexandre_morel"],
-      "entry_events": [
-        {
-          "event_id": "alex_mail_advice",
-          "actor": "alexandre_morel",
-          "content": "OK parfait. Envoie un mail pour proposer le test. Sois clair : test gratuit, 8 semaines, on s'occupe de tout. Mets bien en avant que c'est sans engagement. T'as le contact dans le répertoire — choisis le bon établissement.",
-          "channel": "chat",
-          "delay_ms": 0
-        }
-      ],
+      "entry_events": [],
       "mail_config": {
         "enabled": true,
         "kind": "pilot_pitch",
