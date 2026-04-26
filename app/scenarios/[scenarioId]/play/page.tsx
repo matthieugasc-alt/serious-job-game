@@ -588,13 +588,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       });
     }
 
-    // Multi-actor phases: per-contact filtering scoped to current phase
+    // Multi-actor phases: strict per-contact filtering scoped to current phase
     return conversation.filter((msg: any) => {
       if (msg.role === "system") return false;
       // Scope to current phase for multi-actor phases (prevents cross-phase bleed)
       if (msg.phaseId && currentPhaseId && msg.phaseId !== currentPhaseId) return false;
       if (msg.role === "player") return msg.toActor === selectedContact;
-      if (msg.role === "npc") return msg.actor === selectedContact || msg.actor === "alexandre_morel";
+      if (msg.role === "npc") return msg.actor === selectedContact;
       return false;
     });
   }, [conversation, selectedContact, currentPhaseAiActors.join(","), currentPhaseId]);
@@ -2011,6 +2011,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       }
     }
 
+    // Track whether this is a Phase 1 scope_proposal mail (for auto-reply after advancing)
+    let wasPhase1ScopeProposal = false;
+    let phase1MailBody = "";
+
     if (phase?.mail_config?.send_advances_phase) {
       // ── Check completion rules BEFORE advancing ──
       // For phases with required_npc_evidence or min_score, we must verify
@@ -2054,7 +2058,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
       // ── Set flags based on mail kind ──
       // Phase 1 scope_proposal: player has aligned with Alexandre on scope
-      if (mailKind === "scope_proposal") {
+      wasPhase1ScopeProposal = mailKind === "scope_proposal";
+      phase1MailBody = wasPhase1ScopeProposal ? (currentMailDraft?.body || "") : "";
+      if (wasPhase1ScopeProposal) {
         next.flags.scope_reduced = true;
         next.flags.alexandre_convinced = true;
       }
@@ -2152,6 +2158,53 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           });
         }
       }
+    }
+
+    // ── Auto-reply from Thomas when Phase 1 mail advances to Phase 2 ──
+    // The player sent the scope proposal mail to Thomas from Phase 1.
+    // Now we're in Phase 2 — Thomas should respond in chat.
+    if (wasPhase1ScopeProposal && phase1MailBody) {
+      setSession(next);
+      setShowCompose(false);
+      setMainView("chat");
+      setSelectedContact("thomas_novadev");
+      (async () => {
+        try {
+          const nextView = buildRuntimeView(next);
+          const activePrompt = aiPromptsMapRef.current["thomas_novadev"] || aiPromptRef.current;
+          const mailSummary = `[Le joueur a envoyé un mail de proposition de scope MVP avec le contenu suivant : ${phase1MailBody}]`;
+          const res = await fetch("/api/chat", {
+            method: "POST",
+            headers: apiHeaders(),
+            body: JSON.stringify({
+              playerName: displayPlayerName,
+              message: mailSummary,
+              phaseTitle: nextView.phaseTitle,
+              phaseObjective: nextView.phaseObjective,
+              phaseFocus: nextView.phaseFocus,
+              phasePrompt: nextView.phasePrompt,
+              criteria: nextView.criteria,
+              mode: nextView.adaptiveMode,
+              narrative: scenario.narrative,
+              recentConversation: [],
+              playerMessages: [phase1MailBody],
+              roleplayPrompt: activePrompt,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            playNotificationSound();
+            const final2 = cloneSession(next);
+            addPlayerMessage(final2, `[Mail envoyé à NovaDev] ${phase1MailBody.substring(0, 200)}...`, "thomas_novadev");
+            addAIMessage(final2, data.reply, "thomas_novadev");
+            applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+            setSession(final2);
+          }
+        } catch (err) {
+          console.error("Error generating Thomas reply to scope proposal:", err);
+        }
+      })();
+      return;
     }
 
     // ── Auto-reply in chat when mail is sent in negotiation phase ──
