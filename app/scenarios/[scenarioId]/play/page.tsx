@@ -4723,7 +4723,24 @@ ${equityClause}
                   <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>📧 Boîte de réception</h3>
                   {canComposeMail && (
                     <button
-                      onClick={() => { setShowCompose(true); setSelectedMailId(null); }}
+                      onClick={() => {
+                        // Reset mail draft body for a fresh compose
+                        if (session && scenario) {
+                          const phase = scenario.phases[session.currentPhaseIndex];
+                          const defaults = (phase?.mail_config?.defaults || {}) as Record<string, any>;
+                          const next = cloneSession(session);
+                          updateMailDraft(next, phase?.phase_id || view.phaseId, {
+                            to: defaults.to || "",
+                            cc: defaults.cc || "",
+                            subject: defaults.subject || "",
+                            body: "",
+                            attachments: [],
+                          });
+                          setSession(next);
+                        }
+                        setShowCompose(true);
+                        setSelectedMailId(null);
+                      }}
                       style={{
                         padding: "4px 12px", background: "#5b5fc7", color: "#fff",
                         border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 600,

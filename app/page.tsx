@@ -328,9 +328,20 @@ export default function ScenarioSelectionPage() {
       if (name && name !== "undefined" && name.trim() !== "") {
         setUserName(name);
       } else if (token) {
-        // Token exists but name is broken — clean up and force re-login
-        localStorage.removeItem("auth_token");
-        localStorage.removeItem("user_name");
+        // Token exists but name is missing — fetch it from the server instead of logging out
+        fetch("/api/auth/session", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+          .then((r) => r.ok ? r.json() : null)
+          .then((data) => {
+            if (data?.user?.name) {
+              setUserName(data.user.name);
+              localStorage.setItem("user_name", data.user.name);
+              if (data.user.role) localStorage.setItem("user_role", data.user.role);
+              if (data.user.founderAccess) localStorage.setItem("founder_access", "true");
+            }
+          })
+          .catch(() => {});
       }
     }
   }, []);
