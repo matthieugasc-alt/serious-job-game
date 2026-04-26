@@ -81,19 +81,54 @@
       "tts_voice": "onyx"
     },
     {
-      "actor_id": "contact_etablissement",
-      "name": "Juriste établissement",
-      "role": "Juriste de l'établissement choisi",
-      "personality": "Sec, procédurier, peu communiquant. Met des clauses inacceptables comme si c'était standard. Varie en rigidité : CHU = très rigide, Saint-Martin = moyennement flexible, Clinique = souple.",
+      "actor_id": "contact_chu",
+      "name": "Dr. Pierre Lemaire",
+      "role": "Directeur du pôle chirurgical, CHU de Bordeaux",
+      "email": "p.lemaire@chu-bordeaux.fr",
+      "personality": "Sec, procédurier, peu communiquant. Met des clauses inacceptables comme si c'était standard. Très rigide sur la PI et l'intéressement.",
       "controlled_by": "ai",
       "prompt_file": "prompts/contact_etablissement.md",
       "avatar": {
         "color": "#4E342E",
-        "initials": "JU"
+        "initials": "PL"
       },
       "visible_in_contacts": true,
-      "contact_status": "offline",
-      "contact_preview": "Juriste — Établissement",
+      "contact_status": "available",
+      "contact_preview": "CHU de Bordeaux — Direction",
+      "tts_voice": "shimmer"
+    },
+    {
+      "actor_id": "contact_saint_martin",
+      "name": "Laurent Castex",
+      "role": "DSI, Hôpital Privé Saint-Martin",
+      "email": "l.castex@hp-saintmartin.fr",
+      "personality": "Sec mais pragmatique. Moyennement flexible. Clause groupe Ramsay non négociable.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/contact_etablissement.md",
+      "avatar": {
+        "color": "#33691E",
+        "initials": "LC"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Hôpital Saint-Martin — DSI",
+      "tts_voice": "shimmer"
+    },
+    {
+      "actor_id": "contact_clinique",
+      "name": "Dr. Claire Renaud-Picard",
+      "role": "Directrice, Clinique Saint-Augustin",
+      "email": "c.renaud-picard@clinique-saint-augustin.fr",
+      "personality": "Sèche mais souple. Contrat simple, peu de friction.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/contact_etablissement.md",
+      "avatar": {
+        "color": "#BF360C",
+        "initials": "CR"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Clinique Saint-Augustin — Direction",
       "tts_voice": "shimmer"
     }
   ],
@@ -238,11 +273,6 @@
           }
         ]
       },
-      "completion_rules": {
-        "any_flags": ["choice_confirmed"],
-        "max_exchanges": 10
-      },
-      "auto_advance": true,
       "next_phase": "phase_2_pitch_mail"
     },
     {
@@ -258,7 +288,7 @@
         {
           "event_id": "alex_mail_advice",
           "actor": "alexandre_morel",
-          "content": "OK parfait. Envoie un mail au contact. Sois clair : test gratuit, 8 semaines, on s'occupe de tout. Mets bien en avant que c'est sans engagement. Et rappelle que moi je suis chirurgien là-bas (si c'est la clinique) ou que j'ai le contact direct. L'adresse c'est dans la fiche.",
+          "content": "OK parfait. Envoie un mail pour proposer le test. Sois clair : test gratuit, 8 semaines, on s'occupe de tout. Mets bien en avant que c'est sans engagement. T'as le contact dans le répertoire — choisis le bon établissement.",
           "channel": "chat",
           "delay_ms": 0
         }
@@ -319,7 +349,7 @@
       "duration_target_min": 10,
       "max_duration_sec": 720,
       "active_channels": ["mail", "chat"],
-      "ai_actors": ["contact_etablissement", "alexandre_morel"],
+      "ai_actors": ["contact_chu", "contact_saint_martin", "contact_clinique", "alexandre_morel"],
       "entry_events": [],
       "scoring": {
         "criteria": [

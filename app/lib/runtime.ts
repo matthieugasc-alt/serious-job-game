@@ -468,6 +468,7 @@ export function applyEvaluation(
   }
 
   for (const criterionId of matchedCriteria) {
+    if (mailReservedFlags.has(criterionId)) continue; // blocked: only mail send can set this
     session.flags[criterionId] = true;
   }
 

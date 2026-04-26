@@ -1986,7 +1986,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         const curPhaseId2 = scenario.phases[final.currentPhaseIndex]?.phase_id || "phase_3_contract";
         final.pendingTimedEvents.push({
           id: `${curPhaseId2}::pivot_contrat_mail`,
-          actor: "contact_etablissement",
+          actor: "contact_clinique",
           content: "Suite à votre demande transmise par le Dr. Morel, veuillez trouver ci-joint la convention type pour le test pilote. Merci de retourner le document signé ou vos observations.",
           dueAt: Date.now() + 5000,
           phaseId: curPhaseId2,
@@ -2312,6 +2312,17 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     if (mailKind === "pilot_pitch" && scenarioId?.startsWith("founder_03")) {
       const mailBody = currentMailDraft?.body || "";
       const bodyLower = mailBody.toLowerCase();
+      const toField = (currentMailDraft?.to || "").toLowerCase();
+
+      // Detect establishment from the "to" email address (primary detection)
+      if (toField.includes("chu-bordeaux") || toField.includes("lemaire")) {
+        next.flags.chose_chu = true; next.flags.chose_saint_martin = false; next.flags.chose_clinique = false;
+      } else if (toField.includes("saintmartin") || toField.includes("hp-saintmartin") || toField.includes("castex")) {
+        next.flags.chose_saint_martin = true; next.flags.chose_chu = false; next.flags.chose_clinique = false;
+      } else if (toField.includes("saint-augustin") || toField.includes("renaud-picard")) {
+        next.flags.chose_clinique = true; next.flags.chose_chu = false; next.flags.chose_saint_martin = false;
+      }
+      // If no email match, Phase 1 flags remain as fallback
 
       // Evaluate pitch quality based on concrete criteria
       let pitchScore = 0;
@@ -2334,6 +2345,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       const choseSM = !!next.flags.chose_saint_martin;
       const choseClinique = !!next.flags.chose_clinique;
 
+      // Resolve the correct contact actor_id based on establishment choice
+      const resolveContactActor = (flags: any) =>
+        flags.chose_chu ? "contact_chu" : flags.chose_saint_martin ? "contact_saint_martin" : "contact_clinique";
+
       // Helper: advance to Phase 3 and inject the correct contract mail
       const advanceToPhase3 = (s: typeof next) => {
         completeCurrentPhaseAndAdvance(s);
@@ -2355,10 +2370,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         };
         const choiceKey = s.flags.chose_chu ? "chose_chu" : s.flags.chose_saint_martin ? "chose_saint_martin" : "chose_clinique";
         const contrat = contratMap[choiceKey];
+        const contactActor = resolveContactActor(s.flags);
         // Schedule the contract mail after a short delay
         s.pendingTimedEvents.push({
           id: `${p3Id}::contrat_mail`,
-          actor: "contact_etablissement",
+          actor: contactActor,
           content: "Suite à votre demande de test pilote, veuillez trouver ci-joint la convention type applicable. Merci de retourner le document signé ou de transmettre vos observations sous 10 jours ouvrés.",
           dueAt: Date.now() + 5000,
           phaseId: p3Id,
@@ -2382,12 +2398,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
         if (!choseClinique) {
           // CHU or Saint-Martin refused → Alexandre intervenes, switches to clinique
+          const rejectionActor = resolveContactActor(next.flags);
           setTimeout(() => {
             const final2 = cloneSession(next);
             const etablissement = choseCHU ? "le CHU" : "Saint-Martin";
             // Contact sends rejection mail
             addInboxMail(final2, {
-              from: "contact_etablissement",
+              from: rejectionActor,
               subject: "Re: Orisio — Proposition de test pilote gratuit",
               body: `Votre proposition ne nous paraît pas suffisamment aboutie en l'état. Nous vous invitons à revenir vers nous ultérieurement avec un dossier plus complet.`,
               phaseId: view.phaseId,
