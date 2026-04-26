@@ -811,6 +811,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         strengths: [strength],
         improvements: risk ? [risk] : [],
         pedagogical_advice: advice,
+        // Dynamic contract values for campaign deltas
+        contractPrice: flags.contract_price || null,
+        contractEquity: flags.contract_equity || null,
       };
       // Save to debriefData for the game record save effect, then redirect
       // to the campaign dashboard which has its own debrief overlay with deltas.
@@ -2049,6 +2052,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         return true;
       })();
 
+      // ── Set flags based on mail kind ──
+      // Phase 1 scope_proposal: player has aligned with Alexandre on scope
+      if (mailKind === "scope_proposal") {
+        next.flags.scope_reduced = true;
+        next.flags.alexandre_convinced = true;
+      }
+
       // ── Extract contract variables from negotiation proposal mail ──
       if (rulesPass && mailKind === "negotiation_proposal" && phase?.phase_id === "phase_2_negotiation") {
         const body = currentMailDraft?.body || "";
@@ -2064,6 +2074,31 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             extractedPrice = String(Math.round(parseFloat(raw)));
           }
         }
+        // Validate price against NovaDev floor (11 000 €)
+        // If below floor → BLOCK the phase, Thomas rejects in chat
+        const plancherNovadev = (scenario as any)?.constraints?.plancher_novadev || 11000;
+        const priceNum = extractedPrice ? parseInt(extractedPrice, 10) : 0;
+        if (priceNum > 0 && priceNum < plancherNovadev) {
+          // Price is below Thomas's floor — reject and DON'T advance
+          setSession(next);
+          setShowCompose(false);
+          setMainView("chat");
+          setSelectedContact("thomas_novadev");
+          // Thomas sends an angry rejection in chat
+          setTimeout(async () => {
+            try {
+              const rejectMsg = `Non. ${priceNum.toLocaleString("fr-FR")} € c'est en dessous de mon plancher. Je vous l'ai dit : en dessous de ${plancherNovadev.toLocaleString("fr-FR")} €, c'est non. Revoyez votre proposition.`;
+              const updated = cloneSession(next);
+              addAIMessage(updated, rejectMsg, "thomas_novadev");
+              setSession(updated);
+            } catch {}
+          }, 800);
+          return; // ← EXIT: don't advance, don't extract contract vars
+        }
+
+        // Price is valid — set novadev_negotiated flag
+        next.flags.novadev_negotiated = true;
+
         // Extract equity: look for X%
         const equityMatch = body.match(/(\d+)\s*%/);
         const extractedEquity = equityMatch ? equityMatch[1] + "%" : null;
@@ -3341,6 +3376,17 @@ ${equityClause}
                         if (session && scenario) {
                           const next = cloneSession(session);
                           next.flags.contract_signed = true;
+                          // Store actual contract values for dynamic deltas
+                          if (contractVars.price && contractVars.price !== "À définir") {
+                            next.flags.contract_price = parseInt(contractVars.price, 10);
+                          }
+                          if (contractVars.equity) {
+                            // Extract numeric equity value (e.g. "3%" → 3)
+                            const eqMatch = contractVars.equity.match(/(\d+)/);
+                            if (eqMatch) {
+                              next.flags.contract_equity = parseInt(eqMatch[1], 10);
+                            }
+                          }
                           // Send confirmation mail
                           const phase = scenario.phases[next.currentPhaseIndex];
                           if (phase) {

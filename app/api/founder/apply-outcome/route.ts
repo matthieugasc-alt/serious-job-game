@@ -67,6 +67,46 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: err.message }, { status: 400 });
   }
 
+  // ── Dynamic deltas: override hardcoded values with actual contract values ──
+  // For scenarios where the player negotiates a price/equity (e.g. founder_02_mvp),
+  // the treasury and ownership deltas must reflect the actual contract, not hardcoded values.
+  const debrief = matchingRecord.debrief;
+  if (debrief?.contractPrice && typeof debrief.contractPrice === 'number') {
+    // Treasury delta = -(contract price + burn for the period)
+    // Burn is included in the hardcoded deltas already, so we compute:
+    // burn = hardcodedDelta - (-hardcodedContractPrice)
+    // But simpler: just use the contract price directly as the cost.
+    // The elapsed months burn is kept from the outcome (250€/month is negligible vs contract).
+    const burnPerMonth = campaign.burnRateMonthly || 250;
+    const months = outcome.deltas.elapsedMonths || 0;
+    const burn = burnPerMonth * months;
+    outcome = {
+      ...outcome,
+      deltas: {
+        ...outcome.deltas,
+        treasury: -(debrief.contractPrice + burn),
+      },
+    };
+  }
+  if (debrief?.contractEquity && typeof debrief.contractEquity === 'number') {
+    outcome = {
+      ...outcome,
+      deltas: {
+        ...outcome.deltas,
+        ownership: -debrief.contractEquity,
+      },
+    };
+  } else if (debrief?.contractPrice && !debrief?.contractEquity) {
+    // Player negotiated cash-only (no equity given)
+    outcome = {
+      ...outcome,
+      deltas: {
+        ...outcome.deltas,
+        ownership: 0,
+      },
+    };
+  }
+
   // Apply deltas + flags via unified helper
   const stateBefore = { ...campaign.state };
   const updatedCampaign = applyOutcomeToCampaign(campaign, outcome);
