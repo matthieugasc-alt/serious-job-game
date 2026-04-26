@@ -143,6 +143,8 @@ export type SessionState = {
   pendingTimedEvents: TimedEvent[];
 
   mailDrafts: Record<string, MailDraft>;
+  /** Per-recipient saved drafts, keyed by "phaseId::to" */
+  savedDrafts: Record<string, MailDraft>;
 
   /** Simulated in-game time (ISO string from scenario_start, advanced by sim_speed_multiplier) */
   simulatedTime: string;
@@ -250,6 +252,7 @@ export function initializeSession(scenario: any): SessionState {
     injectedPhaseEntryEvents: [],
     pendingTimedEvents: [],
     mailDrafts: {},
+    savedDrafts: {},
 
     simulatedTime: scenario?.timeline?.scenario_start || new Date().toISOString(),
     simSpeedMultiplier: scenario?.timeline?.sim_speed_multiplier || 1,

@@ -1988,6 +1988,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     const phase = scenario.phases[session.currentPhaseIndex];
     const mailKind = phase?.mail_config?.kind || "other";
     const next = cloneSession(session);
+    // Clean up saved draft for this recipient since we're sending
+    const draftTo = next.mailDrafts[view.phaseId]?.to?.trim().toLowerCase();
+    if (draftTo && next.savedDrafts) {
+      delete next.savedDrafts[`${view.phaseId}::${draftTo}`];
+    }
     sendCurrentPhaseMail(next, mailKind);
     playNotificationSound();
 
@@ -2272,6 +2277,19 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   function updateDraft(patch: any) {
     if (!session || !view) return;
     const next = cloneSession(session);
+    // If changing recipient on an empty draft, restore saved draft if available
+    if (patch.to && !currentMailDraft.body) {
+      const newTo = patch.to.trim().toLowerCase();
+      const savedKey = `${view.phaseId}::${newTo}`;
+      const saved = next.savedDrafts?.[savedKey];
+      if (saved) {
+        updateMailDraft(next, view.phaseId, { ...saved });
+        // Remove from saved drafts since it's now active
+        delete next.savedDrafts[savedKey];
+        setSession(next);
+        return;
+      }
+    }
     updateMailDraft(next, view.phaseId, { ...currentMailDraft, ...patch });
     setSession(next);
   }
@@ -4724,12 +4742,20 @@ ${equityClause}
                   {canComposeMail && (
                     <button
                       onClick={() => {
-                        // Reset mail draft body for a fresh compose
+                        // Save current draft per-recipient, then reset for new compose
                         if (session && scenario) {
                           const phase = scenario.phases[session.currentPhaseIndex];
+                          const phaseId = phase?.phase_id || view.phaseId;
                           const defaults = (phase?.mail_config?.defaults || {}) as Record<string, any>;
                           const next = cloneSession(session);
-                          updateMailDraft(next, phase?.phase_id || view.phaseId, {
+                          // Save current draft if it has a recipient and body
+                          const cur = next.mailDrafts[phaseId];
+                          if (cur && cur.to && cur.body) {
+                            if (!next.savedDrafts) next.savedDrafts = {};
+                            next.savedDrafts[`${phaseId}::${cur.to.trim().toLowerCase()}`] = { ...cur };
+                          }
+                          // Reset to blank
+                          updateMailDraft(next, phaseId, {
                             to: defaults.to || "",
                             cc: defaults.cc || "",
                             subject: defaults.subject || "",
