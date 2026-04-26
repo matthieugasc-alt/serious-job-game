@@ -1260,7 +1260,11 @@ export function buildRuntimeView(session: SessionState) {
     };
 
   const mailConfig = phase?.mail_config;
-  const canSendMail = mailConfig?.enabled && !session.flags[mailConfig?.sent_flag || ""];
+  // Mail is always composable when the scenario has any mail phase — no lock mechanism
+  const scenarioUsesMail = (session.scenario?.phases || []).some(
+    (p: any) => p.mail_config?.enabled
+  );
+  const canSendMail = scenarioUsesMail;
   const sendMailLabel = mailConfig?.send_label || "";
 
   return {

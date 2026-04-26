@@ -175,11 +175,20 @@
       "phase_id": "phase_1_alexandre",
       "title": "Cadrer le scope avec Alexandre",
       "objective": "Discuter avec Alexandre pour définir les priorités du MVP.",
-      "phase_focus": "Discussion libre avec Alexandre sur la vision produit. Le joueur peut poser des questions, explorer les modules, puis proposer un scope réduit. Alexandre est ouvert au début, défensif quand on parle de couper, puis lâche progressivement.",
+      "phase_focus": "Discussion libre avec Alexandre sur la vision produit. Le joueur peut poser des questions, explorer les modules, puis proposer un scope réduit. Alexandre est ouvert au début, défensif quand on parle de couper, puis lâche progressivement. Quand le joueur est prêt, il envoie un mail à Thomas de NovaDev pour passer à la négociation.",
       "duration_target_min": 8,
       "max_duration_sec": 900,
-      "active_channels": ["chat"],
+      "active_channels": ["chat", "mail"],
       "ai_actors": ["alexandre_morel"],
+      "mail_config": {
+        "enabled": true,
+        "kind": "scope_proposal",
+        "defaults": {
+          "to": "thomas@novadev.fr",
+          "subject": "Orisio — Proposition MVP"
+        },
+        "send_advances_phase": true
+      },
       "scoring": {
         "criteria": [
           {
@@ -199,21 +208,8 @@
           }
         ]
       },
-      "completion_rules": {
-        "required_player_evidence": [
-          {
-            "keywords": ["réduire", "réduit", "couper", "coupes", "enlever", "retirer", "supprimer", "virer", "prioriser", "priorité", "priorise", "essentiel", "minimum", "mvp", "focus", "concentrer", "recentrer", "scope", "moins de module", "moins de feature", "que 2", "que 3", "seulement 2", "seulement 3", "juste 2", "juste 3", "pas besoin de tout", "pas tout", "on garde que", "on fait que", "commencer par", "d'abord", "dans un premier temps", "pour commencer", "le plus important", "le plus urgent", "commence par"],
-            "min_matches": 1
-          },
-          {
-            "keywords": ["annulation", "annulations", "planning", "créneaux", "créneau", "remplacement", "rempla", "agenda", "calendrier", "bloc opératoire", "salle"],
-            "min_matches": 1
-          }
-        ],
-        "min_score": 6,
-        "max_exchanges": 30
-      },
-      "auto_advance": true,
+      "completion_rules": {},
+      "auto_advance": false,
       "next_phase": "phase_2_negotiation"
     },
     {
@@ -268,8 +264,7 @@
             "keywords": ["envoyez-moi un mail", "envoyez-moi un email", "mail récapitulatif", "email récapitulatif", "je vous prépare le contrat derrière", "je prépare le contrat derrière"],
             "min_matches": 1
           }
-        ],
-        "min_score": 2
+        ]
       },
       "auto_advance": false,
       "next_phase": "phase_3_sign"

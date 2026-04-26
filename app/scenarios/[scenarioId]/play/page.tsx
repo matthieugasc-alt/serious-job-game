@@ -323,7 +323,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const currentMailDraft = view?.currentMailDraft || { to: "", cc: "", subject: "", body: "", attachments: [] };
   const canComposeMail = view?.canSendMail;
   const scenarioHasMail = view?.scenarioHasMail || false;
-  const mailLockedForNow = scenarioHasMail && !canComposeMail;
+  const mailLockedForNow = false; // Mail is never locked — always accessible
   const simulatedTime = view?.simulatedTime ? fmtTime(view.simulatedTime) : "--:--";
   const actors = scenario?.actors || [];
   const visibleContacts = actors.filter((a: any) => a.visible_in_contacts || a.actor_id === "player");
@@ -4298,7 +4298,7 @@ ${equityClause}
           <nav style={{ display: "flex", borderBottom: "1px solid #e8e8e8", flexShrink: 0 }}>
             {([
               { key: "chat" as MainView, icon: "💬", label: "Chat", badge: 0 },
-              { key: "mail" as MainView, icon: mailLockedForNow ? "🔒" : "📧", label: "Email", badge: unreadMails },
+              { key: "mail" as MainView, icon: "📧", label: "Email", badge: unreadMails },
             ]).map((tab) => {
               const isLocked = tab.key === "mail" && mailLockedForNow;
               return (
@@ -4637,23 +4637,7 @@ ${equityClause}
 
                 {inboxMails.length === 0 && !showCompose && (
                   <div style={{ padding: 20, textAlign: "center", color: "#999", fontSize: 13 }}>
-                    {mailLockedForNow ? (
-                      <div style={{ padding: "24px 16px" }}>
-                        <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.5 }}>🔒</div>
-                        <div style={{ fontWeight: 600, color: "#888", marginBottom: 8, fontSize: 14 }}>
-                          Messagerie verrouillée
-                        </div>
-                        <div style={{ color: "#aaa", fontSize: 12, lineHeight: 1.5 }}>
-                          La messagerie se déverrouillera dans la suite du scénario.
-                          Concentrez-vous sur la conversation pour le moment.
-                        </div>
-                        <div style={{ marginTop: 16, display: "inline-flex", alignItems: "center", gap: 6, padding: "6px 14px", background: "#f0f7ff", borderRadius: 8, fontSize: 11, color: "#5b8fbf" }}>
-                          📧 Disponible prochainement
-                        </div>
-                      </div>
-                    ) : (
-                      "Aucun email reçu pour le moment"
-                    )}
+                    Aucun email reçu pour le moment
                   </div>
                 )}
 
