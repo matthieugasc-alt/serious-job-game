@@ -388,23 +388,13 @@
   ],
   "endings": [
     {
-      "ending_id": "success",
-      "label": "Pilote bien négocié",
-      "priority": 1,
-      "content": "Tu as choisi un établissement adapté, proposé un test convaincant et négocié un contrat qui protège Orisio. Le pilote démarre dans 2 semaines. Première étape vers un vrai client.",
+      "ending_id": "switched_success",
+      "label": "Pilote par défaut — échec initial puis clinique",
+      "priority": 4,
+      "content": "Tu as visé trop haut et tu t'es fait recaler. Alexandre a dû te rabattre sur sa clinique. Le contrat est propre mais tu as perdu du temps et de la crédibilité. Le pilote démarre avec 2 mois de retard.",
       "conditions": {
-        "core_flags": ["pitch_mail_sent", "contrat_signed_clean"],
+        "core_flags": ["switched_to_clinique", "contrat_signed_clean"],
         "min_core_flags": 2
-      }
-    },
-    {
-      "ending_id": "partial_success",
-      "label": "Pilote signé avec concessions",
-      "priority": 2,
-      "content": "Le pilote est signé mais tu as accepté des conditions qui pourraient poser problème plus tard (clause groupe, référence commerciale limitée, ou timing serré). Le test démarre, mais tu n'as pas le contrôle total.",
-      "conditions": {
-        "core_flags": ["pitch_mail_sent"],
-        "min_core_flags": 1
       }
     },
     {
@@ -414,6 +404,26 @@
       "content": "Tu as signé un contrat qui cède ta PI ou qui donne un intéressement délirant à l'établissement. Le pilote démarre, mais le prix payé est trop élevé — ça hypothèque l'avenir commercial d'Orisio.",
       "conditions": {
         "core_flags": ["contrat_signed_toxic"],
+        "min_core_flags": 1
+      }
+    },
+    {
+      "ending_id": "success",
+      "label": "Pilote bien négocié",
+      "priority": 2,
+      "content": "Tu as choisi un établissement adapté, proposé un test convaincant et négocié un contrat qui protège Orisio. Le pilote démarre dans 2 semaines. Première étape vers un vrai client.",
+      "conditions": {
+        "core_flags": ["pitch_mail_sent", "contrat_signed_clean"],
+        "min_core_flags": 2
+      }
+    },
+    {
+      "ending_id": "partial_success",
+      "label": "Pilote signé avec concessions",
+      "priority": 1,
+      "content": "Le pilote est signé mais tu as accepté des conditions qui pourraient poser problème plus tard (clause groupe, référence commerciale limitée, ou timing serré). Le test démarre, mais tu n'as pas le contrôle total.",
+      "conditions": {
+        "core_flags": ["pitch_mail_sent"],
         "min_core_flags": 1
       }
     }

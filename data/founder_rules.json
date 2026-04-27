@@ -320,8 +320,33 @@
       "order": 3,
       "title": "Test clinique",
       "scenarioId": "founder_03_clinical",
-      "invisibleEffects": "Le temps est le vrai cout ici. Chaque mois = 250€ de burn + 1 mois de runway en moins. La validation marche monte si le contrat est propre et le test demarre. La confiance investisseurs depend du type d'etablissement (CHU = prestigieux mais lent). La dette technique ne bouge pas (pas de dev pendant la contractualisation). Si PI compromise (CHU toxique), la confiance investisseurs CHUTE.",
+      "invisibleEffects": "Le temps est le vrai cout ici. Chaque mois = 250€ de burn + 1 mois de runway en moins. La validation marche monte si le contrat est propre et le test demarre. La confiance investisseurs depend du type d'etablissement (CHU = prestigieux mais lent). La dette technique ne bouge pas (pas de dev pendant la contractualisation). Si PI compromise (CHU toxique), la confiance investisseurs CHUTE. Si le joueur echoue avec un grand etablissement et doit se rabattre sur la clinique, il perd 2 mois + credibilite.",
       "outcomes": {
+        "switched_success": {
+          "outcomeId": "pilot_switched",
+          "label": "Pilote par defaut — echec puis clinique",
+          "summary": "Tu as tente un grand etablissement et tu t'es fait recaler (pitch insuffisant ou contrat refuse). Alexandre t'a rabattu sur sa clinique. Le contrat est propre mais tu as perdu 2 mois et de la credibilite.",
+          "signal": "fragile",
+          "deltas": {
+            "treasury": -500,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 5,
+            "techDebt": 0,
+            "investorConfidence": -5,
+            "marketValidation": 15,
+            "elapsedMonths": 2
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Tu as vise trop haut et le pitch ou la negociation n'a pas abouti. Alexandre a du intervenir pour te rediriger vers sa clinique.",
+            "impact": "2 mois perdus. 500 € de burn. La clinique accepte mais la reference est moins forte et tu as montre aux etablissements que tu n'etais pas pret.",
+            "strength": "Tu as fini par signer un contrat propre. La PI est preservee, le test demarre.",
+            "risk": "Tu as grille une cartouche avec un grand etablissement. Si tu reviens les voir plus tard, ils se souviendront de l'echec.",
+            "advice": "La prochaine fois, evalue tes chances AVANT de pitcher. Un refus laisse des traces dans le milieu hospitalier."
+          }
+        },
         "success": {
           "outcomeId": "pilot_clean",
           "label": "Pilote rapide — Clinique, 1 mois, PI protegee",
