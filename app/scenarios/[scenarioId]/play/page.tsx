@@ -42,6 +42,33 @@ type MainView = "chat" | "mail" | "docs" | "context" | "notes";
 type OutlineItem = { id: string; text: string; depth: number };
 let _outlineIdCounter = 0;
 function mkOutlineId() { return `ol_${++_outlineIdCounter}_${Date.now()}`; }
+
+/** Parse raw textarea text into structured outline items.
+ *  Recognises indentation via: leading spaces/tabs, bullet chars (•◦▪▸‣·-*), numbered prefixes.
+ *  Each 2 spaces or 1 tab = 1 depth level. */
+function parseOutlineText(raw: string): OutlineItem[] {
+  if (!raw.trim()) return [];
+  const lines = raw.split("\n");
+  const items: OutlineItem[] = [];
+  for (const line of lines) {
+    if (!line.trim()) continue;
+    // Count leading whitespace to determine depth
+    const leadMatch = line.match(/^([\t ]*)/);
+    const leadStr = leadMatch ? leadMatch[1] : "";
+    // Each tab = 1 level, each 2 spaces = 1 level
+    const tabCount = (leadStr.match(/\t/g) || []).length;
+    const spaceCount = (leadStr.replace(/\t/g, "").length);
+    let depth = tabCount + Math.floor(spaceCount / 2);
+    // Strip leading bullet/number prefixes from the text
+    let text = line.slice(leadStr.length);
+    text = text.replace(/^(?:[•◦▪▫▸‣·\-\*]|\d+[.)]\s?)\s*/, "").trim();
+    if (!text) continue;
+    depth = Math.min(depth, 5);
+    items.push({ id: mkOutlineId(), text, depth });
+  }
+  return items;
+}
+
 function outlineToText(items: OutlineItem[]): string {
   const bullets = ["•", "  ◦", "    ▪", "      ▸", "        ‣", "          ·"];
   return items
@@ -218,12 +245,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const pacteContentRef = useRef<HTMLDivElement>(null);
   const [pacteEdited, setPacteEdited] = useState(false);
   // ── Mind Map / Outline tool (scenario 4+) ──
-  const [outlineItems, setOutlineItems] = useState<OutlineItem[]>(() => [
-    { id: mkOutlineId(), text: "", depth: 0 },
-  ]);
-  const outlineRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const [outlineRawText, setOutlineRawText] = useState("");
+  const outlineItems = useMemo(() => parseOutlineText(outlineRawText), [outlineRawText]);
   const hasMindmapTool = scenario?.meta?.tags?.includes("priorisation") || scenarioId === "founder_04_v1";
   const [outlineCopiedFeedback, setOutlineCopiedFeedback] = useState("");
+  const [mindmapView, setMindmapView] = useState<"split" | "editor" | "map">("split");
   // ── Contract signature (scenario 2+) ──
   const [showContractSignature, setShowContractSignature] = useState(false);
   const [contractSigned, setContractSigned] = useState(false);
@@ -6050,20 +6076,106 @@ ${equityClause}
             </div>
           )}
           {/* ═══ NOTES / MIND MAP VIEW ═══ */}
-          {mainView === "notes" && hasMindmapTool && (
+          {mainView === "notes" && hasMindmapTool && (() => {
+            const depthColors = ["#1a3c6e", "#5b5fc7", "#7c3aed", "#0891b2", "#059669", "#d97706"];
+
+            // Build tree structure from flat items for mind map rendering
+            type TreeNode = { item: OutlineItem; children: TreeNode[] };
+            function buildTree(items: OutlineItem[]): TreeNode[] {
+              const roots: TreeNode[] = [];
+              const stack: TreeNode[] = [];
+              for (const item of items) {
+                const node: TreeNode = { item, children: [] };
+                while (stack.length > 0 && stack[stack.length - 1].item.depth >= item.depth) {
+                  stack.pop();
+                }
+                if (stack.length === 0) {
+                  roots.push(node);
+                } else {
+                  stack[stack.length - 1].children.push(node);
+                }
+                stack.push(node);
+              }
+              return roots;
+            }
+
+            function renderTreeNode(node: TreeNode, isLast: boolean, parentColor: string): React.ReactNode {
+              const d = Math.min(node.item.depth, depthColors.length - 1);
+              const color = depthColors[d];
+              const hasChildren = node.children.length > 0;
+              return (
+                <div key={node.item.id} style={{ marginLeft: node.item.depth === 0 ? 0 : 20 }}>
+                  <div style={{
+                    display: "flex", alignItems: "flex-start", gap: 8, padding: "4px 0",
+                    position: "relative",
+                  }}>
+                    {node.item.depth > 0 && (
+                      <div style={{
+                        position: "absolute", left: -14, top: 0, bottom: isLast ? "50%" : 0,
+                        width: 1, background: parentColor, opacity: 0.25,
+                      }} />
+                    )}
+                    {node.item.depth > 0 && (
+                      <div style={{
+                        position: "absolute", left: -14, top: "50%", width: 10, height: 1,
+                        background: parentColor, opacity: 0.25,
+                      }} />
+                    )}
+                    <span style={{
+                      width: 8, height: 8, borderRadius: hasChildren ? 2 : "50%",
+                      background: color, flexShrink: 0, marginTop: 5,
+                    }} />
+                    <span style={{
+                      fontSize: node.item.depth === 0 ? 14 : 13,
+                      fontWeight: node.item.depth === 0 ? 700 : 400,
+                      color, lineHeight: 1.5,
+                    }}>
+                      {node.item.text}
+                    </span>
+                  </div>
+                  {hasChildren && (
+                    <div style={{ position: "relative" }}>
+                      {node.children.map((child, ci) =>
+                        renderTreeNode(child, ci === node.children.length - 1, color)
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+
+            const tree = buildTree(outlineItems);
+
+            return (
             <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {/* Header */}
-              <div style={{ padding: "14px 20px", borderBottom: "1px solid #e8e8e8", background: "#fff", flexShrink: 0 }}>
+              <div style={{ padding: "12px 20px", borderBottom: "1px solid #e8e8e8", background: "#fff", flexShrink: 0 }}>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                   <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1a3c6e" }}>
                     🗒️ Notes d'analyse
                   </h2>
                   <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
                     {outlineCopiedFeedback && (
-                      <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600, animation: "fadeIn .2s" }}>
+                      <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>
                         {outlineCopiedFeedback}
                       </span>
                     )}
+                    {/* View mode toggle */}
+                    <div style={{ display: "flex", border: "1px solid #ddd", borderRadius: 6, overflow: "hidden" }}>
+                      {(["editor", "split", "map"] as const).map((mode) => (
+                        <button
+                          key={mode}
+                          onClick={() => setMindmapView(mode)}
+                          style={{
+                            padding: "4px 10px", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600,
+                            background: mindmapView === mode ? "#5b5fc7" : "#fff",
+                            color: mindmapView === mode ? "#fff" : "#666",
+                          }}
+                        >
+                          {mode === "editor" ? "Éditeur" : mode === "split" ? "Split" : "Mind Map"}
+                        </button>
+                      ))}
+                    </div>
                     <button
                       onClick={() => {
                         const text = outlineToText(outlineItems);
@@ -6103,127 +6215,82 @@ ${equityClause}
                   </div>
                 </div>
                 <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888" }}>
-                  Organise tes observations. <strong>Tab</strong> = indenter · <strong>Shift+Tab</strong> = dé-indenter · <strong>Entrée</strong> = nouvelle ligne · <strong>Backspace</strong> (vide) = supprimer
+                  Tape ou colle ton analyse. Indente avec <strong>2 espaces</strong> ou <strong>Tab</strong> pour créer des sous-niveaux. Préfixes reconnus : <strong>- * • ◦ ▪</strong>
                 </p>
               </div>
 
-              {/* Outline editor */}
-              <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
-                {outlineItems.map((item, idx) => {
-                  const depthColors = ["#1a3c6e", "#5b5fc7", "#7c3aed", "#0891b2", "#059669", "#d97706", "#dc2626"];
-                  const bulletChars = ["●", "○", "▪", "▫", "‣", "·"];
-                  const bullet = bulletChars[Math.min(item.depth, bulletChars.length - 1)];
-                  const color = depthColors[Math.min(item.depth, depthColors.length - 1)];
-
-                  return (
-                    <div
-                      key={item.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        paddingLeft: item.depth * 24,
-                        marginBottom: 2,
-                      }}
-                    >
-                      <span style={{
-                        width: 16, textAlign: "center", fontSize: item.depth === 0 ? 10 : 8,
-                        color, flexShrink: 0, userSelect: "none",
-                      }}>
-                        {bullet}
-                      </span>
-                      <input
-                        ref={(el) => { outlineRefs.current[item.id] = el; }}
-                        type="text"
-                        value={item.text}
-                        placeholder={idx === 0 && item.text === "" ? "Commence ton analyse ici..." : ""}
-                        onChange={(e) => {
-                          setOutlineItems((prev) =>
-                            prev.map((it) => it.id === item.id ? { ...it, text: e.target.value } : it)
-                          );
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Tab") {
-                            e.preventDefault();
-                            setOutlineItems((prev) =>
-                              prev.map((it) => {
-                                if (it.id !== item.id) return it;
-                                if (e.shiftKey) {
-                                  return { ...it, depth: Math.max(0, it.depth - 1) };
-                                } else {
-                                  return { ...it, depth: Math.min(5, it.depth + 1) };
-                                }
-                              })
-                            );
-                          } else if (e.key === "Enter") {
-                            e.preventDefault();
-                            const newId = mkOutlineId();
-                            const newItem: OutlineItem = { id: newId, text: "", depth: item.depth };
-                            setOutlineItems((prev) => {
-                              const i = prev.findIndex((it) => it.id === item.id);
-                              const next = [...prev];
-                              next.splice(i + 1, 0, newItem);
-                              return next;
-                            });
-                            setTimeout(() => outlineRefs.current[newId]?.focus(), 30);
-                          } else if (e.key === "Backspace" && item.text === "" && outlineItems.length > 1) {
-                            e.preventDefault();
-                            const prevIdx = idx - 1;
-                            setOutlineItems((prev) => prev.filter((it) => it.id !== item.id));
-                            if (prevIdx >= 0) {
-                              const prevId = outlineItems[prevIdx].id;
+              {/* Content area — split, editor-only, or map-only */}
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                {/* Textarea editor */}
+                {(mindmapView === "editor" || mindmapView === "split") && (
+                  <div style={{
+                    flex: mindmapView === "split" ? 1 : 1,
+                    display: "flex", flexDirection: "column",
+                    borderRight: mindmapView === "split" ? "1px solid #e8e8e8" : "none",
+                    minWidth: 0,
+                  }}>
+                    <textarea
+                      value={outlineRawText}
+                      onChange={(e) => setOutlineRawText(e.target.value)}
+                      onKeyDown={(e) => {
+                        // Tab inserts 2 spaces at cursor position
+                        if (e.key === "Tab") {
+                          e.preventDefault();
+                          const ta = e.target as HTMLTextAreaElement;
+                          const start = ta.selectionStart;
+                          const end = ta.selectionEnd;
+                          if (e.shiftKey) {
+                            // Remove up to 2 leading spaces on the current line
+                            const before = outlineRawText.slice(0, start);
+                            const lineStart = before.lastIndexOf("\n") + 1;
+                            const line = outlineRawText.slice(lineStart);
+                            const spacesToRemove = line.startsWith("  ") ? 2 : line.startsWith(" ") ? 1 : line.startsWith("\t") ? 1 : 0;
+                            if (spacesToRemove > 0) {
+                              const newText = outlineRawText.slice(0, lineStart) + outlineRawText.slice(lineStart + spacesToRemove);
+                              setOutlineRawText(newText);
                               setTimeout(() => {
-                                const el = outlineRefs.current[prevId];
-                                if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
-                              }, 30);
+                                ta.selectionStart = ta.selectionEnd = Math.max(lineStart, start - spacesToRemove);
+                              }, 0);
                             }
-                          } else if (e.key === "ArrowUp" && idx > 0) {
-                            e.preventDefault();
-                            const prevId = outlineItems[idx - 1].id;
-                            outlineRefs.current[prevId]?.focus();
-                          } else if (e.key === "ArrowDown" && idx < outlineItems.length - 1) {
-                            e.preventDefault();
-                            const nextId = outlineItems[idx + 1].id;
-                            outlineRefs.current[nextId]?.focus();
+                          } else {
+                            const newText = outlineRawText.slice(0, start) + "  " + outlineRawText.slice(end);
+                            setOutlineRawText(newText);
+                            setTimeout(() => {
+                              ta.selectionStart = ta.selectionEnd = start + 2;
+                            }, 0);
                           }
-                        }}
-                        style={{
-                          flex: 1,
-                          border: "none",
-                          outline: "none",
-                          padding: "6px 8px",
-                          fontSize: item.depth === 0 ? 14 : 13,
-                          fontWeight: item.depth === 0 ? 600 : 400,
-                          color: item.text ? color : "#ccc",
-                          background: "transparent",
-                          borderRadius: 4,
-                          lineHeight: 1.4,
-                        }}
-                        onFocus={(e) => {
-                          (e.target as HTMLInputElement).style.background = "#f8f8ff";
-                        }}
-                        onBlur={(e) => {
-                          (e.target as HTMLInputElement).style.background = "transparent";
-                        }}
-                      />
-                    </div>
-                  );
-                })}
+                        }
+                      }}
+                      placeholder={"Problème adoption\n  Seulement 2/12 chirurgiens actifs\n  Secrétariat reste sur Excel\n    Mme Bertrand refuse de partager\n  Pas de formation initiale\nBug annulation\n  Double système Excel/Orisio\n  Incident Mme Dupont\n    Prothèse annulée sans notification\nModules demandés par Alexandre\n  Dashboard direction — 5K\n  Notifications — 3.5K\n  Gestion matériel — 7K"}
+                      style={{
+                        flex: 1, padding: "16px 20px", border: "none", outline: "none",
+                        resize: "none", fontSize: 13, fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
+                        lineHeight: 1.7, color: "#333", background: "#fafbfc",
+                        tabSize: 2,
+                      }}
+                    />
+                  </div>
+                )}
 
-                {/* Add item button */}
-                <button
-                  onClick={() => {
-                    const newId = mkOutlineId();
-                    setOutlineItems((prev) => [...prev, { id: newId, text: "", depth: 0 }]);
-                    setTimeout(() => outlineRefs.current[newId]?.focus(), 30);
-                  }}
-                  style={{
-                    marginTop: 12, padding: "8px 16px", border: "1px dashed #ccc",
-                    borderRadius: 6, background: "transparent", color: "#999",
-                    cursor: "pointer", fontSize: 12,
-                  }}
-                >
-                  + Ajouter un élément
-                </button>
+                {/* Visual Mind Map */}
+                {(mindmapView === "map" || mindmapView === "split") && (
+                  <div style={{
+                    flex: 1, overflowY: "auto", padding: "16px 20px", background: "#fff",
+                    minWidth: 0,
+                  }}>
+                    {outlineItems.length === 0 ? (
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "#bbb", gap: 8 }}>
+                        <span style={{ fontSize: 32 }}>🌳</span>
+                        <span style={{ fontSize: 13 }}>Ta mind map apparaîtra ici</span>
+                        <span style={{ fontSize: 11, color: "#ccc" }}>Commence à écrire dans l'éditeur</span>
+                      </div>
+                    ) : (
+                      <div style={{ padding: "8px 0" }}>
+                        {tree.map((node, i) => renderTreeNode(node, i === tree.length - 1, depthColors[0]))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               {/* Stats footer */}
@@ -6231,11 +6298,12 @@ ${equityClause}
                 padding: "8px 20px", borderTop: "1px solid #e8e8e8", background: "#fafafa",
                 fontSize: 11, color: "#999", display: "flex", justifyContent: "space-between", flexShrink: 0,
               }}>
-                <span>{outlineItems.filter((i) => i.text.trim()).length} éléments</span>
-                <span>{outlineItems.filter((i) => i.depth === 0 && i.text.trim()).length} catégories principales</span>
+                <span>{outlineItems.length} éléments</span>
+                <span>{outlineItems.filter((i) => i.depth === 0).length} catégories principales</span>
               </div>
             </div>
-          )}
+            );
+          })()}
 
         </main>
 
