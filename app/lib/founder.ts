@@ -87,6 +87,9 @@ export interface FounderMicroDebrief {
 
 export interface FounderCampaignFlags {
   hasAdvisoryBoard?: boolean;
+  royalties_pct?: number | null;
+  royalties_cap?: number | null;
+  royalties_duration_years?: number | null;
 }
 
 export interface FounderOutcome {

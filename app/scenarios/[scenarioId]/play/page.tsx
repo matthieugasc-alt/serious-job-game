@@ -282,11 +282,17 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [devisNegoLoading, setDevisNegoLoading] = useState(false);
   const [devisFeatures, setDevisFeatures] = useState<Record<string, boolean>>({
     bug_fix: true,
-    notifications: false,
-    dashboard: false,
-    materiel: false,
-    api_si: false,
+    notifications: true,
+    dashboard: true,
+    materiel: true,
+    api_si: true,
   });
+  const [devisLocked, setDevisLocked] = useState(false); // Lock checkboxes after first message
+  const [dealTerms, setDealTerms] = useState<{
+    interessement: { pct: number; cap: number | null; duration: number } | null;
+    bsa: number | null;
+    discount: number;
+  }>({ interessement: null, bsa: null, discount: 0 });
   const devisNegoChatRef = useRef<HTMLDivElement>(null);
   // ── Contract signature (scenario 2+) ──
   const [showContractSignature, setShowContractSignature] = useState(false);
@@ -909,6 +915,49 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           risk = "Sans MVP, Orisio perd du temps précieux. Il faudra trouver un autre prestataire.";
           ending = "failure";
         }
+      } else if (scenarioId === "founder_04_v1") {
+        // Scenario 4 — Passage en V1 : diagnostic pilote + négociation Thomas
+        const devisTotal = flags.devis_total || 0;
+        const selectedFeatures: string[] = flags.devis_selected_features || [];
+        const badDeal = !!flags.deal_interessement_uncapped || !!flags.deal_bsa_excessive;
+        const featureTrap = devisTotal > 15000 || selectedFeatures.length >= 4;
+        const goodDeal = !!flags.deal_interessement_capped || !!flags.deal_bsa_reasonable;
+        const cashOnly = !!flags.deal_cash_only;
+        const surgicalScope = devisTotal <= 5000;
+
+        if (badDeal) {
+          // Bad deal — uncapped interest or excessive BSA
+          decision = "Tu as cédé trop à Thomas : intéressement sans plafond ou BSA excessifs. Le coût peut exploser.";
+          impact = `Devis signé à ${devisTotal.toLocaleString("fr-FR")} €. Mais le deal financier avec Thomas est disproportionné — les investisseurs verront une cap table polluée.`;
+          strength = "Tu as maintenu la relation avec Thomas. Il est motivé et aligné.";
+          risk = "Un intéressement sans plafond ou 5% de BSA pour un prestataire, c'est un signal de fondateur naïf en due diligence.";
+          advice = "Lis TOUJOURS la note de l'avocat AVANT de négocier. Et un plafond protège les deux parties.";
+          ending = "bad_deal";
+        } else if (featureTrap) {
+          // Feature trap — ordered too many modules
+          decision = `Tu as commandé ${selectedFeatures.length} modules pour ${devisTotal.toLocaleString("fr-FR")} €. Le budget explose et le vrai problème (adoption) n'est pas adressé.`;
+          impact = "La dette technique monte, le cash fond, et les 10 chirurgiens inactifs le resteront — personne n'a été formé.";
+          strength = "Le produit sera plus complet. Si l'adoption finit par décoller, tu auras de l'avance sur les features.";
+          risk = "Tu as dépensé gros sans adresser le vrai problème. Un produit riche que personne n'utilise ne vaut rien.";
+          advice = "Il n'est pas trop tard pour lancer un plan de formation EN PARALLÈLE du dev.";
+          ending = "feature_trap";
+        } else if (surgicalScope && (goodDeal || cashOnly)) {
+          // Optimal — bug fix only + reasonable deal
+          decision = "Tu as identifié le vrai problème (adoption, pas features), priorisé le bug critique, et négocié un deal raisonnable.";
+          impact = `${devisTotal.toLocaleString("fr-FR")} € de dev ciblé. La dette technique baisse, le budget est maîtrisé.`;
+          strength = "Tu as résisté à la pression de ton cofondateur. C'est la compétence la plus rare chez un fondateur : dire non à son associé quand il a tort.";
+          risk = "Alexandre est frustré. Il faudra gérer cette tension et prouver par les données que l'adoption est le vrai levier.";
+          advice = "Documente les résultats du plan de formation. Dans 4 semaines, si l'adoption monte, tu auras les données pour convaincre Alexandre.";
+          ending = "optimal";
+        } else {
+          // Good — reasonable scope + acceptable deal
+          decision = `Devis à ${devisTotal.toLocaleString("fr-FR")} € avec un deal correct. La V1 avance sur des bases raisonnables.`;
+          impact = "Le bug est corrigé et quelques améliorations utiles sont en cours. Le deal avec Thomas est acceptable.";
+          strength = "Tu as pris des décisions raisonnables sous pression.";
+          risk = "Le plan de formation n'est pas assez poussé. L'adoption risque de stagner même avec un meilleur produit.";
+          advice = "Surveille les métriques d'adoption de près. Si dans 3 semaines les connexions ne remontent pas, le problème est humain, pas technique.";
+          ending = "good";
+        }
       } else {
         // Generic founder debrief for other scenarios
         decision = "Scénario terminé.";
@@ -933,8 +982,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         improvements: risk ? [risk] : [],
         pedagogical_advice: advice,
         // Dynamic contract values for campaign deltas
-        contractPrice: flags.contract_price || null,
-        contractEquity: flags.contract_equity || null,
+        // S4: use cash actually paid (after discount), not total scope price
+        contractPrice: flags.devis_cash_paid || flags.devis_total || flags.contract_price || null,
+        contractEquity: flags.deal_bsa_pct || flags.contract_equity || null,
+        // Royalties info for future scenarios (intéressement on revenue)
+        royaltiesPct: flags.royalties_pct || null,
+        royaltiesCap: flags.royalties_cap || null,
+        royaltiesDuration: flags.royalties_duration_years || null,
       };
       // Save to debriefData for the game record save effect, then redirect
       // to the campaign dashboard which has its own debrief overlay with deltas.
@@ -3974,7 +4028,6 @@ ${equityClause}
 
       {/* ═══════ DEVIS NOVADEV NEGOTIATION OVERLAY (Scenario 4 Phase 3) ═══════ */}
       {showDevisNego && (() => {
-        // Features data: label, price, default_selected
         const featuresData = [
           { key: "bug_fix", label: "Bug annulation (verrouillage + confirmation)", price: 2000 },
           { key: "notifications", label: "Notifications basiques", price: 3500 },
@@ -3983,36 +4036,43 @@ ${equityClause}
           { key: "api_si", label: "API SI établissement", price: 8000 },
         ];
 
-        // Calculate total from selected features
         const totalPrice = featuresData.reduce((sum, feat) =>
           devisFeatures[feat.key] ? sum + feat.price : sum, 0
         );
 
-        // Dynamic options text based on total price
-        const getOptionsText = () => {
-          if (totalPrice <= 2000) {
-            return {
-              optionA: `Intéressement de <strong>2% du CA net</strong> d'Orisio (plafonné à 50k€), pendant 3 ans.<br/><em>En contrepartie : <strong>tarif réduit</strong> (HT ${totalPrice}€).</em>`,
-              optionB: `Attribution de <strong>0.5% du capital</strong> via BSA, valorisation actuelle.<br/><em>Tarif normal (HT ${totalPrice}€) maintenu.</em>`,
-            };
-          } else if (totalPrice <= 10000) {
-            return {
-              optionA: `Intéressement de <strong>4% du CA net</strong> d'Orisio (plafonné à 100k€), pendant 4 ans.<br/><em>En contrepartie : <strong>réduction de 15%</strong> sur le tarif.</em>`,
-              optionB: `Attribution de <strong>1.5% du capital</strong> via BSA, valorisation actuelle.<br/><em>Tarif réduit (HT ${Math.round(totalPrice * 0.95)}€) appliqué.</em>`,
-            };
-          } else {
-            return {
-              optionA: `Intéressement de <strong>8% du CA net</strong> d'Orisio, sans plafond, pendant 5 ans.<br/><em>En contrepartie : <strong>réduction de 30%</strong> sur le tarif.</em>`,
-              optionB: `Attribution de <strong>5% du capital</strong> via BSA, valorisation actuelle.<br/><em>Tarif normal maintenu.</em>`,
-            };
-          }
-        };
+        // Discounted price based on deal terms
+        const cashPrice = Math.round(totalPrice * (1 - (dealTerms.discount || 0) / 100));
 
-        const optionsText = getOptionsText();
+        // Tier info
+        const tierLabel = totalPrice <= 3000 ? "TRANCHE 1 (petit scope)" : totalPrice <= 8000 ? "TRANCHE 2 (scope moyen)" : totalPrice <= 15000 ? "TRANCHE 3 (gros scope)" : "TRANCHE 4 (scope maximal)";
+        const tierShort = totalPrice <= 3000 ? "Petit scope" : totalPrice <= 8000 ? "Scope moyen" : totalPrice <= 15000 ? "Gros scope" : "Scope maximal";
+        const tierColor = totalPrice <= 3000 ? { bg: "#dcfce7", fg: "#166534" } : totalPrice <= 8000 ? { bg: "#dbeafe", fg: "#1e40af" } : totalPrice <= 15000 ? { bg: "#fef3c7", fg: "#92400e" } : { bg: "#fee2e2", fg: "#991b1b" };
 
-        // Build scope text for Thomas
+        // Scope context injected into each message to Thomas
         const selectedFeatures = featuresData.filter(f => devisFeatures[f.key]).map(f => f.label).join(", ");
-        const scopeContext = `[Scope actuel : ${selectedFeatures || "Aucun module sélectionné"}. Montant total : ${totalPrice}€]`;
+        const scopeContext = `[Scope actuel : ${selectedFeatures || "Aucun module sélectionné"}. Montant total : ${totalPrice}€. ${tierLabel}]`;
+
+        // Establishment from S3
+        const estInfo = resolveEstablishment(session?.flags || {});
+
+        // Parse [DEAL:...] tag from Thomas's response and strip it from display
+        function parseDealTag(reply: string): { clean: string; parsed: typeof dealTerms | null } {
+          const dealMatch = reply.match(/\[DEAL:\s*cash=(\d+),?\s*remise=(\d+(?:\.\d+)?)%,?\s*interessement=(\d+(?:\.\d+)?)%\s*plafond=(\d+)k?\s*duree=(\d+),?\s*bsa=(\d+(?:\.\d+)?)%\s*\]/i);
+          if (!dealMatch) return { clean: reply, parsed: null };
+          const clean = reply.replace(dealMatch[0], "").trim();
+          const intPct = parseFloat(dealMatch[3]);
+          const intCap = parseInt(dealMatch[4]) * 1000;
+          const intDur = parseInt(dealMatch[5]);
+          const bsaPct = parseFloat(dealMatch[6]);
+          return {
+            clean,
+            parsed: {
+              interessement: intPct > 0 ? { pct: intPct, cap: intCap > 0 ? intCap : null, duration: intDur } : null,
+              bsa: bsaPct > 0 ? bsaPct : null,
+              discount: parseFloat(dealMatch[2]),
+            },
+          };
+        }
 
         async function sendDevisNegoMsg() {
           if (!devisNegoInput.trim() || devisNegoLoading || !session || !scenario) return;
@@ -4020,6 +4080,8 @@ ${equityClause}
           setDevisNegoInput("");
           setDevisNegoMessages((prev) => [...prev, { role: "player", content: userMsg }]);
           setDevisNegoLoading(true);
+          // Lock checkboxes on first message
+          if (!devisLocked) setDevisLocked(true);
           setTimeout(() => devisNegoChatRef.current?.scrollTo(0, 99999), 50);
           try {
             const activePrompt = aiPromptsMapRef.current["thomas_vidal"] || aiPromptRef.current;
@@ -4049,12 +4111,13 @@ ${equityClause}
             });
             if (res.ok) {
               const data = await res.json();
-              setDevisNegoMessages((prev) => [...prev, { role: "npc", content: data.reply }]);
-              // Apply evaluation to the main session
+              const { clean, parsed } = parseDealTag(data.reply);
+              if (parsed) setDealTerms(parsed);
+              setDevisNegoMessages((prev) => [...prev, { role: "npc", content: clean }]);
               if (session) {
                 const next = cloneSession(session);
                 addPlayerMessage(next, `[Négo devis] ${userMsg}`, "thomas_vidal");
-                addAIMessage(next, data.reply, "thomas_vidal");
+                addAIMessage(next, clean, "thomas_vidal");
                 applyEvaluation(next, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
                 setSession(next);
               }
@@ -4067,6 +4130,9 @@ ${equityClause}
           }
         }
 
+        const hasDeal = dealTerms.interessement || dealTerms.bsa || dealTerms.discount > 0;
+        const canSign = devisNegoMessages.length >= 2;
+
         return (
           <div style={{
             position: "fixed", inset: 0, zIndex: 10001,
@@ -4074,7 +4140,7 @@ ${equityClause}
             alignItems: "center", justifyContent: "center", padding: 20,
           }}>
             <div style={{
-              background: "#fff", borderRadius: 16, maxWidth: 1000, width: "100%",
+              background: "#fff", borderRadius: 16, maxWidth: 1050, width: "100%",
               maxHeight: "92vh", display: "flex", flexDirection: "column",
               boxShadow: "0 24px 80px rgba(0,0,0,0.3)",
             }}>
@@ -4092,10 +4158,10 @@ ${equityClause}
                   }}>TV</div>
                   <div>
                     <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>
-                      Négociation — Devis NovaDev V1
+                      Devis NovaDev — Passage en V1
                     </h2>
                     <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                      Thomas Vidal · NovaDev Solutions · {new Date().toLocaleDateString("fr-FR")}
+                      Thomas Vidal · NovaDev Solutions{estInfo ? ` · Pilote : ${estInfo.label}` : ""}
                     </p>
                   </div>
                 </div>
@@ -4111,72 +4177,126 @@ ${equityClause}
               {/* Split view: devis left, chat right */}
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
                 {/* Left: devis content (dynamic) */}
-                <div style={{ flex: 1, overflow: "auto", padding: "24px", borderRight: "1px solid #e8e8e8" }}>
-                  <h1 style={{ textAlign: "center", color: "#1a1a2e", marginBottom: 16 }}>
-                    Proposition commerciale — NovaDev
-                  </h1>
-                  <p>
+                <div style={{ flex: 1, overflow: "auto", padding: "20px 24px", borderRight: "1px solid #e8e8e8" }}>
+                  <div style={{ textAlign: "center", marginBottom: 12 }}>
+                    <span style={{
+                      display: "inline-block", padding: "3px 12px", borderRadius: 12,
+                      fontSize: 11, fontWeight: 700, background: tierColor.bg, color: tierColor.fg,
+                    }}>
+                      {tierShort}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: 12, color: "#666", margin: "0 0 12px" }}>
                     <strong>De :</strong> Thomas Vidal — NovaDev Solutions<br/>
                     <strong>Pour :</strong> {displayPlayerName || "CEO"} — Orisio SAS
                   </p>
-                  <hr style={{ margin: "16px 0", border: "none", borderTop: "1px solid #e0e0e0" }} />
 
-                  <h2>Option A — Intéressement sur le CA</h2>
-                  <p dangerouslySetInnerHTML={{ __html: optionsText.optionA }} />
-
-                  <h2>Option B — BSA (capital)</h2>
-                  <p dangerouslySetInnerHTML={{ __html: optionsText.optionB }} />
-
-                  <h2>Détails techniques — Estimations V1</h2>
-                  <div style={{ marginTop: 12, marginBottom: 12 }}>
-                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                      <tbody>
-                        <tr style={{ background: "#f5f5f5" }}>
-                          <th style={{ textAlign: "left", padding: 8, border: "1px solid #ddd" }}>Module</th>
-                          <th style={{ textAlign: "center", padding: 8, border: "1px solid #ddd", width: 80 }}>Inclus</th>
-                          <th style={{ textAlign: "right", padding: 8, border: "1px solid #ddd" }}>Estimation</th>
-                        </tr>
-                        {featuresData.map((feat) => (
-                          <tr key={feat.key}>
-                            <td style={{ padding: 8, border: "1px solid #ddd" }}>{feat.label}</td>
-                            <td style={{ padding: 8, border: "1px solid #ddd", textAlign: "center" }}>
-                              <input
-                                type="checkbox"
-                                checked={devisFeatures[feat.key]}
-                                onChange={(e) => setDevisFeatures((prev) => ({
-                                  ...prev,
-                                  [feat.key]: e.target.checked,
-                                }))}
-                                style={{ cursor: "pointer" }}
-                              />
-                            </td>
-                            <td style={{ textAlign: "right", padding: 8, border: "1px solid #ddd" }}>
-                              {feat.price.toLocaleString("fr-FR")} €
-                            </td>
-                          </tr>
-                        ))}
-                        <tr style={{ background: "#f5f5f5", fontWeight: "bold" }}>
-                          <td colSpan={2} style={{ padding: 8, border: "1px solid #ddd" }}>
-                            <strong>Montant total (HT)</strong>
+                  {/* Feature table with lock */}
+                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+                    <tbody>
+                      <tr style={{ background: "#f5f5f5" }}>
+                        <th style={{ textAlign: "left", padding: "6px 8px", border: "1px solid #ddd" }}>Module</th>
+                        <th style={{ textAlign: "center", padding: "6px 8px", border: "1px solid #ddd", width: 60 }}>Inclus</th>
+                        <th style={{ textAlign: "right", padding: "6px 8px", border: "1px solid #ddd", width: 90 }}>Prix</th>
+                      </tr>
+                      {featuresData.map((feat) => (
+                        <tr key={feat.key} style={{ opacity: devisFeatures[feat.key] ? 1 : 0.5 }}>
+                          <td style={{ padding: "6px 8px", border: "1px solid #ddd" }}>{feat.label}</td>
+                          <td style={{ padding: "6px 8px", border: "1px solid #ddd", textAlign: "center" }}>
+                            <input
+                              type="checkbox"
+                              checked={devisFeatures[feat.key]}
+                              disabled={devisLocked}
+                              onChange={(e) => setDevisFeatures((prev) => ({
+                                ...prev,
+                                [feat.key]: e.target.checked,
+                              }))}
+                              title={devisLocked ? "Scope verrouillé — la négociation est en cours" : ""}
+                              style={{ cursor: devisLocked ? "not-allowed" : "pointer" }}
+                            />
                           </td>
-                          <td style={{ textAlign: "right", padding: 8, border: "1px solid #ddd", color: "#e65100" }}>
-                            <strong>{totalPrice.toLocaleString("fr-FR")} €</strong>
+                          <td style={{ textAlign: "right", padding: "6px 8px", border: "1px solid #ddd" }}>
+                            {devisFeatures[feat.key] ? `${feat.price.toLocaleString("fr-FR")} €` : "—"}
                           </td>
                         </tr>
-                      </tbody>
-                    </table>
+                      ))}
+                      <tr style={{ background: "#f5f5f5", fontWeight: "bold" }}>
+                        <td colSpan={2} style={{ padding: "6px 8px", border: "1px solid #ddd" }}>Sous-total HT</td>
+                        <td style={{ textAlign: "right", padding: "6px 8px", border: "1px solid #ddd" }}>
+                          {totalPrice.toLocaleString("fr-FR")} €
+                        </td>
+                      </tr>
+                      {dealTerms.discount > 0 && (
+                        <tr style={{ color: "#16a34a" }}>
+                          <td colSpan={2} style={{ padding: "6px 8px", border: "1px solid #ddd" }}>
+                            Remise négociée ({dealTerms.discount}%)
+                          </td>
+                          <td style={{ textAlign: "right", padding: "6px 8px", border: "1px solid #ddd" }}>
+                            −{(totalPrice - cashPrice).toLocaleString("fr-FR")} €
+                          </td>
+                        </tr>
+                      )}
+                      <tr style={{ background: "#1a1a2e", color: "#fff", fontWeight: "bold" }}>
+                        <td colSpan={2} style={{ padding: "8px", border: "1px solid #333" }}>
+                          MONTANT À PAYER
+                        </td>
+                        <td style={{ textAlign: "right", padding: "8px", border: "1px solid #333" }}>
+                          {cashPrice.toLocaleString("fr-FR")} €
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+
+                  {devisLocked && (
+                    <p style={{ fontSize: 10, color: "#999", marginTop: 4, fontStyle: "italic" }}>
+                      Scope verrouillé — la négociation est en cours.
+                    </p>
+                  )}
+
+                  {/* Dynamic deal terms section */}
+                  <div style={{ marginTop: 16, padding: 12, background: hasDeal ? "#f0f9ff" : "#fafafa", borderRadius: 8, border: `1px solid ${hasDeal ? "#bae6fd" : "#e8e8e8"}` }}>
+                    <h3 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700, color: hasDeal ? "#0369a1" : "#999" }}>
+                      Conditions négociées
+                    </h3>
+                    {!hasDeal ? (
+                      <p style={{ margin: 0, fontSize: 12, color: "#999", fontStyle: "italic" }}>
+                        Aucune condition négociée pour l'instant. Discutez avec Thomas pour définir les termes.
+                      </p>
+                    ) : (
+                      <div style={{ fontSize: 12, lineHeight: 1.8 }}>
+                        {dealTerms.interessement && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ color: "#e65100", fontWeight: 700 }}>Intéressement :</span>
+                            <span>{dealTerms.interessement.pct}% du CA net</span>
+                            {dealTerms.interessement.cap ? (
+                              <span style={{ color: "#666" }}>(plafonné {(dealTerms.interessement.cap / 1000).toLocaleString("fr-FR")}k€)</span>
+                            ) : (
+                              <span style={{ color: "#dc2626", fontWeight: 700 }}>SANS PLAFOND</span>
+                            )}
+                            <span style={{ color: "#666" }}>· {dealTerms.interessement.duration} ans</span>
+                          </div>
+                        )}
+                        {dealTerms.bsa != null && dealTerms.bsa > 0 && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ color: "#7c3aed", fontWeight: 700 }}>BSA/BSPCE :</span>
+                            <span>{dealTerms.bsa}% du capital</span>
+                          </div>
+                        )}
+                        {dealTerms.discount > 0 && (
+                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                            <span style={{ color: "#16a34a", fontWeight: 700 }}>Remise :</span>
+                            <span>{dealTerms.discount}% sur le tarif (−{(totalPrice - cashPrice).toLocaleString("fr-FR")} €)</span>
+                          </div>
+                        )}
+                        {!dealTerms.interessement && !(dealTerms.bsa && dealTerms.bsa > 0) && dealTerms.discount === 0 && (
+                          <div style={{ color: "#666" }}>Cash seul — tarif plein, pas de remise.</div>
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  <hr style={{ margin: "16px 0", border: "none", borderTop: "1px solid #e0e0e0" }} />
-                  <p><strong>PI :</strong> Cession complète et irrévocable de tout le code au Client.</p>
-                  <p style={{ marginTop: 16 }}>
-                    <strong>Pour NovaDev Solutions :</strong><br/>
-                    Signature : Thomas Vidal ✓
-                  </p>
-                  <p>
-                    <strong>Pour Orisio SAS :</strong><br/>
-                    Signature : _________________________
-                  </p>
+                  <hr style={{ margin: "12px 0", border: "none", borderTop: "1px solid #e0e0e0" }} />
+                  <p style={{ fontSize: 11, color: "#888" }}><strong>PI :</strong> Cession complète et irrévocable de tout le code au Client.</p>
                 </div>
 
                 {/* Right: negotiation chat */}
@@ -4185,11 +4305,39 @@ ${equityClause}
                     💬 Négociation avec Thomas Vidal
                   </div>
                   <div ref={devisNegoChatRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
-                    {devisNegoMessages.length === 0 && (
-                      <div style={{ textAlign: "center", color: "#bbb", fontSize: 12, marginTop: 24 }}>
-                        Sélectionnez les modules à gauche,<br/>
-                        puis discutez avec Thomas<br/>
-                        pour négocier les termes.
+                    {!devisLocked && devisNegoMessages.length === 0 && (
+                      <div style={{ textAlign: "center", marginTop: 32, padding: "0 16px" }}>
+                        <div style={{ fontSize: 28, marginBottom: 12 }}>📋</div>
+                        <p style={{ color: "#555", fontSize: 13, lineHeight: 1.6, margin: "0 0 8px" }}>
+                          <strong>Étape 1 :</strong> Cochez les modules que vous souhaitez commander à gauche.
+                        </p>
+                        <p style={{ color: "#888", fontSize: 12, lineHeight: 1.5, margin: "0 0 16px" }}>
+                          Une fois votre sélection validée, le scope sera verrouillé et vous pourrez négocier les conditions avec Thomas.
+                        </p>
+                        <button
+                          onClick={() => {
+                            const anyChecked = Object.values(devisFeatures).some(v => v);
+                            if (!anyChecked) return;
+                            setDevisLocked(true);
+                          }}
+                          disabled={!Object.values(devisFeatures).some(v => v)}
+                          style={{
+                            padding: "10px 28px",
+                            background: Object.values(devisFeatures).some(v => v) ? "linear-gradient(135deg, #5b5fc7, #4338ca)" : "#ddd",
+                            color: Object.values(devisFeatures).some(v => v) ? "#fff" : "#999",
+                            border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700,
+                            cursor: Object.values(devisFeatures).some(v => v) ? "pointer" : "not-allowed",
+                            boxShadow: Object.values(devisFeatures).some(v => v) ? "0 4px 12px rgba(91,95,199,0.3)" : "none",
+                          }}
+                        >
+                          Valider le scope ({totalPrice.toLocaleString("fr-FR")} €)
+                        </button>
+                      </div>
+                    )}
+                    {devisLocked && devisNegoMessages.length === 0 && (
+                      <div style={{ textAlign: "center", color: "#888", fontSize: 12, marginTop: 24 }}>
+                        Scope verrouillé à {totalPrice.toLocaleString("fr-FR")} €.<br/>
+                        Écrivez à Thomas pour négocier les termes.
                       </div>
                     )}
                     {devisNegoMessages.map((msg, i) => (
@@ -4220,20 +4368,24 @@ ${equityClause}
                       type="text"
                       value={devisNegoInput}
                       onChange={(e) => setDevisNegoInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") sendDevisNegoMsg(); }}
-                      placeholder="Votre position..."
+                      onKeyDown={(e) => { if (e.key === "Enter" && devisLocked) sendDevisNegoMsg(); }}
+                      placeholder={devisLocked ? "Votre position..." : "Validez le scope d'abord →"}
+                      disabled={!devisLocked}
                       style={{
                         flex: 1, padding: "8px 12px", border: "1px solid #ddd", borderRadius: 8,
                         fontSize: 13, fontFamily: "inherit",
+                        background: devisLocked ? "#fff" : "#f5f5f5",
+                        color: devisLocked ? "#333" : "#bbb",
                       }}
                     />
                     <button
                       onClick={sendDevisNegoMsg}
-                      disabled={devisNegoLoading || !devisNegoInput.trim()}
+                      disabled={!devisLocked || devisNegoLoading || !devisNegoInput.trim()}
                       style={{
                         padding: "8px 16px", borderRadius: 8, border: "none",
-                        background: devisNegoLoading ? "#ccc" : "#5b5fc7",
-                        color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                        background: !devisLocked || devisNegoLoading ? "#ccc" : "#5b5fc7",
+                        color: "#fff", fontSize: 13, fontWeight: 600,
+                        cursor: !devisLocked || devisNegoLoading ? "not-allowed" : "pointer",
                       }}
                     >↑</button>
                   </div>
@@ -4242,53 +4394,62 @@ ${equityClause}
 
               {/* Signature bar */}
               <div style={{
-                padding: "16px 24px", borderTop: "2px solid #ffd700",
+                padding: "12px 24px", borderTop: "2px solid #ffd700",
                 background: devisSigned ? "#f0fdf4" : "#fffbeb",
               }}>
                 {!devisSigned ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                     <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 4 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 2 }}>
                         Signataire : {displayPlayerName || "CEO"} — Président, Orisio SAS
                       </div>
                       <div style={{ fontSize: 11, color: "#888" }}>
-                        {devisNegoMessages.length < 2
+                        {!canSign
                           ? "Négociez d'abord les termes avec Thomas avant de signer."
-                          : `Montant total : ${totalPrice.toLocaleString("fr-FR")} € | Quand vous êtes satisfait, signez.`
+                          : `À payer : ${cashPrice.toLocaleString("fr-FR")} €${dealTerms.interessement ? ` + ${dealTerms.interessement.pct}% intéressement` : ""}${dealTerms.bsa ? ` + ${dealTerms.bsa}% BSA` : ""}`
                         }
                       </div>
                     </div>
                     <button
-                      disabled={devisNegoMessages.length < 2}
+                      disabled={!canSign}
                       onClick={() => {
                         setShowDevisNego(false);
                         if (session && scenario) {
                           const next = cloneSession(session);
                           next.flags.devis_signed = true;
                           next.flags.devis_total = totalPrice;
+                          next.flags.devis_cash_paid = cashPrice;
+                          next.flags.devis_discount = dealTerms.discount;
                           next.flags.devis_selected_features = Object.keys(devisFeatures).filter(k => devisFeatures[k]);
-                          // Analyze negotiation content to set deal flags
-                          const allText = devisNegoMessages.map((m) => m.content).join(" ").toLowerCase();
-                          if (allText.includes("cash") || allText.includes("tarif plein") || allText.includes("pas d'intéressement") || allText.includes("0%")) {
-                            next.flags.deal_cash_only = true;
-                          } else if (allText.includes("plafond") || allText.includes("plafonné") || (allText.includes("%") && allText.includes("cap"))) {
-                            next.flags.deal_interessement_capped = true;
-                          } else if ((allText.includes("8%") || allText.includes("sans plafond")) && !allText.includes("plafond")) {
-                            next.flags.deal_interessement_uncapped = true;
-                          } else if (allText.includes("bsa") || allText.includes("bspce") || allText.includes("capital")) {
-                            const bsaMatch = allText.match(/(\d+)\s*%.*(?:bsa|capital|bspce)/);
-                            if (bsaMatch && parseInt(bsaMatch[1]) > 3) {
+                          // Store exact deal terms for campaign propagation
+                          if (dealTerms.interessement) {
+                            next.flags.deal_interessement_pct = dealTerms.interessement.pct;
+                            next.flags.deal_interessement_cap = dealTerms.interessement.cap;
+                            next.flags.deal_interessement_duration = dealTerms.interessement.duration;
+                            if (dealTerms.interessement.cap === null || dealTerms.interessement.cap === 0) {
+                              next.flags.deal_interessement_uncapped = true;
+                            } else {
+                              next.flags.deal_interessement_capped = true;
+                            }
+                          }
+                          if (dealTerms.bsa && dealTerms.bsa > 0) {
+                            next.flags.deal_bsa_pct = dealTerms.bsa;
+                            if (dealTerms.bsa > 3) {
                               next.flags.deal_bsa_excessive = true;
                             } else {
                               next.flags.deal_bsa_reasonable = true;
                             }
-                          } else {
-                            // Default: capped interest if no clear signal
-                            next.flags.deal_interessement_capped = true;
                           }
-                          // Finish the scenario BEFORE setSession
+                          if (!dealTerms.interessement && (!dealTerms.bsa || dealTerms.bsa === 0)) {
+                            next.flags.deal_cash_only = true;
+                          }
+                          // Store royalties info for future scenarios
+                          if (dealTerms.interessement) {
+                            next.flags.royalties_pct = dealTerms.interessement.pct;
+                            next.flags.royalties_cap = dealTerms.interessement.cap;
+                            next.flags.royalties_duration_years = dealTerms.interessement.duration;
+                          }
                           finishScenario(next);
-                          // setSession MUST be LAST to trigger debrief render
                           setSession(next);
                         }
                         playNotificationSound();
@@ -4296,18 +4457,18 @@ ${equityClause}
                       }}
                       style={{
                         padding: "12px 32px", flexShrink: 0,
-                        background: devisNegoMessages.length < 2
+                        background: !canSign
                           ? "#ddd"
                           : "linear-gradient(135deg, #ffd700, #ffb300)",
-                        border: devisNegoMessages.length < 2 ? "2px solid #ccc" : "2px solid #e6a800",
+                        border: !canSign ? "2px solid #ccc" : "2px solid #e6a800",
                         borderRadius: 10,
-                        color: devisNegoMessages.length < 2 ? "#999" : "#1a1a2e",
+                        color: !canSign ? "#999" : "#1a1a2e",
                         fontSize: 15, fontWeight: 800,
-                        cursor: devisNegoMessages.length < 2 ? "not-allowed" : "pointer",
-                        boxShadow: devisNegoMessages.length < 2 ? "none" : "0 4px 16px rgba(255,215,0,0.3)",
+                        cursor: !canSign ? "not-allowed" : "pointer",
+                        boxShadow: !canSign ? "none" : "0 4px 16px rgba(255,215,0,0.3)",
                       }}
                     >
-                      ✍️ Accepter et signer le devis
+                      ✍️ Signer le devis
                     </button>
                   </div>
                 ) : (

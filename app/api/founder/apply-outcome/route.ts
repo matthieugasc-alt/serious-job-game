@@ -107,6 +107,19 @@ export async function POST(req: NextRequest) {
     };
   }
 
+  // ── Store royalties (intéressement) in campaign flags for future scenarios ──
+  if (debrief?.royaltiesPct && typeof debrief.royaltiesPct === 'number') {
+    outcome = {
+      ...outcome,
+      setsFlags: {
+        ...(outcome.setsFlags || {}),
+        royalties_pct: debrief.royaltiesPct,
+        royalties_cap: debrief.royaltiesCap || null,
+        royalties_duration_years: debrief.royaltiesDuration || null,
+      },
+    };
+  }
+
   // Apply deltas + flags via unified helper
   const stateBefore = { ...campaign.state };
   const updatedCampaign = applyOutcomeToCampaign(campaign, outcome);
