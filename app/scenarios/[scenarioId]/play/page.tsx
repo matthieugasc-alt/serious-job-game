@@ -36,7 +36,22 @@ import {
 // CONSTANTS & HELPERS
 // ════════════════════════════════════════════════════════════════════
 
-type MainView = "chat" | "mail" | "docs" | "context";
+type MainView = "chat" | "mail" | "docs" | "context" | "notes";
+
+/* ═══ Mind Map / Outline types ═══ */
+type OutlineItem = { id: string; text: string; depth: number };
+let _outlineIdCounter = 0;
+function mkOutlineId() { return `ol_${++_outlineIdCounter}_${Date.now()}`; }
+function outlineToText(items: OutlineItem[]): string {
+  const bullets = ["•", "  ◦", "    ▪", "      ▸", "        ‣", "          ·"];
+  return items
+    .filter((i) => i.text.trim())
+    .map((i) => {
+      const prefix = bullets[Math.min(i.depth, bullets.length - 1)];
+      return `${prefix} ${i.text.trim()}`;
+    })
+    .join("\n");
+}
 
 const STATUS_COLORS: Record<string, string> = {
   available: "#44b553",
@@ -202,6 +217,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const pacteThreadEndRef = useRef<HTMLDivElement>(null);
   const pacteContentRef = useRef<HTMLDivElement>(null);
   const [pacteEdited, setPacteEdited] = useState(false);
+  // ── Mind Map / Outline tool (scenario 4+) ──
+  const [outlineItems, setOutlineItems] = useState<OutlineItem[]>(() => [
+    { id: mkOutlineId(), text: "", depth: 0 },
+  ]);
+  const outlineRefs = useRef<Record<string, HTMLInputElement | null>>({});
+  const hasMindmapTool = scenario?.meta?.tags?.includes("priorisation") || scenarioId === "founder_04_v1";
+  const [outlineCopiedFeedback, setOutlineCopiedFeedback] = useState("");
   // ── Contract signature (scenario 2+) ──
   const [showContractSignature, setShowContractSignature] = useState(false);
   const [contractSigned, setContractSigned] = useState(false);
@@ -5055,6 +5077,7 @@ ${equityClause}
             {([
               { key: "chat" as MainView, icon: "💬", label: "Chat", badge: 0 },
               { key: "mail" as MainView, icon: "📧", label: "Email", badge: unreadMails },
+              ...(hasMindmapTool ? [{ key: "notes" as MainView, icon: "🗒️", label: "Notes", badge: 0 }] : []),
             ]).map((tab) => {
               const isLocked = tab.key === "mail" && mailLockedForNow;
               return (
@@ -5342,6 +5365,23 @@ ${equityClause}
                 </div>
               ) : (
                 <div style={{ padding: "10px 16px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0, background: "#fafafa" }}>
+                  {hasMindmapTool && outlineItems.filter((i) => i.text.trim()).length > 0 && (
+                    <button
+                      onClick={() => {
+                        const text = outlineToText(outlineItems);
+                        setPlayerInput((prev) => prev ? prev + "\n" + text : text);
+                        inputRef.current?.focus();
+                      }}
+                      title="Insérer mes notes"
+                      style={{
+                        padding: "8px 10px", borderRadius: 20, border: "1px solid #ddd",
+                        background: "#f8f8ff", color: "#5b5fc7", cursor: "pointer",
+                        fontSize: 14, flexShrink: 0, lineHeight: 1,
+                      }}
+                    >
+                      🗒️
+                    </button>
+                  )}
                   <input
                     ref={inputRef}
                     type="text"
@@ -5904,6 +5944,27 @@ ${equityClause}
                       />
                     </div>
                     {/* Body */}
+                    {hasMindmapTool && outlineItems.filter((i) => i.text.trim()).length > 0 && (
+                      <button
+                        onClick={() => {
+                          const text = outlineToText(outlineItems);
+                          if (!text) return;
+                          const body = currentMailDraft.body;
+                          const newBody = body ? body + "\n\n--- Mes notes d'analyse ---\n" + text : text;
+                          updateDraft({ body: newBody });
+                        }}
+                        style={{
+                          padding: "6px 14px", borderRadius: 6,
+                          border: "1px dashed rgba(91,95,199,0.4)",
+                          background: "#f8f8ff", color: "#5b5fc7", fontSize: 12,
+                          cursor: "pointer", fontWeight: 500,
+                          display: "flex", alignItems: "center", gap: 6,
+                          alignSelf: "flex-start",
+                        }}
+                      >
+                        🗒️ Insérer mes notes ({outlineItems.filter((i) => i.text.trim()).length} éléments)
+                      </button>
+                    )}
                     <textarea
                       value={currentMailDraft.body}
                       onChange={(e) => updateDraft({ body: e.target.value })}
@@ -5988,6 +6049,194 @@ ${equityClause}
               </div>
             </div>
           )}
+          {/* ═══ NOTES / MIND MAP VIEW ═══ */}
+          {mainView === "notes" && hasMindmapTool && (
+            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+              {/* Header */}
+              <div style={{ padding: "14px 20px", borderBottom: "1px solid #e8e8e8", background: "#fff", flexShrink: 0 }}>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                  <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1a3c6e" }}>
+                    🗒️ Notes d'analyse
+                  </h2>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    {outlineCopiedFeedback && (
+                      <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600, animation: "fadeIn .2s" }}>
+                        {outlineCopiedFeedback}
+                      </span>
+                    )}
+                    <button
+                      onClick={() => {
+                        const text = outlineToText(outlineItems);
+                        if (!text) return;
+                        navigator.clipboard.writeText(text);
+                        setOutlineCopiedFeedback("Copié !");
+                        setTimeout(() => setOutlineCopiedFeedback(""), 1500);
+                      }}
+                      style={{
+                        padding: "5px 12px", borderRadius: 6, border: "1px solid #ddd",
+                        background: "#fff", color: "#555", fontSize: 12, cursor: "pointer",
+                        fontWeight: 500, display: "flex", alignItems: "center", gap: 4,
+                      }}
+                    >
+                      📋 Copier
+                    </button>
+                    <button
+                      onClick={() => {
+                        const text = outlineToText(outlineItems);
+                        if (!text) return;
+                        const body = currentMailDraft.body;
+                        const newBody = body ? body + "\n\n--- Mes notes d'analyse ---\n" + text : text;
+                        updateDraft({ body: newBody });
+                        setMainView("mail");
+                        setShowCompose(true);
+                        setOutlineCopiedFeedback("Inséré dans le mail !");
+                        setTimeout(() => setOutlineCopiedFeedback(""), 2000);
+                      }}
+                      style={{
+                        padding: "5px 12px", borderRadius: 6, border: "1px solid rgba(91,95,199,0.3)",
+                        background: "#f0f0ff", color: "#5b5fc7", fontSize: 12, cursor: "pointer",
+                        fontWeight: 600, display: "flex", alignItems: "center", gap: 4,
+                      }}
+                    >
+                      ✉️ Insérer dans le mail
+                    </button>
+                  </div>
+                </div>
+                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888" }}>
+                  Organise tes observations. <strong>Tab</strong> = indenter · <strong>Shift+Tab</strong> = dé-indenter · <strong>Entrée</strong> = nouvelle ligne · <strong>Backspace</strong> (vide) = supprimer
+                </p>
+              </div>
+
+              {/* Outline editor */}
+              <div style={{ flex: 1, overflowY: "auto", padding: "16px 20px" }}>
+                {outlineItems.map((item, idx) => {
+                  const depthColors = ["#1a3c6e", "#5b5fc7", "#7c3aed", "#0891b2", "#059669", "#d97706", "#dc2626"];
+                  const bulletChars = ["●", "○", "▪", "▫", "‣", "·"];
+                  const bullet = bulletChars[Math.min(item.depth, bulletChars.length - 1)];
+                  const color = depthColors[Math.min(item.depth, depthColors.length - 1)];
+
+                  return (
+                    <div
+                      key={item.id}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        paddingLeft: item.depth * 24,
+                        marginBottom: 2,
+                      }}
+                    >
+                      <span style={{
+                        width: 16, textAlign: "center", fontSize: item.depth === 0 ? 10 : 8,
+                        color, flexShrink: 0, userSelect: "none",
+                      }}>
+                        {bullet}
+                      </span>
+                      <input
+                        ref={(el) => { outlineRefs.current[item.id] = el; }}
+                        type="text"
+                        value={item.text}
+                        placeholder={idx === 0 && item.text === "" ? "Commence ton analyse ici..." : ""}
+                        onChange={(e) => {
+                          setOutlineItems((prev) =>
+                            prev.map((it) => it.id === item.id ? { ...it, text: e.target.value } : it)
+                          );
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Tab") {
+                            e.preventDefault();
+                            setOutlineItems((prev) =>
+                              prev.map((it) => {
+                                if (it.id !== item.id) return it;
+                                if (e.shiftKey) {
+                                  return { ...it, depth: Math.max(0, it.depth - 1) };
+                                } else {
+                                  return { ...it, depth: Math.min(5, it.depth + 1) };
+                                }
+                              })
+                            );
+                          } else if (e.key === "Enter") {
+                            e.preventDefault();
+                            const newId = mkOutlineId();
+                            const newItem: OutlineItem = { id: newId, text: "", depth: item.depth };
+                            setOutlineItems((prev) => {
+                              const i = prev.findIndex((it) => it.id === item.id);
+                              const next = [...prev];
+                              next.splice(i + 1, 0, newItem);
+                              return next;
+                            });
+                            setTimeout(() => outlineRefs.current[newId]?.focus(), 30);
+                          } else if (e.key === "Backspace" && item.text === "" && outlineItems.length > 1) {
+                            e.preventDefault();
+                            const prevIdx = idx - 1;
+                            setOutlineItems((prev) => prev.filter((it) => it.id !== item.id));
+                            if (prevIdx >= 0) {
+                              const prevId = outlineItems[prevIdx].id;
+                              setTimeout(() => {
+                                const el = outlineRefs.current[prevId];
+                                if (el) { el.focus(); el.setSelectionRange(el.value.length, el.value.length); }
+                              }, 30);
+                            }
+                          } else if (e.key === "ArrowUp" && idx > 0) {
+                            e.preventDefault();
+                            const prevId = outlineItems[idx - 1].id;
+                            outlineRefs.current[prevId]?.focus();
+                          } else if (e.key === "ArrowDown" && idx < outlineItems.length - 1) {
+                            e.preventDefault();
+                            const nextId = outlineItems[idx + 1].id;
+                            outlineRefs.current[nextId]?.focus();
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          border: "none",
+                          outline: "none",
+                          padding: "6px 8px",
+                          fontSize: item.depth === 0 ? 14 : 13,
+                          fontWeight: item.depth === 0 ? 600 : 400,
+                          color: item.text ? color : "#ccc",
+                          background: "transparent",
+                          borderRadius: 4,
+                          lineHeight: 1.4,
+                        }}
+                        onFocus={(e) => {
+                          (e.target as HTMLInputElement).style.background = "#f8f8ff";
+                        }}
+                        onBlur={(e) => {
+                          (e.target as HTMLInputElement).style.background = "transparent";
+                        }}
+                      />
+                    </div>
+                  );
+                })}
+
+                {/* Add item button */}
+                <button
+                  onClick={() => {
+                    const newId = mkOutlineId();
+                    setOutlineItems((prev) => [...prev, { id: newId, text: "", depth: 0 }]);
+                    setTimeout(() => outlineRefs.current[newId]?.focus(), 30);
+                  }}
+                  style={{
+                    marginTop: 12, padding: "8px 16px", border: "1px dashed #ccc",
+                    borderRadius: 6, background: "transparent", color: "#999",
+                    cursor: "pointer", fontSize: 12,
+                  }}
+                >
+                  + Ajouter un élément
+                </button>
+              </div>
+
+              {/* Stats footer */}
+              <div style={{
+                padding: "8px 20px", borderTop: "1px solid #e8e8e8", background: "#fafafa",
+                fontSize: 11, color: "#999", display: "flex", justifyContent: "space-between", flexShrink: 0,
+              }}>
+                <span>{outlineItems.filter((i) => i.text.trim()).length} éléments</span>
+                <span>{outlineItems.filter((i) => i.depth === 0 && i.text.trim()).length} catégories principales</span>
+              </div>
+            </div>
+          )}
+
         </main>
 
         {/* ═══════ RIGHT PANEL ═══════ */}

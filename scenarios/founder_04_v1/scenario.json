@@ -168,14 +168,30 @@
   },
   "initial_events": [
     {
-      "event_id": "alexandre_rapport",
+      "event_id": "alexandre_rapport_1",
       "type": "chat",
       "actor": "alexandre_morel",
-      "content": "J'ai fini le rapport. 24 pages. C'est pas brillant. 2 chirurgiens actifs sur 12, les IDE veulent qu'on dégage, et on a eu un incident patient — une dame de 67 ans qui s'est pointée pour sa prothèse de hanche et on lui a dit que c'était annulé. Annulé par le système. Personne n'était au courant. La direction nous a envoyé la réclamation.\n\nJ'ai tout documenté. Lis le rapport, lis la réclamation de Mme Dupont. Mon diagnostic : il nous manque cruellement des fonctionnalités. Le MVP ne couvre que la planification et les annulations, mais on a besoin d'un module matériel, d'un dashboard direction, de notifications avancées, d'un module de formation intégré et d'une API pour le SI de l'établissement.\n\nJ'ai contacté Thomas Vidal, il estime le tout à 21 000€ pour 12 semaines. Il faut débloquer ce budget MAINTENANT. Chaque semaine de retard augmente le risque que la direction annule le pilote.",
+      "content": "Bon. Le rapport est fini. 24 pages. Lis-le.",
       "attachments": [
-        { "id": "rapport_alexandre", "label": "Rapport de terrain (24 pages)" },
+        { "id": "rapport_alexandre", "label": "Rapport de terrain (24 pages)" }
+      ]
+    },
+    {
+      "event_id": "alexandre_rapport_2",
+      "type": "chat",
+      "actor": "alexandre_morel",
+      "delay_seconds": 2,
+      "content": "Et lis ça aussi. Réclamation d'une patiente de 67 ans. Prothèse de hanche annulée par le système, personne prévenu. Elle s'est pointée à 7h30 du mat pour rien.",
+      "attachments": [
         { "id": "reclamation_patient", "label": "Réclamation Mme Dupont" }
       ]
+    },
+    {
+      "event_id": "alexandre_rapport_3",
+      "type": "chat",
+      "actor": "alexandre_morel",
+      "delay_seconds": 4,
+      "content": "On a un vrai problème. Le produit fait pas assez. J'ai déjà appelé Thomas, il peut nous faire les modules manquants pour 21K. Faut qu'on en parle."
     }
   ],
   "phases": [
