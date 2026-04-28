@@ -38,6 +38,30 @@ import {
 
 type MainView = "chat" | "mail" | "docs" | "context" | "notes";
 
+/* ═══ Establishment mapping (reused across scenarios 3 & 4) ═══ */
+const ESTABLISHMENT_MAP: Record<string, { name: string; email: string; label: string }> = {
+  chose_chu: { name: "Dr. Pierre Lemaire", email: "p.lemaire@chu-bordeaux.fr", label: "le CHU de Bordeaux" },
+  chose_saint_martin: { name: "Laurent Castex", email: "l.castex@hp-saintmartin.fr", label: "l'Hôpital Saint-Martin" },
+  chose_clinique: { name: "Dr. Claire Renaud-Picard", email: "c.renaud-picard@clinique-saint-augustin.fr", label: "la Clinique Saint-Augustin" },
+};
+function resolveEstablishment(flags: Record<string, any>): { name: string; email: string; label: string } {
+  const key = flags.chose_chu ? "chose_chu" : flags.chose_saint_martin ? "chose_saint_martin" : "chose_clinique";
+  return ESTABLISHMENT_MAP[key];
+}
+
+/** Replace {{establishment_email}} and {{establishment_name}} placeholders in mail_config defaults */
+function resolveMailPlaceholders(mailConfig: any, flags: Record<string, any>) {
+  if (!mailConfig?.defaults) return;
+  const est = resolveEstablishment(flags);
+  if (mailConfig.defaults.to?.includes("{{establishment_email}}")) {
+    mailConfig.defaults.to = est.email;
+  }
+  if (mailConfig.defaults.subject?.includes("{{establishment_name}}")) {
+    mailConfig.defaults.subject = mailConfig.defaults.subject.replace("{{establishment_name}}", est.label);
+  }
+  // Also resolve in entry_events content if needed
+}
+
 /* ═══ Mind Map / Outline types ═══ */
 type OutlineItem = { id: string; text: string; depth: number };
 let _outlineIdCounter = 0;
@@ -256,6 +280,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [devisNegoMessages, setDevisNegoMessages] = useState<Array<{ role: "player" | "npc"; content: string }>>([]);
   const [devisNegoInput, setDevisNegoInput] = useState("");
   const [devisNegoLoading, setDevisNegoLoading] = useState(false);
+  const [devisFeatures, setDevisFeatures] = useState<Record<string, boolean>>({
+    bug_fix: true,
+    notifications: false,
+    dashboard: false,
+    materiel: false,
+    api_si: false,
+  });
   const devisNegoChatRef = useRef<HTMLDivElement>(null);
   // ── Contract signature (scenario 2+) ──
   const [showContractSignature, setShowContractSignature] = useState(false);
@@ -457,6 +488,29 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         }
         // Mark as resolved so we don't re-process
         phase.dynamic_actor = "resolved";
+      }
+    }
+  }
+
+  /** Resolve {{establishment_email}} placeholders in mail_config for scenario 4 */
+  function resolveEstablishmentPlaceholders(sess: any) {
+    if (!sess?.scenario?.phases || !sess?.flags) return;
+    for (const phase of sess.scenario.phases) {
+      if (phase.dynamic_mail_to === "establishment" && phase.dynamic_mail_to !== "resolved") {
+        const est = resolveEstablishment(sess.flags);
+        // Resolve mail_config defaults
+        if (phase.mail_config?.defaults) {
+          resolveMailPlaceholders(phase.mail_config, sess.flags);
+        }
+        // Resolve entry_events content (replace establishment references)
+        if (Array.isArray(phase.entry_events)) {
+          for (const ev of phase.entry_events) {
+            if (typeof ev.content === "string" && ev.content.includes("{{establishment_label}}")) {
+              ev.content = ev.content.replace(/\{\{establishment_label\}\}/g, est.label);
+            }
+          }
+        }
+        phase.dynamic_mail_to = "resolved";
       }
     }
   }
@@ -1022,6 +1076,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         // (a) has an active Founder campaign (playing in Founder mode), OR
         // (b) has already completed it in Founder mode (playing classic replay)
         const isFounderMeta = ((data.meta as any)?.job_family || "") === "founder";
+        let activeCampaign: any = null;
         if (isFounderMeta) {
           try {
             const fRes = await fetch("/api/founder/campaigns", {
@@ -1030,7 +1085,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             if (fRes.ok) {
               const fData = await fRes.json();
               const campaigns = fData.campaigns || (fData.campaign ? [fData.campaign] : []);
-              const activeCampaign = campaigns.find((c: any) => c.status !== "completed");
+              activeCampaign = campaigns.find((c: any) => c.status !== "completed");
               const hasActiveCampaign = !!activeCampaign;
               const hasCompletedScenario = campaigns.some((c: any) =>
                 (c.completedScenarios || []).some((cs: any) => cs.scenarioId === scenarioId)
@@ -1053,6 +1108,25 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         setScenario(data);
 
         const s = initializeSession(data);
+
+        // ── Scenario 4: Import establishment choice from Scenario 3 outcome ──
+        if (scenarioId?.startsWith("founder_04") && activeCampaign) {
+          const s3Completion = (activeCampaign.completedScenarios || []).find(
+            (cs: any) => cs.scenarioId === "founder_03_clinical"
+          );
+          if (s3Completion?.outcomeId) {
+            // Infer establishment from scenario 3 outcome
+            if (s3Completion.outcomeId === "pilot_toxic") {
+              s.flags.chose_chu = true; s.flags.chose_saint_martin = false; s.flags.chose_clinique = false;
+            } else if (s3Completion.outcomeId === "pilot_slow") {
+              s.flags.chose_saint_martin = true; s.flags.chose_chu = false; s.flags.chose_clinique = false;
+            } else {
+              // pilot_clean or pilot_switched → clinique
+              s.flags.chose_clinique = true; s.flags.chose_chu = false; s.flags.chose_saint_martin = false;
+            }
+          }
+        }
+
         const p1 = data.phases[0];
         if (p1?.mail_config?.defaults) {
           updateMailDraft(s, p1.phase_id, {
@@ -1189,6 +1263,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       const next = cloneSession(session);
       completeCurrentPhaseAndAdvance(next);
       resolveDynamicActors(next);
+      resolveEstablishmentPlaceholders(next);
       const newPhase = scenario.phases[next.currentPhaseIndex];
       // For manual_start phases, only inject Alexandre's intro (delay_ms=0)
       if ((newPhase as any)?.manual_start) {
@@ -1234,6 +1309,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       next.simulatedTime = deadlineIso;
       completeCurrentPhaseAndAdvance(next);
       resolveDynamicActors(next);
+      resolveEstablishmentPlaceholders(next);
       injectPhaseEntryEvents(next);
       const newPhase = scenario.phases[next.currentPhaseIndex];
       if (newPhase?.mail_config?.defaults) {
@@ -2262,6 +2338,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       if (rulesPass) {
         completeCurrentPhaseAndAdvance(next);
         resolveDynamicActors(next);
+      resolveEstablishmentPlaceholders(next);
         injectPhaseEntryEvents(next);
         const newPhase = scenario.phases[next.currentPhaseIndex];
         if (newPhase?.mail_config?.defaults) {
@@ -2445,6 +2522,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       const advanceToPhase3 = (s: typeof next) => {
         completeCurrentPhaseAndAdvance(s);
         resolveDynamicActors(s);
+        resolveEstablishmentPlaceholders(s);
         injectPhaseEntryEvents(s);
         const p3 = scenario.phases[s.currentPhaseIndex];
         if (p3?.mail_config?.defaults) {
@@ -3662,6 +3740,7 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
                             if (phase?.mail_config?.send_advances_phase) {
                               completeCurrentPhaseAndAdvance(next);
                               resolveDynamicActors(next);
+      resolveEstablishmentPlaceholders(next);
                               injectPhaseEntryEvents(next);
                               const newPhase = scenario.phases[next.currentPhaseIndex];
                               if (newPhase?.mail_config?.defaults) {
@@ -3895,28 +3974,45 @@ ${equityClause}
 
       {/* ═══════ DEVIS NOVADEV NEGOTIATION OVERLAY (Scenario 4 Phase 3) ═══════ */}
       {showDevisNego && (() => {
-        const devisHtml = `<h1 style="text-align:center;color:#1a1a2e;margin-bottom:16px;">Proposition commerciale — NovaDev</h1>
-<p><strong>De :</strong> Thomas Vidal — NovaDev Solutions<br/><strong>Pour :</strong> ${displayPlayerName || "CEO"} — Orisio SAS</p>
-<hr style="margin:16px 0;border:none;border-top:1px solid #e0e0e0;"/>
-<h2>Option A — Intéressement sur le CA</h2>
-<p>Intéressement de <strong>8% du CA net</strong> d'Orisio, sans plafond, pendant 5 ans.</p>
-<p>En contrepartie : <strong>réduction de 30%</strong> sur le tarif de la V1.</p>
-<h2>Option B — BSA (capital)</h2>
-<p>Attribution de <strong>5% du capital</strong> via BSA, valorisation actuelle.</p>
-<p>Tarif normal maintenu.</p>
-<h2>Détails techniques — Estimations V1</h2>
-<table style="width:100%;border-collapse:collapse;margin:12px 0;">
-<tr style="background:#f5f5f5;"><th style="text-align:left;padding:8px;border:1px solid #ddd;">Module</th><th style="text-align:right;padding:8px;border:1px solid #ddd;">Estimation</th></tr>
-<tr><td style="padding:8px;border:1px solid #ddd;">Bug annulation (verrouillage + confirmation)</td><td style="text-align:right;padding:8px;border:1px solid #ddd;">2 000 €</td></tr>
-<tr><td style="padding:8px;border:1px solid #ddd;">Notifications basiques</td><td style="text-align:right;padding:8px;border:1px solid #ddd;">3 500 €</td></tr>
-<tr><td style="padding:8px;border:1px solid #ddd;">Dashboard direction simple</td><td style="text-align:right;padding:8px;border:1px solid #ddd;">5 000 €</td></tr>
-<tr><td style="padding:8px;border:1px solid #ddd;">Module gestion matériel</td><td style="text-align:right;padding:8px;border:1px solid #ddd;">7 000 €</td></tr>
-<tr><td style="padding:8px;border:1px solid #ddd;">API SI établissement</td><td style="text-align:right;padding:8px;border:1px solid #ddd;">8 000 €</td></tr>
-</table>
-<hr style="margin:16px 0;border:none;border-top:1px solid #e0e0e0;"/>
-<p><strong>PI :</strong> Cession complète et irrévocable de tout le code au Client.</p>
-<p style="margin-top:16px;"><strong>Pour NovaDev Solutions :</strong><br/>Signature : Thomas Vidal ✓</p>
-<p><strong>Pour Orisio SAS :</strong><br/>Signature : _________________________</p>`;
+        // Features data: label, price, default_selected
+        const featuresData = [
+          { key: "bug_fix", label: "Bug annulation (verrouillage + confirmation)", price: 2000 },
+          { key: "notifications", label: "Notifications basiques", price: 3500 },
+          { key: "dashboard", label: "Dashboard direction simple", price: 5000 },
+          { key: "materiel", label: "Module gestion matériel", price: 7000 },
+          { key: "api_si", label: "API SI établissement", price: 8000 },
+        ];
+
+        // Calculate total from selected features
+        const totalPrice = featuresData.reduce((sum, feat) =>
+          devisFeatures[feat.key] ? sum + feat.price : sum, 0
+        );
+
+        // Dynamic options text based on total price
+        const getOptionsText = () => {
+          if (totalPrice <= 2000) {
+            return {
+              optionA: `Intéressement de <strong>2% du CA net</strong> d'Orisio (plafonné à 50k€), pendant 3 ans.<br/><em>En contrepartie : <strong>tarif réduit</strong> (HT ${totalPrice}€).</em>`,
+              optionB: `Attribution de <strong>0.5% du capital</strong> via BSA, valorisation actuelle.<br/><em>Tarif normal (HT ${totalPrice}€) maintenu.</em>`,
+            };
+          } else if (totalPrice <= 10000) {
+            return {
+              optionA: `Intéressement de <strong>4% du CA net</strong> d'Orisio (plafonné à 100k€), pendant 4 ans.<br/><em>En contrepartie : <strong>réduction de 15%</strong> sur le tarif.</em>`,
+              optionB: `Attribution de <strong>1.5% du capital</strong> via BSA, valorisation actuelle.<br/><em>Tarif réduit (HT ${Math.round(totalPrice * 0.95)}€) appliqué.</em>`,
+            };
+          } else {
+            return {
+              optionA: `Intéressement de <strong>8% du CA net</strong> d'Orisio, sans plafond, pendant 5 ans.<br/><em>En contrepartie : <strong>réduction de 30%</strong> sur le tarif.</em>`,
+              optionB: `Attribution de <strong>5% du capital</strong> via BSA, valorisation actuelle.<br/><em>Tarif normal maintenu.</em>`,
+            };
+          }
+        };
+
+        const optionsText = getOptionsText();
+
+        // Build scope text for Thomas
+        const selectedFeatures = featuresData.filter(f => devisFeatures[f.key]).map(f => f.label).join(", ");
+        const scopeContext = `[Scope actuel : ${selectedFeatures || "Aucun module sélectionné"}. Montant total : ${totalPrice}€]`;
 
         async function sendDevisNegoMsg() {
           if (!devisNegoInput.trim() || devisNegoLoading || !session || !scenario) return;
@@ -3936,7 +4032,7 @@ ${equityClause}
               headers: apiHeaders(),
               body: JSON.stringify({
                 playerName: displayPlayerName,
-                message: userMsg,
+                message: `${scopeContext}\n\n${userMsg}`,
                 phaseTitle: view?.phaseTitle || "Négociation NovaDev",
                 phaseObjective: view?.phaseObjective || "",
                 phaseFocus: view?.phaseFocus || "",
@@ -3947,6 +4043,8 @@ ${equityClause}
                 recentConversation: recentConv,
                 playerMessages: devisNegoMessages.filter((m) => m.role === "player").map((m) => m.content).concat([userMsg]),
                 roleplayPrompt: activePrompt,
+                devisScope: selectedFeatures,
+                devisTotal: totalPrice,
               }),
             });
             if (res.ok) {
@@ -4012,12 +4110,73 @@ ${equityClause}
 
               {/* Split view: devis left, chat right */}
               <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                {/* Left: devis content */}
+                {/* Left: devis content (dynamic) */}
                 <div style={{ flex: 1, overflow: "auto", padding: "24px", borderRight: "1px solid #e8e8e8" }}>
-                  <div
-                    dangerouslySetInnerHTML={{ __html: devisHtml }}
-                    style={{ fontSize: 13, lineHeight: 1.7, color: "#333" }}
-                  />
+                  <h1 style={{ textAlign: "center", color: "#1a1a2e", marginBottom: 16 }}>
+                    Proposition commerciale — NovaDev
+                  </h1>
+                  <p>
+                    <strong>De :</strong> Thomas Vidal — NovaDev Solutions<br/>
+                    <strong>Pour :</strong> {displayPlayerName || "CEO"} — Orisio SAS
+                  </p>
+                  <hr style={{ margin: "16px 0", border: "none", borderTop: "1px solid #e0e0e0" }} />
+
+                  <h2>Option A — Intéressement sur le CA</h2>
+                  <p dangerouslySetInnerHTML={{ __html: optionsText.optionA }} />
+
+                  <h2>Option B — BSA (capital)</h2>
+                  <p dangerouslySetInnerHTML={{ __html: optionsText.optionB }} />
+
+                  <h2>Détails techniques — Estimations V1</h2>
+                  <div style={{ marginTop: 12, marginBottom: 12 }}>
+                    <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                      <tbody>
+                        <tr style={{ background: "#f5f5f5" }}>
+                          <th style={{ textAlign: "left", padding: 8, border: "1px solid #ddd" }}>Module</th>
+                          <th style={{ textAlign: "center", padding: 8, border: "1px solid #ddd", width: 80 }}>Inclus</th>
+                          <th style={{ textAlign: "right", padding: 8, border: "1px solid #ddd" }}>Estimation</th>
+                        </tr>
+                        {featuresData.map((feat) => (
+                          <tr key={feat.key}>
+                            <td style={{ padding: 8, border: "1px solid #ddd" }}>{feat.label}</td>
+                            <td style={{ padding: 8, border: "1px solid #ddd", textAlign: "center" }}>
+                              <input
+                                type="checkbox"
+                                checked={devisFeatures[feat.key]}
+                                onChange={(e) => setDevisFeatures((prev) => ({
+                                  ...prev,
+                                  [feat.key]: e.target.checked,
+                                }))}
+                                style={{ cursor: "pointer" }}
+                              />
+                            </td>
+                            <td style={{ textAlign: "right", padding: 8, border: "1px solid #ddd" }}>
+                              {feat.price.toLocaleString("fr-FR")} €
+                            </td>
+                          </tr>
+                        ))}
+                        <tr style={{ background: "#f5f5f5", fontWeight: "bold" }}>
+                          <td colSpan={2} style={{ padding: 8, border: "1px solid #ddd" }}>
+                            <strong>Montant total (HT)</strong>
+                          </td>
+                          <td style={{ textAlign: "right", padding: 8, border: "1px solid #ddd", color: "#e65100" }}>
+                            <strong>{totalPrice.toLocaleString("fr-FR")} €</strong>
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+
+                  <hr style={{ margin: "16px 0", border: "none", borderTop: "1px solid #e0e0e0" }} />
+                  <p><strong>PI :</strong> Cession complète et irrévocable de tout le code au Client.</p>
+                  <p style={{ marginTop: 16 }}>
+                    <strong>Pour NovaDev Solutions :</strong><br/>
+                    Signature : Thomas Vidal ✓
+                  </p>
+                  <p>
+                    <strong>Pour Orisio SAS :</strong><br/>
+                    Signature : _________________________
+                  </p>
                 </div>
 
                 {/* Right: negotiation chat */}
@@ -4028,8 +4187,9 @@ ${equityClause}
                   <div ref={devisNegoChatRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
                     {devisNegoMessages.length === 0 && (
                       <div style={{ textAlign: "center", color: "#bbb", fontSize: 12, marginTop: 24 }}>
-                        Discutez avec Thomas pour négocier les termes.<br/>
-                        Consultez la note de votre avocat dans les Documents.
+                        Sélectionnez les modules à gauche,<br/>
+                        puis discutez avec Thomas<br/>
+                        pour négocier les termes.
                       </div>
                     )}
                     {devisNegoMessages.map((msg, i) => (
@@ -4094,17 +4254,19 @@ ${equityClause}
                       <div style={{ fontSize: 11, color: "#888" }}>
                         {devisNegoMessages.length < 2
                           ? "Négociez d'abord les termes avec Thomas avant de signer."
-                          : "Quand vous êtes satisfait des termes, signez pour finaliser l'accord."
+                          : `Montant total : ${totalPrice.toLocaleString("fr-FR")} € | Quand vous êtes satisfait, signez.`
                         }
                       </div>
                     </div>
                     <button
                       disabled={devisNegoMessages.length < 2}
                       onClick={() => {
-                        setDevisSigned(true);
+                        setShowDevisNego(false);
                         if (session && scenario) {
                           const next = cloneSession(session);
                           next.flags.devis_signed = true;
+                          next.flags.devis_total = totalPrice;
+                          next.flags.devis_selected_features = Object.keys(devisFeatures).filter(k => devisFeatures[k]);
                           // Analyze negotiation content to set deal flags
                           const allText = devisNegoMessages.map((m) => m.content).join(" ").toLowerCase();
                           if (allText.includes("cash") || allText.includes("tarif plein") || allText.includes("pas d'intéressement") || allText.includes("0%")) {
@@ -4124,12 +4286,13 @@ ${equityClause}
                             // Default: capped interest if no clear signal
                             next.flags.deal_interessement_capped = true;
                           }
-                          // Finish the scenario
+                          // Finish the scenario BEFORE setSession
                           finishScenario(next);
+                          // setSession MUST be LAST to trigger debrief render
                           setSession(next);
                         }
-                        setShowDevisNego(false);
                         playNotificationSound();
+                        setDevisSigned(true);
                       }}
                       style={{
                         padding: "12px 32px", flexShrink: 0,
@@ -4683,6 +4846,7 @@ ${equityClause}
                             if (phase?.mail_config?.send_advances_phase) {
                               completeCurrentPhaseAndAdvance(next);
                               resolveDynamicActors(next);
+      resolveEstablishmentPlaceholders(next);
                               injectPhaseEntryEvents(next);
                               const newPhase = scenario.phases[next.currentPhaseIndex];
                               if (newPhase?.mail_config?.defaults) {

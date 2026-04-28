@@ -253,57 +253,58 @@
     },
     {
       "phase_id": "phase_2_roadmap",
-      "title": "Feuille de route V1",
-      "objective": "Construire ta feuille de route V1 : quoi développer, dans quel ordre, avec quel budget. Envoie ta décision par mail à Alexandre.",
-      "phase_focus": "Le joueur doit formaliser sa roadmap par mail à Alexandre. La BONNE réponse : (1) corriger le bug d'annulation en urgence, (2) plan de formation / conduite du changement (pas du dev, de l'humain), (3) éventuellement 1-2 améliorations ciblées (notifications basiques, dashboard simple). La MAUVAISE réponse : commander les 5 modules d'Alexandre à 21K€. Alexandre va résister si on ne développe pas tout, mais il doit finir par céder si le joueur argumente avec les données du rapport.",
+      "title": "Courrier à l'établissement",
+      "objective": "Envoie un mail à la direction de l'établissement pilote. Explique les problèmes identifiés et les mesures correctives que tu vas mettre en place.",
+      "phase_focus": "Le joueur doit écrire à la direction de l'établissement choisi au scénario 3 (CHU, Saint-Martin ou Saint-Augustin). Le mail doit expliquer : (1) les problèmes identifiés lors du pilote (adoption faible, double système, incident patient), (2) les mesures correctives prévues (correction du bug, formation, conduite du changement). La BONNE réponse : reconnaître les vrais problèmes (adoption, pas features) et proposer un plan d'action concret. La MAUVAISE réponse : promettre 5 nouveaux modules sans adresser l'adoption.",
       "duration_target_min": 8,
       "max_duration_sec": 600,
       "active_channels": ["chat", "mail"],
       "ai_actors": ["alexandre_morel"],
+      "dynamic_mail_to": "establishment",
       "entry_events": [
         {
           "event_id": "alexandre_roadmap_prompt",
           "type": "chat",
           "actor": "alexandre_morel",
           "delay_seconds": 2,
-          "content": "OK j'ai reçu ton analyse. Maintenant faut qu'on acte. Envoie-moi un mail avec ta décision — ce qu'on développe, dans quel ordre, quel budget."
+          "content": "OK j'ai reçu ton analyse. Maintenant faut écrire à la direction de l'établissement. Explique-leur ce qu'on a trouvé et ce qu'on va corriger. Faut que ce soit carré."
         }
       ],
       "mail_config": {
         "enabled": true,
-        "kind": "roadmap_decision",
+        "kind": "establishment_report",
         "defaults": {
-          "to": "a.morel@orisio.fr",
-          "cc": "",
-          "subject": "Décision roadmap V1 — Priorisation"
+          "to": "{{establishment_email}}",
+          "cc": "a.morel@orisio.fr",
+          "subject": "Retour pilote Orisio — Bilan et mesures correctives"
         },
         "require_attachments": false,
         "on_send_flags": { "roadmap_sent": true },
-        "send_label": "Envoyer ma décision",
+        "send_label": "Envoyer à la direction",
         "send_advances_phase": true
       },
       "scoring": {
         "criteria": [
           {
-            "criterion_id": "bug_fix_prioritized",
-            "description": "Le bug d'annulation est en priorité 1 (urgence absolue)",
+            "criterion_id": "bug_acknowledged",
+            "description": "Le bug d'annulation / incident patient est mentionné et sa correction est promise",
             "points": 3,
             "sets_flag": "roadmap_includes_bug_fix"
           },
           {
-            "criterion_id": "training_included",
-            "description": "Un plan de formation / conduite du changement est prévu (pas que du dev)",
+            "criterion_id": "training_promised",
+            "description": "Un plan de formation / accompagnement des équipes est prévu (pas que du dev technique)",
             "points": 4,
             "sets_flag": "roadmap_includes_training"
           },
           {
-            "criterion_id": "scope_controlled",
-            "description": "Le scope est raisonnable (pas les 5 modules d'Alexandre, budget maîtrisé)",
+            "criterion_id": "honest_diagnostic",
+            "description": "Le mail reconnaît les problèmes d'adoption (pas de minimisation ni de blame) et propose des actions concrètes",
             "points": 3
           },
           {
-            "criterion_id": "justified_choices",
-            "description": "Les choix sont argumentés avec des données du rapport (pas des opinions)",
+            "criterion_id": "professional_tone",
+            "description": "Le ton est professionnel, rassurant et engageant — adapté à une direction d'établissement",
             "points": 2
           }
         ]

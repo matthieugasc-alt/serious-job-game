@@ -234,7 +234,7 @@ export function initializeSession(scenario: any): SessionState {
     currentPhaseIndex: 0,
     scores: {},
     totalScore: 0,
-    flags: {},
+    flags: { ...(scenario?.state?.flags || {}) },
     adaptiveMode: "guided",
 
     chatMessages: [],
