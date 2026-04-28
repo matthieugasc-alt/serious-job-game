@@ -4055,23 +4055,68 @@ ${equityClause}
         // Establishment from S3
         const estInfo = resolveEstablishment(session?.flags || {});
 
-        // Parse [DEAL:...] tag from Thomas's response and strip it from display
+        // ── Discount lookup table (front-end computes, AI never does math) ──
+        // Rationale: giving away equity/interest is VERY expensive long-term.
+        // 2% CA on 50k€/yr for 3 yrs = 3000€ — way more than a 2000€ invoice.
+        // So discounts must be aggressive: Thomas bets on future upside, player saves cash now.
+        const DISCOUNT_TABLE: Record<string, { int_only: number; bsa_only: number; both: number }> = {
+          tier1: { int_only: 50, bsa_only: 40, both: 75 },
+          tier2: { int_only: 40, bsa_only: 30, both: 60 },
+          tier3: { int_only: 35, bsa_only: 25, both: 50 },
+          tier4: { int_only: 30, bsa_only: 20, both: 45 },
+        };
+        const currentTier = totalPrice <= 3000 ? "tier1" : totalPrice <= 8000 ? "tier2" : totalPrice <= 15000 ? "tier3" : "tier4";
+
+        function computeDiscount(intPct: number, bsaPct: number): number {
+          const tier = DISCOUNT_TABLE[currentTier];
+          const hasInt = intPct > 0;
+          const hasBsa = bsaPct > 0;
+          if (hasInt && hasBsa) return tier.both;
+          if (hasInt) return tier.int_only;
+          if (hasBsa) return tier.bsa_only;
+          return 0;
+        }
+
+        // Parse [TERMS:...] tag from Thomas's response and strip it from display
+        // Format: [TERMS: int=X cap=Xk dur=X bsa=X]
         function parseDealTag(reply: string): { clean: string; parsed: typeof dealTerms | null } {
+          // Try new TERMS format first
+          const termsMatch = reply.match(/\[TERMS:\s*int=(\d+(?:\.\d+)?)\s+cap=(\d+)k?\s+dur=(\d+)\s+bsa=(\d+(?:\.\d+)?)\s*\]/i);
+          if (termsMatch) {
+            const clean = reply.replace(termsMatch[0], "").trim();
+            const intPct = parseFloat(termsMatch[1]);
+            const intCap = parseInt(termsMatch[2]) * 1000;
+            const intDur = parseInt(termsMatch[3]);
+            const bsaPct = parseFloat(termsMatch[4]);
+            const discount = computeDiscount(intPct, bsaPct);
+            return {
+              clean,
+              parsed: {
+                interessement: intPct > 0 ? { pct: intPct, cap: intCap > 0 ? intCap : null, duration: intDur } : null,
+                bsa: bsaPct > 0 ? bsaPct : null,
+                discount,
+              },
+            };
+          }
+          // Fallback: old DEAL format for backward compat
           const dealMatch = reply.match(/\[DEAL:\s*cash=(\d+),?\s*remise=(\d+(?:\.\d+)?)%,?\s*interessement=(\d+(?:\.\d+)?)%\s*plafond=(\d+)k?\s*duree=(\d+),?\s*bsa=(\d+(?:\.\d+)?)%\s*\]/i);
-          if (!dealMatch) return { clean: reply, parsed: null };
-          const clean = reply.replace(dealMatch[0], "").trim();
-          const intPct = parseFloat(dealMatch[3]);
-          const intCap = parseInt(dealMatch[4]) * 1000;
-          const intDur = parseInt(dealMatch[5]);
-          const bsaPct = parseFloat(dealMatch[6]);
-          return {
-            clean,
-            parsed: {
-              interessement: intPct > 0 ? { pct: intPct, cap: intCap > 0 ? intCap : null, duration: intDur } : null,
-              bsa: bsaPct > 0 ? bsaPct : null,
-              discount: parseFloat(dealMatch[2]),
-            },
-          };
+          if (dealMatch) {
+            const clean = reply.replace(dealMatch[0], "").trim();
+            const intPct = parseFloat(dealMatch[3]);
+            const intCap = parseInt(dealMatch[4]) * 1000;
+            const intDur = parseInt(dealMatch[5]);
+            const bsaPct = parseFloat(dealMatch[6]);
+            const discount = computeDiscount(intPct, bsaPct);
+            return {
+              clean,
+              parsed: {
+                interessement: intPct > 0 ? { pct: intPct, cap: intCap > 0 ? intCap : null, duration: intDur } : null,
+                bsa: bsaPct > 0 ? bsaPct : null,
+                discount,
+              },
+            };
+          }
+          return { clean: reply, parsed: null };
         }
 
         async function sendDevisNegoMsg() {
@@ -7157,6 +7202,41 @@ ${equityClause}
                 {flagEntries.length > 0 && (
                   <div><span style={{ color: "#888" }}>Flags:</span> {flagEntries.map(([k]) => k).join(", ")}</div>
                 )}
+                {/* ── Skip to Phase buttons ── */}
+                <div style={{ marginTop: 6, borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 6 }}>
+                  <div style={{ color: "#888", marginBottom: 4 }}>Jump to phase:</div>
+                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+                    {scenario.phases.map((p: any, idx: number) => (
+                      <button
+                        key={p.phase_id}
+                        disabled={idx === session.currentPhaseIndex}
+                        onClick={() => {
+                          const updated = { ...session, currentPhaseIndex: idx };
+                          // Mark previous phases as completed in scores so completion checks pass
+                          for (let i = 0; i < idx; i++) {
+                            const prevPhase = scenario.phases[i];
+                            if (prevPhase && !updated.scores[prevPhase.phase_id]) {
+                              updated.scores[prevPhase.phase_id] = 100;
+                            }
+                          }
+                          // Inject entry events for the target phase
+                          const withEntry = injectPhaseEntryEvents(updated);
+                          setSession(withEntry);
+                        }}
+                        style={{
+                          padding: "2px 8px", fontSize: 10, borderRadius: 4,
+                          border: idx === session.currentPhaseIndex ? "1px solid #a5a8ff" : "1px solid rgba(255,255,255,0.2)",
+                          background: idx === session.currentPhaseIndex ? "rgba(91,95,199,0.3)" : "rgba(255,255,255,0.05)",
+                          color: idx === session.currentPhaseIndex ? "#a5a8ff" : "#ccc",
+                          cursor: idx === session.currentPhaseIndex ? "default" : "pointer",
+                          opacity: idx === session.currentPhaseIndex ? 0.6 : 1,
+                        }}
+                      >
+                        P{idx + 1}: {p.phase_id.slice(0, 15)}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div style={{ marginTop: 4, color: "#555", fontSize: 10 }}>?debug=1 | Ctrl+D toggle</div>
               </div>
             )}
