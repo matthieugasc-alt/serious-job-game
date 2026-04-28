@@ -250,6 +250,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const hasMindmapTool = scenario?.meta?.tags?.includes("priorisation") || scenarioId === "founder_04_v1";
   const [outlineCopiedFeedback, setOutlineCopiedFeedback] = useState("");
   const [mindmapView, setMindmapView] = useState<"split" | "editor" | "map">("split");
+  // ── Devis NovaDev negotiation (scenario 4, phase 3) ──
+  const [showDevisNego, setShowDevisNego] = useState(false);
+  const [devisSigned, setDevisSigned] = useState(false);
+  const [devisNegoMessages, setDevisNegoMessages] = useState<Array<{ role: "player" | "npc"; content: string }>>([]);
+  const [devisNegoInput, setDevisNegoInput] = useState("");
+  const [devisNegoLoading, setDevisNegoLoading] = useState(false);
+  const devisNegoChatRef = useRef<HTMLDivElement>(null);
   // ── Contract signature (scenario 2+) ──
   const [showContractSignature, setShowContractSignature] = useState(false);
   const [contractSigned, setContractSigned] = useState(false);
@@ -3886,6 +3893,274 @@ ${equityClause}
         );
       })()}
 
+      {/* ═══════ DEVIS NOVADEV NEGOTIATION OVERLAY (Scenario 4 Phase 3) ═══════ */}
+      {showDevisNego && (() => {
+        const devisHtml = `<h1 style="text-align:center;color:#1a1a2e;margin-bottom:16px;">Proposition commerciale — NovaDev</h1>
+<p><strong>De :</strong> Thomas Vidal — NovaDev Solutions<br/><strong>Pour :</strong> ${displayPlayerName || "CEO"} — Orisio SAS</p>
+<hr style="margin:16px 0;border:none;border-top:1px solid #e0e0e0;"/>
+<h2>Option A — Intéressement sur le CA</h2>
+<p>Intéressement de <strong>8% du CA net</strong> d'Orisio, sans plafond, pendant 5 ans.</p>
+<p>En contrepartie : <strong>réduction de 30%</strong> sur le tarif de la V1.</p>
+<h2>Option B — BSA (capital)</h2>
+<p>Attribution de <strong>5% du capital</strong> via BSA, valorisation actuelle.</p>
+<p>Tarif normal maintenu.</p>
+<h2>Détails techniques — Estimations V1</h2>
+<table style="width:100%;border-collapse:collapse;margin:12px 0;">
+<tr style="background:#f5f5f5;"><th style="text-align:left;padding:8px;border:1px solid #ddd;">Module</th><th style="text-align:right;padding:8px;border:1px solid #ddd;">Estimation</th></tr>
+<tr><td style="padding:8px;border:1px solid #ddd;">Bug annulation (verrouillage + confirmation)</td><td style="text-align:right;padding:8px;border:1px solid #ddd;">2 000 €</td></tr>
+<tr><td style="padding:8px;border:1px solid #ddd;">Notifications basiques</td><td style="text-align:right;padding:8px;border:1px solid #ddd;">3 500 €</td></tr>
+<tr><td style="padding:8px;border:1px solid #ddd;">Dashboard direction simple</td><td style="text-align:right;padding:8px;border:1px solid #ddd;">5 000 €</td></tr>
+<tr><td style="padding:8px;border:1px solid #ddd;">Module gestion matériel</td><td style="text-align:right;padding:8px;border:1px solid #ddd;">7 000 €</td></tr>
+<tr><td style="padding:8px;border:1px solid #ddd;">API SI établissement</td><td style="text-align:right;padding:8px;border:1px solid #ddd;">8 000 €</td></tr>
+</table>
+<hr style="margin:16px 0;border:none;border-top:1px solid #e0e0e0;"/>
+<p><strong>PI :</strong> Cession complète et irrévocable de tout le code au Client.</p>
+<p style="margin-top:16px;"><strong>Pour NovaDev Solutions :</strong><br/>Signature : Thomas Vidal ✓</p>
+<p><strong>Pour Orisio SAS :</strong><br/>Signature : _________________________</p>`;
+
+        async function sendDevisNegoMsg() {
+          if (!devisNegoInput.trim() || devisNegoLoading || !session || !scenario) return;
+          const userMsg = devisNegoInput.trim();
+          setDevisNegoInput("");
+          setDevisNegoMessages((prev) => [...prev, { role: "player", content: userMsg }]);
+          setDevisNegoLoading(true);
+          setTimeout(() => devisNegoChatRef.current?.scrollTo(0, 99999), 50);
+          try {
+            const activePrompt = aiPromptsMapRef.current["thomas_vidal"] || aiPromptRef.current;
+            const recentConv = devisNegoMessages.slice(-10).map((m) => ({
+              role: m.role === "player" ? "user" as const : "assistant" as const,
+              content: m.content,
+            }));
+            const res = await fetch("/api/chat", {
+              method: "POST",
+              headers: apiHeaders(),
+              body: JSON.stringify({
+                playerName: displayPlayerName,
+                message: userMsg,
+                phaseTitle: view?.phaseTitle || "Négociation NovaDev",
+                phaseObjective: view?.phaseObjective || "",
+                phaseFocus: view?.phaseFocus || "",
+                phasePrompt: view?.phasePrompt || "",
+                criteria: view?.criteria || [],
+                mode: view?.adaptiveMode || "standard",
+                narrative: scenario.narrative,
+                recentConversation: recentConv,
+                playerMessages: devisNegoMessages.filter((m) => m.role === "player").map((m) => m.content).concat([userMsg]),
+                roleplayPrompt: activePrompt,
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              setDevisNegoMessages((prev) => [...prev, { role: "npc", content: data.reply }]);
+              // Apply evaluation to the main session
+              if (session) {
+                const next = cloneSession(session);
+                addPlayerMessage(next, `[Négo devis] ${userMsg}`, "thomas_vidal");
+                addAIMessage(next, data.reply, "thomas_vidal");
+                applyEvaluation(next, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+                setSession(next);
+              }
+            }
+          } catch (err) {
+            console.error("Devis negotiation error:", err);
+          } finally {
+            setDevisNegoLoading(false);
+            setTimeout(() => devisNegoChatRef.current?.scrollTo(0, 99999), 100);
+          }
+        }
+
+        return (
+          <div style={{
+            position: "fixed", inset: 0, zIndex: 10001,
+            background: "rgba(0,0,0,0.7)", display: "flex",
+            alignItems: "center", justifyContent: "center", padding: 20,
+          }}>
+            <div style={{
+              background: "#fff", borderRadius: 16, maxWidth: 1000, width: "100%",
+              maxHeight: "92vh", display: "flex", flexDirection: "column",
+              boxShadow: "0 24px 80px rgba(0,0,0,0.3)",
+            }}>
+              {/* Header */}
+              <div style={{
+                padding: "14px 24px", background: "linear-gradient(135deg, #1a1a2e, #16213e)",
+                borderRadius: "16px 16px 0 0",
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: 8,
+                    background: "#E65100", display: "flex", alignItems: "center",
+                    justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff",
+                  }}>TV</div>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>
+                      Négociation — Devis NovaDev V1
+                    </h2>
+                    <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
+                      Thomas Vidal · NovaDev Solutions · {new Date().toLocaleDateString("fr-FR")}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowDevisNego(false)}
+                  style={{
+                    background: "rgba(255,255,255,0.1)", border: "none", fontSize: 18,
+                    color: "#fff", cursor: "pointer", padding: "4px 10px", borderRadius: 6,
+                  }}
+                >✕</button>
+              </div>
+
+              {/* Split view: devis left, chat right */}
+              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+                {/* Left: devis content */}
+                <div style={{ flex: 1, overflow: "auto", padding: "24px", borderRight: "1px solid #e8e8e8" }}>
+                  <div
+                    dangerouslySetInnerHTML={{ __html: devisHtml }}
+                    style={{ fontSize: 13, lineHeight: 1.7, color: "#333" }}
+                  />
+                </div>
+
+                {/* Right: negotiation chat */}
+                <div style={{ width: 380, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+                  <div style={{ padding: "12px 16px", borderBottom: "1px solid #e8e8e8", fontSize: 12, fontWeight: 700, color: "#555" }}>
+                    💬 Négociation avec Thomas Vidal
+                  </div>
+                  <div ref={devisNegoChatRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
+                    {devisNegoMessages.length === 0 && (
+                      <div style={{ textAlign: "center", color: "#bbb", fontSize: 12, marginTop: 24 }}>
+                        Discutez avec Thomas pour négocier les termes.<br/>
+                        Consultez la note de votre avocat dans les Documents.
+                      </div>
+                    )}
+                    {devisNegoMessages.map((msg, i) => (
+                      <div key={i} style={{
+                        display: "flex", justifyContent: msg.role === "player" ? "flex-end" : "flex-start",
+                        marginBottom: 8,
+                      }}>
+                        <div style={{
+                          maxWidth: "85%", padding: "8px 12px", borderRadius: 12,
+                          background: msg.role === "player" ? "#5b5fc7" : "#f0f0f0",
+                          color: msg.role === "player" ? "#fff" : "#333",
+                          fontSize: 13, lineHeight: 1.5,
+                        }}>
+                          {msg.content}
+                        </div>
+                      </div>
+                    ))}
+                    {devisNegoLoading && (
+                      <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 8 }}>
+                        <div style={{ padding: "8px 16px", background: "#f0f0f0", borderRadius: 12, color: "#999", fontSize: 13 }}>
+                          Thomas écrit...
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div style={{ padding: "10px 16px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8 }}>
+                    <input
+                      type="text"
+                      value={devisNegoInput}
+                      onChange={(e) => setDevisNegoInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") sendDevisNegoMsg(); }}
+                      placeholder="Votre position..."
+                      style={{
+                        flex: 1, padding: "8px 12px", border: "1px solid #ddd", borderRadius: 8,
+                        fontSize: 13, fontFamily: "inherit",
+                      }}
+                    />
+                    <button
+                      onClick={sendDevisNegoMsg}
+                      disabled={devisNegoLoading || !devisNegoInput.trim()}
+                      style={{
+                        padding: "8px 16px", borderRadius: 8, border: "none",
+                        background: devisNegoLoading ? "#ccc" : "#5b5fc7",
+                        color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer",
+                      }}
+                    >↑</button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Signature bar */}
+              <div style={{
+                padding: "16px 24px", borderTop: "2px solid #ffd700",
+                background: devisSigned ? "#f0fdf4" : "#fffbeb",
+              }}>
+                {!devisSigned ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 4 }}>
+                        Signataire : {displayPlayerName || "CEO"} — Président, Orisio SAS
+                      </div>
+                      <div style={{ fontSize: 11, color: "#888" }}>
+                        {devisNegoMessages.length < 2
+                          ? "Négociez d'abord les termes avec Thomas avant de signer."
+                          : "Quand vous êtes satisfait des termes, signez pour finaliser l'accord."
+                        }
+                      </div>
+                    </div>
+                    <button
+                      disabled={devisNegoMessages.length < 2}
+                      onClick={() => {
+                        setDevisSigned(true);
+                        if (session && scenario) {
+                          const next = cloneSession(session);
+                          next.flags.devis_signed = true;
+                          // Analyze negotiation content to set deal flags
+                          const allText = devisNegoMessages.map((m) => m.content).join(" ").toLowerCase();
+                          if (allText.includes("cash") || allText.includes("tarif plein") || allText.includes("pas d'intéressement") || allText.includes("0%")) {
+                            next.flags.deal_cash_only = true;
+                          } else if (allText.includes("plafond") || allText.includes("plafonné") || (allText.includes("%") && allText.includes("cap"))) {
+                            next.flags.deal_interessement_capped = true;
+                          } else if ((allText.includes("8%") || allText.includes("sans plafond")) && !allText.includes("plafond")) {
+                            next.flags.deal_interessement_uncapped = true;
+                          } else if (allText.includes("bsa") || allText.includes("bspce") || allText.includes("capital")) {
+                            const bsaMatch = allText.match(/(\d+)\s*%.*(?:bsa|capital|bspce)/);
+                            if (bsaMatch && parseInt(bsaMatch[1]) > 3) {
+                              next.flags.deal_bsa_excessive = true;
+                            } else {
+                              next.flags.deal_bsa_reasonable = true;
+                            }
+                          } else {
+                            // Default: capped interest if no clear signal
+                            next.flags.deal_interessement_capped = true;
+                          }
+                          // Finish the scenario
+                          finishScenario(next);
+                          setSession(next);
+                        }
+                        setShowDevisNego(false);
+                        playNotificationSound();
+                      }}
+                      style={{
+                        padding: "12px 32px", flexShrink: 0,
+                        background: devisNegoMessages.length < 2
+                          ? "#ddd"
+                          : "linear-gradient(135deg, #ffd700, #ffb300)",
+                        border: devisNegoMessages.length < 2 ? "2px solid #ccc" : "2px solid #e6a800",
+                        borderRadius: 10,
+                        color: devisNegoMessages.length < 2 ? "#999" : "#1a1a2e",
+                        fontSize: 15, fontWeight: 800,
+                        cursor: devisNegoMessages.length < 2 ? "not-allowed" : "pointer",
+                        boxShadow: devisNegoMessages.length < 2 ? "none" : "0 4px 16px rgba(255,215,0,0.3)",
+                      }}
+                    >
+                      ✍️ Accepter et signer le devis
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                    <span style={{ fontSize: 20 }}>✅</span>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
+                      Devis signé — Accord NovaDev formalisé
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ═══════ CLINICAL CONTRACT SIGNATURE OVERLAY (Scenario 3) ═══════ */}
       {showClinicalContract && (() => {
         const isCHU = !!session?.flags?.chose_chu;
@@ -5746,6 +6021,48 @@ ${equityClause}
                       </div>
                         );
                       })()}
+
+                    {/* ── "Négocier et signer le devis" — Scenario 4 Phase 3 ── */}
+                    {currentPhaseId === "phase_3_negotiation" &&
+                      selectedMail.from === "thomas_vidal" && (
+                      <div style={{ marginTop: 16 }}>
+                        {devisSigned ? (
+                          <div style={{
+                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
+                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
+                            display: "flex", alignItems: "center", gap: 10,
+                          }}>
+                            <span style={{ fontSize: 20 }}>✅</span>
+                            <div>
+                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Devis signé</div>
+                              <div style={{ fontSize: 11, color: "#666" }}>
+                                L'accord avec NovaDev est formalisé.
+                              </div>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              setDevisNegoMessages([]);
+                              setShowDevisNego(true);
+                            }}
+                            style={{
+                              width: "100%", padding: "14px 24px",
+                              background: "linear-gradient(135deg, #ffd700, #ffb300)",
+                              border: "2px solid #e6a800", borderRadius: 12,
+                              color: "#1a1a2e", fontSize: 14, fontWeight: 800, cursor: "pointer",
+                              boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
+                              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
+                              transition: "all 0.2s",
+                            }}
+                            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
+                          >
+                            ✍️ Négocier et signer le devis
+                          </button>
+                        )}
+                      </div>
+                    )}
 
                     {/* ── "Ouvrir et remplir le one-pager" — only in phase_1_onepager ── */}
                     {currentPhaseId === "phase_1_onepager" && (

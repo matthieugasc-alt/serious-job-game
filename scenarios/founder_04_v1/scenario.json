@@ -94,7 +94,6 @@
         "initials": "TV"
       },
       "visible_in_contacts": true,
-      "mail_only": true,
       "contact_status": "locked",
       "contact_preview": "NovaDev — Prestataire technique",
       "unlock_at_phase": "phase_3_negotiation",
@@ -149,6 +148,7 @@
   },
   "state": {
     "flags": {
+      "diagnostic_sent": false,
       "identified_adoption_problem": false,
       "identified_bug_critical": false,
       "fell_for_feature_trap": false,
@@ -163,7 +163,8 @@
       "deal_interessement_uncapped": false,
       "deal_bsa_reasonable": false,
       "deal_bsa_excessive": false,
-      "deal_rejected_pi_compromise": false
+      "deal_rejected_pi_compromise": false,
+      "devis_signed": false
     }
   },
   "initial_events": [
@@ -198,12 +199,25 @@
     {
       "phase_id": "phase_1_diagnostic",
       "title": "Diagnostic terrain",
-      "objective": "Analyser le rapport d'Alexandre et la réclamation patient. Identifier les vrais problèmes : le bug critique (annulation non autorisée) ET le problème d'adoption (pas de formation, double système, résistance au changement).",
+      "objective": "Discute avec Alexandre, lis le rapport et la réclamation patient. Utilise les Notes pour organiser ton diagnostic. Quand c'est clair, envoie ton analyse par mail à Alexandre.",
       "phase_focus": "Le joueur doit lire les documents et discuter avec Alexandre. Le PIÈGE : Alexandre présente le problème comme un manque de fonctionnalités (5 modules à 21K€). La RÉALITÉ : le vrai problème est l'adoption — 2/12 chirurgiens actifs, pas de formation, pas de conduite du changement, double système Excel/Orisio. Le bug d'annulation est réel et urgent, mais c'est un symptôme du double système, pas un problème de features manquantes. Le joueur doit citer les verbatims du rapport (Dr Martinez : 'Faites d'abord en sorte que tout le monde utilise ce qui existe', M. Ferreira : 'Vous n'avez pas fait de conduite du changement') pour montrer qu'il a compris.",
       "duration_target_min": 10,
       "max_duration_sec": 720,
-      "active_channels": ["chat"],
+      "active_channels": ["chat", "mail"],
       "ai_actors": ["alexandre_morel"],
+      "mail_config": {
+        "enabled": true,
+        "kind": "diagnostic_analysis",
+        "defaults": {
+          "to": "a.morel@orisio.fr",
+          "cc": "",
+          "subject": "Mon analyse du rapport terrain"
+        },
+        "require_attachments": false,
+        "on_send_flags": { "diagnostic_sent": true },
+        "send_label": "Envoyer mon diagnostic",
+        "send_advances_phase": true
+      },
       "scoring": {
         "criteria": [
           {
@@ -246,6 +260,15 @@
       "max_duration_sec": 600,
       "active_channels": ["chat", "mail"],
       "ai_actors": ["alexandre_morel"],
+      "entry_events": [
+        {
+          "event_id": "alexandre_roadmap_prompt",
+          "type": "chat",
+          "actor": "alexandre_morel",
+          "delay_seconds": 2,
+          "content": "OK j'ai reçu ton analyse. Maintenant faut qu'on acte. Envoie-moi un mail avec ta décision — ce qu'on développe, dans quel ordre, quel budget."
+        }
+      ],
       "mail_config": {
         "enabled": true,
         "kind": "roadmap_decision",
@@ -335,11 +358,13 @@
           }
         ]
       },
-      "completion_rules": {
-        "any_flags": ["deal_cash_only", "deal_interessement_capped", "deal_interessement_uncapped", "deal_bsa_reasonable", "deal_bsa_excessive"],
-        "max_exchanges": 10
-      },
-      "auto_advance": true
+      "contract_negotiation": {
+        "enabled": true,
+        "actor": "thomas_vidal",
+        "title": "Devis NovaDev — Développement V1",
+        "sign_label": "Accepter et signer le devis",
+        "on_sign_flags": ["devis_signed"]
+      }
     }
   ],
   "endings": [
