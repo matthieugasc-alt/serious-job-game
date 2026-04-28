@@ -423,6 +423,115 @@
           }
         }
       }
+    },
+
+    "founder_04_v1": {
+      "order": 4,
+      "title": "Passage en V1",
+      "scenarioId": "founder_04_v1",
+      "invisibleEffects": "Le vrai test ici c'est la lucidite du CEO. S'il tombe dans le piege feature (5 modules a 21K), il brule du cash pour rien — le probleme d'adoption restera. S'il comprend que le vrai probleme est l'adoption + le bug, il economise du cash et augmente la validation marche (les utilisateurs commencent vraiment a utiliser le produit). La nego Thomas est un test de cap table : un mauvais deal ici = signal negatif pour les investisseurs. La dette technique evolue selon le scope choisi.",
+      "outcomes": {
+        "optimal": {
+          "outcomeId": "v1_surgical",
+          "label": "CEO lucide — diagnostic juste, roadmap chirurgicale, nego maitrisee",
+          "summary": "Tu as identifie le vrai probleme (adoption, pas features), priorise le bug critique, mis en place un plan de formation, et negocie un deal raisonnable avec Thomas. La V1 demarre sur des bases saines.",
+          "signal": "robust",
+          "deltas": {
+            "treasury": -5000,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 15,
+            "techDebt": -5,
+            "investorConfidence": 15,
+            "marketValidation": 20,
+            "elapsedMonths": 2
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Tu as lu le rapport comme un CEO, pas comme un ingenieur. Le bug est corrige, la formation est lancee, le scope est maitrise.",
+            "impact": "5 000 € de dev cible (bug + ameliorations mineures) + budget formation. La dette technique baisse parce que le code est nettoyé au lieu d'empiler des features. Les utilisateurs commencent a adopter l'outil.",
+            "strength": "Tu as resiste a la pression de ton cofondateur. C'est la competence la plus rare chez un fondateur : dire non a son associe quand il a tort.",
+            "risk": "Alexandre est frustre. Il a passe un mois sur le terrain et tu as ignore ses recommandations principales. Il faudra gerer cette tension.",
+            "advice": "Documente les resultats du plan de formation. Dans 4 semaines, si l'adoption monte, tu auras les donnees pour convaincre Alexandre. Si ca ne bouge pas, il faudra re-evaluer."
+          }
+        },
+        "good": {
+          "outcomeId": "v1_correct",
+          "label": "Bon diagnostic, deal acceptable",
+          "summary": "Tu as corrige le bug et construit une roadmap raisonnable. Le deal avec Thomas est correct mais pas optimal. La V1 avance.",
+          "signal": "fragile",
+          "deltas": {
+            "treasury": -8000,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 20,
+            "techDebt": 5,
+            "investorConfidence": 5,
+            "marketValidation": 15,
+            "elapsedMonths": 2
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Le bug est corrige et quelques ameliorations utiles sont en cours. Le deal avec Thomas est acceptable sans etre optimal.",
+            "impact": "8 000 € de dev. La dette technique monte legerement (plus de code = plus de maintenance). La validation marche progresse.",
+            "strength": "Tu as pris des decisions raisonnables sous pression. Pas parfaites, mais raisonnables.",
+            "risk": "Le plan de formation n'est pas assez pousse. L'adoption risque de stagner meme avec un meilleur produit.",
+            "advice": "Surveille les metriques d'adoption de pres. Si dans 3 semaines les connexions ne remontent pas, c'est que le probleme est humain, pas technique."
+          }
+        },
+        "feature_trap": {
+          "outcomeId": "v1_bloated",
+          "label": "Piege par le bruit — 5 modules commandes",
+          "summary": "Tu as suivi Alexandre et commande les 5 modules a 21K€. Le budget explose et le vrai probleme (adoption) n'est pas adresse. Le pilote risque d'echouer une deuxieme fois.",
+          "signal": "delayed",
+          "deltas": {
+            "treasury": -21000,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 40,
+            "techDebt": 35,
+            "investorConfidence": -10,
+            "marketValidation": 5,
+            "elapsedMonths": 3
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Tu as commande 5 modules a 21 000 €. Alexandre est content. Ton compte en banque beaucoup moins.",
+            "impact": "21K de dev, 3 mois de timeline. La qualite produit monte mais la dette technique explose (1 dev seul qui rush 5 modules). Et personne n'a ete forme — les 10 chirurgiens inactifs le resteront.",
+            "strength": "Le produit sera plus complet. Si l'adoption finit par decoller, tu auras de l'avance sur les features.",
+            "risk": "Tu as depense 21K sans adresser le vrai probleme. Un produit riche que personne n'utilise ne vaut rien. Les investisseurs verront un fondateur qui ne sait pas prioriser.",
+            "advice": "Il n'est pas trop tard pour lancer un plan de formation EN PARALLELE du dev. Mais ca aurait du etre la priorite 1."
+          }
+        },
+        "bad_deal": {
+          "outcomeId": "v1_bad_deal",
+          "label": "Mauvais deal NovaDev — cap table polluee",
+          "summary": "Tu as cede trop a Thomas : interessement sans plafond ou BSA excessifs. La PI est formellement chez Orisio mais le cout total peut exploser. Les investisseurs verront ca.",
+          "signal": "costly",
+          "deltas": {
+            "treasury": -8000,
+            "ownership": -4,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 20,
+            "techDebt": 5,
+            "investorConfidence": -20,
+            "marketValidation": 10,
+            "elapsedMonths": 2
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Tu as accepte un deal trop genereux avec Thomas. Interessement sans plafond ou 5% de BSA — c'est au-dessus du marche pour 12 semaines de prestations.",
+            "impact": "Si Orisio fait 2M de CA, un interessement de 8% sans plafond = 160K/an verses a un prestataire. Les investisseurs verront une cap table polluee ou un engagement financier disproportionne.",
+            "strength": "Tu as maintenu la relation avec Thomas. Il est aligne et motive.",
+            "risk": "Les VCs en due diligence vont tiquer. Un prestataire a 5% du capital ou un interessement sans plafond, c'est un signal de fondateur naif.",
+            "advice": "Si tu peux encore renegocier, fais-le. Sinon, assume et prepare une explication solide pour les investisseurs. Et lis TOUJOURS la note de l'avocat AVANT de negocier."
+          }
+        }
+      }
     }
   },
 
