@@ -171,7 +171,6 @@
       "phase_id": "phase_1",
       "title": "Qualifier et prioriser",
       "duration_target_min": 7,
-      "max_duration_sec": 300,
       "objective": "Qualifier le bug avec Marc : cause probable, nombre de clients impactés, impact business.",
       "phase_focus": "Analyse du bug avec le CPO.",
       "active_channels": [
@@ -199,7 +198,6 @@
       "phase_id": "phase_2",
       "title": "Communication client",
       "duration_target_min": 8,
-      "max_duration_sec": 300,
       "objective": "Rédiger et envoyer le mail de réponse à TechnoServices.",
       "phase_focus": "Rédaction de la communication de crise.",
       "active_channels": [

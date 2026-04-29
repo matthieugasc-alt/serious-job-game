@@ -9,7 +9,13 @@
     "job_family": "commercial",
     "difficulty": "pour débuter",
     "estimated_duration_min": 15,
-    "tags": ["relance", "B2B", "churn", "mail", "fidélisation"],
+    "tags": [
+      "relance",
+      "B2B",
+      "churn",
+      "mail",
+      "fidélisation"
+    ],
     "show_objective": false,
     "show_background_fact": false
   },
@@ -113,14 +119,23 @@
       {
         "doc_id": "fiche_digitaplus",
         "label": "Fiche client DigitaPlus",
-        "contains": ["historique", "contrat", "turnover", "feature request"],
+        "contains": [
+          "historique",
+          "contrat",
+          "turnover",
+          "feature request"
+        ],
         "usable_as_pj": false,
         "content": "FICHE CLIENT — DigitaPlus\n\nEntreprise : DigitaPlus (agence digitale)\nTaille : 25 personnes\nContrat : 1200€/mois depuis 2 ans (renouvellement annuel)\nRenouvellement prévu : dans 15 jours\nHistorique : Très bon client (NPS 8), renouvellements toujours sans problème\nTurnover récent : Ancien responsable commercial parti il y a 3 semaines\nRemplacé par : Clément Faure (nouveau dans le poste)\nDemande en attente : Dashboard de reporting personnalisé (demandé il y a 60 jours, pas encore traité par l'équipe produit)\nDernier contact : Appel de renouvellement il y a 3 semaines, avant le départ de l'ancien contact\nStatut actuel : Radio silence depuis 3 semaines"
       },
       {
         "doc_id": "template_relance",
         "label": "Template de relance standard (à ne PAS utiliser tel quel)",
-        "contains": ["template", "relance", "renouvellement"],
+        "contains": [
+          "template",
+          "relance",
+          "renouvellement"
+        ],
         "usable_as_pj": false,
         "content": "TEMPLATE DE RELANCE STANDARD\n\nObjet: Renouvellement DigitaPlus - Contrat 1200€/mois\n\nBonjour,\n\nJe vous recontacte concernant le renouvellement de votre contrat avec nous, qui expire dans 15 jours. Nous serions ravis de continuer à vous accompagner.\n\nN'hésitez pas si vous avez des questions.\n\nCordialement,\n[Votre nom]\n\n⚠️ Ce template est générique. Il sera probablement ignoré par un nouveau contact qui ne vous connaît pas."
       }
@@ -144,10 +159,13 @@
       "phase_id": "phase_1",
       "title": "Comprendre la situation avec Sandra",
       "duration_target_min": 7,
-      "max_duration_sec": 420,
       "objective": "Discutez avec Sandra pour comprendre le contexte avant de relancer. Posez les bonnes questions sur le client, le turnover, la feature request non traitée.",
-      "active_channels": ["chat"],
-      "ai_actors": ["sandra_levy"],
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "sandra_levy"
+      ],
       "competencies": [
         "Pose des questions sur le client (historique, contexte)",
         "Identifie le turnover chez DigitaPlus comme facteur clé",
@@ -165,10 +183,13 @@
       "phase_id": "phase_2",
       "title": "Rédiger la relance",
       "duration_target_min": 8,
-      "max_duration_sec": 480,
       "objective": "Rédigez un mail personnalisé à Clément Faure (c.faure@digitaplus.fr) pour relancer DigitaPlus. Le mail doit montrer que vous comprenez leur contexte.",
-      "active_channels": ["mail"],
-      "ai_actors": ["clement_faure"],
+      "active_channels": [
+        "mail"
+      ],
+      "ai_actors": [
+        "clement_faure"
+      ],
       "mail_config": {
         "to": "c.faure@digitaplus.fr",
         "defaults": {

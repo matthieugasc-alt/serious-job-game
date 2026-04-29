@@ -202,7 +202,6 @@
       "phase_id": "phase_1",
       "title": "Négocier avec Nicolas",
       "duration_target_min": 7,
-      "max_duration_sec": 420,
       "objective": "Chat avec Nicolas Berger. Comprendre sa vraie contrainte (vs tactic), défendre la valeur de FleetPro vs LogiTrack, proposer un compromis créatif (termes de paiement, formation, déploiement, services) sans brader le prix.",
       "phase_focus": "Le joueur doit découvrir que la contrainte réelle de Nicolas est un budget DAF capé à 40K€ (pas 36K€). La concurrence LogiTrack existe mais est moins complète. Trouver un accord viable et créatif.",
       "active_channels": [
@@ -231,7 +230,6 @@
       "phase_id": "phase_2",
       "title": "Validation avec Valérie",
       "duration_target_min": 5,
-      "max_duration_sec": 300,
       "objective": "Debrief avec Valérie Chen (directrice commerciale). Présenter le compromis trouvé avec Nicolas. Valérie va valider, challenger, ou demander de renégocier selon la qualité de l'accord.",
       "phase_focus": "Le joueur doit justifier le compromis trouvé. Valérie vérifie : le prix net est-il >38K€ ? La contrepartie (services, termes) justifie-t-elle le niveau ? Le deal est-il rescuable ou trop mou ?",
       "active_channels": [

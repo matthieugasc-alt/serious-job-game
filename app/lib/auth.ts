@@ -67,7 +67,10 @@ function loadUsers(): StoredUser[] {
 function saveUsers(users: StoredUser[]): void {
   try {
     ensureDataDir();
-    fs.writeFileSync(USERS_FILE, JSON.stringify(users, null, 2), 'utf-8');
+    // Atomic write to prevent corruption from concurrent requests
+    const tmpFile = USERS_FILE + '.tmp.' + process.pid + '.' + Date.now();
+    fs.writeFileSync(tmpFile, JSON.stringify(users, null, 2), 'utf-8');
+    fs.renameSync(tmpFile, USERS_FILE);
   } catch (error) {
     console.error('Failed to save users:', error);
     throw new Error('Failed to save user data');
@@ -88,7 +91,11 @@ function loadSessions(): AuthSession[] {
 function saveSessions(sessions: AuthSession[]): void {
   try {
     ensureDataDir();
-    fs.writeFileSync(SESSIONS_FILE, JSON.stringify(sessions, null, 2), 'utf-8');
+    // Atomic write: write to temp file then rename to prevent corruption
+    // from concurrent requests (two API calls writing sessions.json at once)
+    const tmpFile = SESSIONS_FILE + '.tmp.' + process.pid + '.' + Date.now();
+    fs.writeFileSync(tmpFile, JSON.stringify(sessions, null, 2), 'utf-8');
+    fs.renameSync(tmpFile, SESSIONS_FILE);
   } catch (error) {
     console.error('Failed to save sessions:', error);
     throw new Error('Failed to save session data');
@@ -220,6 +227,8 @@ export function loginUser(
 // ─── Session Validation ────────────────────────────────────────
 
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+/** Only write session file if expiry needs extending (avoid write on every request) */
+const SESSION_EXTEND_THRESHOLD_MS = 5 * 60 * 1000; // 5 minutes
 
 export function validateSession(token: string): { user: PublicUser } | null {
   try {
@@ -243,13 +252,19 @@ export function validateSession(token: string): { user: PublicUser } | null {
       return null;
     }
 
-    // Sliding window: extend session on each valid request
-    const newExpiry = new Date(Date.now() + SESSION_TTL_MS).toISOString();
-    session.expiresAt = newExpiry;
+    // Sliding window: only extend session if expiry is more than 5 min stale.
+    // This prevents hammering sessions.json with writes on every single API call
+    // (which causes race conditions and file corruption with concurrent requests).
+    const currentExpiry = new Date(session.expiresAt).getTime();
+    const idealExpiry = Date.now() + SESSION_TTL_MS;
+    const needsExtension = (idealExpiry - currentExpiry) > SESSION_EXTEND_THRESHOLD_MS;
 
-    // Cleanup expired sessions + persist the extended expiry
-    sessions = sessions.filter((s) => new Date(s.expiresAt) >= now);
-    saveSessions(sessions);
+    if (needsExtension) {
+      session.expiresAt = new Date(idealExpiry).toISOString();
+      // Cleanup expired sessions + persist the extended expiry
+      sessions = sessions.filter((s) => new Date(s.expiresAt) >= now);
+      saveSessions(sessions);
+    }
 
     return { user: toPublicUser(user) };
   } catch (error) {

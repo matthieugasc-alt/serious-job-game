@@ -231,61 +231,93 @@ export class HeadlessEngine {
 
     const prompt = this.prompts[actorId] || "";
 
-    try {
-      const res = await fetch(`${this.api.baseUrl}/api/chat`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${this.api.authToken}`,
-        },
-        body: JSON.stringify({
-          playerName: this.playerName,
-          message,
-          phaseTitle: phase.title,
-          phaseObjective: phase.objective,
-          phaseFocus: phase.phase_focus || "",
-          phasePrompt: phase.player_input?.prompt || "",
-          criteria: phase.competencies || [],
-          mode: "standard",
-          narrative: this.scenario.narrative,
-          recentConversation: recentConv.slice(0, -1), // exclude the just-added player msg
-          playerMessages: [message],
-          roleplayPrompt: prompt,
-        }),
-      });
+    const MAX_RETRIES = 4;
+    let lastError = "";
 
-      if (!res.ok) {
-        const errText = await res.text();
-        this.addError(`API /chat ${res.status}: ${errText.slice(0, 200)}`);
-        return `[ERROR ${res.status}]`;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      if (attempt > 0) {
+        const backoff = Math.min(2000 * Math.pow(2, attempt - 1), 15000);
+        this.addLog(`🔄 Chat retry ${attempt}/${MAX_RETRIES - 1} vers ${actorId} (attente ${Math.round(backoff / 1000)}s)`);
+        await new Promise(r => setTimeout(r, backoff));
       }
 
-      const data = await res.json();
-      const reply = data.reply || "[pas de réponse]";
+      try {
+        const res = await fetch(`${this.api.baseUrl}/api/chat`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${this.api.authToken}`,
+          },
+          body: JSON.stringify({
+            playerName: this.playerName,
+            message,
+            phaseTitle: phase.title,
+            phaseObjective: phase.objective,
+            phaseFocus: phase.phase_focus || "",
+            phasePrompt: phase.player_input?.prompt || "",
+            criteria: phase.competencies || [],
+            mode: "standard",
+            narrative: this.scenario.narrative,
+            recentConversation: recentConv.slice(0, -1), // exclude the just-added player msg
+            playerMessages: [message],
+            roleplayPrompt: prompt,
+          }),
+        });
 
-      // Add AI reply to history
-      this.session.chatMessages.push({
-        role: "npc",
-        actor: actorId,
-        content: reply,
-        phaseId: phase.phase_id,
-        timestamp: Date.now(),
-      });
+        // Retriable: 429 rate limit
+        if (res.status === 429) {
+          const body = await res.json().catch(() => ({}));
+          const retryAfter = body.retryAfterMs || 3000;
+          const waitMs = Math.min(retryAfter + 500, 10000);
+          lastError = `rate_limit (429)`;
+          this.addLog(`⏳ Rate limit 429 pour chat ${actorId}, attente ${waitMs}ms`);
+          await new Promise(r => setTimeout(r, waitMs));
+          continue;
+        }
 
-      // Apply evaluation
-      if (data.score_delta && data.score_delta > 0) {
-        this.session.scores[phase.phase_id] = (this.session.scores[phase.phase_id] || 0) + data.score_delta;
+        // Retriable: 401, 500+
+        if (res.status === 401 || res.status >= 500) {
+          lastError = `HTTP ${res.status}`;
+          continue;
+        }
+
+        if (!res.ok) {
+          const errText = await res.text();
+          this.addError(`API /chat ${res.status}: ${errText.slice(0, 200)}`);
+          return `[ERROR ${res.status}]`;
+        }
+
+        const data = await res.json();
+        const reply = data.reply || "[pas de réponse]";
+
+        // Add AI reply to history
+        this.session.chatMessages.push({
+          role: "npc",
+          actor: actorId,
+          content: reply,
+          phaseId: phase.phase_id,
+          timestamp: Date.now(),
+        });
+
+        // Apply evaluation
+        if (data.score_delta && data.score_delta > 0) {
+          this.session.scores[phase.phase_id] = (this.session.scores[phase.phase_id] || 0) + data.score_delta;
+        }
+        if (data.flags_to_set) {
+          Object.assign(this.session.flags, data.flags_to_set);
+        }
+
+        this.addLog(`💬 → ${actorId}: "${message.slice(0, 50)}..." → "${reply.slice(0, 50)}..."`);
+        return reply;
+      } catch (err: any) {
+        lastError = err.message;
+        continue; // network error, retry
       }
-      if (data.flags_to_set) {
-        Object.assign(this.session.flags, data.flags_to_set);
-      }
-
-      this.addLog(`💬 → ${actorId}: "${message.slice(0, 50)}..." → "${reply.slice(0, 50)}..."`);
-      return reply;
-    } catch (err: any) {
-      this.addError(`Chat fetch failed: ${err.message}`);
-      return `[FETCH ERROR: ${err.message}]`;
     }
+
+    // All retries exhausted
+    this.addError(`Chat failed after ${MAX_RETRIES} attempts: ${lastError}`);
+    return `[RETRY EXHAUSTED: ${lastError}]`;
   }
 
   // ── Send mail ──

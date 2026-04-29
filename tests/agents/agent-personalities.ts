@@ -481,7 +481,21 @@ export function buildAgentBrainPrompt(
     .map(m => `De ${m.from}: "${m.subject}" — ${m.body.slice(0, 100)}...`)
     .join("\n") || "(boîte vide)";
 
-  return `Tu es un joueur dans une simulation professionnelle immobilière. Tu joues le rôle d'un agent immobilier junior.
+  // Compute how many chat messages the player has sent in this phase
+  const playerChatCount = gameState.chatHistory.filter(m => m.actor === "player").length;
+  const hasSentMailThisPhase = gameState.sentMails.length > 0;
+
+  // Build urgency hint based on chat count
+  let progressHint = "";
+  if (currentPhase.mail_config?.enabled && !hasSentMailThisPhase) {
+    if (playerChatCount >= 6) {
+      progressHint = `\n⚠️ URGENT : Tu as déjà échangé ${playerChatCount} messages en chat. Il est TEMPS d'envoyer ton mail pour avancer à la phase suivante. Ne continue pas à chatter indéfiniment.`;
+    } else if (playerChatCount >= 3) {
+      progressHint = `\n💡 Tu as échangé ${playerChatCount} messages. Pense à préparer ton mail de synthèse pour conclure cette phase.`;
+    }
+  }
+
+  return `Tu es un joueur dans une simulation professionnelle. Tu joues le rôle décrit ci-dessous.
 
 PERSONNALITÉ DU JOUEUR :
 ${personality.systemPrompt}
@@ -495,8 +509,14 @@ PHASE ACTUELLE : ${currentPhase.title}
 Objectif : ${currentPhase.objective}
 ${currentPhase.player_input?.prompt ? `Consigne : ${currentPhase.player_input.prompt}` : ""}
 Canaux actifs : ${currentPhase.active_channels.join(", ")}
-Contacts disponibles : ${currentPhase.ai_actors.join(", ")}
-${currentPhase.mail_config?.enabled ? `Mail : activé (destinataire par défaut: ${currentPhase.mail_config.defaults?.to || "?"}, sujet: ${currentPhase.mail_config.defaults?.subject || "?"})` : ""}
+Contacts disponibles pour le CHAT : ${currentPhase.ai_actors.join(", ")}
+${currentPhase.mail_config?.enabled ? `📧 MAIL OBLIGATOIRE POUR AVANCER : cette phase se termine UNIQUEMENT quand tu envoies un mail.\n   Destinataire : ${currentPhase.mail_config.defaults?.to || "?"}\n   Sujet suggéré : ${currentPhase.mail_config.defaults?.subject || "?"}` : ""}
+${progressHint}
+
+⚠️ RÈGLES STRICTES :
+- Tu ne peux chatter qu'avec les contacts listés ci-dessus : ${currentPhase.ai_actors.join(", ")}
+- N'essaie JAMAIS de parler à un contact qui n'est pas dans cette liste
+- Si un mail est requis pour avancer, tu DOIS l'envoyer après avoir collecté assez d'informations (3-6 échanges chat suffisent)
 
 DOCUMENTS DISPONIBLES : ${docList}
 
@@ -506,14 +526,17 @@ ${recentChat}
 MAILS REÇUS RÉCENTS :
 ${recentInbox}
 
+MAILS ENVOYÉS :
+${gameState.sentMails.slice(-3).map(m => `À ${m.to}: "${m.subject}"`).join("\n") || "(aucun mail envoyé)"}
+
 INSTRUCTIONS :
 Tu dois décider de ta PROCHAINE ACTION. Réponds en JSON avec exactement un de ces formats :
 
-1. Envoyer un message chat :
-{"action": "chat", "to": "actor_id", "message": "ton message"}
+1. Envoyer un message chat (UNIQUEMENT aux contacts disponibles) :
+{"action": "chat", "to": "actor_id_dans_la_liste", "message": "ton message"}
 
-2. Envoyer un mail :
-{"action": "mail", "to": "email@dest.com", "subject": "Objet", "body": "Corps du mail"}
+2. Envoyer un mail (pour conclure la phase) :
+{"action": "mail", "to": "email@dest.com", "subject": "Objet", "body": "Corps du mail structuré et professionnel"}
 
 3. Attendre (ne rien faire ce tour) :
 {"action": "wait", "reason": "pourquoi tu attends"}

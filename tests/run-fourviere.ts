@@ -24,10 +24,10 @@ import { AGENT_PERSONALITIES } from "./agents/agent-personalities";
 async function main() {
   const baseUrl = process.env.BASE_URL || "http://localhost:3000";
   const authToken = process.env.AUTH_TOKEN || "";
-  const concurrency = parseInt(process.env.CONCURRENCY || "3", 10);
+  const concurrency = parseInt(process.env.CONCURRENCY || "2", 10);
   const maxTotalTurns = parseInt(process.env.MAX_TURNS || "40", 10);
   const maxTurnsPerPhase = parseInt(process.env.MAX_TURNS_PER_PHASE || "12", 10);
-  const delayMs = parseInt(process.env.DELAY_MS || "1000", 10);
+  const delayMs = parseInt(process.env.DELAY_MS || "2000", 10);
 
   if (!authToken) {
     console.error("❌ AUTH_TOKEN est requis. Récupérez-le depuis localStorage dans le navigateur.");

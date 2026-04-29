@@ -139,13 +139,33 @@ function buildPrompt(body: any): string {
       : (p.scoring?.criteria || []).map((c: any) => c.description),
   }));
 
-  // Conversation history
+  // Conversation history — limit to MAX_MESSAGES_PER_PHASE to avoid prompt bloat / 504 timeouts
+  const MAX_MESSAGES_PER_PHASE = 15;
   const conversation = Array.isArray(body?.conversation) ? body.conversation : [];
-  const convSummary = conversation
+
+  // Group messages by phase, keep last N per phase for evaluation
+  const messagesByPhase = new Map<string, any[]>();
+  for (const m of conversation) {
+    const phaseKey = m.phaseId || "unknown";
+    if (!messagesByPhase.has(phaseKey)) messagesByPhase.set(phaseKey, []);
+    messagesByPhase.get(phaseKey)!.push(m);
+  }
+  const trimmedConversation: any[] = [];
+  for (const [, msgs] of messagesByPhase) {
+    // Keep last N messages per phase (most relevant for evaluation)
+    const kept = msgs.length > MAX_MESSAGES_PER_PHASE
+      ? msgs.slice(-MAX_MESSAGES_PER_PHASE)
+      : msgs;
+    trimmedConversation.push(...kept);
+  }
+
+  const convSummary = trimmedConversation
     .map((m: any) => {
       const role = m.role === "player" ? playerName : m.actor || "PNJ";
       const type = m.type && m.type !== "chat" ? ` [${m.type}]` : "";
-      return `[${role}${type}]: ${m.content}`;
+      // Trim individual messages to 500 chars max
+      const content = m.content?.length > 500 ? m.content.slice(0, 500) + "…" : m.content;
+      return `[${role}${type}]: ${content}`;
     })
     .join("\n");
 
@@ -257,41 +277,49 @@ FORMAT JSON STRICT (pas de texte avant ou après) :
 // ── Call Anthropic (Claude) API directly via fetch ─────────────────
 
 async function callClaude(prompt: string, apiKey: string): Promise<string> {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-api-key": apiKey,
-      "anthropic-version": "2023-06-01",
-    },
-    body: JSON.stringify({
-      model: "claude-sonnet-4-20250514",
-      max_tokens: 8192,
-      messages: [
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-    }),
-  });
+  // Use AbortController to enforce a 55s timeout (most proxies cut at 60s)
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 55_000);
 
-  if (!res.ok) {
-    const errorText = await res.text();
-    throw new Error(`Anthropic API error ${res.status}: ${errorText}`);
+  try {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4096, // reduced from 8192 — debrief doesn't need that much
+        messages: [
+          {
+            role: "user",
+            content: prompt,
+          },
+        ],
+      }),
+      signal: controller.signal,
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      throw new Error(`Anthropic API error ${res.status}: ${errorText}`);
+    }
+
+    const data = await res.json();
+    const textBlock = data.content?.find((b: any) => b.type === "text");
+    return textBlock?.text || "";
+  } finally {
+    clearTimeout(timeout);
   }
-
-  const data = await res.json();
-  // Extract text from the response
-  const textBlock = data.content?.find((b: any) => b.type === "text");
-  return textBlock?.text || "";
 }
 
 // ── Fallback: call OpenAI if Anthropic key not available ──────────
 
 async function callOpenAI(prompt: string, apiKey: string): Promise<string> {
   const OpenAI = (await import("openai")).default;
-  const client = new OpenAI({ apiKey });
+  const client = new OpenAI({ apiKey, timeout: 55_000 });
   const response = await client.responses.create({
     model: "gpt-4.1-mini",
     input: prompt,

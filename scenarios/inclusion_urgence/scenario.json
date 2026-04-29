@@ -171,7 +171,6 @@
       "phase_id": "phase_1",
       "title": "Obtenir les infos et organiser",
       "duration_target_min": 6,
-      "max_duration_sec": 300,
       "objective": "Échanger avec le directeur pour comprendre la situation et planifier l'accueil.",
       "phase_focus": "Organisation avec le directeur.",
       "active_channels": [
@@ -199,7 +198,6 @@
       "phase_id": "phase_2",
       "title": "Contacter le CASNAV et préparer l'accueil",
       "duration_target_min": 9,
-      "max_duration_sec": 300,
       "objective": "Envoyer un mail au CASNAV et préparer un message d'accueil pour la classe.",
       "phase_focus": "Rédaction des communications.",
       "active_channels": [

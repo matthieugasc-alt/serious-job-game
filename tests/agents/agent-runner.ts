@@ -104,57 +104,95 @@ async function askAgentBrain(
     }
   );
 
-  try {
-    const res = await fetch(`${api.baseUrl}/api/chat`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${api.authToken}`,
-      },
-      body: JSON.stringify({
-        playerName: personality.name,
-        message: prompt,
-        phaseTitle: "Agent Brain",
-        phaseObjective: "Décider la prochaine action du joueur simulé",
-        phaseFocus: "",
-        phasePrompt: "",
-        criteria: [],
-        mode: "standard",
-        narrative: scenario.narrative,
-        recentConversation: [],
-        playerMessages: [prompt],
-        roleplayPrompt: `Tu es le cerveau d'un agent de test. Tu ne joues PAS un personnage du scénario. Tu décides quelle action le joueur simulé doit prendre. Réponds UNIQUEMENT en JSON valide.`,
-      }),
-    });
+  const MAX_RETRIES = 4;
+  let lastError = "";
 
-    if (!res.ok) {
-      engine.addError(`Agent brain API error: ${res.status}`);
-      return { action: "wait", reason: `API error ${res.status}` };
+  for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+    // Backoff before retries (not before first attempt)
+    if (attempt > 0) {
+      const backoff = Math.min(2000 * Math.pow(2, attempt - 1), 15000);
+      engine.addLog(`🔄 Brain retry ${attempt}/${MAX_RETRIES - 1} pour ${personality.name} (attente ${Math.round(backoff / 1000)}s)`);
+      await new Promise(r => setTimeout(r, backoff));
     }
 
-    const data = await res.json();
-    const reply = data.reply || "";
+    try {
+      const res = await fetch(`${api.baseUrl}/api/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${api.authToken}`,
+        },
+        body: JSON.stringify({
+          playerName: personality.name,
+          message: prompt,
+          phaseTitle: "Agent Brain",
+          phaseObjective: "Décider la prochaine action du joueur simulé",
+          phaseFocus: "",
+          phasePrompt: "",
+          criteria: [],
+          mode: "standard",
+          narrative: scenario.narrative,
+          recentConversation: [],
+          playerMessages: [prompt],
+          roleplayPrompt: `Tu es le cerveau d'un agent de test. Tu ne joues PAS un personnage du scénario. Tu décides quelle action le joueur simulé doit prendre. Réponds UNIQUEMENT en JSON valide.`,
+        }),
+      });
 
-    // Parse JSON from reply
-    const jsonMatch = reply.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) {
-      engine.addWarning(`Agent brain returned non-JSON: ${reply.slice(0, 100)}`);
-      return { action: "wait", reason: "unparseable response" };
+      // ── Retriable HTTP errors ──
+      if (res.status === 429) {
+        const body = await res.json().catch(() => ({}));
+        const retryAfter = body.retryAfterMs || 3000;
+        const waitMs = Math.min(retryAfter + 500, 10000); // cap at 10s
+        lastError = `rate_limit (429), waiting ${waitMs}ms`;
+        engine.addLog(`⏳ Rate limit 429 pour ${personality.name}, attente ${waitMs}ms`);
+        await new Promise(r => setTimeout(r, waitMs));
+        continue; // retry
+      }
+
+      if (res.status === 401) {
+        lastError = `auth error (401)`;
+        continue; // retry (token may have been refreshed)
+      }
+
+      if (res.status >= 500) {
+        lastError = `server error (${res.status})`;
+        continue; // retry with backoff
+      }
+
+      if (!res.ok) {
+        // Non-retriable HTTP error (4xx other than 401/429)
+        engine.addError(`Agent brain API error: ${res.status}`);
+        return { action: "wait", reason: `API error ${res.status}` };
+      }
+
+      // ── Success: parse response ──
+      const data = await res.json();
+      const reply = data.reply || "";
+
+      const jsonMatch = reply.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        engine.addWarning(`Agent brain returned non-JSON: ${reply.slice(0, 100)}`);
+        return { action: "wait", reason: "unparseable response" };
+      }
+
+      const parsed = JSON.parse(jsonMatch[0]) as AgentAction;
+
+      if (!["chat", "mail", "wait"].includes(parsed.action)) {
+        engine.addWarning(`Agent brain returned invalid action: ${parsed.action}`);
+        return { action: "wait", reason: "invalid action type" };
+      }
+
+      return parsed;
+    } catch (err: any) {
+      lastError = err.message;
+      // Network errors are retriable
+      continue;
     }
-
-    const parsed = JSON.parse(jsonMatch[0]) as AgentAction;
-
-    // Validate action
-    if (!["chat", "mail", "wait"].includes(parsed.action)) {
-      engine.addWarning(`Agent brain returned invalid action: ${parsed.action}`);
-      return { action: "wait", reason: "invalid action type" };
-    }
-
-    return parsed;
-  } catch (err: any) {
-    engine.addError(`Agent brain fetch failed: ${err.message}`);
-    return { action: "wait", reason: `fetch error: ${err.message}` };
   }
+
+  // All retries exhausted
+  engine.addError(`Agent brain failed after ${MAX_RETRIES} attempts: ${lastError}`);
+  return { action: "wait", reason: `all retries failed: ${lastError}` };
 }
 
 // ── Execute a single action ──

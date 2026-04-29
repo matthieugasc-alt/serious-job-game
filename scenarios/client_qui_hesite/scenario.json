@@ -9,7 +9,13 @@
     "job_family": "commercial",
     "difficulty": "pour débuter",
     "estimated_duration_min": 15,
-    "tags": ["objection", "B2B", "SaaS", "négociation", "proposition commerciale"],
+    "tags": [
+      "objection",
+      "B2B",
+      "SaaS",
+      "négociation",
+      "proposition commerciale"
+    ],
     "show_objective": false,
     "show_background_fact": false
   },
@@ -137,7 +143,6 @@
       "phase_id": "phase_1",
       "title": "Comprendre et lever les objections",
       "duration_target_min": 7,
-      "max_duration_sec": 420,
       "objective": "Comprendre les vraies objections de Laurent (prix vs valeur), identifier ses besoins clés (intégration ERP, migration, support) et construire un argumentaire qui va au-delà du prix.",
       "active_channels": [
         "chat"
@@ -161,7 +166,6 @@
       "phase_id": "phase_2",
       "title": "Proposition commerciale ajustée",
       "duration_target_min": 8,
-      "max_duration_sec": 480,
       "objective": "Rédiger un mail de proposition commerciale à Laurent qui reprend les arguments identifiés en phase 1 et propose une offre ajustée (pas forcément une remise — peut être un engagement, un pilote, etc.)",
       "active_channels": [
         "mail"

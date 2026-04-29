@@ -9,7 +9,16 @@
     "job_family": "conseil_strategie",
     "difficulty": "avancé",
     "estimated_duration_min": 50,
-    "tags": ["due diligence", "M&A", "Private Equity", "analyse financière", "interview", "gestion de crise", "recommandation", "conseil en stratégie"],
+    "tags": [
+      "due diligence",
+      "M&A",
+      "Private Equity",
+      "analyse financière",
+      "interview",
+      "gestion de crise",
+      "recommandation",
+      "conseil en stratégie"
+    ],
     "show_objective": true,
     "show_background_fact": false,
     "pedagogical_goals": [
@@ -230,7 +239,12 @@
         "doc_id": "teaser_vetgroup",
         "label": "Teaser investisseur — VetGroup",
         "file_path": "scenarios/due_diligence_sous_tension/resources/01_teaser_vetgroup.pdf",
-        "contains": ["KPIs", "thèse d'investissement", "contacts", "valorisation"],
+        "contains": [
+          "KPIs",
+          "thèse d'investissement",
+          "contacts",
+          "valorisation"
+        ],
         "available_from_phase": "phase_1",
         "usable_as_pj": false
       },
@@ -238,7 +252,18 @@
         "doc_id": "data_pack_vetgroup",
         "label": "Data Pack — VetGroup (confidentiel)",
         "file_path": "scenarios/due_diligence_sous_tension/resources/02_data_pack_vetgroup.pdf",
-        "contains": ["P&L", "EBITDA", "CAPEX", "baux", "associés", "KPIs", "cliniques", "immobilier", "fournisseurs", "RSE"],
+        "contains": [
+          "P&L",
+          "EBITDA",
+          "CAPEX",
+          "baux",
+          "associés",
+          "KPIs",
+          "cliniques",
+          "immobilier",
+          "fournisseurs",
+          "RSE"
+        ],
         "available_from_phase": "phase_1",
         "usable_as_pj": false
       },
@@ -246,7 +271,12 @@
         "doc_id": "benchmark_concurrence",
         "label": "Benchmark concurrentiel — Réseaux vétérinaires",
         "file_path": "scenarios/due_diligence_sous_tension/resources/03_benchmark_concurrence.pdf",
-        "contains": ["concurrents", "marges", "multiples", "croissance"],
+        "contains": [
+          "concurrents",
+          "marges",
+          "multiples",
+          "croissance"
+        ],
         "available_from_phase": "phase_1",
         "usable_as_pj": false
       },
@@ -254,7 +284,11 @@
         "doc_id": "fiche_prepa_interview",
         "label": "Fiche de préparation interview DG",
         "file_path": "scenarios/due_diligence_sous_tension/resources/04_fiche_prepa_interview.pdf",
-        "contains": ["thèmes", "questions", "méthodologie"],
+        "contains": [
+          "thèmes",
+          "questions",
+          "méthodologie"
+        ],
         "available_from_phase": "phase_2",
         "usable_as_pj": false
       },
@@ -262,7 +296,11 @@
         "doc_id": "template_recommandation",
         "label": "Template recommandation go/no-go",
         "file_path": "scenarios/due_diligence_sous_tension/resources/05_template_recommandation.pdf",
-        "contains": ["structure", "critères", "format"],
+        "contains": [
+          "structure",
+          "critères",
+          "format"
+        ],
         "available_from_phase": "phase_4",
         "usable_as_pj": true
       }
@@ -288,12 +326,15 @@
       "phase_id": "phase_1",
       "title": "Brief avec Hélène Marchand",
       "duration_target_min": 7,
-      "max_duration_sec": 420,
       "sim_speed_multiplier": 1,
       "objective": "Poser les bonnes questions à votre Partner pour cadrer la mission : critères de go/no-go, red flags connus, périmètre d'analyse, contacts clés.",
       "phase_focus": "Le joueur doit extraire un maximum d'informations utiles d'Hélène en posant des questions précises. Hélène ne donne que ce qu'on lui demande.",
-      "active_channels": ["chat"],
-      "ai_actors": ["helene_marchand"],
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "helene_marchand"
+      ],
       "competencies": [
         "Pose des questions précises pour cadrer la mission",
         "Identifie les critères de go/no-go du fonds",
@@ -310,12 +351,16 @@
       "phase_id": "phase_2",
       "title": "Analyse du data pack et préparation",
       "duration_target_min": 15,
-      "max_duration_sec": 900,
       "sim_speed_multiplier": 8,
       "objective": "Analyser le data pack, identifier les incohérences et zones d'ombre, préparer les questions pour l'interview du DG. Envoyer la synthèse de marché par mail à Hélène.",
       "phase_focus": "Le joueur dispose des documents et peut contacter Sophie Nguyen (DAF) ou Jean-François Morel (expert marché) par mail pour compléter son analyse. La synthèse envoyée à Hélène fait avancer la phase.",
-      "active_channels": ["mail"],
-      "ai_actors": ["sophie_nguyen", "jean_francois_morel"],
+      "active_channels": [
+        "mail"
+      ],
+      "ai_actors": [
+        "sophie_nguyen",
+        "jean_francois_morel"
+      ],
       "mail_config": {
         "to": "h.marchand@marchand-conseil.fr",
         "defaults": {
@@ -340,12 +385,15 @@
       "phase_id": "phase_3",
       "title": "Interview du DG — Marc Delaunay",
       "duration_target_min": 12,
-      "max_duration_sec": 720,
       "sim_speed_multiplier": 1,
       "objective": "Mener l'interview de Marc Delaunay. Obtenir des réponses précises sur les zones d'ombre identifiées (départs d'associés, bail Villeurbanne, sous-investissement CAPEX) tout en maintenant la relation de confiance.",
       "phase_focus": "Marc est chaleureux mais évasif sur les sujets sensibles. Le joueur doit poser des questions factuelles précises et relancer quand Marc esquive. Marc ne révèle des informations sensibles que sous pression ciblée.",
-      "active_channels": ["chat"],
-      "ai_actors": ["marc_delaunay"],
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "marc_delaunay"
+      ],
       "competencies": [
         "Pose des questions factuelles précises, pas des questions ouvertes molles",
         "Relance sur les réponses évasives avec des éléments du data pack",
@@ -362,12 +410,18 @@
       "phase_id": "phase_4",
       "title": "Gestion de crise — Fuite de document",
       "duration_target_min": 8,
-      "max_duration_sec": 480,
       "sim_speed_multiplier": 1,
       "objective": "Gérer une crise : Léa Martin (analyste PeakBridge) a envoyé par erreur un brouillon de votre analyse au DG de VetGroup. Thomas Renault (votre manager) vous contacte en urgence. Vous devez calmer Marc Delaunay et recadrer Pierre-Yves Castex.",
       "phase_focus": "Double gestion de crise : (1) Thomas Renault donne les instructions par chat, (2) le joueur doit écrire à Marc Delaunay pour maintenir la relation ET à Pierre-Yves Castex pour recadrer sur la fuite. La crise se résout quand les deux mails sont envoyés.",
-      "active_channels": ["chat", "mail"],
-      "ai_actors": ["thomas_renault", "marc_delaunay", "pierre_yves_castex"],
+      "active_channels": [
+        "chat",
+        "mail"
+      ],
+      "ai_actors": [
+        "thomas_renault",
+        "marc_delaunay",
+        "pierre_yves_castex"
+      ],
       "entry_events": [
         {
           "event_id": "thomas_crise",
@@ -393,12 +447,15 @@
       "phase_id": "phase_5",
       "title": "Recommandation go/no-go",
       "duration_target_min": 8,
-      "max_duration_sec": 480,
       "sim_speed_multiplier": 1,
       "objective": "Présenter votre recommandation go/no-go à Hélène Marchand. Défendre votre position avec des arguments chiffrés. Hélène challenge systématiquement — quel que soit votre avis.",
       "phase_focus": "Le joueur doit synthétiser tout ce qu'il a découvert (ou pas) et défendre une position argumentée. Hélène ne révèle jamais les red flags que le joueur n'a pas trouvés lui-même. La qualité de la reco dépend directement de la qualité de l'investigation.",
-      "active_channels": ["chat"],
-      "ai_actors": ["helene_marchand"],
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "helene_marchand"
+      ],
       "competencies": [
         "Formule une recommandation claire et argumentée (go, no-go, ou conditionnel)",
         "Quantifie l'impact des risques identifiés sur la valorisation",

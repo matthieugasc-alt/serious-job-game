@@ -171,7 +171,6 @@
       "phase_id": "phase_1",
       "title": "Contexte avec le directeur",
       "duration_target_min": 6,
-      "max_duration_sec": 300,
       "objective": "Expliquer la situation au directeur et préparer la réponse.",
       "phase_focus": "Échange avec le directeur.",
       "active_channels": [
@@ -199,7 +198,6 @@
       "phase_id": "phase_2",
       "title": "Répondre au parent",
       "duration_target_min": 9,
-      "max_duration_sec": 300,
       "objective": "Rédiger un mail professionnel au parent.",
       "phase_focus": "Rédaction de la réponse.",
       "active_channels": [

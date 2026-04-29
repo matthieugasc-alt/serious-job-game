@@ -687,40 +687,37 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const rawPhaseAiActors = scenario?.phases?.[session?.currentPhaseIndex]?.ai_actors || [];
   const currentPhaseAiActors = rawPhaseAiActors.map((a: string) => resolveActor(a));
   const filteredConversation = useMemo(() => {
-    if (!selectedContact) return conversation;
-
-    // Interview phases (single ai_actor that is NOT Alexandre): show only this phase's messages
-    // This ensures each interview (Sofia, Marc, Karim) has its own clean conversation.
-    const nonAlexActors = currentPhaseAiActors.filter((a: string) => a !== "alexandre_morel");
-    if (nonAlexActors.length === 1 && currentPhaseAiActors.length <= 2) {
-      const phaseActorId = nonAlexActors[0];
-      // If selected contact is Alexandre, show Alexandre conversation across phases
-      if (selectedContact === "alexandre_morel") {
-        return conversation.filter((msg: any) => {
-          if (msg.role === "system") return false;
-          if (msg.role === "player") return msg.toActor === "alexandre_morel";
-          if (msg.role === "npc") return msg.actor === "alexandre_morel";
-          return false;
-        });
-      }
-      // Otherwise show the current phase's conversation with the phase actor
-      return conversation.filter((msg: any) => {
-        if (msg.role === "system") return false;
-        // Only show messages from the current phase
-        if (msg.phaseId && currentPhaseId && msg.phaseId !== currentPhaseId) return false;
-        if (msg.role === "player") return msg.toActor === phaseActorId || msg.toActor === selectedContact;
-        // Show all NPC messages from this phase (Alexandre intros + candidate)
-        if (msg.role === "npc") return true;
-        return false;
-      });
+    // No contact selected → show only system error messages (never show raw mixed feed)
+    if (!selectedContact) {
+      return conversation.filter((msg: any) => msg.role === "system" && msg.type === "error");
     }
 
-    // Multi-actor phases: per-contact filtering across ALL phases
-    // (messages persist so conversations don't "disappear" when advancing)
+    // Universal per-contact filtering: each contact has its own private thread.
+    // Player messages are shown if they were sent TO this contact.
+    // NPC messages are shown if they came FROM this contact.
+    //
+    // Special case: entry_event messages (phase transitions like "Sofia just arrived")
+    // are said by one NPC but relevant to the current phase's primary actor.
+    // These "announcement" messages (type = "incoming" / "phase_intro") from the
+    // current phase are shown in the selected contact's thread if that contact
+    // is a primary actor of the current phase.
+    const isSelectedInPhase = currentPhaseAiActors.includes(selectedContact);
+
     return conversation.filter((msg: any) => {
-      if (msg.role === "system") return false;
+      if (msg.role === "system") return msg.type === "error"; // show errors inline
       if (msg.role === "player") return msg.toActor === selectedContact;
-      if (msg.role === "npc") return msg.actor === selectedContact;
+      if (msg.role === "npc") {
+        // Direct match: message is from the selected contact
+        if (msg.actor === selectedContact) return true;
+        // Phase announcement: entry_event from another NPC in the current phase
+        // (e.g. Alexandre saying "Sofia just arrived" should appear in Sofia's thread)
+        if (isSelectedInPhase && msg.phaseId === currentPhaseId &&
+            (msg.type === "incoming" || msg.type === "phase_intro") &&
+            msg.actor !== selectedContact) {
+          return true;
+        }
+        return false;
+      }
       return false;
     });
   }, [conversation, selectedContact, currentPhaseAiActors.join(","), currentPhaseId]);
@@ -1001,64 +998,65 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     setDebriefLoading(true);
     setDebriefError(null);
 
-    fetch("/api/debrief", {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify({
-        playerName: displayPlayerName,
-        scenarioTitle: scenario.meta?.title || "Scénario",
-        phases: scenario.phases,
-        conversation: session.chatMessages,
-        sentMails: session.sentMails,
-        inboxMails: session.inboxMails,
-        endings: scenario.endings || [],
-        defaultEnding: (scenario as any).default_ending || null,
-      }),
-    })
-      .then((r) => {
-        if (!r.ok) {
-          if (r.status === 401) {
-            // Try refreshing token from localStorage in case another tab logged in
+    // Debrief fetch with retry (504 gateway timeouts are common with large prompts)
+    const debriefPayload = {
+      playerName: displayPlayerName,
+      scenarioTitle: scenario.meta?.title || "Scénario",
+      phases: scenario.phases,
+      conversation: session.chatMessages,
+      sentMails: session.sentMails,
+      inboxMails: session.inboxMails,
+      endings: scenario.endings || [],
+      defaultEnding: (scenario as any).default_ending || null,
+    };
+
+    const MAX_DEBRIEF_RETRIES = 3;
+    (async () => {
+      for (let attempt = 0; attempt < MAX_DEBRIEF_RETRIES; attempt++) {
+        try {
+          // Refresh token on retry if needed
+          if (attempt > 0) {
             const freshToken = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-            if (freshToken && freshToken !== authTokenRef.current) {
-              authTokenRef.current = freshToken;
-              // Retry with fresh token
-              return fetch("/api/debrief", {
-                method: "POST",
-                headers: apiHeaders(),
-                body: JSON.stringify({
-                  playerName: displayPlayerName,
-                  scenarioTitle: scenario.meta?.title || "Scénario",
-                  phases: scenario.phases,
-                  conversation: session.chatMessages,
-                  sentMails: session.sentMails,
-                  inboxMails: session.inboxMails,
-                  endings: scenario.endings || [],
-                  defaultEnding: (scenario as any).default_ending || null,
-                }),
-              }).then((r2) => {
-                if (!r2.ok) throw new Error("Session expirée. Reconnectez-vous et relancez le scénario.");
-                return r2.json();
-              });
-            }
+            if (freshToken) authTokenRef.current = freshToken;
+            // Wait before retry (2s, 4s)
+            await new Promise(r => setTimeout(r, 2000 * attempt));
+          }
+
+          const r = await fetch("/api/debrief", {
+            method: "POST",
+            headers: apiHeaders(),
+            body: JSON.stringify(debriefPayload),
+          });
+
+          // Retriable errors: 504 (gateway timeout), 502 (bad gateway), 500 (server error)
+          if (r.status === 504 || r.status === 502 || r.status >= 500) {
+            if (attempt < MAX_DEBRIEF_RETRIES - 1) continue; // retry
+            throw new Error(`Erreur serveur (${r.status}) — le débrief a pris trop de temps.`);
+          }
+
+          if (r.status === 401) {
+            if (attempt < MAX_DEBRIEF_RETRIES - 1) continue; // retry with refreshed token
             throw new Error("Session expirée. Reconnectez-vous pour générer le débrief.");
           }
+
           if (r.status === 429) throw new Error("Trop de requêtes. Veuillez patienter quelques instants.");
           if (r.status === 400) throw new Error("Données invalides pour le débrief.");
-          throw new Error(`Erreur serveur (${r.status})`);
-        }
-        return r.json();
-      })
-      .then((data) => {
-        if (data) {
+          if (!r.ok) throw new Error(`Erreur serveur (${r.status})`);
+
+          const data = await r.json();
           setDebriefData(data);
           setDebriefLoading(false);
+          return; // success
+        } catch (err: any) {
+          if (attempt < MAX_DEBRIEF_RETRIES - 1 && !err.message?.includes("Session expirée")) {
+            continue; // retry on network errors
+          }
+          setDebriefError(err.message || "Erreur lors du débrief");
+          setDebriefLoading(false);
+          return;
         }
-      })
-      .catch((err) => {
-        setDebriefError(err.message || "Erreur lors du débrief");
-        setDebriefLoading(false);
-      });
+      }
+    })();
   }, [view?.isFinished]);
 
   // ── Save debrief to game history (once only) — localStorage + server ──
@@ -1145,6 +1143,26 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           router.push("/login?redirect=" + encodeURIComponent(window.location.pathname));
           return;
         }
+
+        // Validate the token is still valid server-side BEFORE starting the game.
+        // This prevents the "dead chat" bug where a player has a stale token in
+        // localStorage (from a previous session) and every API call fails silently.
+        try {
+          const authCheck = await fetch("/api/auth/session", {
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!authCheck.ok) {
+            // Token is expired or invalid — force re-login
+            localStorage.removeItem("auth_token");
+            localStorage.removeItem("user_name");
+            localStorage.removeItem("user_role");
+            router.push("/login?redirect=" + encodeURIComponent(window.location.pathname));
+            return;
+          }
+        } catch {
+          // Network error — continue anyway, the retry logic in sendMessage will handle it
+        }
+
         // Refresh the auth ref in case it was stale
         authTokenRef.current = token;
 
@@ -1836,10 +1854,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           .filter((m: any) => m.role === "player")
           .slice(-6)
           .map((m: any) => m.content);
-        const res = await fetch("/api/chat", {
-          method: "POST",
-          headers: apiHeaders(),
-          body: JSON.stringify({
+        const voicePayload = {
             playerName: displayPlayerName,
             message: newText,
             phaseTitle: v.phaseTitle,
@@ -1852,20 +1867,49 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             recentConversation: recentConv,
             playerMessages: playerOnlyMsgs,
             roleplayPrompt: activePrompt,
-          }),
-        });
-        if (!res.ok) {
-          const errBody = await res.json().catch(() => ({}));
-          throw new Error(res.status === 429
-            ? "Trop de requêtes. Veuillez patienter."
-            : errBody.message || `Erreur chat (${res.status})`);
+        };
+
+        let voiceData: any = null;
+        for (let attempt = 0; attempt <= 2; attempt++) {
+          try {
+            if (attempt > 0) {
+              const freshToken = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+              if (freshToken) authTokenRef.current = freshToken;
+              await new Promise(r => setTimeout(r, 800 * attempt));
+            }
+            const res = await fetch("/api/chat", {
+              method: "POST",
+              headers: apiHeaders(),
+              body: JSON.stringify(voicePayload),
+            });
+            if (res.status === 401 && attempt < 2) continue;
+            if (res.status >= 500 && attempt < 2) continue;
+            if (res.status === 429 && attempt < 2) {
+              await new Promise(r => setTimeout(r, 3000));
+              continue;
+            }
+            if (!res.ok) break;
+            voiceData = await res.json();
+            break;
+          } catch { if (attempt >= 2) break; }
         }
-        const data = await res.json();
-        playNotificationSound();
-        const final2 = cloneSession(next);
-        addAIMessage(final2, data.reply, targetActor);
-        applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-        setSession(final2);
+
+        if (voiceData) {
+          playNotificationSound();
+          const final2 = cloneSession(sessionRef.current || next);
+          addAIMessage(final2, voiceData.reply, targetActor);
+          applyEvaluation(final2, voiceData.matched_criteria || [], voiceData.score_delta || 0, voiceData.flags_to_set || {});
+          setSession(final2);
+        } else {
+          // Show error in chat so the player knows something went wrong
+          const errSession = cloneSession(sessionRef.current || next);
+          errSession.chatMessages.push({
+            role: "system", actor: "system",
+            content: "⚠️ Impossible d'obtenir une réponse. Veuillez réessayer.",
+            type: "error", phaseId: scen.phases[sess.currentPhaseIndex]?.phase_id || "", timestamp: Date.now(),
+          });
+          setSession(errSession);
+        }
       } catch (err) {
         console.error("Erreur dispatch vocal:", err);
       } finally {
@@ -2162,10 +2206,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       // Pick the right prompt for the target actor
       const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
 
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: apiHeaders(),
-        body: JSON.stringify({
+      const chatPayload = {
           playerName: displayPlayerName,
           message: text,
           phaseTitle: view.phaseTitle,
@@ -2178,17 +2219,82 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           recentConversation: recentConv,
           playerMessages: playerOnlyMessages,
           roleplayPrompt: activePrompt,
-        }),
-      });
+      };
 
-      if (!res.ok) {
-        const errBody = await res.json().catch(() => ({}));
-        throw new Error(res.status === 429
-          ? "Trop de requêtes. Veuillez patienter quelques instants."
-          : errBody.message || `Erreur chat (${res.status})`);
+      // ── Robust fetch with auto-retry on 401/500/network errors ──
+      let data: any = null;
+      let lastError = "";
+      const MAX_RETRIES = 2;
+
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          // On retry after 401, refresh token from localStorage
+          if (attempt > 0) {
+            const freshToken = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+            if (freshToken) authTokenRef.current = freshToken;
+            // Small delay before retry to avoid hammering
+            await new Promise(r => setTimeout(r, 800 * attempt));
+          }
+
+          const res = await fetch("/api/chat", {
+            method: "POST",
+            headers: apiHeaders(),
+            body: JSON.stringify(chatPayload),
+          });
+
+          if (res.status === 401 && attempt < MAX_RETRIES) {
+            lastError = "Session expirée, nouvelle tentative...";
+            continue; // retry with fresh token
+          }
+
+          if (res.status === 429) {
+            // Rate limited — wait and retry once
+            if (attempt < MAX_RETRIES) {
+              const retryBody = await res.json().catch(() => ({}));
+              const waitMs = retryBody.retryAfterMs || 3000;
+              lastError = "Trop de requêtes, patientez...";
+              await new Promise(r => setTimeout(r, Math.min(waitMs, 5000)));
+              continue;
+            }
+            lastError = "Trop de requêtes. Veuillez patienter quelques instants.";
+            break;
+          }
+
+          if (res.status >= 500 && attempt < MAX_RETRIES) {
+            lastError = "Erreur serveur, nouvelle tentative...";
+            continue; // retry on server errors
+          }
+
+          if (!res.ok) {
+            const errBody = await res.json().catch(() => ({}));
+            lastError = errBody.message || errBody.error || `Erreur chat (${res.status})`;
+            break;
+          }
+
+          data = await res.json();
+          break; // success!
+        } catch (fetchErr: any) {
+          lastError = fetchErr.message || "Erreur réseau";
+          if (attempt < MAX_RETRIES) continue; // retry on network errors
+        }
       }
 
-      const data = await res.json();
+      // If all retries failed, show error to the player in the chat
+      if (!data) {
+        const latestSession = sessionRef.current || next;
+        const errFinal = cloneSession(latestSession);
+        errFinal.chatMessages.push({
+          role: "system",
+          actor: "system",
+          content: `⚠️ Impossible d'obtenir une réponse. ${lastError || "Vérifiez votre connexion et réessayez."}`,
+          type: "error",
+          phaseId: curPhaseId,
+          timestamp: Date.now(),
+        });
+        setSession(errFinal);
+        return;
+      }
+
       // Discard AI response if timer has fired while waiting for the API
       if (phaseMaxDurationTriggeredRef.current === curPhaseId) return;
       playNotificationSound();
@@ -2229,7 +2335,21 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       scheduleInterruption(final);
       setSession(final);
     } catch (err) {
+      // Last resort: show error in chat so player is never left hanging
       console.error("Erreur chat:", err);
+      try {
+        const latestSession = sessionRef.current || next;
+        const errFinal = cloneSession(latestSession);
+        errFinal.chatMessages.push({
+          role: "system",
+          actor: "system",
+          content: `⚠️ Une erreur inattendue s'est produite. Veuillez réessayer.`,
+          type: "error",
+          phaseId: curPhaseId,
+          timestamp: Date.now(),
+        });
+        setSession(errFinal);
+      } catch {}
     } finally {
       setIsSending(false);
     }
@@ -6009,9 +6129,19 @@ ${equityClause}
                   const msgType = msg.type || "";
 
                   if (isSystem) {
+                    const isError = msg.type === "error";
                     return (
                       <div key={msg.id} style={{ textAlign: "center", padding: "6px 0" }}>
-                        <span style={{ background: "#f0f0f0", color: "#888", fontSize: 11, padding: "4px 12px", borderRadius: 12 }}>
+                        <span style={{
+                          background: isError ? "#fff3cd" : "#f0f0f0",
+                          color: isError ? "#856404" : "#888",
+                          fontSize: isError ? 12 : 11,
+                          padding: isError ? "8px 16px" : "4px 12px",
+                          borderRadius: 12,
+                          border: isError ? "1px solid #ffc107" : "none",
+                          display: "inline-block",
+                          maxWidth: "80%",
+                        }}>
                           {msg.content}
                         </span>
                       </div>

@@ -153,7 +153,6 @@
       "phase_id": "phase_1",
       "title": "Cadrer l'angle avec la députée",
       "duration_target_min": 5,
-      "max_duration_sec": 300,
       "objective": "Comprendre ce que la députée veut : ton, angle, cible (ministre de la Santé).",
       "phase_focus": "Discussion pour cadrer la QAG.",
       "active_channels": [
@@ -181,7 +180,6 @@
       "phase_id": "phase_2",
       "title": "Rédiger la QAG",
       "duration_target_min": 10,
-      "max_duration_sec": 300,
       "objective": "Rédiger la question au gouvernement et l'envoyer à la députée.",
       "phase_focus": "Rédaction de la QAG.",
       "active_channels": [

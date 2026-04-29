@@ -287,7 +287,6 @@
       "phase_id": "phase_1_rdv",
       "title": "Rendez-vous client — Analyse complète",
       "duration_target_min": 20,
-      "max_duration_sec": 1200,
       "objective": "Recevez M. Delvaux en rendez-vous. Abordez les 3 sujets : le loyer adapté (consultez la grille d'encadrement), l'état du bien (regardez les photos — cuisine vétuste, normes), et le régime fiscal recommandé. Utilisez l'onglet Notes pour structurer vos idées, puis envoyez votre analyse complète par mail à Claire.",
       "phase_focus": "Le joueur discute librement avec Antoine Delvaux par chat. Il doit aborder 3 sujets : (1) le loyer — l'encadrement des loyers s'applique à Fourvière, le client pense à 3000€ mais le plafond est autour de 2200€, (2) l'état du bien — la cuisine est dangereuse (gaz, électrique non conforme), les meubles anciens posent question, (3) la fiscalité — location nue vs meublée, micro-foncier vs réel, LMNP. Le joueur utilise l'outil Notes pour structurer son analyse. La phase se termine quand le joueur envoie un mail à Claire avec son analyse.",
       "active_channels": [
@@ -351,7 +350,6 @@
       "phase_id": "phase_4",
       "title": "Rédaction de l'annonce",
       "duration_target_min": 8,
-      "max_duration_sec": 300,
       "objective": "Rédiger une annonce de location attractive et honnête pour le bien de M. Delvaux, en mettant en valeur les vrais points forts sans mentir",
       "phase_focus": "Le joueur rédige l'annonce et l'envoie par email. Il peut chatter avec Claire pour des précisions mais la validation se fait UNIQUEMENT par email.",
       "active_channels": [
@@ -405,7 +403,6 @@
       "phase_id": "phase_5",
       "title": "Tri des dossiers candidats",
       "duration_target_min": 8,
-      "max_duration_sec": 300,
       "objective": "Analyser les 5 dossiers de candidature et présélectionner les profils éligibles sur des critères objectifs (revenus, stabilité, garanties)",
       "phase_focus": "Le joueur analyse les dossiers et envoie sa sélection par email. Il peut chatter avec Claire ou Antoine pour des précisions mais la validation se fait UNIQUEMENT par email.",
       "active_channels": [
@@ -477,7 +474,6 @@
       "phase_id": "phase_6",
       "title": "Validation finale du locataire",
       "duration_target_min": 10,
-      "max_duration_sec": 300,
       "objective": "STRICT: Ne traiter QUE le choix final du locataire. Recommander un candidat en défendant son choix avec des critères objectifs face à l'influence subjective de Julien Marchand.",
       "phase_focus": "Le joueur reçoit un email demandant la validation finale, peut chatter avec Julien et Claire pour arbitrage, puis envoie sa recommandation finale par email.",
       "active_channels": [

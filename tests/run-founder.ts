@@ -22,20 +22,20 @@ import { runAgentTests, RunReport } from "./agents/agent-runner";
 import { AGENT_PERSONALITIES } from "./agents/agent-personalities";
 
 const FOUNDER_SCENARIOS = [
-  "founder_00_v1",
-  "founder_01_v1",
-  "founder_02_v1",
-  "founder_03_v1",
+  "founder_00_cto",
+  "founder_01_incubator",
+  "founder_02_mvp",
+  "founder_03_clinical",
   "founder_04_v1",
 ];
 
 async function main() {
   const baseUrl = process.env.BASE_URL || "http://localhost:3000";
   const authToken = process.env.AUTH_TOKEN || "";
-  const concurrency = parseInt(process.env.CONCURRENCY || "5", 10);
+  const concurrency = parseInt(process.env.CONCURRENCY || "2", 10);
   const maxTotalTurns = parseInt(process.env.MAX_TURNS || "40", 10);
   const maxTurnsPerPhase = parseInt(process.env.MAX_TURNS_PER_PHASE || "12", 10);
-  const delayMs = parseInt(process.env.DELAY_MS || "1000", 10);
+  const delayMs = parseInt(process.env.DELAY_MS || "2000", 10);
 
   if (!authToken) {
     console.error("❌ AUTH_TOKEN est requis.");

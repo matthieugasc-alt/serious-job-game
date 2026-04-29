@@ -183,7 +183,6 @@
       "phase_id": "phase_1",
       "title": "Écouter les deux parties",
       "duration_target_min": 10,
-      "max_duration_sec": 300,
       "objective": "Comprendre les arguments de Karim et Léa.",
       "phase_focus": "Écoute active des deux stakeholders.",
       "active_channels": [
@@ -212,7 +211,6 @@
       "phase_id": "phase_2",
       "title": "Formaliser la décision",
       "duration_target_min": 8,
-      "max_duration_sec": 300,
       "objective": "Envoyer un mail de décision argumentée à la CPO.",
       "phase_focus": "Arbitrage produit.",
       "active_channels": [
