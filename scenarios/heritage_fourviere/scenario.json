@@ -47,12 +47,12 @@
       },
       {
         "title": "Ce qui t'attend",
-        "content": "<p><strong>Phase 1</strong> — Conseiller le loyer, évaluer l'état du bien, recommander un régime fiscal.</p><p><strong>Phase 4</strong> — Rédiger une annonce de location sur demande de votre supérieure (par email).</p><p><strong>Phase 5</strong> — Trier les dossiers de candidature reçus par email.</p><p><strong>Phase 6</strong> — Valider le choix final du locataire face à l'influence de votre collègue.</p>",
+        "content": "<p><strong>Phase 1</strong> — Rendez-vous avec le propriétaire : conseiller le loyer, évaluer l'état du bien, recommander un régime fiscal.</p><p><strong>Phase 2</strong> — Rédiger une annonce de location sur demande de votre supérieure (par email).</p><p><strong>Phase 3</strong> — Trier les dossiers de candidature reçus par email.</p><p><strong>Phase 4</strong> — Valider le choix final du locataire face à l'influence de votre collègue.</p>",
         "column": "right"
       },
       {
         "title": "Règles du jeu",
-        "content": "<p>Consultez vos documents : <strong>grille de loyers, fiches candidats, photos du bien, guide fiscal</strong>.</p><p>À partir de la phase 4, chaque étape commence et se termine par un <strong>email</strong>. Vous pouvez chatter avec vos collègues pour obtenir des informations complémentaires.</p><p>Justifiez vos recommandations. Restez professionnel et factuel, même quand votre collègue essaie de vous influencer.</p>",
+        "content": "<p>Consultez vos documents : <strong>grille de loyers, fiches candidats, photos du bien, guide fiscal</strong>.</p><p>La phase 1 se termine quand vous envoyez votre analyse par <strong>email</strong> à Claire. À partir de la phase 2, chaque étape commence et se termine par un <strong>email</strong>.</p><p>Justifiez vos recommandations. Restez professionnel et factuel, même quand votre collègue essaie de vous influencer.</p>",
         "column": "right"
       }
     ]
@@ -98,7 +98,9 @@
       },
       "visible_in_contacts": true,
       "contact_status": "available",
-      "contact_preview": "En ligne — attend vos conseils"
+      "contact_preview": "En ligne — attend vos conseils",
+      "busy_after_phase": "phase_1_rdv",
+      "busy_message": "M. Delvaux n'est plus disponible — le rendez-vous est terminé"
     },
     {
       "actor_id": "julien_marchand",
@@ -266,42 +268,48 @@
   },
   "initial_events": [
     {
+      "event_id": "claire_briefing",
+      "type": "chat",
+      "actor": "claire_beaumont",
+      "content": "Tu as ton rendez-vous avec M. Delvaux ce matin. C'est un nouveau client, il a hérité d'un bien à Fourvière. Voilà comment je veux que tu gères :\n\n1. Tu le reçois en chat et tu lui parles de tout : loyer, état du bien, fiscalité.\n2. Pendant le rendez-vous, prends des notes avec l'outil Notes à droite — ça t'aidera à structurer ton analyse.\n3. Quand tu as fait le tour, tu m'envoies ton analyse complète par mail : loyer recommandé, état du bien et travaux nécessaires, régime fiscal conseillé.\n\nC'est ton mail qui me permettra de passer à la suite. Bon rendez-vous."
+    },
+    {
       "event_id": "delvaux_intro",
       "type": "chat",
       "actor": "antoine_delvaux",
+      "delay_seconds": 3,
       "content": "Bonjour, je suis Antoine Delvaux. J'ai hérité d'un appartement à Fourvière suite au décès de ma mère. Je souhaiterais le mettre en location. Je n'y connais pas grand-chose, c'est pour ça que je viens vous voir."
-    },
-    {
-      "event_id": "claire_intro",
-      "type": "chat",
-      "actor": "claire_beaumont",
-      "content": "Tu as ton rendez-vous avec le nouveau client Delvaux ce matin ? Tiens-moi au courant de ce qui se décide, je veux valider avant qu'on signe quoi que ce soit."
     }
   ],
   "phases": [
     {
-      "phase_id": "phase_1_1",
-      "title": "Déterminer le loyer adapté",
-      "duration_target_min": 10,
-      "max_duration_sec": 300,
-      "objective": "STRICT: Ne traiter QUE la question du loyer. Ne pas anticiper l'état du bien, la fiscalité ou la sélection des locataires. Conseiller un loyer conforme à l'encadrement des loyers lyonnais pour un T3 de 85 m² haut standing à Fourvière",
-      "phase_focus": "Le joueur doit parler UNIQUEMENT du prix du loyer, des charges, et de l'encadrement. Toute tentative d'aborder les phases suivantes doit être ignorée par l'IA.",
+      "phase_id": "phase_1_rdv",
+      "title": "Rendez-vous client — Analyse complète",
+      "duration_target_min": 20,
+      "max_duration_sec": 1200,
+      "objective": "Recevez M. Delvaux en rendez-vous. Abordez les 3 sujets : le loyer adapté (consultez la grille d'encadrement), l'état du bien (regardez les photos — cuisine vétuste, normes), et le régime fiscal recommandé. Prenez des notes, puis envoyez votre analyse complète par mail à Claire.",
+      "phase_focus": "Le joueur discute librement avec Antoine Delvaux par chat. Il doit aborder 3 sujets : (1) le loyer — l'encadrement des loyers s'applique à Fourvière, le client pense à 3000€ mais le plafond est autour de 2200€, (2) l'état du bien — la cuisine est dangereuse (gaz, électrique non conforme), les meubles anciens posent question, (3) la fiscalité — location nue vs meublée, micro-foncier vs réel, LMNP. Le joueur utilise l'outil Notes pour structurer son analyse. La phase se termine quand le joueur envoie un mail à Claire avec son analyse.",
       "active_channels": [
-        "chat"
+        "chat",
+        "mail"
       ],
       "ai_actors": [
         "antoine_delvaux"
       ],
       "player_input": {
         "type": "free_text",
-        "prompt": "M. Delvaux vous demande à quel loyer il peut espérer louer son appartement. Consultez la grille d'encadrement des loyers et conseillez-le."
+        "prompt": "M. Delvaux est là. Discutez avec lui du loyer, de l'état du bien et de la fiscalité. Prenez des notes, puis envoyez votre analyse par mail à Claire."
       },
       "competencies": [
         "Identifie que l'encadrement des loyers s'applique à Lyon et consulte la grille",
         "Propose un loyer cohérent entre 1 700 € et 2 300 € pour 85 m² à Fourvière",
         "Explique au client pourquoi ce loyer et non un autre (référence à la grille, au marché)",
         "Prend en compte l'attachement émotionnel du client au bien sans le brusquer",
-        "Écoute les attentes du client avant de proposer un chiffre"
+        "Identifie les problèmes visibles sur les photos (cuisine vétuste, normes électriques)",
+        "Sait que la cuisine doit être aux normes de sécurité pour louer",
+        "Aborde le sujet des meubles avec tact, en respectant l'attachement émotionnel",
+        "Distingue les différents régimes (location nue, LMP/LMNP, SCI, micro-foncier)",
+        "Identifie que la location nue a la meilleure adéquation avec le marché lyonnais"
       ],
       "interruptions": [
         {
@@ -311,144 +319,28 @@
           "channel": "chat",
           "trigger": {
             "type": "after_delay",
-            "delay_ms": 300000
+            "delay_ms": 180000
           }
         }
       ],
+      "mail_config": {
+        "enabled": true,
+        "kind": "analyse_rdv",
+        "defaults": {
+          "to": "claire.beaumont@immolyon.fr",
+          "cc": "",
+          "subject": "Analyse rendez-vous Delvaux — Bien Fourvière"
+        },
+        "require_attachments": false,
+        "on_send_flags": {
+          "analyse_envoyee": true
+        },
+        "send_label": "Envoyer l'analyse à Claire",
+        "send_advances_phase": true
+      },
       "completion_rules": {
-        "min_score": 3,
-        "required_player_evidence": [
-          {
-            "keywords": [
-              "1700",
-              "1750",
-              "1800",
-              "1850",
-              "1900",
-              "1950",
-              "2000",
-              "2050",
-              "2100",
-              "2150",
-              "2200",
-              "2300",
-              "21,80",
-              "26,10",
-              "17,50",
-              "21 €",
-              "22 €"
-            ],
-            "min_matches": 1
-          }
-        ]
-      },
-      "auto_advance": true,
-      "next_phase": "phase_1_2"
-    },
-    {
-      "phase_id": "phase_1_2",
-      "title": "Évaluer l'état du bien pour la location",
-      "duration_target_min": 8,
-      "max_duration_sec": 300,
-      "objective": "STRICT: Ne traiter QUE l'état du bien et les travaux nécessaires. Ne pas parler de fiscalité, de locataires ou d'annonce. Évaluer si l'appartement est louable en l'état et conseiller les travaux nécessaires, notamment la cuisine non conforme aux normes de sécurité",
-      "phase_focus": "Le joueur doit parler UNIQUEMENT de l'état du bien, de la cuisine, des normes de sécurité et des travaux. Pas de fiscalité, pas de candidats.",
-      "active_channels": [
-        "chat"
-      ],
-      "ai_actors": [
-        "antoine_delvaux"
-      ],
-      "player_input": {
-        "type": "free_text",
-        "prompt": "M. Delvaux vous montre les photos de l'appartement. Les meubles de sa mère sont toujours en place. La cuisine est vétuste et potentiellement dangereuse. Conseillez-le sur ce qu'il faut faire avant de louer."
-      },
-      "competencies": [
-        "Identifie les problèmes visibles sur les photos (cuisine vétuste, normes électriques)",
-        "Sait que la cuisine doit être aux normes de sécurité pour louer",
-        "Adapte ses recommandations selon le type de location envisagé (meublé/nu)",
-        "Aborde le sujet des meubles avec tact, en respectant l'attachement émotionnel du client",
-        "Ne valide pas le maintien en l'état par complaisance"
-      ],
-      "interruptions": [],
-      "completion_rules": {
-        "min_score": 3,
-        "required_player_evidence": [
-          {
-            "keywords": [
-              "cuisine",
-              "gaz",
-              "électrique",
-              "norme",
-              "sécurité",
-              "danger",
-              "vétuste",
-              "conforme"
-            ],
-            "min_matches": 2
-          },
-          {
-            "keywords": [
-              "meuble",
-              "meubles",
-              "débarrasser",
-              "retirer",
-              "enlever",
-              "supprimer",
-              "vider",
-              "remplacer",
-              "rénover",
-              "travaux"
-            ],
-            "min_matches": 1
-          }
-        ]
-      },
-      "auto_advance": true,
-      "next_phase": "phase_1_3"
-    },
-    {
-      "phase_id": "phase_1_3",
-      "title": "Conseil sur le régime fiscal",
-      "duration_target_min": 8,
-      "max_duration_sec": 300,
-      "objective": "STRICT: Ne traiter QUE le régime fiscal. Ne pas parler de l'annonce, des locataires ou du collègue Julien. Conseiller le régime fiscal le plus adapté à la situation du client en tenant compte du marché lyonnais",
-      "phase_focus": "Le joueur doit parler UNIQUEMENT de fiscalité : location nue vs meublée, micro-foncier vs réel, LMNP. Pas d'annonce, pas de candidats.",
-      "active_channels": [
-        "chat"
-      ],
-      "ai_actors": [
-        "antoine_delvaux"
-      ],
-      "player_input": {
-        "type": "free_text",
-        "prompt": "M. Delvaux vous demande quel régime fiscal serait le plus intéressant pour lui. Conseillez-le en tenant compte du marché lyonnais et de sa situation."
-      },
-      "competencies": [
-        "Distingue les différents régimes (location nue, LMP/LMNP, SCI, micro-foncier)",
-        "Identifie que la location nue a la meilleure adéquation avec le marché lyonnais (Fourvière, stabilité)",
-        "Mentionne que la location nue a une fiscalité plus lourde mais compensée par la stabilité",
-        "Adapte son conseil à la situation spécifique du client (bien familial, long terme)",
-        "Explique les avantages et inconvénients de manière claire et accessible"
-      ],
-      "interruptions": [],
-      "completion_rules": {
-        "min_score": 3,
-        "required_player_evidence": [
-          {
-            "keywords": [
-              "location nue",
-              "lmnp",
-              "meublé",
-              "micro-foncier",
-              "régime réel",
-              "foncier",
-              "bic",
-              "fiscal",
-              "fiscalité",
-              "impôt"
-            ],
-            "min_matches": 2
-          }
+        "any_flags": [
+          "analyse_envoyee"
         ]
       },
       "auto_advance": true,

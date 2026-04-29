@@ -715,11 +715,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       });
     }
 
-    // Multi-actor phases: strict per-contact filtering scoped to current phase
+    // Multi-actor phases: per-contact filtering across ALL phases
+    // (messages persist so conversations don't "disappear" when advancing)
     return conversation.filter((msg: any) => {
       if (msg.role === "system") return false;
-      // Scope to current phase for multi-actor phases (prevents cross-phase bleed)
-      if (msg.phaseId && currentPhaseId && msg.phaseId !== currentPhaseId) return false;
       if (msg.role === "player") return msg.toActor === selectedContact;
       if (msg.role === "npc") return msg.actor === selectedContact;
       return false;
@@ -1018,6 +1017,32 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     })
       .then((r) => {
         if (!r.ok) {
+          if (r.status === 401) {
+            // Try refreshing token from localStorage in case another tab logged in
+            const freshToken = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
+            if (freshToken && freshToken !== authTokenRef.current) {
+              authTokenRef.current = freshToken;
+              // Retry with fresh token
+              return fetch("/api/debrief", {
+                method: "POST",
+                headers: apiHeaders(),
+                body: JSON.stringify({
+                  playerName: displayPlayerName,
+                  scenarioTitle: scenario.meta?.title || "Scénario",
+                  phases: scenario.phases,
+                  conversation: session.chatMessages,
+                  sentMails: session.sentMails,
+                  inboxMails: session.inboxMails,
+                  endings: scenario.endings || [],
+                  defaultEnding: (scenario as any).default_ending || null,
+                }),
+              }).then((r2) => {
+                if (!r2.ok) throw new Error("Session expirée. Reconnectez-vous et relancez le scénario.");
+                return r2.json();
+              });
+            }
+            throw new Error("Session expirée. Reconnectez-vous pour générer le débrief.");
+          }
           if (r.status === 429) throw new Error("Trop de requêtes. Veuillez patienter quelques instants.");
           if (r.status === 400) throw new Error("Données invalides pour le débrief.");
           throw new Error(`Erreur serveur (${r.status})`);
@@ -1025,8 +1050,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         return r.json();
       })
       .then((data) => {
-        setDebriefData(data);
-        setDebriefLoading(false);
+        if (data) {
+          setDebriefData(data);
+          setDebriefLoading(false);
+        }
       })
       .catch((err) => {
         setDebriefError(err.message || "Erreur lors du débrief");
@@ -5785,36 +5812,44 @@ ${equityClause}
               {visibleContacts.filter((a: any) => a.actor_id !== "player" && !a.mail_only).map((actor: any) => {
                 const resolvedId = resolveActor(actor.actor_id);
                 const isInPhase = currentPhaseAiActors.includes(resolvedId);
+                // busy_after_phase: lock actor after a specific phase completes
+                const busyAfterPhase = (actor as any).busy_after_phase;
+                const isBusyAfterPhase = busyAfterPhase && session && (() => {
+                  const phaseIdx = scenario?.phases?.findIndex((p: any) => p.phase_id === busyAfterPhase);
+                  return phaseIdx !== undefined && phaseIdx >= 0 && session.currentPhaseIndex > phaseIdx;
+                })();
                 const baseStatus = actor.contact_status || (actor.interaction_modes?.includes("unreachable") ? "offline" : "available");
-                const status = isInPhase ? baseStatus : "busy";
+                const isAvailable = isInPhase && !isBusyAfterPhase;
+                const status = isAvailable ? baseStatus : "busy";
                 const color = actor.avatar?.color || "#666";
                 const ini = actor.avatar?.initials || getInitials(actor.name);
                 const isSelected = selectedContact === actor.actor_id;
                 const unread = contactUnreadCounts[actor.actor_id] || 0;
                 // Last message preview
                 const lastMsg = [...conversation].reverse().find((m: any) => m.actor === actor.actor_id && m.role === "npc");
-                const preview = isInPhase
+                const busyMsg = isBusyAfterPhase ? ((actor as any).busy_message || "Occupé") : "Occupé";
+                const preview = isAvailable
                   ? (lastMsg ? (lastMsg.content.length > 40 ? lastMsg.content.slice(0, 40) + "..." : lastMsg.content) : (actor.contact_preview || ""))
-                  : "Occupé";
+                  : busyMsg;
                 return (
                   <li
                     key={actor.actor_id}
-                    onClick={() => { if (!isInPhase) return; setSelectedContact(actor.actor_id); setMainView("chat"); }}
+                    onClick={() => { setSelectedContact(actor.actor_id); setMainView("chat"); }}
                     style={{
                       display: "flex", alignItems: "center", gap: 10,
                       padding: "10px 8px", borderRadius: 8,
-                      marginBottom: 2, cursor: isInPhase ? "pointer" : "not-allowed",
-                      background: isSelected && isInPhase ? "#f0f0ff" : "transparent",
-                      borderLeft: isSelected && isInPhase ? "3px solid #5b5fc7" : "3px solid transparent",
-                      opacity: isInPhase ? 1 : 0.45,
+                      marginBottom: 2, cursor: "pointer",
+                      background: isSelected ? (isAvailable ? "#f0f0ff" : "#f5f5f5") : "transparent",
+                      borderLeft: isSelected ? (isAvailable ? "3px solid #5b5fc7" : "3px solid #ccc") : "3px solid transparent",
+                      opacity: isAvailable ? 1 : 0.55,
                       transition: "all .1s",
                     }}
-                    onMouseEnter={(e) => { if (!isSelected && isInPhase) e.currentTarget.style.background = "#f8f8fb"; }}
+                    onMouseEnter={(e) => { if (!isSelected && isAvailable) e.currentTarget.style.background = "#f8f8fb"; }}
                     onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
                   >
                     <div style={{ position: "relative" }}>
                       <Avatar initials={ini} color={color} size={36} status={status} />
-                      {unread > 0 && isInPhase && (
+                      {unread > 0 && isAvailable && (
                         <span style={{
                           position: "absolute", top: -2, right: -4,
                           background: "#e94b3c", color: "#fff", borderRadius: 10,
@@ -5825,7 +5860,7 @@ ${equityClause}
                       )}
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: isSelected && isInPhase ? 700 : 600, color: !isInPhase ? "#aaa" : (isSelected ? "#5b5fc7" : "#333"), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                      <div style={{ fontSize: 13, fontWeight: isSelected && isAvailable ? 700 : 600, color: !isAvailable ? "#aaa" : (isSelected ? "#5b5fc7" : "#333"), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
                         {actor.name}
                       </div>
                       <div style={{ fontSize: 11, color: "#999", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
@@ -6034,51 +6069,72 @@ ${equityClause}
                     })()}
                   </button>
                 </div>
-              ) : (
-                <div style={{ padding: "10px 16px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0, background: "#fafafa" }}>
-                  {hasMindmapTool && outlineItems.filter((i) => i.text.trim()).length > 0 && (
-                    <button
-                      onClick={() => {
-                        const text = outlineToText(outlineItems);
-                        setPlayerInput((prev) => prev ? prev + "\n" + text : text);
-                        inputRef.current?.focus();
-                      }}
-                      title="Insérer mes notes"
+              ) : (() => {
+                // Check if selected contact is available in current phase
+                const contactActor = actors.find((a: any) => a.actor_id === selectedContact);
+                const contactResolvedId = selectedContact ? resolveActor(selectedContact) : "";
+                const contactInPhase = currentPhaseAiActors.includes(contactResolvedId);
+                const contactBusyAfter = (contactActor as any)?.busy_after_phase;
+                const contactIsBusy = contactBusyAfter && session && (() => {
+                  const idx = scenario?.phases?.findIndex((p: any) => p.phase_id === contactBusyAfter);
+                  return idx !== undefined && idx >= 0 && session.currentPhaseIndex > idx;
+                })();
+                const contactAvailable = contactInPhase && !contactIsBusy;
+
+                if (!contactAvailable && selectedContact) {
+                  return (
+                    <div style={{ padding: "12px 16px", borderTop: "1px solid #e8e8e8", textAlign: "center", background: "#f5f5f5", color: "#999", fontSize: 12, fontStyle: "italic" }}>
+                      {(contactActor as any)?.busy_message || "Ce contact n'est pas disponible pour le moment."}
+                    </div>
+                  );
+                }
+
+                return (
+                  <div style={{ padding: "10px 16px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0, background: "#fafafa" }}>
+                    {hasMindmapTool && outlineItems.filter((i) => i.text.trim()).length > 0 && (
+                      <button
+                        onClick={() => {
+                          const text = outlineToText(outlineItems);
+                          setPlayerInput((prev) => prev ? prev + "\n" + text : text);
+                          inputRef.current?.focus();
+                        }}
+                        title="Insérer mes notes"
+                        style={{
+                          padding: "8px 10px", borderRadius: 20, border: "1px solid #ddd",
+                          background: "#f8f8ff", color: "#5b5fc7", cursor: "pointer",
+                          fontSize: 14, flexShrink: 0, lineHeight: 1,
+                        }}
+                      >
+                        🗒️
+                      </button>
+                    )}
+                    <input
+                      ref={inputRef}
+                      type="text"
+                      value={playerInput}
+                      onChange={(e) => setPlayerInput(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
+                      placeholder="Votre message..."
                       style={{
-                        padding: "8px 10px", borderRadius: 20, border: "1px solid #ddd",
-                        background: "#f8f8ff", color: "#5b5fc7", cursor: "pointer",
-                        fontSize: 14, flexShrink: 0, lineHeight: 1,
+                        flex: 1, padding: "10px 14px", border: "1px solid #ddd", borderRadius: 20,
+                        fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff", color: "#111",
+                      }}
+                    />
+                    <button
+                      onClick={sendMessage}
+                      disabled={!playerInput.trim()}
+                      style={{
+                        padding: "8px 20px", borderRadius: 20, border: "none",
+                        background: playerInput.trim() ? "#5b5fc7" : "#ccc",
+                        color: "#fff", cursor: playerInput.trim() ? "pointer" : "not-allowed",
+                        fontWeight: 600, fontSize: 13,
                       }}
                     >
-                      🗒️
+                      Envoyer
                     </button>
-                  )}
-                  <input
-                    ref={inputRef}
-                    type="text"
-                    value={playerInput}
-                    onChange={(e) => setPlayerInput(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
-                    placeholder="Votre message..."
-                    style={{
-                      flex: 1, padding: "10px 14px", border: "1px solid #ddd", borderRadius: 20,
-                      fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff", color: "#111",
-                    }}
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={!playerInput.trim()}
-                    style={{
-                      padding: "8px 20px", borderRadius: 20, border: "none",
-                      background: playerInput.trim() ? "#5b5fc7" : "#ccc",
-                      color: "#fff", cursor: playerInput.trim() ? "pointer" : "not-allowed",
-                      fontWeight: 600, fontSize: 13,
-                    }}
-                  >
-                    Envoyer
-                  </button>
-                </div>
-              )}
+                  </div>
+                );
+              })()}
             </>
           )}
 
@@ -6226,10 +6282,12 @@ ${equityClause}
                                 onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#ddd"; e.currentTarget.style.background = "#fff"; }}
                                 onClick={() => {
                                   if (doc) {
-                                    // Open PDF in new tab
+                                    // Open document in new tab (PDF or image)
                                     const fp = (doc as any).file_path || "";
+                                    const ip = (doc as any).image_path || "";
+                                    const isImg = !!ip || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(fp);
                                     const isPublicPdf = fp.startsWith("/") && fp.endsWith(".pdf");
-                                    const url = isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
+                                    const url = isImg ? (ip || fp) : isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
                                     window.open(url, "_blank");
                                   }
                                 }}
@@ -7070,13 +7128,18 @@ ${equityClause}
             {/* ── Documents panel ── */}
             {rightPanel === "docs" && (
               <div>
-                {/* Document list — click opens PDF in new tab */}
+                {/* Document list — click opens in new tab */}
                 <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
                   {allDocuments.map((doc: any) => {
                     const hasPJ = doc.usable_as_pj || doc.usable_as_attachment;
                     const fp = (doc as any).file_path || "";
+                    const ip = (doc as any).image_path || "";
                     const isPublicPdf = fp.startsWith("/") && fp.endsWith(".pdf");
-                    const docUrl = isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
+                    const isImage = !!ip || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(fp);
+                    const docUrl = isImage ? (ip || fp) : isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
+                    const docIcon = isImage ? "🖼️" : "📑";
+                    const docType = isImage ? "Image" : "PDF";
+                    const docTypeColor = isImage ? { fg: "#1e40af", bg: "#dbeafe" } : { fg: "#c2410c", bg: "#fff7ed" };
                     return (
                       <li
                         key={doc.doc_id}
@@ -7088,12 +7151,12 @@ ${equityClause}
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontSize: 13, fontWeight: 500, color: "#333", display: "flex", alignItems: "center", gap: 6 }}>
-                              <span>📑</span>
+                              <span>{docIcon}</span>
                               {doc.label}
                             </div>
                             <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                              <span style={{ fontSize: 10, color: "#c2410c", background: "#fff7ed", padding: "1px 6px", borderRadius: 8, fontWeight: 600 }}>
-                                PDF
+                              <span style={{ fontSize: 10, color: docTypeColor.fg, background: docTypeColor.bg, padding: "1px 6px", borderRadius: 8, fontWeight: 600 }}>
+                                {docType}
                               </span>
                               {hasPJ && (
                                 <span style={{ fontSize: 10, color: "#5b5fc7", background: "#f0f0ff", padding: "1px 6px", borderRadius: 8 }}>
@@ -7219,9 +7282,9 @@ ${equityClause}
                               updated.scores[prevPhase.phase_id] = 100;
                             }
                           }
-                          // Inject entry events for the target phase
-                          const withEntry = injectPhaseEntryEvents(updated);
-                          setSession(withEntry);
+                          // injectPhaseEntryEvents mutates in place and returns void
+                          injectPhaseEntryEvents(updated);
+                          setSession({ ...updated });
                         }}
                         style={{
                           padding: "2px 8px", fontSize: 10, borderRadius: 4,
