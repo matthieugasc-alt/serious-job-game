@@ -19,6 +19,7 @@
     ],
     "show_objective": true,
     "show_background_fact": true,
+    "notes_tool": true,
     "pedagogical_goals": [
       "Appliquer l'encadrement des loyers lyonnais",
       "Évaluer l'état d'un bien pour la location",
@@ -287,7 +288,7 @@
       "title": "Rendez-vous client — Analyse complète",
       "duration_target_min": 20,
       "max_duration_sec": 1200,
-      "objective": "Recevez M. Delvaux en rendez-vous. Abordez les 3 sujets : le loyer adapté (consultez la grille d'encadrement), l'état du bien (regardez les photos — cuisine vétuste, normes), et le régime fiscal recommandé. Prenez des notes, puis envoyez votre analyse complète par mail à Claire.",
+      "objective": "Recevez M. Delvaux en rendez-vous. Abordez les 3 sujets : le loyer adapté (consultez la grille d'encadrement), l'état du bien (regardez les photos — cuisine vétuste, normes), et le régime fiscal recommandé. Utilisez l'onglet Notes pour structurer vos idées, puis envoyez votre analyse complète par mail à Claire.",
       "phase_focus": "Le joueur discute librement avec Antoine Delvaux par chat. Il doit aborder 3 sujets : (1) le loyer — l'encadrement des loyers s'applique à Fourvière, le client pense à 3000€ mais le plafond est autour de 2200€, (2) l'état du bien — la cuisine est dangereuse (gaz, électrique non conforme), les meubles anciens posent question, (3) la fiscalité — location nue vs meublée, micro-foncier vs réel, LMNP. Le joueur utilise l'outil Notes pour structurer son analyse. La phase se termine quand le joueur envoie un mail à Claire avec son analyse.",
       "active_channels": [
         "chat",
@@ -364,17 +365,12 @@
         "type": "free_text",
         "prompt": "Rédigez l'annonce et envoyez-la à Claire Beaumont pour validation. Mettez en valeur les vrais atouts du bien (vue, parquet, cheminée, quartier) sans exagérer."
       },
-      "entry_events": [
-        {
-          "event_id": "claire_demande_annonce",
-          "type": "mail",
-          "channel": "mail",
-          "actor": "claire_beaumont",
-          "delay_ms": 3000,
-          "subject": "Annonce Le Bon Coin — Bien Delvaux Fourvière",
-          "content": "Bonjour,\n\nIl faut publier rapidement une annonce sur Le Bon Coin pour le bien Delvaux à Fourvière.\n\nRédige un texte attractif mais honnête. Mets en avant les vrais points forts : la vue sur la Saône, le parquet chêne massif, la cheminée d'époque, le quartier Fourvière.\n\nN'exagère pas et ne mens pas sur l'état du bien.\n\nEnvoie-moi l'annonce par mail pour validation.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine"
-        }
-      ],
+      "entry_events": [],
+      "dynamic_entry_mail": {
+        "actor": "claire_beaumont",
+        "subject": "Annonce Le Bon Coin — Bien Delvaux Fourvière",
+        "source_mail_kind": "analyse_rdv"
+      },
       "competencies": [
         "Rédige une annonce cohérente et professionnelle",
         "Met en valeur le bien sans mentir ni exagérer",

@@ -271,7 +271,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // ── Mind Map / Outline tool (scenario 4+) ──
   const [outlineRawText, setOutlineRawText] = useState("");
   const outlineItems = useMemo(() => parseOutlineText(outlineRawText), [outlineRawText]);
-  const hasMindmapTool = scenario?.meta?.tags?.includes("priorisation") || scenarioId === "founder_04_v1";
+  const hasMindmapTool = scenario?.meta?.tags?.includes("priorisation") || scenarioId === "founder_04_v1" || (scenario?.meta as any)?.notes_tool === true;
   const [outlineCopiedFeedback, setOutlineCopiedFeedback] = useState("");
   const [mindmapView, setMindmapView] = useState<"split" | "editor" | "map">("split");
   // ── Devis NovaDev negotiation (scenario 4, phase 3) ──
@@ -2449,6 +2449,87 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           });
           // Switch to mail view
           setMainView("mail");
+        }
+
+        // ── Fourvière: generate dynamic Claire mail with travaux summary ──
+        if (mailKind === "analyse_rdv" && scenarioId === "heritage_fourviere") {
+          const analyseBody = currentMailDraft?.body || "";
+          const nextPhase = scenario.phases[next.currentPhaseIndex];
+          const dynConfig = (nextPhase as any)?.dynamic_entry_mail;
+          if (dynConfig && analyseBody.trim()) {
+            const p4Id = nextPhase?.phase_id || "phase_4";
+            // Truncate player's analysis to keep the prompt short and response fast
+            const truncatedAnalyse = analyseBody.length > 800 ? analyseBody.slice(0, 800) + "..." : analyseBody;
+            // Generate Claire's mail asynchronously based on the player's analysis
+            (async () => {
+              try {
+                const prompt = `Tu es Claire Beaumont, directrice d'ImmoLyon Patrimoine. Écris un mail interne COURT (max 12 lignes) à ton agent junior.
+
+L'agent t'a envoyé cette analyse du RDV Delvaux (85m² Fourvière) :
+---
+${truncatedAnalyse}
+---
+
+Ton mail doit :
+- Remercier brièvement
+- Résumer les travaux que Delvaux a faits suite aux recommandations (cuisine refaite si mentionnée, meubles retirés/remplacés si demandé, régime fiscal choisi, etc. — invente les détails cohérents)
+- Dire que quelques semaines ont passé, tout est prêt
+- Demander de rédiger une annonce Le Bon Coin (points forts : vue Saône, parquet chêne, cheminée, Fourvière)
+- Demander d'envoyer par mail pour validation
+
+Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". Réponds UNIQUEMENT le corps du mail.`;
+
+                const res = await fetch("/api/chat", {
+                  method: "POST",
+                  headers: apiHeaders(),
+                  body: JSON.stringify({
+                    playerName: displayPlayerName,
+                    message: prompt,
+                    phaseTitle: "Génération mail transition",
+                    phaseObjective: "",
+                    phaseFocus: "",
+                    phasePrompt: "",
+                    criteria: [],
+                    mode: "default",
+                    narrative: scenario.narrative,
+                    recentConversation: [],
+                    playerMessages: [],
+                    roleplayPrompt: prompt,
+                    skipEvaluation: true,
+                  }),
+                });
+                if (res.ok) {
+                  const data = await res.json();
+                  const mailBody = data.reply || "Bonjour,\n\nBon travail pour l'analyse. M. Delvaux a effectué les travaux nécessaires suite à tes recommandations. Il faut maintenant publier une annonce sur Le Bon Coin.\n\nRédige un texte attractif mais honnête. Mets en avant les vrais points forts : vue sur la Saône, parquet chêne massif, cheminée d'époque, quartier Fourvière.\n\nEnvoie-moi l'annonce par mail pour validation.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine";
+                  const updated = cloneSession(next);
+                  addInboxMail(updated, {
+                    from: dynConfig.actor || "claire_beaumont",
+                    subject: dynConfig.subject || "Annonce Le Bon Coin — Bien Delvaux Fourvière",
+                    body: mailBody,
+                    phaseId: p4Id,
+                  });
+                  setSession(updated);
+                  setMainView("mail");
+                  playNotificationSound();
+                }
+              } catch (err) {
+                // Fallback: inject a generic mail
+                console.error("Error generating dynamic Claire mail:", err);
+                const fallback = cloneSession(next);
+                addInboxMail(fallback, {
+                  from: "claire_beaumont",
+                  subject: "Annonce Le Bon Coin — Bien Delvaux Fourvière",
+                  body: "Bonjour,\n\nBon travail pour l'analyse du rendez-vous Delvaux. M. Delvaux a effectué les travaux nécessaires suite à tes recommandations — le bien est maintenant prêt pour la location.\n\nIl faut publier rapidement une annonce sur Le Bon Coin. Rédige un texte attractif mais honnête. Mets en avant les vrais points forts : la vue sur la Saône, le parquet chêne massif, la cheminée d'époque, le quartier Fourvière.\n\nN'exagère pas et ne mens pas sur l'état du bien.\n\nEnvoie-moi l'annonce par mail pour validation.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine",
+                  phaseId: p4Id,
+                });
+                setSession(fallback);
+                setMainView("mail");
+              }
+            })();
+            setSession(next);
+            setShowCompose(false);
+            return;
+          }
         }
       }
     }
