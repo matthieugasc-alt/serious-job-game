@@ -510,7 +510,17 @@ Objectif : ${currentPhase.objective}
 ${currentPhase.player_input?.prompt ? `Consigne : ${currentPhase.player_input.prompt}` : ""}
 Canaux actifs : ${currentPhase.active_channels.join(", ")}
 Contacts disponibles pour le CHAT : ${currentPhase.ai_actors.join(", ")}
-${currentPhase.mail_config?.enabled ? `📧 MAIL OBLIGATOIRE POUR AVANCER : cette phase se termine UNIQUEMENT quand tu envoies un mail.\n   Destinataire : ${currentPhase.mail_config.defaults?.to || "?"}\n   Sujet suggéré : ${currentPhase.mail_config.defaults?.subject || "?"}` : ""}
+${currentPhase.mail_config?.enabled ? (() => {
+    const mailTo = currentPhase.mail_config.defaults?.to;
+    const mailSubject = currentPhase.mail_config.defaults?.subject || "?";
+    if (mailTo) {
+      return `📧 MAIL OBLIGATOIRE POUR AVANCER : cette phase se termine UNIQUEMENT quand tu envoies un mail.\n   Destinataire : ${mailTo}\n   Sujet suggéré : ${mailSubject}`;
+    } else {
+      // Empty "to" means the player must choose — list available actors
+      const candidates = currentPhase.ai_actors.filter((a: string) => a !== "alexandre_morel");
+      return `📧 MAIL OBLIGATOIRE POUR AVANCER : cette phase se termine UNIQUEMENT quand tu envoies un mail.\n   ⚠️ Tu dois CHOISIR le destinataire parmi les contacts : ${candidates.join(", ")}\n   Utilise l'actor_id comme destinataire dans le champ "to" du mail.\n   Sujet suggéré : ${mailSubject}`;
+    }
+  })() : ""}
 ${progressHint}
 
 ⚠️ RÈGLES STRICTES :

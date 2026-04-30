@@ -63,6 +63,7 @@ export interface PhaseConfig {
   completion_rules?: {
     any_flags?: string[];
     min_score?: number;
+    max_exchanges?: number;
   };
   auto_advance?: boolean;
   next_phase?: string;
@@ -71,6 +72,8 @@ export interface PhaseConfig {
   competencies?: string[];
   player_input?: { type: string; prompt: string };
   dynamic_entry_mail?: { actor: string; subject: string; source_mail_kind: string };
+  dynamic_actor?: string;
+  on_complete?: { set_flags?: Record<string, boolean> };
 }
 
 export interface ScenarioDefinition {
@@ -99,6 +102,8 @@ export class HeadlessEngine {
   log: string[] = [];
   errors: string[] = [];
   warnings: string[] = [];
+  /** Maps dynamic actor placeholders (e.g. "chosen_cto") to resolved actor_ids */
+  resolvedActors: Record<string, string> = {};
 
   constructor(scenario: ScenarioDefinition, api: ApiConfig, playerName: string) {
     this.scenario = scenario;
@@ -135,14 +140,115 @@ export class HeadlessEngine {
     }
   }
 
+  // ── Dynamic actor resolution ──
+
+  /**
+   * Resolve dynamic actors like "chosen_cto" based on game state.
+   * For founder_00_cto: looks at sent mails with kind "offer_cto" to find
+   * which candidate was offered the role.
+   */
+  resolveDynamicActors(): void {
+    // Resolve "chosen_cto" from sent offer mails
+    if (!this.resolvedActors["chosen_cto"]) {
+      const candidateActors = ["sofia_renault", "marc_lefevre", "karim_benzarti"];
+
+      // Check sent mails: the "to" field might contain an actor_id or name
+      const offerMail = this.session.sentMails.find(m => m.kind === "offer_cto");
+      if (offerMail && offerMail.to) {
+        const to = offerMail.to.toLowerCase();
+        // Try exact match on actor_id
+        const exactMatch = candidateActors.find(a => to === a);
+        if (exactMatch) {
+          this.resolvedActors["chosen_cto"] = exactMatch;
+          this.addLog(`🎯 chosen_cto résolu via mail: ${exactMatch}`);
+          return;
+        }
+        // Try partial match on name (e.g. "sofia", "marc", "karim")
+        const nameMatch = candidateActors.find(a => {
+          const firstName = a.split("_")[0];
+          return to.includes(firstName);
+        });
+        if (nameMatch) {
+          this.resolvedActors["chosen_cto"] = nameMatch;
+          this.addLog(`🎯 chosen_cto résolu via nom dans mail: ${nameMatch}`);
+          return;
+        }
+        // Try matching against actor names from scenario
+        for (const actor of this.scenario.actors) {
+          if (candidateActors.includes(actor.actor_id)) {
+            const actorName = (actor.name || "").toLowerCase();
+            if (to.includes(actorName) || actorName.includes(to.replace(/[^a-z]/g, ""))) {
+              this.resolvedActors["chosen_cto"] = actor.actor_id;
+              this.addLog(`🎯 chosen_cto résolu via nom complet: ${actor.actor_id}`);
+              return;
+            }
+          }
+        }
+      }
+
+      // Fallback: if no mail found but offer_sent flag is set, check chat history
+      // for the most-chatted candidate
+      if (this.session.flags["offer_sent"] && !this.resolvedActors["chosen_cto"]) {
+        const chatCounts: Record<string, number> = {};
+        for (const msg of this.session.chatMessages) {
+          if (msg.role === "player" && msg.toActor && candidateActors.includes(msg.toActor)) {
+            chatCounts[msg.toActor] = (chatCounts[msg.toActor] || 0) + 1;
+          }
+        }
+        const sorted = Object.entries(chatCounts).sort((a, b) => b[1] - a[1]);
+        if (sorted.length > 0) {
+          this.resolvedActors["chosen_cto"] = sorted[0][0];
+          this.addLog(`🎯 chosen_cto résolu via fallback (plus chatté): ${sorted[0][0]}`);
+        } else {
+          // Ultimate fallback: pick sofia (strongest candidate)
+          this.resolvedActors["chosen_cto"] = "sofia_renault";
+          this.addLog(`🎯 chosen_cto résolu via fallback par défaut: sofia_renault`);
+        }
+      }
+    }
+  }
+
+  /**
+   * Get a phase config with dynamic actors resolved.
+   */
+  resolvePhaseActors(phase: PhaseConfig): PhaseConfig {
+    if (!phase.dynamic_actor) return phase;
+
+    const placeholder = phase.dynamic_actor;
+    const resolved = this.resolvedActors[placeholder];
+    if (!resolved) return phase;
+
+    // Deep-clone the phase to avoid mutating the scenario
+    const resolved_phase = JSON.parse(JSON.stringify(phase)) as PhaseConfig;
+
+    // Replace placeholder in ai_actors
+    resolved_phase.ai_actors = resolved_phase.ai_actors.map(a => a === placeholder ? resolved : a);
+
+    // Replace placeholder in entry_events actor
+    if (resolved_phase.entry_events) {
+      for (const ev of resolved_phase.entry_events) {
+        if (ev.actor === placeholder) ev.actor = resolved;
+      }
+    }
+
+    // Replace placeholder in mail_config defaults
+    if (resolved_phase.mail_config?.defaults?.to === placeholder) {
+      resolved_phase.mail_config.defaults.to = resolved;
+    }
+
+    return resolved_phase;
+  }
+
   // ── Phase helpers ──
 
   get currentPhase(): PhaseConfig {
-    return this.scenario.phases[this.session.currentPhaseIndex];
+    const raw = this.scenario.phases[this.session.currentPhaseIndex];
+    if (!raw) return raw;
+    return this.resolvePhaseActors(raw);
   }
 
   get currentPhaseId(): string {
-    return this.currentPhase?.phase_id || "unknown";
+    return this.scenario.phases[this.session.currentPhaseIndex]?.phase_id || "unknown";
   }
 
   get isFinished(): boolean {
@@ -152,6 +258,8 @@ export class HeadlessEngine {
   // ── Entry events injection ──
 
   injectEntryEvents(): void {
+    // Resolve dynamic actors before injecting
+    this.resolveDynamicActors();
     const phase = this.currentPhase;
     if (!phase) return;
 
@@ -308,6 +416,10 @@ export class HeadlessEngine {
         }
 
         this.addLog(`💬 → ${actorId}: "${message.slice(0, 50)}..." → "${reply.slice(0, 50)}..."`);
+
+        // Check if max_exchanges reached after this chat
+        this.checkMaxExchanges();
+
         return reply;
       } catch (err: any) {
         lastError = err.message;
@@ -369,6 +481,67 @@ export class HeadlessEngine {
 
   // ── Phase advancement ──
 
+  /**
+   * Count player exchanges (messages) in the current phase.
+   */
+  getPhaseExchangeCount(): number {
+    const phaseId = this.currentPhaseId;
+    return this.session.chatMessages.filter(
+      m => m.role === "player" && m.phaseId === phaseId
+    ).length;
+  }
+
+  /**
+   * Check if max_exchanges has been reached and auto-advance if so.
+   * Called after each chat message.
+   */
+  checkMaxExchanges(): boolean {
+    const phase = this.currentPhase;
+    if (!phase) return false;
+
+    const maxExchanges = phase.completion_rules?.max_exchanges;
+    if (maxExchanges === undefined) return false;
+
+    const exchanges = this.getPhaseExchangeCount();
+    if (exchanges >= maxExchanges) {
+      this.addLog(`📊 Phase ${phase.phase_id}: max_exchanges atteint (${exchanges}/${maxExchanges}) — auto-advance`);
+      return this.advancePhase();
+    }
+    return false;
+  }
+
+  /**
+   * Internal advance: applies on_complete flags and moves to next phase.
+   */
+  private advancePhase(): boolean {
+    const phase = this.currentPhase;
+    if (!phase) return false;
+
+    // Apply on_complete flags
+    if (phase.on_complete?.set_flags) {
+      Object.assign(this.session.flags, phase.on_complete.set_flags);
+    }
+
+    const prevPhaseId = phase.phase_id;
+    this.session.currentPhaseIndex++;
+
+    if (this.isFinished) {
+      this.addLog(`🏁 Scénario terminé après phase ${prevPhaseId}`);
+      return true;
+    }
+
+    // Resolve dynamic actors before entering new phase
+    this.resolveDynamicActors();
+
+    const nextPhase = this.currentPhase;
+    this.addLog(`➡️ Phase avancée: ${prevPhaseId} → ${nextPhase.phase_id} (${nextPhase.title})`);
+
+    // Inject entry events for new phase
+    this.injectEntryEvents();
+
+    return true;
+  }
+
   tryAdvancePhase(): boolean {
     const phase = this.currentPhase;
     if (!phase) return false;
@@ -392,22 +565,7 @@ export class HeadlessEngine {
       }
     }
 
-    // Advance
-    const prevPhaseId = phase.phase_id;
-    this.session.currentPhaseIndex++;
-
-    if (this.isFinished) {
-      this.addLog(`🏁 Scénario terminé après phase ${prevPhaseId}`);
-      return true;
-    }
-
-    const nextPhase = this.currentPhase;
-    this.addLog(`➡️ Phase avancée: ${prevPhaseId} → ${nextPhase.phase_id} (${nextPhase.title})`);
-
-    // Inject entry events for new phase
-    this.injectEntryEvents();
-
-    return true;
+    return this.advancePhase();
   }
 
   // ── Debrief ──

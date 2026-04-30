@@ -276,7 +276,13 @@ async function runSingleAgent(
           }
           engine.tryAdvancePhase();
         } else {
+          // Apply on_complete flags before force-advancing
+          if (phase?.on_complete?.set_flags) {
+            Object.assign(engine.session.flags, phase.on_complete.set_flags);
+          }
           engine.session.currentPhaseIndex++;
+          // Resolve dynamic actors for the new phase
+          engine.resolveDynamicActors();
         }
       }
       turnsInPhase = 0;
