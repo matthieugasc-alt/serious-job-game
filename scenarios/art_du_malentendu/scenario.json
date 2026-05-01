@@ -374,7 +374,6 @@
       "active_channels": ["chat"],
       "ai_actors": ["yuki_tanaka", "enfants_cmj", "sophie_renard"],
       "interaction_mode": "voice_qa",
-      "auto_advance_at": "visit_end",
       "voice_qa_config": {
         "children_names": ["Hugo", "Léa", "Amine", "Camille", "Zoé", "Lucas", "Inès", "Tom", "Lina", "Noah", "Hana", "Kenji"],
         "hand_raise_interval_sec": 8,
