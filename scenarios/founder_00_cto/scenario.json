@@ -553,9 +553,6 @@
           "delay_ms": 2500
         }
       ],
-      "scoring": {
-        "criteria": []
-      },
       "completion_rules": {
         "max_exchanges": 3
       },
