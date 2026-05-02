@@ -11,10 +11,11 @@
  *   --scenario=ID    Validate a single scenario by folder name
  *   --errors-only    Only show errors, hide warnings
  *   --json           Output as JSON instead of human-readable
+ *   --strict         Treat maintenance errors as blocking too
  *
  * Exit codes:
- *   0 = all scenarios valid (no errors, warnings OK)
- *   1 = at least one scenario has errors
+ *   0 = all ACTIVE scenarios valid (maintenance errors shown but non-blocking)
+ *   1 = at least one ACTIVE scenario has errors
  */
 
 import fs from "fs";
@@ -42,6 +43,7 @@ const singleScenario = args
   ?.split("=")[1];
 const errorsOnly = args.includes("--errors-only");
 const jsonOutput = args.includes("--json");
+const strictMode = args.includes("--strict");
 
 // ═══════════════════════════════════════════════════════════════════
 // COLORS
@@ -421,6 +423,19 @@ function discoverScenarios() {
     .sort();
 }
 
+function getScenarioStatus(scenarioId) {
+  try {
+    const raw = fs.readFileSync(path.join(scenariosDir, scenarioId, "scenario.json"), "utf-8");
+    const s = JSON.parse(raw);
+    return {
+      title: s?.meta?.title || "?",
+      status: s?.meta?.status || "active",
+    };
+  } catch {
+    return { title: "?", status: "active" };
+  }
+}
+
 function run() {
   const scenarioIds = singleScenario ? [singleScenario] : discoverScenarios();
   if (scenarioIds.length === 0) {
@@ -428,103 +443,146 @@ function run() {
     process.exit(1);
   }
 
-  const results = [];
-  let totalErrors = 0;
-  let totalWarnings = 0;
-
-  if (!jsonOutput) {
-    console.log();
-    console.log(`${c.bold}${c.cyan}══════════════════════════════════════════════════════════${c.reset}`);
-    console.log(`${c.bold}${c.cyan}  SCENARIO VALIDATOR${c.reset}`);
-    console.log(`${c.bold}${c.cyan}══════════════════════════════════════════════════════════${c.reset}`);
-    console.log(`${c.dim}  Scanning ${scenarioIds.length} scenario(s)...${c.reset}`);
-    console.log();
-  }
+  // Collect results with status metadata
+  const enrichedResults = [];
 
   for (const id of scenarioIds) {
-    let scenario;
+    const meta = getScenarioStatus(id);
+    let result;
+
     try {
       const raw = fs.readFileSync(path.join(scenariosDir, id, "scenario.json"), "utf-8");
-      scenario = JSON.parse(raw);
+      const scenario = JSON.parse(raw);
+      result = validateScenario(scenario, id);
     } catch (e) {
-      const result = {
+      result = {
         scenarioId: id,
         errors: [{ severity: "error", code: "JSON_PARSE_ERROR", message: `Failed to parse: ${e.message}` }],
         warnings: [], total: 1, valid: false,
       };
-      results.push(result);
-      totalErrors += 1;
-      continue;
     }
 
-    const result = validateScenario(scenario, id);
-    results.push(result);
-    totalErrors += result.errors.length;
-    totalWarnings += result.warnings.length;
+    enrichedResults.push({ ...result, title: meta.title, status: meta.status });
   }
+
+  // Partition by status
+  const activeResults = enrichedResults.filter((r) => r.status !== "maintenance");
+  const maintenanceResults = enrichedResults.filter((r) => r.status === "maintenance");
+
+  const activeErrors = activeResults.reduce((sum, r) => sum + r.errors.length, 0);
+  const activeWarnings = activeResults.reduce((sum, r) => sum + r.warnings.length, 0);
+  const maintErrors = maintenanceResults.reduce((sum, r) => sum + r.errors.length, 0);
+  const maintWarnings = maintenanceResults.reduce((sum, r) => sum + r.warnings.length, 0);
+  const totalErrors = activeErrors + maintErrors;
+  const totalWarnings = activeWarnings + maintWarnings;
+
+  // The exit code only depends on active scenario errors (unless --strict)
+  const blockingErrors = strictMode ? totalErrors : activeErrors;
 
   // ─── Output ──────────────────────────────────────────────────
 
   if (jsonOutput) {
-    console.log(JSON.stringify({ totalScenarios: results.length, totalErrors, totalWarnings, allValid: totalErrors === 0, results }, null, 2));
+    console.log(JSON.stringify({
+      totalScenarios: enrichedResults.length,
+      active: {
+        total: activeResults.length,
+        passed: activeResults.filter((r) => r.valid).length,
+        failed: activeResults.filter((r) => !r.valid).length,
+        errors: activeErrors,
+        warnings: activeWarnings,
+      },
+      maintenance: {
+        total: maintenanceResults.length,
+        passed: maintenanceResults.filter((r) => r.valid).length,
+        failed: maintenanceResults.filter((r) => !r.valid).length,
+        errors: maintErrors,
+        warnings: maintWarnings,
+      },
+      blockingErrors,
+      exitCode: blockingErrors > 0 ? 1 : 0,
+      results: enrichedResults,
+    }, null, 2));
   } else {
-    for (const result of results) {
-      const statusTag = result.errors.length > 0
-        ? `${c.bgRed}${c.white} FAIL ${c.reset}`
-        : result.warnings.length > 0
-          ? `${c.bgYellow}${c.white} WARN ${c.reset}`
-          : `${c.bgGreen}${c.white}  OK  ${c.reset}`;
-
-      let title = "?";
-      let metaStatus = "active";
-      try {
-        const raw = fs.readFileSync(path.join(scenariosDir, result.scenarioId, "scenario.json"), "utf-8");
-        const s = JSON.parse(raw);
-        title = s?.meta?.title || "?";
-        metaStatus = s?.meta?.status || "active";
-      } catch {}
-
-      const metaTag = metaStatus === "maintenance" ? ` ${c.dim}[maintenance]${c.reset}` : "";
-      console.log(`${statusTag} ${c.bold}${result.scenarioId}${c.reset}${metaTag} — ${c.dim}${title}${c.reset}`);
-
-      if (result.errors.length > 0) {
-        for (const issue of result.errors) {
-          const loc = issue.path ? ` ${c.dim}(${issue.path})${c.reset}` : "";
-          console.log(`  ${c.red}✗ [${issue.code}]${c.reset} ${issue.message}${loc}`);
-        }
-      }
-      if (!errorsOnly && result.warnings.length > 0) {
-        for (const issue of result.warnings) {
-          const loc = issue.path ? ` ${c.dim}(${issue.path})${c.reset}` : "";
-          console.log(`  ${c.yellow}⚠ [${issue.code}]${c.reset} ${issue.message}${loc}`);
-        }
-      }
-      if (result.total > 0) console.log();
+    if (!jsonOutput) {
+      console.log();
+      console.log(`${c.bold}${c.cyan}══════════════════════════════════════════════════════════${c.reset}`);
+      console.log(`${c.bold}${c.cyan}  SCENARIO VALIDATOR${c.reset}`);
+      console.log(`${c.bold}${c.cyan}══════════════════════════════════════════════════════════${c.reset}`);
+      console.log(`${c.dim}  Scanning ${enrichedResults.length} scenario(s)...${c.reset}`);
+      console.log();
     }
 
-    // Summary
+    // ─── Active scenarios ─────────────────────────────────────
+    if (activeResults.length > 0) {
+      console.log(`${c.bold}  ACTIVE SCENARIOS${c.reset}`);
+      console.log();
+      for (const result of activeResults) {
+        printResult(result);
+      }
+    }
+
+    // ─── Maintenance scenarios ────────────────────────────────
+    if (maintenanceResults.length > 0) {
+      console.log(`${c.bold}${c.dim}  MAINTENANCE SCENARIOS (non-blocking)${c.reset}`);
+      console.log();
+      for (const result of maintenanceResults) {
+        printResult(result);
+      }
+    }
+
+    // ─── Summary ──────────────────────────────────────────────
     console.log(`${c.bold}${c.cyan}──────────────────────────────────────────────────────────${c.reset}`);
     console.log(`${c.bold}  SUMMARY${c.reset}`);
     console.log(`${c.cyan}──────────────────────────────────────────────────────────${c.reset}`);
 
-    const passed = results.filter((r) => r.valid).length;
-    const failed = results.filter((r) => !r.valid).length;
+    const activePassed = activeResults.filter((r) => r.valid).length;
+    const activeFailed = activeResults.filter((r) => !r.valid).length;
+    const maintPassed = maintenanceResults.filter((r) => r.valid).length;
+    const maintFailed = maintenanceResults.filter((r) => !r.valid).length;
 
-    console.log(`  Scenarios: ${c.bold}${results.length}${c.reset}  |  ${c.green}${passed} passed${c.reset}  |  ${failed > 0 ? c.red : c.dim}${failed} failed${c.reset}`);
-    console.log(`  Errors:    ${c.bold}${totalErrors > 0 ? c.red : c.green}${totalErrors}${c.reset}  |  Warnings: ${c.bold}${totalWarnings > 0 ? c.yellow : c.green}${totalWarnings}${c.reset}`);
+    console.log(`  Active:      ${c.bold}${activeResults.length}${c.reset}  |  ${c.green}${activePassed} passed${c.reset}  |  ${activeFailed > 0 ? c.red : c.dim}${activeFailed} failed${c.reset}  |  ${activeErrors > 0 ? c.red : c.green}${activeErrors} errors${c.reset}  ${activeWarnings > 0 ? c.yellow : c.dim}${activeWarnings} warnings${c.reset}`);
+    console.log(`  Maintenance: ${c.bold}${maintenanceResults.length}${c.reset}  |  ${c.green}${maintPassed} passed${c.reset}  |  ${maintFailed > 0 ? c.yellow : c.dim}${maintFailed} failed${c.reset}  |  ${maintErrors > 0 ? c.yellow : c.green}${maintErrors} errors${c.reset}  ${maintWarnings > 0 ? c.yellow : c.dim}${maintWarnings} warnings${c.reset}  ${c.dim}(non-blocking)${c.reset}`);
     console.log();
 
-    if (totalErrors > 0) {
-      console.log(`  ${c.bgRed}${c.white}${c.bold} VALIDATION FAILED ${c.reset}  Fix the errors above before deploying.`);
+    if (blockingErrors > 0) {
+      const scope = strictMode ? "scenarios" : "active scenarios";
+      console.log(`  ${c.bgRed}${c.white}${c.bold} VALIDATION FAILED ${c.reset}  ${blockingErrors} blocking error(s) in ${scope}.`);
+    } else if (maintErrors > 0) {
+      console.log(`  ${c.bgGreen}${c.white}${c.bold} VALIDATION PASSED ${c.reset}  Active scenarios clean. ${c.yellow}${maintErrors} error(s) in maintenance scenarios (non-blocking).${c.reset}`);
     } else if (totalWarnings > 0) {
-      console.log(`  ${c.bgYellow}${c.white}${c.bold} VALIDATION PASSED ${c.reset}  ${totalWarnings} warning(s) to review.`);
+      console.log(`  ${c.bgGreen}${c.white}${c.bold} VALIDATION PASSED ${c.reset}  ${totalWarnings} warning(s) to review.`);
     } else {
       console.log(`  ${c.bgGreen}${c.white}${c.bold} VALIDATION PASSED ${c.reset}  All scenarios are clean.`);
     }
     console.log();
   }
 
-  process.exit(totalErrors > 0 ? 1 : 0);
+  process.exit(blockingErrors > 0 ? 1 : 0);
+}
+
+function printResult(result) {
+  const statusTag = result.errors.length > 0
+    ? `${c.bgRed}${c.white} FAIL ${c.reset}`
+    : result.warnings.length > 0
+      ? `${c.bgYellow}${c.white} WARN ${c.reset}`
+      : `${c.bgGreen}${c.white}  OK  ${c.reset}`;
+
+  const metaTag = result.status === "maintenance" ? ` ${c.dim}[maintenance]${c.reset}` : "";
+  console.log(`${statusTag} ${c.bold}${result.scenarioId}${c.reset}${metaTag} — ${c.dim}${result.title}${c.reset}`);
+
+  if (result.errors.length > 0) {
+    for (const issue of result.errors) {
+      const loc = issue.path ? ` ${c.dim}(${issue.path})${c.reset}` : "";
+      console.log(`  ${c.red}✗ [${issue.code}]${c.reset} ${issue.message}${loc}`);
+    }
+  }
+  if (!errorsOnly && result.warnings.length > 0) {
+    for (const issue of result.warnings) {
+      const loc = issue.path ? ` ${c.dim}(${issue.path})${c.reset}` : "";
+      console.log(`  ${c.yellow}⚠ [${issue.code}]${c.reset} ${issue.message}${loc}`);
+    }
+  }
+  if (result.total > 0) console.log();
 }
 
 run();
