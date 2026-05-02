@@ -22,7 +22,8 @@
       "Gérer un blocage de transaction",
       "Négocier entre deux parties",
       "Formaliser une solution acceptable"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -215,16 +216,30 @@
         "type": "free_text",
         "prompt": "Gérez les deux parties."
       },
-      "competencies": [
-        "Rassure l'acheteuse avec des faits (problème localisé, pas structurel, chiffrage connu)",
-        "Négocie avec le vendeur une solution raisonnable",
-        "Propose un mécanisme concret (baisse de prix de 3-5K ou consignation chez le notaire)"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Rassure l'acheteuse avec des faits (problème localisé, pas structurel, chiffrage connu)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Négocie avec le vendeur une solution raisonnable",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Propose un mécanisme concret (baisse de prix de 3-5K ou consignation chez le notaire)",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -242,16 +257,30 @@
         "type": "free_text",
         "prompt": "Envoyez le mail au notaire."
       },
-      "competencies": [
-        "Résume l'accord trouvé de manière claire et factuelle",
-        "Propose le mécanisme juridique adapté (avenant au compromis)",
-        "Utilise un ton professionnel adapté au notaire"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": null
+      "next_phase": null,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Résume l'accord trouvé de manière claire et factuelle",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Propose le mécanisme juridique adapté (avenant au compromis)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Utilise un ton professionnel adapté au notaire",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

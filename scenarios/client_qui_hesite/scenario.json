@@ -150,16 +150,35 @@
       "ai_actors": [
         "laurent_mercier"
       ],
-      "competencies": [
-        "Pose des questions ouvertes pour comprendre le vrai besoin",
-        "Reformule l'objection prix en termes de valeur",
-        "Identifie les coûts cachés du concurrent",
-        "Maintient la relation sans être agressif"
-      ],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "questions_ouvertes",
+            "description": "Pose des questions ouvertes pour comprendre le vrai besoin",
+            "points": 3
+          },
+          {
+            "criterion_id": "reformulation_valeur",
+            "description": "Reformule l'objection prix en termes de valeur (intégration ERP, migration gratuite, support dédié)",
+            "points": 3
+          },
+          {
+            "criterion_id": "couts_caches",
+            "description": "Identifie les coûts cachés du concurrent (migration payante, connecteurs ERP payants, users limités)",
+            "points": 3
+          },
+          {
+            "criterion_id": "relation_preservee",
+            "description": "Maintient la relation sans être agressif ni dénigrer le concurrent",
+            "points": 2
+          }
+        ]
+      },
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
+      "max_duration_sec": 420,
       "next_phase": "phase_2"
     },
     {
@@ -181,16 +200,35 @@
         },
         "send_advances_phase": true
       },
-      "competencies": [
-        "Structure un mail professionnel et personnalisé",
-        "Reprend les points identifiés en discussion",
-        "Propose une offre ajustée crédible",
-        "Inclut un appel à l'action clair"
-      ],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "mail_structure",
+            "description": "Structure un mail professionnel et personnalisé",
+            "points": 2
+          },
+          {
+            "criterion_id": "reprise_discussion",
+            "description": "Reprend les points identifiés en discussion (intégration Sage, migration, besoins équipe terrain)",
+            "points": 3
+          },
+          {
+            "criterion_id": "offre_ajustee",
+            "description": "Propose une offre ajustée crédible (engagement, pilote, remise raisonnable, échéancier)",
+            "points": 3
+          },
+          {
+            "criterion_id": "appel_action",
+            "description": "Inclut un appel à l'action clair (rdv, deadline, prochaine étape)",
+            "points": 2
+          }
+        ]
+      },
       "completion_rules": {
         "min_score": 2
       },
-      "auto_advance": true
+      "auto_advance": true,
+      "max_duration_sec": 480
     }
   ],
   "endings": [

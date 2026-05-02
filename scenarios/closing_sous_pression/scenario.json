@@ -24,7 +24,8 @@
       "Défendre la valeur sans abandonner les marges",
       "Proposer des compromis créatifs (termes, services, déploiement)",
       "Valider un accord avec la hiérarchie"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -214,17 +215,35 @@
         "type": "free_text",
         "prompt": "Discutez avec Nicolas Berger. Comprenez sa contrainte, défendez la valeur, et proposez un compromis qui protège vos marges."
       },
-      "competencies": [
-        "Écoute active : pose des questions pour découvrir la vraie contrainte (budget DAF) vs la tactic (concurrence)",
-        "Défense de valeur : explique pourquoi FleetPro > LogiTrack (géolocalisation temps réel, maintenance prédictive, support)",
-        "Créativité commerciale : propose des compromis intelligents (termes, services, déploiement) plutôt qu'une réduction plate",
-        "Respect de la marge : garde un accord > 38K€ net"
-      ],
       "completion_rules": {
         "min_score": 3
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Écoute active : pose des questions pour découvrir la vraie contrainte (budget DAF) vs la tactic (concurrence)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Défense de valeur : explique pourquoi FleetPro > LogiTrack (géolocalisation temps réel, maintenance prédictive, support)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Créativité commerciale : propose des compromis intelligents (termes, services, déploiement) plutôt qu'une réduction plate",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Respect de la marge : garde un accord > 38K€ net",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -242,16 +261,34 @@
         "type": "free_text",
         "prompt": "Présentez votre accord à Valérie Chen. Elle va l'évaluer et vous donner son feedback."
       },
-      "competencies": [
-        "Synthèse et justification : présente l'accord avec chiffres clairs et rationale",
-        "Défense des marges : démontre que le prix net protège les 38K€ minimums",
-        "Valeur ajoutée : montre comment les contreparties (services, termes) justifient l'accord trouvé",
-        "Gestion de la hiérarchie : accepte le feedback et ajuste si nécessaire"
-      ],
       "completion_rules": {
         "min_score": 2
       },
-      "auto_advance": true
+      "auto_advance": true,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Synthèse et justification : présente l'accord avec chiffres clairs et rationale",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Défense des marges : démontre que le prix net protège les 38K€ minimums",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Valeur ajoutée : montre comment les contreparties (services, termes) justifient l'accord trouvé",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Gestion de la hiérarchie : accepte le feedback et ajuste si nécessaire",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

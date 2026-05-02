@@ -22,7 +22,8 @@
       "Qualifier un incident produit",
       "Évaluer un impact business",
       "Rédiger une communication client sous pression"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -183,16 +184,30 @@
         "type": "free_text",
         "prompt": "Analysez le mail et échangez avec Marc."
       },
-      "competencies": [
-        "Identifie la cause probable (taux TVA passé de 20% à 21%)",
-        "Évalue l'impact (47 factures, 3 200€ d'écart, potentiellement d'autres clients)",
-        "Propose un plan d'action (rollback + régénération + communication)"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Identifie la cause probable (taux TVA passé de 20% à 21%)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Évalue l'impact (47 factures, 3 200€ d'écart, potentiellement d'autres clients)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Propose un plan d'action (rollback + régénération + communication)",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -212,16 +227,30 @@
         "type": "free_text",
         "prompt": "Rédigez le mail de réponse."
       },
-      "competencies": [
-        "Reconnaît le problème sans minimiser",
-        "Donne un plan de résolution clair avec délai",
-        "Maintient la confiance du client"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": null
+      "next_phase": null,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Reconnaît le problème sans minimiser",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Donne un plan de résolution clair avec délai",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Maintient la confiance du client",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

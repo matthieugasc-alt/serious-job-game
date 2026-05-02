@@ -15,6 +15,7 @@ interface Scenario {
   job_family?: string;
   is_teaser?: boolean;
   teaser_banner?: string;
+  status?: 'active' | 'maintenance';
 }
 
 interface ScenarioConfig {
@@ -957,6 +958,9 @@ export default function ScenarioSelectionPage() {
                           isLocked = true;
                           lockReason =
                             scenario.teaser_banner || "🚧 En cours d'implémentation";
+                        } else if (scenario.status === "maintenance" && userRole !== "super_admin") {
+                          isLocked = true;
+                          lockReason = "🔧 Maintenance — scénario en cours de refonte";
                         } else if (isFounderScenario && !isFounderUnlocked) {
                           // Founder scenarios locked until completed in Founder mode
                           isLocked = true;

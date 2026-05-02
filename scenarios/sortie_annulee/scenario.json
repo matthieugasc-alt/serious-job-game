@@ -22,7 +22,8 @@
       "Résoudre un problème logistique sous contrainte",
       "Communiquer un changement aux familles",
       "Adapter un objectif pédagogique"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -164,16 +165,30 @@
         "type": "free_text",
         "prompt": "Proposez une alternative."
       },
-      "competencies": [
-        "Propose une alternative réaliste (lieu accessible en TCL ou à pied)",
-        "Adapte le programme pédagogique au nouveau lieu",
-        "Prend en compte les contraintes budget et sécurité"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Propose une alternative réaliste (lieu accessible en TCL ou à pied)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Adapte le programme pédagogique au nouveau lieu",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Prend en compte les contraintes budget et sécurité",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -191,16 +206,30 @@
         "type": "free_text",
         "prompt": "Rédigez le mail aux parents."
       },
-      "competencies": [
-        "Explique la situation sans alarmer",
-        "Présente la nouvelle organisation clairement",
-        "Maintient l'enthousiasme pour la sortie adaptée"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": null
+      "next_phase": null,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Explique la situation sans alarmer",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Présente la nouvelle organisation clairement",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Maintient l'enthousiasme pour la sortie adaptée",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

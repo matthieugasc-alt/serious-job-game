@@ -75,6 +75,17 @@ export default function IntroductionPage({
         if (!res.ok) throw new Error("Scenario not found");
         const scenarioData = await res.json();
 
+        // ── Maintenance guard ──
+        // Maintenance scenarios are blocked for regular users, super_admin can play with debug
+        const isMaintenance = scenarioData.meta?.status === "maintenance";
+        if (isMaintenance) {
+          const role = typeof window !== "undefined" ? localStorage.getItem("user_role") : null;
+          if (role !== "super_admin") {
+            setError("🔧 Ce scénario est en maintenance. Il sera de retour prochainement.");
+            return;
+          }
+        }
+
         // ── Founder lock guard ──
         // Founder scenarios (job_family === "founder") are locked in classic mode
         // until the player has completed them in Founder mode.
@@ -446,6 +457,15 @@ export default function IntroductionPage({
             💡 Prenez le temps de lire les documents ci-dessus avant de commencer — vous pourrez y revenir pendant le jeu.
           </p>
         </div>
+
+        {/* ═══════ MAINTENANCE BANNER (super_admin only) ═══════ */}
+        {scenario.meta?.status === "maintenance" && (
+          <div style={{ textAlign: "center", marginBottom: 16, padding: "12px 20px", background: "#fef3c7", borderRadius: 10, border: "2px dashed #f59e0b" }}>
+            <p style={{ margin: 0, fontSize: 13, color: "#92400e", fontWeight: 700 }}>
+              🔧 MODE DEBUG — Ce scénario est en maintenance. Les mécaniques de scoring ne sont pas fiables.
+            </p>
+          </div>
+        )}
 
         {/* ═══════ START BUTTON ═══════ */}
         <div style={{ textAlign: "center" }}>

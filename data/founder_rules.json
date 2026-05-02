@@ -532,6 +532,140 @@
           }
         }
       }
+    },
+
+    "founder_05_sales": {
+      "order": 5,
+      "title": "Gerer une vente complexe",
+      "scenarioId": "founder_05_sales",
+      "invisibleEffects": "Premier test commercial reel. Le MRR demarre ici si le joueur signe. A la signature, 30% du montant annuel tombe en acompte (tresorerie). La facturation mensuelle Y1 = 70% du montant annuel / 12. A partir de Y2, facturation 100%. Engagement 36 mois dans les CGV. La validation marche explose si un KOL signe. La confiance investisseurs depend du prix negocie : un prix trop bas (accord direct du DSI) = fondateur qui ne sait pas valoriser. La dette technique ne bouge pas (pas de dev). Le mensonge sur l'interop est une bombe a retardement.",
+      "outcomes": {
+        "success_clean": {
+          "outcomeId": "first_client_clean",
+          "label": "Premier client signe — vente maitrisee",
+          "summary": "Cold email personnalise, DSI convaincue, plan d'implementation solide, contrat bien negocie sur 36 mois. Premier client payant. L'acompte de 30% tombe en tresorerie et le MRR demarre.",
+          "signal": "robust",
+          "deltas": {
+            "treasury": 8000,
+            "ownership": 0,
+            "mrr": 1700,
+            "payroll": 0,
+            "productQuality": 5,
+            "techDebt": 0,
+            "investorConfidence": 25,
+            "marketValidation": 30,
+            "elapsedMonths": 2
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Tu as cible le bon KOL, personnalise ton approche, convaincu la DSI, et negocie un contrat equilibre sur 36 mois.",
+            "impact": "Premier client payant. Acompte de ~8 600 EUR en tresorerie. MRR de ~1 700 EUR/mois la premiere annee (70% du mensuel), puis ~2 400 EUR/mois a partir de la deuxieme annee. C'est la preuve que le marche veut ton produit.",
+            "strength": "Tu as su valoriser ton produit a un prix juste et negocier les clauses contractuelles sans te faire avoir.",
+            "risk": "Un seul client ne fait pas un business. Il faut maintenant replicer — et le module d'integration SIH (3 mois de dev) va devenir un sujet.",
+            "advice": "Documente tout le cycle de vente. Temps, objections, reponses. C'est ton playbook pour les prochains clients."
+          }
+        },
+        "success_risky": {
+          "outcomeId": "first_client_risky",
+          "label": "Client signe — conditions bradees",
+          "summary": "Tu as signe ton premier client et l'acompte est encaisse. Mais tu as accepte toutes les conditions de la juriste : 15% de remise, pas de droit de communication, engagement reduit. Le MRR demarre plus bas et tu ne peux pas utiliser ce client comme reference.",
+          "signal": "fragile",
+          "deltas": {
+            "treasury": 6500,
+            "ownership": 0,
+            "mrr": 1450,
+            "payroll": 0,
+            "productQuality": 5,
+            "techDebt": 0,
+            "investorConfidence": -5,
+            "marketValidation": 15,
+            "elapsedMonths": 2
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Tu as tout accepte dans le bon de commande : remise de 15%, refus de communication, engagement raccourci.",
+            "impact": "L'acompte tombe mais reduit (~6 500 EUR apres remise). Le MRR demarre a ~1 450 EUR/mois. Et surtout : tu ne peux pas mentionner cet etablissement comme client. En levee de fonds, tu auras un MRR mais pas de reference commerciale.",
+            "strength": "Tu as signe. Le client est content et le deploiement peut commencer.",
+            "risk": "Les investisseurs verront un fondateur qui ne sait pas negocier. Et le precedent est pose : chaque futur client demandera les memes conditions.",
+            "advice": "Pour le prochain client, fixe tes lignes rouges AVANT d'entrer en negociation. La remise max, le droit de communication, la duree d'engagement."
+          }
+        },
+        "success_with_lies": {
+          "outcomeId": "first_client_fragile",
+          "label": "Client signe mais mensonge sur l'interop",
+          "summary": "Tu as signe ton premier client et l'acompte est encaisse. Mais tu as pretendu que l'integration SIH etait prete. Quand la DSI lancera le chantier et decouvrira que le module n'existe pas encore, le contrat sera en danger.",
+          "signal": "fragile",
+          "deltas": {
+            "treasury": 8000,
+            "ownership": 0,
+            "mrr": 1700,
+            "payroll": 0,
+            "productQuality": 5,
+            "techDebt": 0,
+            "investorConfidence": 10,
+            "marketValidation": 20,
+            "elapsedMonths": 2
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Tu as menti a la DSI sur l'interoperabilite pour closer la vente plus vite.",
+            "impact": "L'acompte tombe (~8 600 EUR) et le MRR demarre a ~1 700 EUR/mois. Mais quand la DSI lancera l'integration SIH et decouvrira que le module n'est pas pret, tu auras un probleme de confiance majeur. Resiliation possible.",
+            "strength": "Tu as su closer. C'est une competence. Mais construire sur un mensonge, c'est du sable.",
+            "risk": "La DSI hospitaliere est un petit monde. Si Eric Moreau parle a ses collegues, ta reputation est grilee dans tout le reseau.",
+            "advice": "Lance le developpement du module d'integration SIH IMMEDIATEMENT. Tu as 3 mois avant que le sujet revienne sur la table."
+          }
+        },
+        "partial_dsi_blocked": {
+          "outcomeId": "sale_blocked_dsi",
+          "label": "Vente bloquee par la DSI",
+          "summary": "Un KOL etait interesse mais la DSI n'a pas valide. Cybersecurite, RGPD, interop ou pricing — l'un de ces points n'a pas passe. Tu repars sans client.",
+          "signal": "delayed",
+          "deltas": {
+            "treasury": -500,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 0,
+            "techDebt": 0,
+            "investorConfidence": -5,
+            "marketValidation": 5,
+            "elapsedMonths": 2
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Tu as convaincu un KOL mais pas la DSI. C'est la realite de la vente hospitaliere : le champion terrain ne suffit pas.",
+            "impact": "Pas de client, pas de MRR. 2 mois de burn pour rien. Mais tu as appris le cycle de vente.",
+            "strength": "Tu as reussi la prospection. Le KOL etait interesse — c'est la preuve que le produit resonne.",
+            "risk": "Si tu ne closes pas dans les 2 prochains mois, la tresorerie va devenir critique.",
+            "advice": "Reprends contact avec la DSI. Demande exactement ce qui manque. Parfois un blocage DSI se debloque en 1 document bien redige."
+          }
+        },
+        "failure_no_interest": {
+          "outcomeId": "no_prospect",
+          "label": "Vente ratee — Aucun KOL convaincu",
+          "summary": "Tes cold emails n'ont convaincu personne. Trop generiques, mal cibles ou mal rediges. Tu repars sans prospect.",
+          "signal": "delayed",
+          "deltas": {
+            "treasury": -250,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 0,
+            "techDebt": 0,
+            "investorConfidence": -10,
+            "marketValidation": -5,
+            "elapsedMonths": 1
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Tes cold emails sont passes a la poubelle. Generiques, trop longs, ou mal cibles.",
+            "impact": "1 mois perdu, pas de prospect, pas de pipeline. La validation marche recule — tu ne sais meme pas si le produit se vend.",
+            "strength": "Au moins tu as essaye. Beaucoup de fondateurs tech repoussent la vente indefiniment.",
+            "risk": "Sans pipeline commercial, pas de revenu. Sans revenu, pas de runway. L'horloge tourne.",
+            "advice": "Relis la liste de KOL. Identifie ceux qui ont un probleme URGENT et VISIBLE. Personnalise chaque mail. Et sois court."
+          }
+        }
+      }
     }
   },
 

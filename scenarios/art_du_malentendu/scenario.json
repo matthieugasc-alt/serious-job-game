@@ -2,7 +2,6 @@
   "scenario_id": "art_du_malentendu",
   "version": "1.0.0",
   "locale": "fr-FR",
-
   "meta": {
     "title": "L'Art du Malentendu",
     "subtitle": "Gérer une exposition controversée devant un public d'enfants",
@@ -10,7 +9,14 @@
     "job_family": "assistant_cooperation_internationale",
     "difficulty": "junior",
     "estimated_duration_min": 20,
-    "tags": ["diplomatie", "interculturel", "traduction", "médiation", "jeune public", "art contemporain"],
+    "tags": [
+      "diplomatie",
+      "interculturel",
+      "traduction",
+      "médiation",
+      "jeune public",
+      "art contemporain"
+    ],
     "show_objective": false,
     "show_background_fact": false,
     "pedagogical_goals": [
@@ -21,7 +27,6 @@
       "Animer une interaction interculturelle entre des publics très différents"
     ]
   },
-
   "introduction": {
     "header": {
       "tag": "Simulation métier",
@@ -51,7 +56,6 @@
       }
     ]
   },
-
   "narrative": {
     "context": "Vous êtes assistant(e) de coopération internationale au Ministère de la Culture, en poste depuis 8 mois. Votre service organise régulièrement des événements culturels impliquant des artistes étrangers. Aujourd'hui, vous êtes chargé(e) d'accompagner la visite d'une exposition par le Conseil Municipal des Jeunes (CMJ) du 7e arrondissement de Paris, un groupe d'une vingtaine d'enfants âgés de 7 à 10 ans.",
     "mission": "Assurer le bon déroulement de la visite de l'exposition de Mme Yuki Tanaka par le Conseil Municipal des Jeunes : briefer l'artiste en amont, présenter l'exposition aux enfants, puis traduire et médier l'échange entre l'artiste et les enfants.",
@@ -59,7 +63,6 @@
     "trigger": "Yuki Tanaka vous envoie un SMS en anglais, toute excitée. C'est à vous de la raisonner avant l'arrivée des enfants.",
     "background_fact": "Dans le dossier de presse, l'artiste est décrite comme 'une voix provocatrice qui interroge les mythes nationaux à travers l'humour noir'. Plusieurs de ses déclarations précédentes en interview contiennent des stéréotypes appuyés sur les Français. Son agent vous a prévenu(e) qu'elle est 'très directe' et 'n'édulcore jamais ses propos'. Le 1-pager de présentation de l'artiste est disponible dans vos documents."
   },
-
   "timeline": {
     "scenario_start": "2025-01-15T14:55:00",
     "children_arrival": "2025-01-15T15:00:00",
@@ -68,7 +71,6 @@
     "visit_end": "2025-01-15T15:20:00",
     "sim_speed_multiplier": 1
   },
-
   "actors": [
     {
       "actor_id": "player",
@@ -86,7 +88,10 @@
       "name": "Yuki Tanaka",
       "role": "Artiste japonaise, autrice de l'exposition 'Miroir Déformé'",
       "personality": "Princesse, très attachée à la culture japonaise, provocatrice, moqueuse envers la France. Elle adore les stéréotypes et les assume pleinement. Elle se considère comme une intellectuelle supérieure. Elle parle anglais couramment mais ne parle PAS français. Elle est chaleureuse mais condescendante. Elle ne comprend pas pourquoi ses propos poseraient problème devant des enfants. Ses clichés clés : les Parisiens sont obsédés par la séduction, les Français sont toujours en retard, les Français sont catastrophiques en anglais, la cuisine française c'est des escargots et des grenouilles, les Français se croient supérieurs alors qu'ils sont en déclin. En phase 1 (SMS), elle répond en anglais uniquement. En phase 3 (interaction), elle parle en anglais et le joueur doit traduire. Si le joueur l'a bien briefée, elle fait un effort mais laisse échapper 1-2 clichés. Si le briefing a été insuffisant, elle est très directe et provocatrice.",
-      "interaction_modes": ["chat", "in_person"],
+      "interaction_modes": [
+        "chat",
+        "in_person"
+      ],
       "controlled_by": "ai",
       "prompt_file": "yuki_tanaka.md",
       "availability": "Toujours présente à la galerie",
@@ -104,7 +109,9 @@
       "name": "Mme Sophie Renard",
       "role": "Accompagnatrice du CMJ, élue adjointe à la jeunesse du 7e arrondissement",
       "personality": "Bienveillante mais exigeante. Elle veut que les enfants passent un bon moment et soient traités avec respect. Elle intervient si quelque chose lui semble inapproprié. Elle ne parle pas anglais.",
-      "interaction_modes": ["in_person"],
+      "interaction_modes": [
+        "in_person"
+      ],
       "controlled_by": "ai",
       "prompt_file": "sophie_renard.md",
       "availability": "Présente à partir de la phase 2",
@@ -121,7 +128,9 @@
       "name": "Les enfants du CMJ",
       "role": "Conseil Municipal des Jeunes du 7e arrondissement, 20 enfants de 7 à 10 ans",
       "personality": "Sages mais extrêmement curieux. Posent des questions naïves mais pertinentes. Questions typiques : 'Pourquoi les Français sont représentés comme ça ?', 'Pourquoi cette dame ne parle pas français ?', 'C'est quoi la différence entre les Japonais et les Français ?', 'Pourquoi elle a dessiné des bérets sur tout le monde ?', 'Au Japon, c'est comment ?'. Les enfants lèvent la main pour poser des questions.",
-      "interaction_modes": ["in_person"],
+      "interaction_modes": [
+        "in_person"
+      ],
       "controlled_by": "ai",
       "prompt_file": "enfants_cmj.md",
       "availability": "Présents à partir de la phase 2",
@@ -138,7 +147,9 @@
       "name": "Nathalie Morel",
       "role": "Cheffe du service coopération internationale, supérieure hiérarchique",
       "personality": "Professionnelle, brève dans ses messages, attend des résultats.",
-      "interaction_modes": ["chat"],
+      "interaction_modes": [
+        "chat"
+      ],
       "controlled_by": "ai",
       "prompt_file": "nathalie_morel.md",
       "availability": "Joignable par chat pendant tout le scénario",
@@ -152,7 +163,6 @@
       "tts_voice": "coral"
     }
   ],
-
   "channels": [
     {
       "channel_id": "chat",
@@ -161,13 +171,17 @@
       "enabled": true
     }
   ],
-
   "resources": {
     "documents": [
       {
         "doc_id": "fiche_yuki_tanaka",
         "label": "Fiche de présentation de Yuki Tanaka (1-pager)",
-        "contains": ["biographie", "parcours_artistique", "oeuvres_exposees", "citations_presse"],
+        "contains": [
+          "biographie",
+          "parcours_artistique",
+          "oeuvres_exposees",
+          "citations_presse"
+        ],
         "usable_as_pj": false,
         "image_path": "/scenarios/art_du_malentendu/fiche_yuki_tanaka.png",
         "content": "YUKI TANAKA — ARTISTE PLASTICIENNE ET ESSAYISTE\n\nNée à Kyoto en 1987. Diplômée des Beaux-Arts de Tokyo (2010).\nConnue pour ses séries 'National Mirrors' où elle revisite les mythes nationaux de différents pays à travers la peinture et l'essai littéraire.\n\nExpositions précédentes : New York (2021), Berlin (2022), Londres (2023).\n\nExposition actuelle : 'Miroir Déformé : La France vue du Japon'\nGalerie Marguerite Duras, Paris 7e. Du 8 au 31 janvier 2025.\n12 tableaux et 4 essais littéraires.\n\nCitation presse (Le Monde, déc. 2024) :\n'Tanaka ne cherche pas à plaire, elle cherche à déranger.'"
@@ -175,14 +189,22 @@
       {
         "doc_id": "programme_visite_cmj",
         "label": "Programme de la visite du CMJ",
-        "contains": ["horaires", "nombre_enfants", "accompagnateurs", "consignes_securite"],
+        "contains": [
+          "horaires",
+          "nombre_enfants",
+          "accompagnateurs",
+          "consignes_securite"
+        ],
         "usable_as_pj": false,
         "content": "VISITE CMJ 7e — GALERIE MARGUERITE DURAS\n\nDate : Mercredi 15 janvier 2025\nHoraire : 14h15 - 14h45\nEffectif : 20 enfants (7-10 ans) + 2 accompagnateurs adultes\nAccompagnatrice principale : Mme Sophie Renard, adjointe à la jeunesse\nContact : s.renard@mairie7.paris.fr / 06 12 34 56 78\n\nConsignes : Adapter le discours à l'âge du public.\nPas de contenu inapproprié. Visite interactive souhaitée."
       },
       {
         "doc_id": "oeuvre_coq_distrait",
         "label": "Œuvre 1 : 'Le Coq Distrait'",
-        "contains": ["reproduction_oeuvre", "description_artiste"],
+        "contains": [
+          "reproduction_oeuvre",
+          "description_artiste"
+        ],
         "usable_as_pj": false,
         "image_path": "/scenarios/art_du_malentendu/oeuvre_coq_distrait.png",
         "content": "LE COQ DISTRAIT — Huile sur toile, 120x80cm, 2024\n\nUn coq aux couleurs du drapeau français regarde un croissant géant pendant qu'une horloge derrière lui indique une heure de retard. Des personnages avec des bérets et des baguettes de pain dansent autour de lui sans remarquer que le coq s'endort.\n\nDescription de l'artiste (en anglais) :\n'The French rooster is always late and always distracted by food. This painting shows how France sleeps while the world moves forward. The beret people represent the French obsession with their own culture while ignoring everything else.'"
@@ -190,14 +212,16 @@
       {
         "doc_id": "oeuvre_lost_in_translation",
         "label": "Œuvre 2 : 'Lost in Translation'",
-        "contains": ["reproduction_oeuvre", "description_artiste"],
+        "contains": [
+          "reproduction_oeuvre",
+          "description_artiste"
+        ],
         "usable_as_pj": false,
         "image_path": "/scenarios/art_du_malentendu/oeuvre_lost_in_translation.png",
         "content": "LOST IN TRANSLATION — Technique mixte, 150x100cm, 2024\n\nUn touriste japonais tente de demander son chemin à un Parisien qui lui répond en faisant de grands gestes incompréhensibles. Des bulles de dialogue montrent des symboles confus. Le Parisien a un air hautain, le touriste a l'air perdu. En arrière-plan, la Tour Eiffel penche légèrement.\n\nDescription de l'artiste (en anglais) :\n'French people refuse to speak English. It is not that they cannot — they choose not to. This arrogance is what makes Paris both fascinating and infuriating. The leaning tower shows that France itself is off-balance but won't admit it.'"
       }
     ]
   },
-
   "constraints": {
     "time_pressure": true,
     "hierarchy_limit": "Le joueur ne peut pas annuler la visite ni modifier le programme. Il doit faire avec l'artiste telle qu'elle est.",
@@ -207,7 +231,6 @@
     "output_language": "fr",
     "sensitive_audience": "Les enfants ont 7 à 10 ans. Certains propos de l'artiste ne peuvent pas être traduits littéralement."
   },
-
   "initial_events": [
     {
       "event_id": "nathalie_initial_msg",
@@ -240,7 +263,6 @@
       "content": "and then i'll get into the whole concept — france as this beautiful museum that kind of fell asleep. the rooster dozing off while the world moves on. i've got some great jokes lined up about french arrogance and the beret thing. kids love that stuff right?"
     }
   ],
-
   "phases": [
     {
       "phase_id": "phase_1_briefing_taxi",
@@ -248,23 +270,17 @@
       "duration_target_min": 5,
       "max_duration_sec": 300,
       "objective": "Yuki Tanaka est surexcitée et vous bombarde de ses plans pour la visite. Elle compte utiliser ses clichés habituels sur la France devant les enfants. Le joueur doit la raisonner en anglais : lui faire comprendre diplomatiquement que ses propos provocateurs ne sont PAS appropriés devant des enfants de 7-10 ans, et obtenir qu'elle adapte son discours. Le temps presse : les enfants arrivent dans 5 minutes.",
-      "active_channels": ["chat"],
-      "ai_actors": ["yuki_tanaka", "nathalie_morel"],
-
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "yuki_tanaka",
+        "nathalie_morel"
+      ],
       "player_input": {
         "type": "free_text",
         "prompt": "Yuki Tanaka vient de vous dévoiler ses plans pour la visite. Elle compte parler de 'French arrogance', de la France qui 's'endort', et faire des blagues sur les clichés français — devant des enfants de 7 à 10 ans. Les enfants arrivent dans 5 minutes. Raisonnez-la en anglais !"
       },
-
-      "competencies": [
-        "Rédige un premier SMS professionnel et chaleureux en anglais",
-        "Mentionne explicitement l'âge du public (7-10 ans) à l'artiste",
-        "Identifie diplomatiquement les propos problématiques à éviter",
-        "Propose des alternatives ou des angles positifs à l'artiste",
-        "Maintient une relation cordiale malgré la résistance de l'artiste",
-        "Obtient un engagement (même partiel) de l'artiste à adapter son discours"
-      ],
-
       "interruptions": [
         {
           "interrupt_id": "yuki_encore_plus",
@@ -297,22 +313,59 @@
           }
         }
       ],
-
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2_presentation"
+      "next_phase": "phase_2_presentation",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Rédige un premier SMS professionnel et chaleureux en anglais",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Mentionne explicitement l'âge du public (7-10 ans) à l'artiste",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Identifie diplomatiquement les propos problématiques à éviter",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Propose des alternatives ou des angles positifs à l'artiste",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_5",
+            "description": "Maintient une relation cordiale malgré la résistance de l'artiste",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_6",
+            "description": "Obtient un engagement (même partiel) de l'artiste à adapter son discours",
+            "points": 2
+          }
+        ]
+      }
     },
-
     {
       "phase_id": "phase_2_presentation",
       "title": "Présentation aux enfants",
       "duration_target_min": 5,
       "max_duration_sec": 300,
       "objective": "Faire un exposé oral en français pour présenter l'artiste et l'exposition aux enfants du CMJ. Le joueur doit expliquer qui est Yuki Tanaka de manière adaptée aux enfants, présenter l'exposition et ses thèmes de manière positive et accessible, préparer les enfants au fait que l'artiste ne parle pas français, et donner envie aux enfants de poser des questions.",
-      "active_channels": ["chat"],
-      "ai_actors": ["enfants_cmj", "sophie_renard"],
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "enfants_cmj",
+        "sophie_renard"
+      ],
       "interaction_mode": "presentation",
       "presentation_config": {
         "min_duration_sec": 30,
@@ -320,21 +373,10 @@
         "language": "fr-FR",
         "instructions": "Vous êtes devant les enfants du CMJ (7-10 ans). Pitchez en 1 minute chrono : qui est Yuki Tanaka, ce qu'on va voir, et pourquoi c'est intéressant.\n\nAdaptez votre discours à l'âge des enfants. Préparez-les au fait que l'artiste ne parle pas français.\n\nCliquez sur le micro, parlez, puis cliquez à nouveau pour terminer."
       },
-
       "player_input": {
         "type": "free_text",
         "prompt": "Les enfants du CMJ sont installés devant vous. Pitchez l'artiste et l'exposition en 1 minute maximum. Soyez clair, enthousiaste et adapté à leur âge."
       },
-
-      "competencies": [
-        "Présente l'artiste de manière accessible et engageante pour des 7-10 ans",
-        "Explique le concept de l'exposition sans utiliser de jargon artistique",
-        "Prépare les enfants à l'échange interculturel (Japon, langue différente)",
-        "Adopte un ton adapté à l'âge (ni trop infantilisant, ni trop adulte)",
-        "Structure sa présentation avec un début, un développement et une ouverture vers les questions",
-        "Prend en compte les mains levées sans se laisser déconcentrer"
-      ],
-
       "interruptions": [
         {
           "interrupt_id": "enfants_mains_levees_1",
@@ -357,44 +399,83 @@
           }
         }
       ],
-
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_3_echange"
+      "next_phase": "phase_3_echange",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Présente l'artiste de manière accessible et engageante pour des 7-10 ans",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Explique le concept de l'exposition sans utiliser de jargon artistique",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Prépare les enfants à l'échange interculturel (Japon, langue différente)",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Adopte un ton adapté à l'âge (ni trop infantilisant, ni trop adulte)",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_5",
+            "description": "Structure sa présentation avec un début, un développement et une ouverture vers les questions",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_6",
+            "description": "Prend en compte les mains levées sans se laisser déconcentrer",
+            "points": 2
+          }
+        ]
+      }
     },
-
     {
       "phase_id": "phase_3_echange",
       "title": "Échange artiste-enfants",
       "duration_target_min": 5,
       "max_duration_sec": 300,
       "objective": "Animer l'échange entre Yuki Tanaka et les enfants. Le joueur doit traduire les questions des enfants (français → anglais) pour l'artiste, traduire les réponses de l'artiste (anglais → français) pour les enfants, ADAPTER les réponses si elles contiennent des propos inappropriés, gérer les situations où l'artiste dit quelque chose de déplacé, et reformuler avec tact si nécessaire sans trahir l'esprit de l'artiste.",
-      "active_channels": ["chat"],
-      "ai_actors": ["yuki_tanaka", "enfants_cmj", "sophie_renard"],
+      "active_channels": [
+        "chat"
+      ],
+      "ai_actors": [
+        "yuki_tanaka",
+        "enfants_cmj",
+        "sophie_renard"
+      ],
       "interaction_mode": "voice_qa",
       "voice_qa_config": {
-        "children_names": ["Hugo", "Léa", "Amine", "Camille", "Zoé", "Lucas", "Inès", "Tom", "Lina", "Noah", "Hana", "Kenji"],
+        "children_names": [
+          "Hugo",
+          "Léa",
+          "Amine",
+          "Camille",
+          "Zoé",
+          "Lucas",
+          "Inès",
+          "Tom",
+          "Lina",
+          "Noah",
+          "Hana",
+          "Kenji"
+        ],
         "hand_raise_interval_sec": 8,
         "max_simultaneous_hands": 5
       },
-
       "player_input": {
         "type": "free_text",
         "prompt": "L'artiste s'avance vers les enfants. Vous êtes au milieu. Les enfants lèvent la main. Votre rôle : traduire les questions et les réponses, et adapter si les propos de l'artiste ne conviennent pas à un public de 7-10 ans."
       },
-
-      "competencies": [
-        "Traduit fidèlement les questions des enfants du français vers l'anglais",
-        "Traduit les réponses de l'artiste en les adaptant au public enfantin",
-        "Reformule avec tact les propos inappropriés sans trahir le sens général",
-        "Gère les situations imprévues (cliché qui échappe, question sensible d'un enfant)",
-        "Maintient un équilibre entre fidélité à l'artiste et protection du jeune public",
-        "Anime l'interaction de manière fluide et dynamique",
-        "Répond avec bienveillance aux questions naïves sur les différences culturelles"
-      ],
-
       "interruptions": [
         {
           "interrupt_id": "sophie_renard_feedback",
@@ -407,14 +488,51 @@
           }
         }
       ],
-
       "completion_rules": {
         "min_score": 2
       },
-      "auto_advance": true
+      "auto_advance": true,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Traduit fidèlement les questions des enfants du français vers l'anglais",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Traduit les réponses de l'artiste en les adaptant au public enfantin",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Reformule avec tact les propos inappropriés sans trahir le sens général",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Gère les situations imprévues (cliché qui échappe, question sensible d'un enfant)",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_5",
+            "description": "Maintient un équilibre entre fidélité à l'artiste et protection du jeune public",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_6",
+            "description": "Anime l'interaction de manière fluide et dynamique",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_7",
+            "description": "Répond avec bienveillance aux questions naïves sur les différences culturelles",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
-
   "endings": [
     {
       "ending_id": "success",

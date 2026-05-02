@@ -23,7 +23,8 @@
       "Qualifier une demande citoyenne",
       "Distinguer compétence parlementaire et compétence locale",
       "Rédiger un courrier institutionnel à l'ARS"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -186,16 +187,30 @@
         "type": "free_text",
         "prompt": "Discutez avec Mme Vidal pour qualifier la demande de M. Pasquier."
       },
-      "competencies": [
-        "Identifie que l'accès aux soins en zone rurale relève de l'ARS, pas directement du parlementaire",
-        "Propose d'écrire un courrier d'interpellation à l'ARS au nom de la députée",
-        "Distingue le rôle de relais du parlementaire du pouvoir de décision"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Identifie que l'accès aux soins en zone rurale relève de l'ARS, pas directement du parlementaire",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Propose d'écrire un courrier d'interpellation à l'ARS au nom de la députée",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Distingue le rôle de relais du parlementaire du pouvoir de décision",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -214,16 +229,30 @@
         "type": "free_text",
         "prompt": "Rédigez le courrier à l'ARS et la réponse à M. Pasquier."
       },
-      "competencies": [
-        "Rédige un courrier institutionnel structuré à l'ARS (objet clair, faits, demande précise)",
-        "Répond au citoyen avec empathie et transparence sur les actions entreprises",
-        "Utilise le bon registre de langue pour chaque destinataire"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": null
+      "next_phase": null,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Rédige un courrier institutionnel structuré à l'ARS (objet clair, faits, demande précise)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Répond au citoyen avec empathie et transparence sur les actions entreprises",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Utilise le bon registre de langue pour chaque destinataire",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

@@ -22,7 +22,8 @@
       "Gérer un conflit parent-enseignant par écrit",
       "Maintenir une posture professionnelle",
       "Préparer un entretien"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -183,16 +184,30 @@
         "type": "free_text",
         "prompt": "Expliquez la situation au directeur."
       },
-      "competencies": [
-        "Expose les faits objectivement (3 rappels, changement de place, pleurs)",
-        "Distingue les faits de l'interprétation du parent",
-        "Accepte la proposition de rendez-vous comme solution"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Expose les faits objectivement (3 rappels, changement de place, pleurs)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Distingue les faits de l'interprétation du parent",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Accepte la proposition de rendez-vous comme solution",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -210,16 +225,30 @@
         "type": "free_text",
         "prompt": "Répondez à M. Bertrand."
       },
-      "competencies": [
-        "Accuse réception avec empathie (reconnaît la détresse de Lucas)",
-        "Rétablit les faits sans accuser l'enfant de mentir",
-        "Propose un rendez-vous en présence du directeur"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": null
+      "next_phase": null,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Accuse réception avec empathie (reconnaît la détresse de Lucas)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Rétablit les faits sans accuser l'enfant de mentir",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Propose un rendez-vous en présence du directeur",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

@@ -22,7 +22,8 @@
       "Écouter des parties prenantes opposées",
       "Arbitrer avec des critères produit",
       "Formaliser une décision"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -196,16 +197,30 @@
         "type": "free_text",
         "prompt": "Échangez avec Karim et Léa."
       },
-      "competencies": [
-        "Écoute les arguments business (deal, revenu, deadline)",
-        "Écoute les arguments UX/tech (dette, cohérence, maintenabilité)",
-        "Pose des questions pour quantifier (effort dev, impact deal, scope refonte)"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Écoute les arguments business (deal, revenu, deadline)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Écoute les arguments UX/tech (dette, cohérence, maintenabilité)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Pose des questions pour quantifier (effort dev, impact deal, scope refonte)",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -223,16 +238,30 @@
         "type": "free_text",
         "prompt": "Envoyez votre décision par mail à Anne."
       },
-      "competencies": [
-        "Formule une décision claire (pas un 'on verra')",
-        "Argumente avec des critères produit (impact, effort, urgence, dette)",
-        "Propose un séquençage réaliste"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": null
+      "next_phase": null,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Formule une décision claire (pas un 'on verra')",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Argumente avec des critères produit (impact, effort, urgence, dette)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Propose un séquençage réaliste",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

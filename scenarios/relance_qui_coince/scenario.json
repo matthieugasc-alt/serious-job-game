@@ -17,7 +17,8 @@
       "fidélisation"
     ],
     "show_objective": false,
-    "show_background_fact": false
+    "show_background_fact": false,
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -166,18 +167,40 @@
       "ai_actors": [
         "sandra_levy"
       ],
-      "competencies": [
-        "Pose des questions sur le client (historique, contexte)",
-        "Identifie le turnover chez DigitaPlus comme facteur clé",
-        "Mentionne la feature request non traitée",
-        "Demande comment approcher la relance",
-        "Montre qu'il ne va pas envoyer un template"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Pose des questions sur le client (historique, contexte)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Identifie le turnover chez DigitaPlus comme facteur clé",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Mentionne la feature request non traitée",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Demande comment approcher la relance",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_5",
+            "description": "Montre qu'il ne va pas envoyer un template",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -198,18 +221,44 @@
         },
         "send_advances_phase": true
       },
-      "competencies": [
-        "Reconnaît le changement chez DigitaPlus (nouveau responsable)",
-        "Mentionne un détail concret (dashboard, feature request, relation antérieure)",
-        "N'utilise pas un template générique",
-        "Ton personnalisé et respectueux (pas agressif malgré l'urgence)",
-        "Propose une prochaine étape (appel, rendez-vous)",
-        "Mentionne le contrat ou la date limite sans paraître trop pushy"
-      ],
       "completion_rules": {
         "min_score": 2
       },
-      "auto_advance": true
+      "auto_advance": true,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Reconnaît le changement chez DigitaPlus (nouveau responsable)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Mentionne un détail concret (dashboard, feature request, relation antérieure)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "N'utilise pas un template générique",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Ton personnalisé et respectueux (pas agressif malgré l'urgence)",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_5",
+            "description": "Propose une prochaine étape (appel, rendez-vous)",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_6",
+            "description": "Mentionne le contrat ou la date limite sans paraître trop pushy",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

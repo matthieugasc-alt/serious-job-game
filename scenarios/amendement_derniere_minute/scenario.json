@@ -22,7 +22,8 @@
       "Lire un texte législatif",
       "Formuler un amendement recevable",
       "Rédiger un exposé des motifs"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -165,16 +166,30 @@
         "type": "free_text",
         "prompt": "Discutez avec M. Lemaire pour comprendre précisément ce qu'il attend."
       },
-      "competencies": [
-        "Pose les bonnes questions pour cadrer la demande",
-        "Identifie le seuil de 20 élèves comme problème central",
-        "Propose un seuil alternatif réaliste (8 à 12 élèves)"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Pose les bonnes questions pour cadrer la demande",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Identifie le seuil de 20 élèves comme problème central",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Propose un seuil alternatif réaliste (8 à 12 élèves)",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -193,16 +208,30 @@
         "type": "free_text",
         "prompt": "Envoyez l'amendement rédigé au député par mail."
       },
-      "competencies": [
-        "Formule un amendement dans le format attendu (article modifié + nouvelle rédaction)",
-        "Rédige un exposé des motifs argumenté avec des faits territoriaux",
-        "Respecte le registre législatif"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": null
+      "next_phase": null,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Formule un amendement dans le format attendu (article modifié + nouvelle rédaction)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Rédige un exposé des motifs argumenté avec des faits territoriaux",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Respecte le registre législatif",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

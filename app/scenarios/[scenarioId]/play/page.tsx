@@ -21,6 +21,8 @@ import {
   sendCurrentPhaseMail,
   filterDocumentsByPhase,
   addInboxMail,
+  checkNpcFailureKeywords,
+  handlePhaseFailure,
 } from "@/app/lib/runtime";
 import type { ScenarioDefinition } from "@/app/lib/types";
 import {
@@ -260,6 +262,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [unreadMails, setUnreadMails] = useState(0);
   const [toasts, setToasts] = useState<Array<{ id: string; text: string; icon: string; type: "chat" | "mail" }>>([]);
   const [pacteSigned, setPacteSigned] = useState(false);
+  const [inlineDocContent, setInlineDocContent] = useState<{ title: string; content: string } | null>(null);
   const [showSignatureView, setShowSignatureView] = useState(false);
   const [pacteAmendments, setPacteAmendments] = useState<string[]>([]);
   const [amendmentInput, setAmendmentInput] = useState("");
@@ -2310,6 +2313,21 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         data.flags_to_set || {}
       );
 
+      // ── Failure loop-back: NPC refusal triggers return to previous phase ──
+      if (checkNpcFailureKeywords(final, data.reply)) {
+        const handled = handlePhaseFailure(final);
+        if (handled) {
+          resolveDynamicActors(final);
+          resolveEstablishmentPlaceholders(final);
+          // Reset phase start time for the new phase
+          phaseStartRealTimeRef.current = Date.now();
+          phaseMaxDurationTriggeredRef.current = null;
+          updateAdaptiveMode(final);
+          setSession(final);
+          return;
+        }
+      }
+
       // ── Scénario 3 Phase 3: detect pivot to clinique via chat with Alexandre ──
       if (scenarioId?.startsWith("founder_03") && final.flags.switched_to_clinique && !final.flags.pivot_contract_sent) {
         final.flags.pivot_contract_sent = true;
@@ -3578,6 +3596,33 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
       </header>
 
       {/* ═══════ BRIEFING OVERLAY ═══════ */}
+      {/* ── Inline document content modal ── */}
+      {inlineDocContent && (
+        <div style={{
+          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+          background: "rgba(0,0,0,0.5)", zIndex: 10000,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }} onClick={() => setInlineDocContent(null)}>
+          <div style={{
+            background: "#fff", borderRadius: 12, padding: 24,
+            maxWidth: 700, width: "90%", maxHeight: "80vh",
+            overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: 16, color: "#333" }}>{inlineDocContent.title}</h3>
+              <button onClick={() => setInlineDocContent(null)} style={{
+                background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#999",
+              }}>✕</button>
+            </div>
+            <pre style={{
+              whiteSpace: "pre-wrap", wordBreak: "break-word",
+              fontFamily: "'Segoe UI', system-ui, sans-serif", fontSize: 13,
+              lineHeight: 1.6, color: "#444", margin: 0,
+              background: "#fafafa", padding: 16, borderRadius: 8,
+            }}>{inlineDocContent.content}</pre>
+          </div>
+        </div>
+      )}
       {/* ── Signature visuelle overlay ── */}
       {showSignatureView && (() => {
         const pacteDoc = scenario?.resources?.documents?.find((d: any) => d.doc_id === "pacte_associes");
@@ -7347,10 +7392,11 @@ ${equityClause}
                     const ip = (doc as any).image_path || "";
                     const isPublicPdf = fp.startsWith("/") && fp.endsWith(".pdf");
                     const isImage = !!ip || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(fp);
-                    const docUrl = isImage ? (ip || fp) : isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
-                    const docIcon = isImage ? "🖼️" : "📑";
-                    const docType = isImage ? "Image" : "PDF";
-                    const docTypeColor = isImage ? { fg: "#1e40af", bg: "#dbeafe" } : { fg: "#c2410c", bg: "#fff7ed" };
+                    const hasInlineContent = !fp && !ip && !!(doc as any).content;
+                    const docUrl = hasInlineContent ? "#" : isImage ? (ip || fp) : isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
+                    const docIcon = isImage ? "🖼️" : hasInlineContent ? "📄" : "📑";
+                    const docType = isImage ? "Image" : hasInlineContent ? "Texte" : "PDF";
+                    const docTypeColor = isImage ? { fg: "#1e40af", bg: "#dbeafe" } : hasInlineContent ? { fg: "#16a34a", bg: "#f0fdf4" } : { fg: "#c2410c", bg: "#fff7ed" };
                     return (
                       <li
                         key={doc.doc_id}
@@ -7377,33 +7423,52 @@ ${equityClause}
                             </div>
                           </div>
                           <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                            <a
-                              href={docUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                display: "flex", alignItems: "center", gap: 4,
-                                padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
-                                border: "1px solid rgba(91,95,199,0.2)", cursor: "pointer",
-                              }}
-                            >
-                              Ouvrir
-                            </a>
-                            <a
-                              href={docUrl}
-                              download
-                              onClick={(e) => e.stopPropagation()}
-                              style={{
-                                display: "flex", alignItems: "center", gap: 4,
-                                padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                background: "#fff", color: "#666", textDecoration: "none",
-                                border: "1px solid #ddd", cursor: "pointer",
-                              }}
-                            >
-                              ⬇
-                            </a>
+                            {hasInlineContent ? (
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setInlineDocContent({ title: doc.label, content: (doc as any).content });
+                                }}
+                                style={{
+                                  display: "flex", alignItems: "center", gap: 4,
+                                  padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                  background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
+                                  border: "1px solid rgba(91,95,199,0.2)", cursor: "pointer",
+                                }}
+                              >
+                                Lire
+                              </button>
+                            ) : (
+                              <>
+                                <a
+                                  href={docUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{
+                                    display: "flex", alignItems: "center", gap: 4,
+                                    padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                    background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
+                                    border: "1px solid rgba(91,95,199,0.2)", cursor: "pointer",
+                                  }}
+                                >
+                                  Ouvrir
+                                </a>
+                                <a
+                                  href={docUrl}
+                                  download
+                                  onClick={(e) => e.stopPropagation()}
+                                  style={{
+                                    display: "flex", alignItems: "center", gap: 4,
+                                    padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
+                                    background: "#fff", color: "#666", textDecoration: "none",
+                                    border: "1px solid #ddd", cursor: "pointer",
+                                  }}
+                                >
+                                  ⬇
+                                </a>
+                              </>
+                            )}
                           </div>
                         </div>
                         {/* Pacte signing status */}

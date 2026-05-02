@@ -22,7 +22,8 @@
       "Analyser des métriques utilisateur",
       "Collaborer avec l'UX",
       "Structurer un plan d'action produit"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -183,16 +184,30 @@
         "type": "free_text",
         "prompt": "Discutez avec Julie."
       },
-      "competencies": [
-        "Identifie les 3 irritants et leur impact respectif",
-        "Propose des solutions concrètes (réduire champs, assouplir mdp, ajouter barre de progression)",
-        "Distingue quick wins et chantiers plus lourds"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Identifie les 3 irritants et leur impact respectif",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Propose des solutions concrètes (réduire champs, assouplir mdp, ajouter barre de progression)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Distingue quick wins et chantiers plus lourds",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -210,16 +225,30 @@
         "type": "free_text",
         "prompt": "Envoyez le plan d'action."
       },
-      "competencies": [
-        "Structure un plan avec priorités (P0/P1/P2 ou semaine 1/2/3)",
-        "Quantifie l'impact attendu de chaque action",
-        "Rédige de manière concise et actionnable"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": null
+      "next_phase": null,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Structure un plan avec priorités (P0/P1/P2 ou semaine 1/2/3)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Quantifie l'impact attendu de chaque action",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Rédige de manière concise et actionnable",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

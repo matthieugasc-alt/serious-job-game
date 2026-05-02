@@ -24,6 +24,8 @@ interface ScenarioMeta {
   is_teaser?: boolean;
   /** Optional banner text for the teaser ("En cours d'implémentation" by default) */
   teaser_banner?: string;
+  /** Scenario status: active (default), maintenance (blocked for regular users) */
+  status?: 'active' | 'maintenance';
 }
 
 /**
@@ -72,6 +74,11 @@ export function listScenarios(): ScenarioMeta[] {
             tags: parsed.meta.tags || [],
             job_family: parsed.meta.job_family || '',
           };
+
+          // Propagate status from meta if present
+          if (parsed.meta.status === 'maintenance') {
+            scenarioMeta.status = 'maintenance';
+          }
 
           scenarios.push(scenarioMeta);
         }

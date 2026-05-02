@@ -115,6 +115,9 @@ export type ScenarioMeta = {
 
   /** Optional tags for filtering and discovery */
   tags?: string[];
+
+  /** Scenario status: active (default) or maintenance (blocked for regular users, playable in debug) */
+  status?: 'active' | 'maintenance';
 };
 
 /**
@@ -388,6 +391,25 @@ export type PhaseDefinition = {
 
   /** Next phase_id to transition to, or "finish" to end scenario */
   next_phase?: string;
+
+  /**
+   * Optional failure rules for loop-back mechanic.
+   * When NPC response contains configured keywords, the player is sent back
+   * to a previous phase with flags reset. Only used in specific scenarios
+   * (e.g., DSI refuses → player retries prospection with another KOL).
+   */
+  failure_rules?: {
+    /** Keywords in NPC messages that trigger the failure loop-back */
+    npc_keywords: string[];
+    /** Phase to navigate to on failure */
+    next_phase: string;
+    /** Flags to reset before going back */
+    reset_flags?: string[];
+    /** System message shown on failure */
+    message?: string;
+    /** Events to inject when looping back (shown instead of destination phase entry_events) */
+    entry_events?: PhaseEvent[];
+  };
 
   /** Mail-specific configuration for this phase */
   mail_config?: PhaseMailConfig;

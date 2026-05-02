@@ -478,6 +478,69 @@ export function applyEvaluation(
 }
 
 /**
+ * Check if an NPC response contains failure keywords defined in the current phase's failure_rules.
+ * Used for loop-back mechanics (e.g., DSI refuses → player goes back to prospection).
+ */
+export function checkNpcFailureKeywords(session: SessionState, npcMessage: string): boolean {
+  const phase = getCurrentPhase(session);
+  const rules = (phase as any)?.failure_rules;
+  if (!rules?.npc_keywords || !Array.isArray(rules.npc_keywords)) return false;
+  const lower = npcMessage.toLowerCase();
+  return rules.npc_keywords.some((kw: string) => lower.includes(kw.toLowerCase()));
+}
+
+/**
+ * Handle phase failure: reset flags, navigate to failure phase, inject failure events.
+ * Returns true if failure was handled, false if no failure_rules exist.
+ */
+export function handlePhaseFailure(session: SessionState): boolean {
+  const phase = getCurrentPhase(session);
+  const rules = (phase as any)?.failure_rules;
+  if (!rules?.next_phase) return false;
+
+  // Reset specified flags
+  if (Array.isArray(rules.reset_flags)) {
+    for (const flag of rules.reset_flags) {
+      session.flags[flag] = false;
+    }
+  }
+
+  // Navigate to failure phase
+  const idx = getPhaseIndexById(session.scenario, rules.next_phase);
+  if (idx === -1) return false;
+
+  session.currentPhaseIndex = idx;
+  addSystemMessage(session, rules.message || "Retour à la phase précédente.");
+
+  pushAction(session, {
+    type: "phase_entered",
+    phaseId: rules.next_phase,
+    timestamp: Date.now(),
+  });
+
+  // Inject failure-specific entry events (if provided)
+  if (Array.isArray(rules.entry_events) && rules.entry_events.length > 0) {
+    for (const evt of rules.entry_events) {
+      if (evt.channel === "mail" && evt.subject) {
+        addInboxMail(session, {
+          from: evt.actor,
+          subject: evt.subject,
+          body: evt.content,
+          phaseId: rules.next_phase,
+        });
+      } else {
+        addAIMessage(session, evt.content, evt.actor);
+      }
+    }
+  } else {
+    // Fall back to destination phase entry events
+    injectPhaseEntryEvents(session);
+  }
+
+  return true;
+}
+
+/**
  * Returns the set of flag names that are reserved for mail_config.on_send_flags
  * across ALL phases. These flags can only be set by handleSendMail, never by chat evaluation.
  */

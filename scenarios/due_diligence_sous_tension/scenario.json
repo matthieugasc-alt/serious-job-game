@@ -26,7 +26,8 @@
       "Mener un interview de dirigeant en posant des questions factuelles précises",
       "Gérer une crise de confidentialité avec des parties prenantes multiples",
       "Formuler une recommandation go/no-go argumentée et chiffrée"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -335,17 +336,35 @@
       "ai_actors": [
         "helene_marchand"
       ],
-      "competencies": [
-        "Pose des questions précises pour cadrer la mission",
-        "Identifie les critères de go/no-go du fonds",
-        "Comprend les enjeux clés sans avoir besoin qu'on les lui dicte",
-        "Gère efficacement le temps limité avec la Partner"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Pose des questions précises pour cadrer la mission",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Identifie les critères de go/no-go du fonds",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Comprend les enjeux clés sans avoir besoin qu'on les lui dicte",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Gère efficacement le temps limité avec la Partner",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -369,17 +388,35 @@
         },
         "send_advances_phase": true
       },
-      "competencies": [
-        "Identifie les incohérences dans les données financières",
-        "Repère le sous-investissement CAPEX dans le bruit du data pack",
-        "Prépare des questions d'interview ciblées sur les zones d'ombre",
-        "Produit une synthèse de marché structurée et pertinente"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_3"
+      "next_phase": "phase_3",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Identifie les incohérences dans les données financières",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Repère le sous-investissement CAPEX dans le bruit du data pack",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Prépare des questions d'interview ciblées sur les zones d'ombre",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Produit une synthèse de marché structurée et pertinente",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_3",
@@ -394,17 +431,35 @@
       "ai_actors": [
         "marc_delaunay"
       ],
-      "competencies": [
-        "Pose des questions factuelles précises, pas des questions ouvertes molles",
-        "Relance sur les réponses évasives avec des éléments du data pack",
-        "Maintient la confiance du DG même en posant des questions difficiles",
-        "Fait le lien entre les différentes zones d'ombre (associés → bail → CAPEX)"
-      ],
       "completion_rules": {
         "min_score": 3
       },
       "auto_advance": true,
-      "next_phase": "phase_4"
+      "next_phase": "phase_4",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Pose des questions factuelles précises, pas des questions ouvertes molles",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Relance sur les réponses évasives avec des éléments du data pack",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Maintient la confiance du DG même en posant des questions difficiles",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Fait le lien entre les différentes zones d'ombre (associés → bail → CAPEX)",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_4",
@@ -431,17 +486,35 @@
           "delay_ms": 0
         }
       ],
-      "competencies": [
-        "Gère la pression hiérarchique en mode crise",
-        "Rédige un mail diplomate au DG pour maintenir la confiance",
-        "Rédige un mail ferme mais professionnel au fonds pour recadrer",
-        "Distingue la responsabilité du cabinet vs celle du fonds"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_5"
+      "next_phase": "phase_5",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Gère la pression hiérarchique en mode crise",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Rédige un mail diplomate au DG pour maintenir la confiance",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Rédige un mail ferme mais professionnel au fonds pour recadrer",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Distingue la responsabilité du cabinet vs celle du fonds",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_5",
@@ -456,16 +529,34 @@
       "ai_actors": [
         "helene_marchand"
       ],
-      "competencies": [
-        "Formule une recommandation claire et argumentée (go, no-go, ou conditionnel)",
-        "Quantifie l'impact des risques identifiés sur la valorisation",
-        "Défend sa position face au challenge de la Partner",
-        "Distingue les faits des hypothèses dans son analyse"
-      ],
       "completion_rules": {
         "min_score": 2
       },
-      "auto_advance": true
+      "auto_advance": true,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Formule une recommandation claire et argumentée (go, no-go, ou conditionnel)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Quantifie l'impact des risques identifiés sur la valorisation",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Défend sa position face au challenge de la Partner",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Distingue les faits des hypothèses dans son analyse",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

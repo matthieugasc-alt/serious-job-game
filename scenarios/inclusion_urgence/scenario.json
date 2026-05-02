@@ -22,7 +22,8 @@
       "Organiser l'accueil d'un élève allophone",
       "Mobiliser les ressources institutionnelles",
       "Communiquer avec bienveillance"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -183,16 +184,30 @@
         "type": "free_text",
         "prompt": "Discutez avec le directeur."
       },
-      "competencies": [
-        "Pose les bonnes questions (langue, parcours, besoins immédiats)",
-        "Propose des aménagements simples pour le premier jour",
-        "Identifie le CASNAV comme ressource clé"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Pose les bonnes questions (langue, parcours, besoins immédiats)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Propose des aménagements simples pour le premier jour",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Identifie le CASNAV comme ressource clé",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -212,16 +227,30 @@
         "type": "free_text",
         "prompt": "Contactez le CASNAV et préparez l'accueil."
       },
-      "competencies": [
-        "Rédige un mail structuré au CASNAV (infos élève, demande d'accompagnement UPE2A)",
-        "Formule une demande claire et professionnelle",
-        "Prépare un accueil bienveillant adapté à un enfant non-francophone"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": null
+      "next_phase": null,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Rédige un mail structuré au CASNAV (infos élève, demande d'accompagnement UPE2A)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Formule une demande claire et professionnelle",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Prépare un accueil bienveillant adapté à un enfant non-francophone",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

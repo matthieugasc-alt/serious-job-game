@@ -22,7 +22,8 @@
       "Synthétiser une situation locale",
       "Construire une argumentation politique factuelle",
       "Respecter le format QAG (2 min oral)"
-    ]
+    ],
+    "status": "maintenance"
   },
   "introduction": {
     "header": {
@@ -165,16 +166,30 @@
         "type": "free_text",
         "prompt": "Échangez avec Mme Morel."
       },
-      "competencies": [
-        "Identifie le ministre cible (Santé)",
-        "Propose un angle factuel et territorial",
-        "Comprend les contraintes du format QAG (2 min)"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Identifie le ministre cible (Santé)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Propose un angle factuel et territorial",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Comprend les contraintes du format QAG (2 min)",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -193,16 +208,30 @@
         "type": "free_text",
         "prompt": "Envoyez la QAG rédigée par mail."
       },
-      "competencies": [
-        "Rédige une QAG structurée (contexte, faits, question)",
-        "Respecte le format 2 min (300-350 mots max)",
-        "Utilise des données factuelles de l'article"
-      ],
       "completion_rules": {
         "min_score": 2
       },
       "auto_advance": true,
-      "next_phase": null
+      "next_phase": null,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Rédige une QAG structurée (contexte, faits, question)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Respecte le format 2 min (300-350 mots max)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Utilise des données factuelles de l'article",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [

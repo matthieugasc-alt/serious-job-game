@@ -300,17 +300,6 @@
         "type": "free_text",
         "prompt": "M. Delvaux est là. Discutez avec lui du loyer, de l'état du bien et de la fiscalité. Prenez des notes, puis envoyez votre analyse par mail à Claire."
       },
-      "competencies": [
-        "Identifie que l'encadrement des loyers s'applique à Lyon et consulte la grille",
-        "Propose un loyer cohérent entre 1 700 € et 2 300 € pour 85 m² à Fourvière",
-        "Explique au client pourquoi ce loyer et non un autre (référence à la grille, au marché)",
-        "Prend en compte l'attachement émotionnel du client au bien sans le brusquer",
-        "Identifie les problèmes visibles sur les photos (cuisine vétuste, normes électriques)",
-        "Sait que la cuisine doit être aux normes de sécurité pour louer",
-        "Aborde le sujet des meubles avec tact, en respectant l'attachement émotionnel",
-        "Distingue les différents régimes (location nue, LMP/LMNP, SCI, micro-foncier)",
-        "Identifie que la location nue a la meilleure adéquation avec le marché lyonnais"
-      ],
       "interruptions": [
         {
           "interrupt_id": "delvaux_impatient",
@@ -344,7 +333,56 @@
         ]
       },
       "auto_advance": true,
-      "next_phase": "phase_4"
+      "next_phase": "phase_4",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Identifie que l'encadrement des loyers s'applique à Lyon et consulte la grille",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Propose un loyer cohérent entre 1 700 € et 2 300 € pour 85 m² à Fourvière",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Explique au client pourquoi ce loyer et non un autre (référence à la grille, au marché)",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Prend en compte l'attachement émotionnel du client au bien sans le brusquer",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_5",
+            "description": "Identifie les problèmes visibles sur les photos (cuisine vétuste, normes électriques)",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_6",
+            "description": "Sait que la cuisine doit être aux normes de sécurité pour louer",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_7",
+            "description": "Aborde le sujet des meubles avec tact, en respectant l'attachement émotionnel",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_8",
+            "description": "Distingue les différents régimes (location nue, LMP/LMNP, SCI, micro-foncier)",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_9",
+            "description": "Identifie que la location nue a la meilleure adéquation avec le marché lyonnais",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_4",
@@ -369,12 +407,6 @@
         "subject": "Annonce Le Bon Coin — Bien Delvaux Fourvière",
         "source_mail_kind": "analyse_rdv"
       },
-      "competencies": [
-        "Rédige une annonce cohérente et professionnelle",
-        "Met en valeur le bien sans mentir ni exagérer",
-        "Intègre les informations clés (surface, localisation, loyer, caractéristiques)",
-        "Mentionne les points forts réels du bien (vue, parquet, cheminée, quartier)"
-      ],
       "interruptions": [],
       "mail_config": {
         "enabled": true,
@@ -397,7 +429,31 @@
         ]
       },
       "auto_advance": true,
-      "next_phase": "phase_5"
+      "next_phase": "phase_5",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Rédige une annonce cohérente et professionnelle",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Met en valeur le bien sans mentir ni exagérer",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Intègre les informations clés (surface, localisation, loyer, caractéristiques)",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Mentionne les points forts réels du bien (vue, parquet, cheminée, quartier)",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_5",
@@ -439,13 +495,6 @@
           ]
         }
       ],
-      "competencies": [
-        "Examine les revenus, charges, stabilité professionnelle et garanties de chaque candidat",
-        "Applique le critère standard du ratio revenus/loyer (3x minimum)",
-        "Intègre les crédits en cours dans le calcul de solvabilité",
-        "Sélectionne sur des critères factuels et non sur des impressions",
-        "Ne discrimine pas sur des critères interdits (origine, situation familiale, etc.)"
-      ],
       "interruptions": [],
       "mail_config": {
         "enabled": true,
@@ -468,7 +517,36 @@
         ]
       },
       "auto_advance": true,
-      "next_phase": "phase_6"
+      "next_phase": "phase_6",
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Examine les revenus, charges, stabilité professionnelle et garanties de chaque candidat",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Applique le critère standard du ratio revenus/loyer (3x minimum)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Intègre les crédits en cours dans le calcul de solvabilité",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Sélectionne sur des critères factuels et non sur des impressions",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_5",
+            "description": "Ne discrimine pas sur des critères interdits (origine, situation familiale, etc.)",
+            "points": 2
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_6",
@@ -498,13 +576,6 @@
           "subject": "Validation finale — Locataire Bien Delvaux",
           "content": "Bonjour,\n\nJ'ai bien reçu ta présélection. Il faut maintenant trancher.\n\nJulien m'a dit qu'il avait aussi vu les candidats lors des visites. Échange avec lui si besoin, mais je veux ton avis personnel, argumenté et factuel.\n\nEnvoie-moi ta recommandation finale par mail avec :\n- Le candidat retenu\n- Les critères objectifs qui justifient ce choix\n- Les risques éventuels et comment les mitiger\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine"
         }
-      ],
-      "competencies": [
-        "Ne se laisse pas influencer par les avis subjectifs de Julien sur les Moreau",
-        "Défend son choix avec des critères objectifs (revenus, garanties, stabilité)",
-        "Refuse de baser une décision sur des impressions personnelles",
-        "Maintient sa position face à un collègue plus expérimenté",
-        "Sait anticiper les critères de l'assurance loyer impayé"
       ],
       "interruptions": [
         {
@@ -538,7 +609,36 @@
           "recommandation_envoyee"
         ]
       },
-      "auto_advance": true
+      "auto_advance": true,
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "criterion_1",
+            "description": "Ne se laisse pas influencer par les avis subjectifs de Julien sur les Moreau",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_2",
+            "description": "Défend son choix avec des critères objectifs (revenus, garanties, stabilité)",
+            "points": 3
+          },
+          {
+            "criterion_id": "criterion_3",
+            "description": "Refuse de baser une décision sur des impressions personnelles",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_4",
+            "description": "Maintient sa position face à un collègue plus expérimenté",
+            "points": 2
+          },
+          {
+            "criterion_id": "criterion_5",
+            "description": "Sait anticiper les critères de l'assurance loyer impayé",
+            "points": 2
+          }
+        ]
+      }
     }
   ],
   "endings": [
