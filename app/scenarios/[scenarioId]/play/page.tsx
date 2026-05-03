@@ -34,6 +34,16 @@ import {
 } from "@/app/lib/voiceCapture";
 import { useDebrief } from "./hooks/useDebrief";
 import { usePhaseTimer } from "./hooks/usePhaseTimer";
+import {
+  type ContractClause,
+  type ContractThreadMessage,
+  buildPacteArticles,
+  detectsExclusivity,
+  detectsAcceptance,
+  sendNegotiationMessage,
+  applyModifications,
+  ContractOverlay,
+} from "./contracts";
 
 // ════════════════════════════════════════════════════════════════════
 // CONSTANTS & HELPERS
@@ -265,13 +275,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [pacteSigned, setPacteSigned] = useState(false);
   const [inlineDocContent, setInlineDocContent] = useState<{ title: string; content: string } | null>(null);
   const [showSignatureView, setShowSignatureView] = useState(false);
-  const [pacteAmendments, setPacteAmendments] = useState<string[]>([]);
+  const [pacteArticles, setPacteArticles] = useState<ContractClause[]>([]);
   const [amendmentInput, setAmendmentInput] = useState("");
-  const [pacteThread, setPacteThread] = useState<Array<{ role: "player" | "cto"; content: string }>>([]);
+  const [pacteThread, setPacteThread] = useState<ContractThreadMessage[]>([]);
   const [pacteThreadLoading, setPacteThreadLoading] = useState(false);
-  const pacteThreadEndRef = useRef<HTMLDivElement>(null);
-  const pacteContentRef = useRef<HTMLDivElement>(null);
-  const [pacteEdited, setPacteEdited] = useState(false);
   // ── Mind Map / Outline tool (scenario 4+) ──
   const [outlineRawText, setOutlineRawText] = useState("");
   const outlineItems = useMemo(() => parseOutlineText(outlineRawText), [outlineRawText]);
@@ -2536,67 +2543,46 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // PACTE NEGOTIATION — send amendment message to CTO via AI
+  // PACTE NEGOTIATION — send amendment message to CTO via contracts module
   // ════════════════════════════════════════════════════════════════════
   async function sendPacteNegotiationMessage() {
     const text = amendmentInput.trim();
     if (!text || pacteThreadLoading) return;
     setAmendmentInput("");
-    setPacteAmendments((prev) => [...prev, text]);
     setPacteThread((prev) => [...prev, { role: "player", content: text }]);
-    // Set flag — if the player mentions anything related to exclusivity/Article 6,
-    // set pacte_signed_clean immediately (they noticed the trap)
-    const mentionsExclusivity = /exclusivit|full.?time|temps.?(plein|complet)|article.?6|clause.?6|travail.*ailleurs|autre.*projet|autre.*activit|concurren|non.?concur|plein.?temps|consacr|dedi|engag.*plein|restrict|interdi|emp[eê]ch|ne.*(pas|peut).*(travaill|exerc)|uniquement.*orisio|100.?%|à temps complet/i.test(text);
+    // Detect exclusivity mention (S0 pedagogical trap)
+    const mentionsExcl = detectsExclusivity(text);
     if (session) {
       const flagUpdates: Record<string, any> = { asked_modification: true };
-      if (mentionsExclusivity) {
-        flagUpdates.pacte_signed_clean = true;
-      }
-      const next = { ...session, flags: { ...session.flags, ...flagUpdates } };
-      setSession(next);
+      if (mentionsExcl) flagUpdates.pacte_signed_clean = true;
+      setSession({ ...session, flags: { ...session.flags, ...flagUpdates } });
     }
-    // Get CTO response via AI
+    // Get CTO response via module
     setPacteThreadLoading(true);
     try {
       const ctoId = chosenCtoId || "sofia_renault";
       const activePrompt = aiPromptsMapRef.current[ctoId] || aiPromptRef.current;
-      const threadContext = pacteThread.slice(-6).map((m) => ({
-        role: m.role === "player" ? "user" : "assistant",
-        content: m.content,
-      }));
-      threadContext.push({ role: "user", content: text });
-      const res = await fetch("/api/chat", {
-        method: "POST",
-        headers: apiHeaders(),
-        body: JSON.stringify({
-          playerName: displayPlayerName,
-          message: text,
-          phaseTitle: "Négociation du pacte d'associés",
-          phaseObjective: "Le CEO discute les clauses du pacte avec le CTO. Réponds en tant que CTO, directement, à la 1ère personne.",
-          phaseFocus: "Discussion sur une clause du pacte d'associés. Le CEO fait un commentaire ou demande une modification. Réponds de manière directe et naturelle.",
-          phasePrompt: "",
-          criteria: [],
-          mode: "standard",
-          narrative: scenario?.narrative || {},
-          recentConversation: threadContext,
-          playerMessages: [text],
-          roleplayPrompt: activePrompt,
-        }),
+      const result = await sendNegotiationMessage(text, pacteArticles, pacteThread, {
+        roleplayPrompt: activePrompt,
+        phaseTitle: "Négociation du pacte d'associés",
+        phaseFocus: "Discussion sur une clause du pacte d'associés. Le CEO fait un commentaire ou demande une modification. Réponds de manière directe et naturelle.",
+        narrative: scenario?.narrative || {},
+        playerName: displayPlayerName,
+        apiHeaders,
       });
-      const data = await res.json();
-      const reply = data?.reply || data?.response || "Je vais vérifier avec mon avocat.";
-      setPacteThread((prev) => [...prev, { role: "cto", content: reply }]);
-      // Check if reply indicates acceptance of exclusivity/amendment
-      const replyAccepts = /accept|d'accord|on ajoute|logique|ok|pas de probl[eè]me|entendu|valid|je signe|bonne id[ée]e|c'est not[ée]|c'est fait|modifi|ajout/i.test(reply);
-      const playerAsksExclusivity = /exclusivit|full.?time|temps.?(plein|complet)|article.?6|clause.?6|travail.*ailleurs|autre.*projet|autre.*activit|concurren|non.?concur|plein.?temps|consacr|dedi|engag.*plein|restrict|interdi|emp[eê]ch|ne.*(pas|peut).*(travaill|exerc)|uniquement.*orisio|100.?%|à temps complet/i.test(text);
-      if (replyAccepts && playerAsksExclusivity) {
+      // Apply modifications to articles
+      if (result.modifications.length > 0) {
+        setPacteArticles((prev) => applyModifications(prev, result.modifications));
+      }
+      setPacteThread((prev) => [...prev, { role: "counterpart", content: result.displayReply }]);
+      // Check acceptance of exclusivity amendment
+      if (detectsAcceptance(result.displayReply) && mentionsExcl) {
         if (session) {
-          const next = { ...session, flags: { ...session.flags, pacte_signed_clean: true } };
-          setSession(next);
+          setSession({ ...session, flags: { ...session.flags, pacte_signed_clean: true } });
         }
       }
     } catch {
-      setPacteThread((prev) => [...prev, { role: "cto", content: "Je vais vérifier avec mon avocat et te reviens." }]);
+      setPacteThread((prev) => [...prev, { role: "counterpart", content: "Je vais vérifier avec mon avocat et te reviens." }]);
     }
     setPacteThreadLoading(false);
   }
@@ -3196,508 +3182,117 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
           </div>
         </div>
       )}
-      {/* ── Signature visuelle overlay ── */}
+      {/* ── Pacte d'associés overlay (S0) — powered by contracts module ── */}
       {showSignatureView && (() => {
-        const pacteDoc = scenario?.resources?.documents?.find((d: any) => d.doc_id === "pacte_associes");
-        const pactePdfPath = (pacteDoc as any)?.file_path || "";
+        const ctoId = chosenCtoId || "sofia_renault";
+        const ctoInfo = getActorInfo(ctoId);
         return (
-          <div style={{
-            position: "fixed", inset: 0, zIndex: 10001,
-            background: "rgba(0,0,0,0.7)", display: "flex",
-            alignItems: "center", justifyContent: "center", padding: 20,
-          }}>
-            <div style={{
-              background: "#fff", borderRadius: 16, maxWidth: 800, width: "100%",
-              maxHeight: "92vh", display: "flex", flexDirection: "column",
-              boxShadow: "0 24px 80px rgba(0,0,0,0.3)",
-            }}>
-              {/* DocuSign-style header bar */}
-              <div style={{
-                padding: "14px 24px", background: "linear-gradient(135deg, #1a1a2e, #16213e)",
-                borderRadius: "16px 16px 0 0",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: "#ffd700", display: "flex", alignItems: "center",
-                    justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#1a1a2e",
-                  }}>✍️</div>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>
-                      Signature électronique — Pacte d'associés
-                    </h2>
-                    <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                      Orisio SAS · {new Date().toLocaleDateString("fr-FR")}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowSignatureView(false)}
-                  style={{
-                    background: "rgba(255,255,255,0.1)", border: "none", fontSize: 18,
-                    color: "#fff", cursor: "pointer", padding: "4px 10px", borderRadius: 6,
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Progress indicator */}
-              <div style={{
-                padding: "8px 24px", background: "#f8f9fa", borderBottom: "1px solid #e8e8e8",
-                display: "flex", alignItems: "center", gap: 12, fontSize: 12,
-              }}>
-                <span style={{ color: "#16a34a", fontWeight: 700 }}>1. Relire le document</span>
-                <span style={{ color: "#ccc" }}>→</span>
-                <span style={{ color: pacteAmendments.length > 0 || pacteSigned ? "#16a34a" : "#666", fontWeight: pacteAmendments.length > 0 || pacteSigned ? 700 : 500 }}>2. Remarques</span>
-                <span style={{ color: "#ccc" }}>→</span>
-                <span style={{ color: pacteSigned ? "#16a34a" : "#666", fontWeight: pacteSigned ? 700 : 500 }}>3. Signer</span>
-                <span style={{ color: "#ccc" }}>→</span>
-                <span style={{ color: "#999" }}>4. Renvoyer par mail</span>
-              </div>
-
-              {/* Editable instruction banner */}
-              {!pacteSigned && currentPhaseId === "phase_3_pacte" && (
-                <div style={{
-                  padding: "10px 24px", background: "#fffbeb", borderBottom: "1px solid #fde68a",
-                  display: "flex", alignItems: "center", gap: 10, fontSize: 12,
-                }}>
-                  <span style={{ fontSize: 16 }}>✏️</span>
-                  <span style={{ color: "#92400e", fontWeight: 600 }}>
-                    Si des amendements sont à apporter, écrivez directement sur le pacte en cliquant sur le texte à modifier.
-                  </span>
-                  {pacteEdited && (
-                    <span style={{ marginLeft: "auto", color: "#16a34a", fontWeight: 700, fontSize: 11 }}>
-                      Modifié
-                    </span>
-                  )}
-                </div>
-              )}
-              {/* Document viewer — inline HTML rendering of the pacte */}
-              <div
-                ref={pacteContentRef}
-                contentEditable={!pacteSigned && currentPhaseId === "phase_3_pacte"}
-                suppressContentEditableWarning
-                onInput={() => { if (!pacteEdited) setPacteEdited(true); }}
-                style={{
-                  flex: 1, overflow: "auto", background: "#fff", padding: "24px 32px", fontSize: 13, lineHeight: 1.7, color: "#1a1a2e", fontFamily: "Georgia, 'Times New Roman', serif",
-                  outline: "none",
-                  cursor: !pacteSigned && currentPhaseId === "phase_3_pacte" ? "text" : "default",
-                }}
-              >
-                {/* Title & header */}
-                <div style={{ textAlign: "center", marginBottom: 24 }}>
-                  <h1 style={{ fontSize: 20, fontWeight: 700, margin: "0 0 4px", letterSpacing: 0.5 }}>Pacte d&apos;Associés — Orisio SAS</h1>
-                  <p style={{ fontSize: 12, color: "#888", fontStyle: "italic", margin: 0 }}>
-                    Rédigé par Me Antoine Fabre, avocat conseil de {(() => { const ctoA = actors.find((a: any) => a.actor_id === (chosenCtoId || "sofia_renault")); return ctoA?.name || "le CTO"; })()}
-                  </p>
-                </div>
-                <hr style={{ border: "none", borderTop: "1px solid #d4d4d8", margin: "16px 0" }} />
-
-                {/* Parties */}
+          <ContractOverlay
+            visible={showSignatureView}
+            onClose={() => setShowSignatureView(false)}
+            title="Signature électronique — Pacte d'associés"
+            subtitle={`Orisio SAS · ${new Date().toLocaleDateString("fr-FR")}`}
+            clauses={pacteArticles}
+            headerContent={
+              <div style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 13, lineHeight: 1.7, color: "#1a1a2e" }}>
                 <p style={{ fontWeight: 600 }}>Entre :</p>
                 <ol style={{ paddingLeft: 20, margin: "4px 0 12px" }}>
-                  <li><strong>{displayPlayerName || "CEO"}</strong> (« CEO »)</li>
-                  <li><strong>Alexandre Morel</strong> (« CPO »), né le 14 mars 1986, demeurant 45 rue Judaïque, 33000 Bordeaux</li>
-                  <li><strong>{(() => { const ctoA = actors.find((a: any) => a.actor_id === (chosenCtoId || "sofia_renault")); return ctoA?.name || "CTO"; })()}</strong> (« CTO »)</li>
+                  <li><strong>{displayPlayerName || "CEO"}</strong> ({"«"} CEO {"»"})</li>
+                  <li><strong>Alexandre Morel</strong> ({"«"} CPO {"»"}), né le 14 mars 1986, demeurant 45 rue Judaïque, 33000 Bordeaux</li>
+                  <li><strong>{ctoInfo.name}</strong> ({"«"} CTO {"»"})</li>
                 </ol>
-                <p>Ci-après dénommés ensemble « les Associés ».</p>
+                <p>Ci-après dénommés ensemble {"«"} les Associés {"»"}.</p>
                 <p><strong>Société :</strong> Orisio SAS, en cours d&apos;immatriculation, siège social à Bordeaux.</p>
                 <hr style={{ border: "none", borderTop: "1px solid #e8e8e8", margin: "16px 0" }} />
-
-                {/* Article 1 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 1 — Objet</h2>
-                <p>Le présent pacte définit les droits et obligations des Associés entre eux, en complément des statuts de la Société. En cas de contradiction, le pacte prévaut entre les Associés.</p>
-
-                {/* Article 2 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 2 — Capital et répartition</h2>
-                <p>Capital social : <strong>1 000 €</strong>, divisé en 1 000 actions de 1 € chacune.</p>
-                <table style={{ width: "100%", borderCollapse: "collapse", margin: "8px 0 12px", fontSize: 12 }}>
-                  <thead>
-                    <tr style={{ background: "#f8f9fa", borderBottom: "2px solid #d4d4d8" }}>
-                      <th style={{ padding: "6px 10px", textAlign: "left" }}>Associé</th>
-                      <th style={{ padding: "6px 10px", textAlign: "center" }}>Actions</th>
-                      <th style={{ padding: "6px 10px", textAlign: "center" }}>% du capital</th>
-                      <th style={{ padding: "6px 10px", textAlign: "left" }}>Apport</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr style={{ borderBottom: "1px solid #e8e8e8" }}>
-                      <td style={{ padding: "6px 10px" }}>{displayPlayerName || "CEO"}</td>
-                      <td style={{ padding: "6px 10px", textAlign: "center" }}>500</td>
-                      <td style={{ padding: "6px 10px", textAlign: "center" }}>50%</td>
-                      <td style={{ padding: "6px 10px" }}>500 € en numéraire</td>
-                    </tr>
-                    <tr style={{ borderBottom: "1px solid #e8e8e8" }}>
-                      <td style={{ padding: "6px 10px" }}>Alexandre Morel</td>
-                      <td style={{ padding: "6px 10px", textAlign: "center" }}>250</td>
-                      <td style={{ padding: "6px 10px", textAlign: "center" }}>25%</td>
-                      <td style={{ padding: "6px 10px" }}>250 € en numéraire</td>
-                    </tr>
-                    <tr style={{ borderBottom: "1px solid #e8e8e8" }}>
-                      <td style={{ padding: "6px 10px" }}>{(() => { const ctoA = actors.find((a: any) => a.actor_id === (chosenCtoId || "sofia_renault")); return ctoA?.name || "CTO"; })()}</td>
-                      <td style={{ padding: "6px 10px", textAlign: "center" }}>250</td>
-                      <td style={{ padding: "6px 10px", textAlign: "center" }}>25%</td>
-                      <td style={{ padding: "6px 10px" }}>250 € en numéraire</td>
-                    </tr>
-                  </tbody>
-                </table>
-
-                {/* Article 3 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 3 — Rôles et gouvernance</h2>
-                <p><strong>{displayPlayerName || "CEO"}</strong> : Président de la SAS. Responsable de la stratégie commerciale, du business development et des opérations.</p>
-                <p><strong>Alexandre Morel</strong> : Directeur Produit. Responsable de la vision médicale, du lien avec le terrain clinique et de la validation des parcours utilisateurs.</p>
-                <p><strong>{(() => { const ctoA = actors.find((a: any) => a.actor_id === (chosenCtoId || "sofia_renault")); return ctoA?.name || "CTO"; })()}</strong> : Directeur Technique. Responsable de l&apos;architecture logicielle, du développement produit et des choix technologiques.</p>
-
-                {/* Article 4 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 4 — Engagements du CEO</h2>
-                <p>Le CEO s&apos;engage à :</p>
-                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
-                  <li>Exercer ses fonctions à plein temps (5 jours/semaine minimum)</li>
-                  <li>Investir 15 000 € en compte courant d&apos;associé dans les 30 jours suivant l&apos;immatriculation</li>
-                  <li>Ne pas exercer d&apos;autre activité professionnelle rémunérée</li>
-                </ul>
-
-                {/* Article 5 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 5 — Engagements du CPO</h2>
-                <p>Alexandre Morel s&apos;engage à :</p>
-                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
-                  <li>Consacrer un minimum de 2 jours par semaine au projet</li>
-                  <li>Assurer le lien avec le terrain clinique (retours utilisateurs, accès aux blocs, introductions)</li>
-                  <li>Informer la Société de toute évolution de ses engagements professionnels extérieurs</li>
-                </ul>
-
-                {/* Article 6 — THE TRAP: no full-time, no exclusivity (intentionally looks normal) */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 6 — Engagements du CTO</h2>
-                <p>Le CTO s&apos;engage à :</p>
-                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
-                  <li>Assurer la direction technique de la Société</li>
-                  <li>Définir et mettre en œuvre l&apos;architecture logicielle</li>
-                  <li>Recruter et encadrer l&apos;équipe technique le moment venu</li>
-                </ul>
-
-                {/* Article 7 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 7 — Vesting</h2>
-                <p>Les actions de chaque Associé sont soumises à un vesting de 4 ans :</p>
-                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
-                  <li><strong>Cliff</strong> : 12 mois. Aucune action n&apos;est considérée comme acquise avant le premier anniversaire.</li>
-                  <li><strong>Acquisition</strong> : 25% des actions à la fin du cliff, puis acquisition mensuelle linéaire sur les 36 mois suivants.</li>
-                  <li><strong>Point de départ</strong> : date d&apos;immatriculation de la Société.</li>
-                </ul>
-
-                {/* Article 8 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 8 — Clause de leaver</h2>
-                <p><strong>Good leaver</strong> (départ justifié : maladie, accord mutuel, révocation sans faute) :</p>
-                <ul style={{ paddingLeft: 20, margin: "4px 0 8px" }}>
-                  <li>L&apos;Associé sortant conserve ses actions acquises (vestées).</li>
-                  <li>Les actions non acquises sont rachetées par la Société à leur valeur nominale.</li>
-                </ul>
-                <p><strong>Bad leaver</strong> (démission volontaire avant 24 mois, faute grave, activité concurrente) :</p>
-                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
-                  <li>La totalité des actions non acquises est rachetée à leur valeur nominale.</li>
-                  <li>50% des actions acquises est rachetée à leur valeur nominale.</li>
-                </ul>
-
-                {/* Article 9 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 9 — Non-concurrence</h2>
-                <p>Chaque Associé s&apos;interdit, pendant la durée de son association et pendant 24 mois après son départ, d&apos;exercer une activité concurrente dans le domaine de l&apos;optimisation des blocs opératoires et de la planification chirurgicale, en France.</p>
-
-                {/* Article 10 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 10 — Décisions stratégiques</h2>
-                <p>Les décisions suivantes nécessitent une majorité de <strong>75% du capital</strong> :</p>
-                <ul style={{ paddingLeft: 20, margin: "4px 0" }}>
-                  <li>Levée de fonds ou émission de nouvelles actions</li>
-                  <li>Cession d&apos;actifs significatifs (&gt; 5 000 €)</li>
-                  <li>Recrutement d&apos;un nouvel associé</li>
-                  <li>Pivot stratégique du produit</li>
-                  <li>Dissolution de la Société</li>
-                  <li>Révocation d&apos;un Associé de ses fonctions</li>
-                </ul>
-
-                {/* Article 11 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 11 — Droit de préemption</h2>
-                <p>En cas de projet de cession d&apos;actions par un Associé, les autres Associés disposent d&apos;un droit de préemption. L&apos;Associé cédant doit notifier son projet par écrit avec le prix proposé. Les autres disposent de 30 jours pour exercer leur droit.</p>
-
-                {/* Article 12 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 12 — Clause de sortie conjointe (tag-along)</h2>
-                <p>Si un Associé détenant plus de 50% du capital reçoit une offre de rachat, les autres Associés peuvent exiger d&apos;être inclus dans la cession aux mêmes conditions.</p>
-
-                {/* Article 13 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 13 — Résolution des conflits</h2>
-                <p>En cas de désaccord persistant :</p>
-                <ol style={{ paddingLeft: 20, margin: "4px 0" }}>
-                  <li>Médiation par un tiers désigné d&apos;un commun accord (30 jours)</li>
-                  <li>Si échec : arbitrage selon les règles du CMAP (Centre de Médiation et d&apos;Arbitrage de Paris)</li>
-                </ol>
-
-                {/* Article 14 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 14 — Confidentialité</h2>
-                <p>Les Associés s&apos;engagent à ne divulguer aucune information confidentielle relative à la Société, son produit, ses clients et ses données, pendant la durée du pacte et 3 ans après sa cessation.</p>
-
-                {/* Article 15 */}
-                <h2 style={{ fontSize: 15, fontWeight: 700, margin: "20px 0 8px", color: "#1a1a2e" }}>Article 15 — Durée</h2>
-                <p>Le présent pacte prend effet à la date d&apos;immatriculation de la Société et reste en vigueur tant que les signataires sont actionnaires.</p>
-
-                <hr style={{ border: "none", borderTop: "1px solid #d4d4d8", margin: "20px 0" }} />
-                <p style={{ fontSize: 12, color: "#888" }}>Fait en trois exemplaires originaux, à Bordeaux, le {new Date().toLocaleDateString("fr-FR")}.</p>
-                <table style={{ width: "100%", borderCollapse: "collapse", margin: "8px 0", fontSize: 12 }}>
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid #d4d4d8" }}>
-                      <th style={{ padding: "6px 10px", textAlign: "center", width: "33%" }}>{displayPlayerName || "CEO"}</th>
-                      <th style={{ padding: "6px 10px", textAlign: "center", width: "33%" }}>Alexandre Morel</th>
-                      <th style={{ padding: "6px 10px", textAlign: "center", width: "33%" }}>{(() => { const ctoA = actors.find((a: any) => a.actor_id === (chosenCtoId || "sofia_renault")); return ctoA?.name || "CTO"; })()}</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      <td style={{ padding: "6px 10px", textAlign: "center", color: "#888" }}>Signature :</td>
-                      <td style={{ padding: "6px 10px", textAlign: "center", color: "#888" }}>Signature :</td>
-                      <td style={{ padding: "6px 10px", textAlign: "center", color: "#888" }}>Signature :</td>
-                    </tr>
-                  </tbody>
-                </table>
               </div>
-
-              {/* Link to open PDF in new tab (complementary) */}
-              {pactePdfPath && (
-                <div style={{ padding: "6px 24px 8px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0, background: "#fafafa" }}>
-                  <a
-                    href={pactePdfPath.startsWith("/") ? pactePdfPath : `/api/download?file=${encodeURIComponent(pactePdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{
-                      flex: 1, display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                      padding: "6px 14px", borderRadius: 8, fontSize: 11, fontWeight: 600,
-                      background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
-                      border: "1px solid rgba(91,95,199,0.2)",
-                    }}
-                  >
-                    Ouvrir aussi en PDF dans un nouvel onglet
-                  </a>
+            }
+            footerContent={
+              <div style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 12, color: "#888" }}>
+                <p>Fait en trois exemplaires originaux, à Bordeaux, le {new Date().toLocaleDateString("fr-FR")}.</p>
+                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
+                  <span>{displayPlayerName || "CEO"}</span>
+                  <span>Alexandre Morel</span>
+                  <span>{ctoInfo.name}</span>
                 </div>
-              )}
-
-              {/* Negotiation thread — inline comment thread on the pacte */}
-              {!pacteSigned && currentPhaseId === "phase_3_pacte" && (
-                <div style={{
-                  maxHeight: 260, display: "flex", flexDirection: "column",
-                  borderTop: "1px solid #e8e8e8", background: "#fafafa",
-                }}>
-                  {/* Thread header */}
-                  <div style={{ padding: "10px 24px 6px", display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontSize: 14 }}>💬</span>
-                    <span style={{ fontSize: 12, fontWeight: 700, color: "#333" }}>
-                      Négociation{pacteThread.length > 0 ? ` (${pacteThread.length})` : ""}
-                    </span>
-                    <span style={{ fontSize: 11, color: "#888" }}>
-                      — Discutez les clauses avec le CTO ou modifiez le texte ci-dessus
-                    </span>
-                  </div>
-                  {/* Thread messages */}
-                  {pacteThread.length > 0 && (
-                    <div style={{ flex: 1, overflowY: "auto", padding: "4px 24px 8px" }} ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}>
-                      {pacteThread.map((msg, i) => {
-                        const isCto = msg.role === "cto";
-                        const ctoInfo = getActorInfo(chosenCtoId || "sofia_renault");
-                        return (
-                          <div key={i} style={{
-                            display: "flex", gap: 8, marginBottom: 8,
-                            flexDirection: isCto ? "row" : "row-reverse",
-                          }}>
-                            <div style={{
-                              width: 24, height: 24, borderRadius: "50%", flexShrink: 0,
-                              background: isCto ? ctoInfo.color : "#5b5fc7",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: 10, fontWeight: 700, color: "#fff",
-                            }}>
-                              {isCto ? ctoInfo.initials : (displayPlayerName || "CEO").charAt(0).toUpperCase()}
-                            </div>
-                            <div style={{
-                              padding: "6px 12px", borderRadius: 10, fontSize: 12, lineHeight: 1.5,
-                              maxWidth: "75%", wordBreak: "break-word",
-                              background: isCto ? "#fff" : "#5b5fc7",
-                              color: isCto ? "#333" : "#fff",
-                              border: isCto ? "1px solid #e8e8e8" : "none",
-                            }}>
-                              {msg.content}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {pacteThreadLoading && (
-                        <div style={{ fontSize: 11, color: "#888", fontStyle: "italic", padding: "4px 0" }}>
-                          {getActorInfo(chosenCtoId || "sofia_renault").name} est en train de répondre...
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  {/* Input */}
-                  <div style={{ padding: "8px 24px 10px", display: "flex", gap: 8 }}>
-                    <input
-                      type="text"
-                      value={amendmentInput}
-                      onChange={(e) => setAmendmentInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter" && amendmentInput.trim() && !pacteThreadLoading) {
-                          e.preventDefault();
-                          sendPacteNegotiationMessage();
-                        }
-                      }}
-                      placeholder="Commenter une clause, demander une modification..."
-                      disabled={pacteThreadLoading}
-                      style={{
-                        flex: 1, padding: "8px 12px", border: "1px solid #d4d4d8",
-                        borderRadius: 8, fontSize: 12, outline: "none",
-                        opacity: pacteThreadLoading ? 0.6 : 1,
-                      }}
-                    />
-                    <button
-                      onClick={() => {
-                        if (!amendmentInput.trim() || pacteThreadLoading) return;
-                        sendPacteNegotiationMessage();
-                      }}
-                      style={{
-                        padding: "8px 16px", background: amendmentInput.trim() && !pacteThreadLoading ? "#5b5fc7" : "#ccc",
-                        border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700,
-                        cursor: amendmentInput.trim() && !pacteThreadLoading ? "pointer" : "not-allowed",
-                      }}
-                    >
-                      Envoyer
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Signature area — one-click sign + send */}
-              <div style={{
-                padding: "16px 24px", borderTop: "2px solid #ffd700",
-                background: pacteSigned ? "#f0fdf4" : "#fffbeb",
-              }}>
-                {!pacteSigned ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 4 }}>
-                        Signataire : {displayPlayerName || "CEO"} — Président, Orisio SAS
-                      </div>
-                      <div style={{ fontSize: 11, color: "#888" }}>
-                        {pacteEdited && pacteAmendments.length > 0
-                          ? `Document modifié + ${pacteAmendments.length} remarque(s) envoyée(s).`
-                          : pacteEdited
-                          ? "Document modifié directement. Signez pour valider vos changements."
-                          : pacteAmendments.length > 0
-                          ? `${pacteAmendments.length} remarque(s) envoyée(s) au CTO.`
-                          : "Relisez le document, modifiez-le directement si besoin, puis signez et envoyez."}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        // 1. Mark as signed
-                        setPacteSigned(true);
-                        // 2. Set flags
-                        if (session && scenario) {
-                          const next = cloneSession(session);
-                          if (!next.flags.pacte_signed_clean) {
-                            next.flags.pacte_signed_dirty = true;
-                          }
-                          // Check both chat amendments AND direct edits on the pacte
-                          // Broad regex: catch any mention of exclusivity, full-time, competing,
-                          // working elsewhere, other projects, dedication, Article 6 issues, etc.
-                          const exclusivityRegex = /exclusivit|full.?time|temps.?(plein|complet)|article.?6|clause.?6|travail.*ailleurs|autre.*projet|autre.*activit|projet.*ext|activit.*ext|concurren|non.?concur|plein.?temps|consacr.*100|consacr.*total|dedi.*100|d[ée]di.*total|engag.*plein|obligation.*cto|restrict|interdi.*autre|emp[eê]ch|ne.*(pas|peut).*(travaill|exerc|développ)|uniquement.*orisio|100.?%|à temps complet/i;
-                          const hasExclusivityAmendment = pacteAmendments.some((a) =>
-                            exclusivityRegex.test(a)
-                          );
-                          // If the player directly edited the pacte text, they made the effort
-                          // to amend the document — this counts as a clean pacte
-                          const hasDirectEdit = pacteEdited;
-                          if (hasExclusivityAmendment || hasDirectEdit || next.flags.pacte_signed_clean) {
-                            next.flags.pacte_signed_clean = true;
-                            next.flags.pacte_signed_dirty = false;
-                          }
-                          // 3. Auto-fill mail draft and send
-                          const phase = scenario.phases[next.currentPhaseIndex];
-                          const phaseId = phase?.phase_id;
-                          if (phaseId) {
-                            const ctoId = chosenCtoId || "sofia_renault";
-                            const ctoActor = actors.find((a: any) => a.actor_id === ctoId);
-                            const ctoName = ctoActor?.name || "CTO";
-                            const chatRemarks = pacteAmendments.length > 0
-                              ? `\n\nRemarques envoyées :\n${pacteAmendments.map((a, i) => `${i + 1}. ${a}`).join("\n")}`
-                              : "";
-                            const directEditNote = pacteEdited ? "\n\nDes modifications ont été apportées directement sur le texte du pacte." : "";
-                            const amendSummary = chatRemarks + directEditNote;
-                            updateMailDraft(next, phaseId, {
-                              to: ctoName,
-                              cc: "",
-                              subject: "RE: Pacte d'associés — Orisio",
-                              body: `Bonjour,\n\nJ'ai relu et signé le pacte d'associés.${amendSummary}\n\nCordialement,\n${displayPlayerName || "CEO"}`,
-                              attachments: [{ id: "pacte_associes", label: "Pacte d'associés — Orisio SAS" }],
-                            });
-                            // 4. Send the mail
-                            const mailKind = phase?.mail_config?.kind || "pacte_response";
-                            sendCurrentPhaseMail(next, mailKind);
-                            // 5. Advance phase
-                            if (phase?.mail_config?.send_advances_phase) {
-                              completeCurrentPhaseAndAdvance(next);
-                              resolveDynamicActors(next);
-      resolveEstablishmentPlaceholders(next);
-                              injectPhaseEntryEvents(next);
-                              const newPhase = scenario.phases[next.currentPhaseIndex];
-                              if (newPhase?.mail_config?.defaults) {
-                                updateMailDraft(next, newPhase.phase_id, {
-                                  to: "", cc: "",
-                                  subject: newPhase.mail_config.defaults.subject || "",
-                                  body: "", attachments: [],
-                                });
-                              }
-                            }
-                          }
-                          setSession(next);
-                        }
-                        // 6. Close popup
-                        setShowSignatureView(false);
-                        playNotificationSound();
-                      }}
-                      style={{
-                        padding: "12px 32px", flexShrink: 0,
-                        background: "linear-gradient(135deg, #ffd700, #ffb300)",
-                        border: "2px solid #e6a800", borderRadius: 10,
-                        color: "#1a1a2e", fontSize: 15, fontWeight: 800, cursor: "pointer",
-                        boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
-                        transition: "all 0.2s",
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.02)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(255,215,0,0.4)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(255,215,0,0.3)"; }}
-                    >
-                      ✍️ Signer et envoyer
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0" }}>
-                    <span style={{ fontSize: 20 }}>✅</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
-                        Pacte signé et envoyé
-                      </div>
-                      <div style={{ fontSize: 11, color: "#666" }}>
-                        {displayPlayerName || "CEO"} — {new Date().toLocaleDateString("fr-FR")}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowSignatureView(false)}
-                      style={{
-                        marginLeft: "auto", padding: "8px 16px",
-                        background: "#5b5fc7", border: "none", borderRadius: 8,
-                        color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer",
-                      }}
-                    >
-                      Fermer
-                    </button>
-                  </div>
-                )}
               </div>
-            </div>
-          </div>
+            }
+            thread={pacteThread}
+            isLoading={pacteThreadLoading}
+            inputValue={amendmentInput}
+            onInputChange={setAmendmentInput}
+            onSendMessage={sendPacteNegotiationMessage}
+            counterpart={{
+              name: ctoInfo.name,
+              role: "CTO — Orisio SAS",
+              color: ctoInfo.color,
+              initials: ctoInfo.initials,
+            }}
+            playerName={displayPlayerName}
+            loadingText={`${ctoInfo.name} est en train de répondre...`}
+            inputPlaceholder="Commenter une clause, demander une modification..."
+            showNegotiation={!pacteSigned && currentPhaseId === "phase_3_pacte"}
+            isSigned={pacteSigned}
+            onSign={() => {
+              // 1. Mark as signed
+              setPacteSigned(true);
+              // 2. Set flags
+              if (session && scenario) {
+                const next = cloneSession(session);
+                if (!next.flags.pacte_signed_clean) {
+                  next.flags.pacte_signed_dirty = true;
+                }
+                // Check if Article 6 was amended (structured check replaces old regex/contentEditable)
+                const art6Modified = pacteArticles.find(a => a.id === "article_6")?.modifiedContent !== null;
+                const hasExclusivityThread = pacteThread.some(m => m.role === "player" && detectsExclusivity(m.content));
+                if (art6Modified || hasExclusivityThread || next.flags.pacte_signed_clean) {
+                  next.flags.pacte_signed_clean = true;
+                  next.flags.pacte_signed_dirty = false;
+                }
+                // 3. Auto-fill mail draft and send
+                const phase = scenario.phases[next.currentPhaseIndex];
+                const phaseId = phase?.phase_id;
+                if (phaseId) {
+                  const modifiedArticles = pacteArticles.filter(a => a.modifiedContent !== null);
+                  const amendSummary = modifiedArticles.length > 0
+                    ? `\n\nArticles modifiés par négociation :\n${modifiedArticles.map(a => `- ${a.title}`).join("\n")}`
+                    : "";
+                  updateMailDraft(next, phaseId, {
+                    to: ctoInfo.name,
+                    cc: "",
+                    subject: "RE: Pacte d'associés — Orisio",
+                    body: `Bonjour,\n\nJ'ai relu et signé le pacte d'associés.${amendSummary}\n\nCordialement,\n${displayPlayerName || "CEO"}`,
+                    attachments: [{ id: "pacte_associes", label: "Pacte d'associés — Orisio SAS" }],
+                  });
+                  const mailKind = phase?.mail_config?.kind || "pacte_response";
+                  sendCurrentPhaseMail(next, mailKind);
+                  if (phase?.mail_config?.send_advances_phase) {
+                    completeCurrentPhaseAndAdvance(next);
+                    resolveDynamicActors(next);
+                    resolveEstablishmentPlaceholders(next);
+                    injectPhaseEntryEvents(next);
+                    const newPhase = scenario.phases[next.currentPhaseIndex];
+                    if (newPhase?.mail_config?.defaults) {
+                      updateMailDraft(next, newPhase.phase_id, {
+                        to: "", cc: "",
+                        subject: newPhase.mail_config.defaults.subject || "",
+                        body: "", attachments: [],
+                      });
+                    }
+                  }
+                }
+                setSession(next);
+              }
+              setShowSignatureView(false);
+              playNotificationSound();
+            }}
+            signLabel="Signer et envoyer"
+            progressSteps={[
+              { label: "1. Relire le document", active: true },
+              { label: "2. Négocier", active: pacteThread.length > 0 || pacteSigned },
+              { label: "3. Signer", active: pacteSigned },
+              { label: "4. Renvoyer par mail", active: false },
+            ]}
+          />
         );
       })()}
 
@@ -6158,7 +5753,17 @@ ${equityClause}
                           </div>
                         ) : (
                           <button
-                            onClick={() => setShowSignatureView(true)}
+                            onClick={() => {
+                              // Initialize pacte articles if not already done
+                              if (pacteArticles.length === 0) {
+                                const ctoId = chosenCtoId || "sofia_renault";
+                                const ctoActor = actors.find((a: any) => a.actor_id === ctoId);
+                                const ctoName = ctoActor?.name || "CTO";
+                                setPacteArticles(buildPacteArticles(displayPlayerName, ctoName));
+                                setPacteThread([]);
+                              }
+                              setShowSignatureView(true);
+                            }}
                             style={{
                               width: "100%", padding: "14px 24px",
                               background: "linear-gradient(135deg, #ffd700, #ffb300)",
