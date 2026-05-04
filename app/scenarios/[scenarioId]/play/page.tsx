@@ -33,16 +33,26 @@ import {
   type VoiceCaptureErrorCategory,
 } from "@/app/lib/voiceCapture";
 import { useDebrief } from "./hooks/useDebrief";
+import DocumentsView from "./DocumentsView";
+import MailView from "./MailView";
+import DebriefView from "./DebriefView";
+import NotesView from "./NotesView";
+import ChatView from "./ChatView";
 import { usePhaseTimer } from "./hooks/usePhaseTimer";
+import { resolvePhaseHandler, InterviewHandler, ContractHandler, MailHandler } from "./handlers";
 import {
   type ContractClause,
   type ContractThreadMessage,
-  buildPacteArticles,
+  type DealTerms,
   detectsExclusivity,
   detectsAcceptance,
   sendNegotiationMessage,
   applyModifications,
   ContractOverlay,
+  ContractOverlayHost,
+  ClinicalContractOverlay,
+  DEVIS_FEATURES_DATA,
+  parseDealTag,
 } from "./contracts";
 
 // ════════════════════════════════════════════════════════════════════
@@ -304,6 +314,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     bsa: number | null;
     discount: number;
   }>({ interessement: null, bsa: null, discount: 0 });
+  const [prevDealTerms, setPrevDealTerms] = useState<{
+    interessement: { pct: number; cap: number | null; duration: number } | null;
+    bsa: number | null;
+    discount: number;
+  } | null>(null);
   const devisNegoChatRef = useRef<HTMLDivElement>(null);
   // ── Contract signature (scenario 2+) ──
   const [showContractSignature, setShowContractSignature] = useState(false);
@@ -314,6 +329,17 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     equity: string | null;
     rawMailBody: string;
   }>({ price: "", features: [], equity: null, rawMailBody: "" });
+  const [novadevArticles, setNovadevArticles] = useState<ContractClause[]>([]);
+  const [novadevThread, setNovadevThread] = useState<ContractThreadMessage[]>([]);
+  const [novadevThreadLoading, setNovadevThreadLoading] = useState(false);
+  const [novadevNegInput, setNovadevNegInput] = useState("");
+  // ── Bon de commande exceptions (scenario 5) ──
+  const [showExceptionsOverlay, setShowExceptionsOverlay] = useState(false);
+  const [exceptionsArticles, setExceptionsArticles] = useState<ContractClause[]>([]);
+  const [exceptionsThread, setExceptionsThread] = useState<ContractThreadMessage[]>([]);
+  const [exceptionsThreadLoading, setExceptionsThreadLoading] = useState(false);
+  const [exceptionsNegInput, setExceptionsNegInput] = useState("");
+  const [exceptionsSigned, setExceptionsSigned] = useState(false);
   // ── Clinical contract signature (scenario 3) ──
   const [showClinicalContract, setShowClinicalContract] = useState(false);
   const [clinicalContractSigned, setClinicalContractSigned] = useState(false);
@@ -529,51 +555,18 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   }
 
   // ── Manual interview start: inject only the intro (delay_ms=0) events ──
+  // Delegates to InterviewHandler — zero logic change.
   function injectIntroEventsOnly(sess: any) {
-    const phase = sess.scenario?.phases?.[sess.currentPhaseIndex];
-    if (!phase?.entry_events) return;
-    const phId = phase.phase_id || `phase_${sess.currentPhaseIndex}`;
-    for (const ev of phase.entry_events) {
-      const evKey = `${phId}__${ev.event_id}`;
-      if (sess.injectedPhaseEntryEvents.includes(evKey)) continue;
-      if (ev.delay_ms === 0) {
-        // Inject immediately (Alexandre's transition message)
-        sess.injectedPhaseEntryEvents.push(evKey);
-        addAIMessage(sess, ev.content, ev.actor);
-        if (ev.attachments) {
-          const lastMsg = sess.chatMessages[sess.chatMessages.length - 1];
-          if (lastMsg) lastMsg.attachments = ev.attachments;
-        }
-      }
-      // Skip non-zero delay events — they'll be injected when player clicks "Faire entrer"
-    }
+    InterviewHandler.injectIntroEventsOnly(sess, addAIMessage);
   }
 
   // ── Handle "Faire entrer le candidat" click ──
+  // Delegates to InterviewHandler — zero logic change.
   function handleStartInterview() {
     if (!session || !scenario) return;
     setInterviewStarted(true);
-    phaseStartRealTimeRef.current = Date.now(); // Reset timer on actual interview start
-    const next = cloneSession(session);
-    // Inject the remaining entry events (candidate hello, etc.)
-    const phase = scenario.phases[next.currentPhaseIndex];
-    if (phase?.entry_events) {
-      const phId = phase.phase_id || `phase_${next.currentPhaseIndex}`;
-      for (const ev of phase.entry_events) {
-        const evKey = `${phId}__${ev.event_id}`;
-        if (next.injectedPhaseEntryEvents.includes(evKey)) continue;
-        // Schedule as timed event
-        next.injectedPhaseEntryEvents.push(evKey);
-        next.pendingTimedEvents.push({
-          fireAt: new Date(Date.now() + (ev.delay_ms || 0)).toISOString(),
-          actor: ev.actor,
-          content: ev.content,
-          channel: ev.channel || "chat",
-          eventId: ev.event_id,
-          attachments: ev.attachments,
-        });
-      }
-    }
+    phaseStartRealTimeRef.current = Date.now();
+    const next = InterviewHandler.startInterview(session, scenario, cloneSession);
     setSession(next);
   }
 
@@ -1029,8 +1022,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
         // ── Inject entry_events for the active phase (critical for phase 0!) ──
         const activePhaseData = data.phases[s.currentPhaseIndex || 0];
-        if ((activePhaseData as any)?.manual_start) {
-          // For manual_start phases, only inject intro events (delay_ms=0)
+        if (InterviewHandler.matches(activePhaseData)) {
+          // Interview phase: only inject intro events (delay_ms=0)
           injectIntroEventsOnly(s);
           setInterviewStarted(false);
         } else {
@@ -2031,14 +2024,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         return true;
       })();
 
-      // ── Set flags based on mail kind ──
-      // Phase 1 scope_proposal: player has aligned with Alexandre on scope
+      // ── Detect scope_proposal for auto-reply (flags now set via on_send_flags in scenario.json) ──
       wasPhase1ScopeProposal = mailKind === "scope_proposal";
       phase1MailBody = wasPhase1ScopeProposal ? (currentMailDraft?.body || "") : "";
-      if (wasPhase1ScopeProposal) {
-        next.flags.scope_reduced = true;
-        next.flags.alexandre_convinced = true;
-      }
 
       // ── Scénario 3 Phase 1: extract establishment choice from confirmation mail ──
       if (mailKind === "choice_confirmation") {
@@ -2253,42 +2241,34 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
     }
 
     // ── Auto-reply from Thomas when Phase 1 mail advances to Phase 2 ──
-    // The player sent the scope proposal mail to Thomas from Phase 1.
-    // Now we're in Phase 2 — Thomas should respond in chat.
-    if (wasPhase1ScopeProposal && phase1MailBody) {
+    // Delegated to MailHandler — builds API payload, page.tsx executes the effect.
+    if (wasPhase1ScopeProposal && phase1MailBody && MailHandler.shouldAutoReply(mailKind)) {
+      const nextView = buildRuntimeView(next);
+      const activePrompt = aiPromptsMapRef.current["thomas_novadev"] || aiPromptRef.current;
+      const effect = MailHandler.buildAutoReplyEffect({
+        playerName: displayPlayerName,
+        mailBody: phase1MailBody,
+        narrative: scenario.narrative,
+        runtimeView: nextView,
+        roleplayPrompt: activePrompt,
+      });
       setSession(next);
       setShowCompose(false);
       setMainView("chat");
-      setSelectedContact("thomas_novadev");
+      setSelectedContact(effect.actorId);
       (async () => {
         try {
-          const nextView = buildRuntimeView(next);
-          const activePrompt = aiPromptsMapRef.current["thomas_novadev"] || aiPromptRef.current;
-          const mailSummary = `[Le joueur a envoyé un mail de proposition de scope MVP avec le contenu suivant : ${phase1MailBody}]`;
           const res = await fetch("/api/chat", {
             method: "POST",
             headers: apiHeaders(),
-            body: JSON.stringify({
-              playerName: displayPlayerName,
-              message: mailSummary,
-              phaseTitle: nextView.phaseTitle,
-              phaseObjective: nextView.phaseObjective,
-              phaseFocus: nextView.phaseFocus,
-              phasePrompt: nextView.phasePrompt,
-              criteria: nextView.criteria,
-              mode: nextView.adaptiveMode,
-              narrative: scenario.narrative,
-              recentConversation: [],
-              playerMessages: [phase1MailBody],
-              roleplayPrompt: activePrompt,
-            }),
+            body: JSON.stringify(effect.apiPayload),
           });
           if (res.ok) {
             const data = await res.json();
             playNotificationSound();
             const final2 = cloneSession(next);
-            addPlayerMessage(final2, `[Mail envoyé à NovaDev] ${phase1MailBody.substring(0, 200)}...`, "thomas_novadev");
-            addAIMessage(final2, data.reply, "thomas_novadev");
+            addPlayerMessage(final2, effect.playerMessageSummary, effect.actorId);
+            addAIMessage(final2, data.reply, effect.actorId);
             applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
             setSession(final2);
           }
@@ -2526,6 +2506,120 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
     setSession(next);
   }
 
+  // ── Mail UI callbacks (used by MailView) ──
+  function handleNewCompose() {
+    if (session && scenario) {
+      const phase = scenario.phases[session.currentPhaseIndex];
+      const phaseId = phase?.phase_id || view?.phaseId;
+      const defaults = (phase?.mail_config?.defaults || {}) as Record<string, any>;
+      const next = cloneSession(session);
+      const cur = next.mailDrafts[phaseId];
+      if (cur && cur.to && cur.body) {
+        if (!next.savedDrafts) next.savedDrafts = {};
+        next.savedDrafts[`${phaseId}::${cur.to.trim().toLowerCase()}`] = { ...cur };
+      }
+      updateMailDraft(next, phaseId, {
+        to: defaults.to || "",
+        cc: defaults.cc || "",
+        subject: defaults.subject || "",
+        body: "",
+        attachments: [],
+      });
+      setSession(next);
+    }
+    setShowCompose(true);
+    setSelectedMailId(null);
+  }
+
+  function handleReplyAll(mail: any) {
+    if (!mail || !scenario || !session) return;
+    const senderEmail = (() => {
+      const a = actors.find((x: any) => x.actor_id === mail.from);
+      return (a as any)?.email || getActorInfo(mail.from).name;
+    })();
+    const ccParts: string[] = [];
+    if (mail.cc) ccParts.push(mail.cc);
+    const currentPhase = scenario.phases[session.currentPhaseIndex];
+    const defaultCc = currentPhase?.mail_config?.defaults?.cc || "";
+    if (defaultCc && !ccParts.includes(defaultCc)) ccParts.push(defaultCc);
+    const reSubject = mail.subject.startsWith("Re:") ? mail.subject : `Re: ${mail.subject}`;
+    updateDraft({ to: senderEmail, cc: ccParts.join(", "), subject: reSubject });
+    setShowCompose(true);
+  }
+
+  function handleOpenPacteSign() {
+    if (pacteArticles.length === 0) {
+      const ctoId = chosenCtoId || "sofia_renault";
+      const ctoActor = actors.find((a: any) => a.actor_id === ctoId);
+      const ctoName = ctoActor?.name || "CTO";
+      setPacteArticles(ContractHandler.buildArticles("s0_pacte", { playerName: displayPlayerName, ctoName }));
+      setPacteThread([]);
+    }
+    setShowSignatureView(true);
+  }
+
+  function handleOpenContractSign() {
+    if (novadevArticles.length === 0) {
+      setNovadevArticles(ContractHandler.buildArticles("s2_novadev", {
+        playerName: displayPlayerName,
+        novadevVars: { price: contractVars.price, features: contractVars.features, equity: contractVars.equity, playerName: displayPlayerName },
+      }));
+    }
+    setShowContractSignature(true);
+  }
+
+  function handleOpenClinicalSign() {
+    const type = session?.flags?.chose_chu ? "chu" as const : session?.flags?.chose_saint_martin ? "sm" as const : "clinique" as const;
+    setClinicalContractArticles(buildClinicalArticles(type));
+    setClinicalNegThread([]); setClinicalContractRefused(false); setShowClinicalContract(true);
+  }
+
+  function handleOpenDevisSign() {
+    setDevisNegoMessages([]);
+    setShowDevisNego(true);
+  }
+
+  function handleOpenExceptionsSign() {
+    if (exceptionsArticles.length === 0) {
+      setExceptionsArticles(ContractHandler.buildArticles("s5_exceptions", { playerName: displayPlayerName, establishmentLabel: "l'établissement" }));
+    }
+    setShowExceptionsOverlay(true);
+  }
+
+  function handleInsertOutlineNotes() {
+    const text = outlineToText(outlineItems);
+    if (!text) return;
+    const body = currentMailDraft.body;
+    const newBody = body ? body + "\n\n--- Mes notes d'analyse ---\n" + text : text;
+    updateDraft({ body: newBody });
+  }
+
+  function handleNotesCopy() {
+    const text = outlineToText(outlineItems);
+    if (!text) return;
+    navigator.clipboard.writeText(text);
+    setOutlineCopiedFeedback("Copié !");
+    setTimeout(() => setOutlineCopiedFeedback(""), 1500);
+  }
+
+  function handleNotesInsertInMail() {
+    const text = outlineToText(outlineItems);
+    if (!text) return;
+    const body = currentMailDraft.body;
+    const newBody = body ? body + "\n\n--- Mes notes d'analyse ---\n" + text : text;
+    updateDraft({ body: newBody });
+    setMainView("mail");
+    setShowCompose(true);
+    setOutlineCopiedFeedback("Inséré dans le mail !");
+    setTimeout(() => setOutlineCopiedFeedback(""), 2000);
+  }
+
+  function handleInsertNotesInChat() {
+    const text = outlineToText(outlineItems);
+    setPlayerInput((prev) => prev ? prev + "\n" + text : text);
+    inputRef.current?.focus();
+  }
+
   // ════════════════════════════════════════════════════════════════════
   // RENDER HELPERS
   // ════════════════════════════════════════════════════════════════════
@@ -2559,13 +2653,14 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
     }
     // Get CTO response via module
     setPacteThreadLoading(true);
+    const negConfig = ContractHandler.getNegotiationConfig("s0_pacte");
     try {
       const ctoId = chosenCtoId || "sofia_renault";
       const activePrompt = aiPromptsMapRef.current[ctoId] || aiPromptRef.current;
       const result = await sendNegotiationMessage(text, pacteArticles, pacteThread, {
         roleplayPrompt: activePrompt,
-        phaseTitle: "Négociation du pacte d'associés",
-        phaseFocus: "Discussion sur une clause du pacte d'associés. Le CEO fait un commentaire ou demande une modification. Réponds de manière directe et naturelle.",
+        phaseTitle: negConfig.phaseTitle,
+        phaseFocus: negConfig.phaseFocus,
         narrative: scenario?.narrative || {},
         playerName: displayPlayerName,
         apiHeaders,
@@ -2582,9 +2677,168 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
         }
       }
     } catch {
-      setPacteThread((prev) => [...prev, { role: "counterpart", content: "Je vais vérifier avec mon avocat et te reviens." }]);
+      setPacteThread((prev) => [...prev, { role: "counterpart", content: negConfig.fallbackError }]);
     }
     setPacteThreadLoading(false);
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // NOVADEV NEGOTIATION — send message to Thomas Vidal via contracts module
+  // ════════════════════════════════════════════════════════════════════
+  async function sendNovadevNegotiationMessage() {
+    const text = novadevNegInput.trim();
+    if (!text || novadevThreadLoading || !session || !scenario) return;
+    setNovadevNegInput("");
+    setNovadevThread((prev) => [...prev, { role: "player", content: text }]);
+    setNovadevThreadLoading(true);
+    const negConfig = ContractHandler.getNegotiationConfig("s2_novadev");
+    try {
+      const activePrompt = aiPromptsMapRef.current[negConfig.actorId] || aiPromptRef.current;
+      const result = await sendNegotiationMessage(text, novadevArticles, novadevThread, {
+        roleplayPrompt: activePrompt,
+        phaseTitle: negConfig.phaseTitle,
+        phaseFocus: negConfig.phaseFocus,
+        narrative: scenario?.narrative || {},
+        playerName: displayPlayerName,
+        apiHeaders,
+      });
+      if (result.modifications.length > 0) {
+        setNovadevArticles((prev) => applyModifications(prev, result.modifications));
+      }
+      setNovadevThread((prev) => [...prev, { role: "counterpart", content: result.displayReply }]);
+    } catch {
+      setNovadevThread((prev) => [...prev, { role: "counterpart", content: negConfig.fallbackError }]);
+    }
+    setNovadevThreadLoading(false);
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // EXCEPTIONS NEGOTIATION — send message to Me Vasseur via contracts module (S5)
+  // ════════════════════════════════════════════════════════════════════
+  async function sendExceptionsNegotiationMessage() {
+    const text = exceptionsNegInput.trim();
+    if (!text || exceptionsThreadLoading || !session || !scenario) return;
+    setExceptionsNegInput("");
+    setExceptionsThread((prev) => [...prev, { role: "player", content: text }]);
+    setExceptionsThreadLoading(true);
+    const negConfig = ContractHandler.getNegotiationConfig("s5_exceptions");
+    try {
+      const activePrompt = aiPromptsMapRef.current[negConfig.actorId] || aiPromptRef.current;
+      const result = await sendNegotiationMessage(text, exceptionsArticles, exceptionsThread, {
+        roleplayPrompt: activePrompt,
+        phaseTitle: negConfig.phaseTitle,
+        phaseFocus: negConfig.phaseFocus,
+        narrative: scenario?.narrative || {},
+        playerName: displayPlayerName,
+        apiHeaders,
+      });
+      if (result.modifications.length > 0) {
+        setExceptionsArticles((prev) => applyModifications(prev, result.modifications));
+      }
+      setExceptionsThread((prev) => [...prev, { role: "counterpart", content: result.displayReply }]);
+      // Track negotiation in session messages
+      if (session) {
+        const next = cloneSession(session);
+        addPlayerMessage(next, `[Négo contrat] ${text}`, negConfig.actorId);
+        addAIMessage(next, result.displayReply, negConfig.actorId);
+        setSession(next);
+      }
+    } catch {
+      setExceptionsThread((prev) => [...prev, { role: "counterpart", content: negConfig.fallbackError }]);
+    }
+    setExceptionsThreadLoading(false);
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // DEVIS SIGN — sign the devis and store deal terms (S4)
+  // ════════════════════════════════════════════════════════════════════
+  function handleDevisSign() {
+    if (!ContractHandler.canSign("s4_devis", devisNegoMessages.length)) return;
+    setShowDevisNego(false);
+    if (session && scenario) {
+      const next = cloneSession(session);
+      const signResult = ContractHandler.computeSign("s4_devis", {
+        playerName: displayPlayerName,
+        features: devisFeatures,
+        dealTerms,
+      });
+      Object.assign(next.flags, signResult.flags);
+      if (signResult.shouldFinishScenario) finishScenario(next);
+      setSession(next);
+    }
+    playNotificationSound();
+    setDevisSigned(true);
+  }
+
+  // ════════════════════════════════════════════════════════════════════
+  // DEVIS NEGOTIATION — send message to Thomas Vidal (S4)
+  // ════════════════════════════════════════════════════════════════════
+  async function sendDevisNegoMsg() {
+    if (!devisNegoInput.trim() || devisNegoLoading || !session || !scenario) return;
+    const userMsg = devisNegoInput.trim();
+    setDevisNegoInput("");
+    setDevisNegoMessages((prev) => [...prev, { role: "player", content: userMsg }]);
+    setDevisNegoLoading(true);
+    // Lock checkboxes on first message
+    if (!devisLocked) setDevisLocked(true);
+    setTimeout(() => devisNegoChatRef.current?.scrollTo(0, 99999), 50);
+
+    // Compute scope context from current feature selection
+    const totalPrice = DEVIS_FEATURES_DATA.reduce((sum, feat) =>
+      devisFeatures[feat.key] ? sum + feat.price : sum, 0
+    );
+    const selectedFeatures = DEVIS_FEATURES_DATA.filter(f => devisFeatures[f.key]).map(f => f.label).join(", ");
+    const tierLabel = totalPrice <= 3000 ? "TRANCHE 1 (petit scope)" : totalPrice <= 8000 ? "TRANCHE 2 (scope moyen)" : totalPrice <= 15000 ? "TRANCHE 3 (gros scope)" : "TRANCHE 4 (scope maximal)";
+    const scopeContext = `[Scope actuel : ${selectedFeatures || "Aucun module sélectionné"}. Montant total : ${totalPrice}€. ${tierLabel}]`;
+
+    try {
+      const activePrompt = aiPromptsMapRef.current["thomas_vidal"] || aiPromptRef.current;
+      const recentConv = devisNegoMessages.slice(-10).map((m) => ({
+        role: m.role === "player" ? "user" as const : "assistant" as const,
+        content: m.content,
+      }));
+      const res = await fetch("/api/chat", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          playerName: displayPlayerName,
+          message: `${scopeContext}\n\n${userMsg}`,
+          phaseTitle: view?.phaseTitle || "Négociation NovaDev",
+          phaseObjective: view?.phaseObjective || "",
+          phaseFocus: view?.phaseFocus || "",
+          phasePrompt: view?.phasePrompt || "",
+          criteria: view?.criteria || [],
+          mode: view?.adaptiveMode || "standard",
+          narrative: scenario.narrative,
+          recentConversation: recentConv,
+          playerMessages: devisNegoMessages.filter((m) => m.role === "player").map((m) => m.content).concat([userMsg]),
+          roleplayPrompt: activePrompt,
+          devisScope: selectedFeatures,
+          devisTotal: totalPrice,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const { clean, parsed } = parseDealTag(data.reply, totalPrice);
+        if (parsed) {
+          setPrevDealTerms(dealTerms);
+          setDealTerms(parsed);
+        }
+        setDevisNegoMessages((prev) => [...prev, { role: "npc", content: clean }]);
+        if (session) {
+          const next = cloneSession(session);
+          addPlayerMessage(next, `[Négo devis] ${userMsg}`, "thomas_vidal");
+          addAIMessage(next, clean, "thomas_vidal");
+          applyEvaluation(next, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+          setSession(next);
+        }
+      }
+    } catch (err) {
+      console.error("Devis negotiation error:", err);
+    } finally {
+      setDevisNegoLoading(false);
+      setTimeout(() => devisNegoChatRef.current?.scrollTo(0, 99999), 100);
+    }
   }
 
   // ── Clinical contract: build articles per establishment ──
@@ -2706,6 +2960,37 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
     setClinicalNegLoading(false);
   }
 
+  // ── Clinical contract sign / refuse handlers ──
+  function handleClinicalSign() {
+    setClinicalContractSigned(true);
+    if (session && scenario) {
+      const isCHU = !!session.flags?.chose_chu;
+      const next = cloneSession(session);
+      if (isCHU) {
+        const art5Modified = clinicalContractArticles.find(a => a.id === "article_5")?.modifiedContent !== null;
+        const art6Modified = clinicalContractArticles.find(a => a.id === "article_6")?.modifiedContent !== null;
+        if (art5Modified && art6Modified) {
+          next.flags.contrat_signed_clean = true;
+        } else {
+          next.flags.contrat_signed_toxic = true;
+        }
+      } else {
+        next.flags.contrat_signed_clean = true;
+      }
+      next.flags.contrat_received = true;
+      finishScenario(next);
+      setSession(next);
+    }
+    setShowClinicalContract(false);
+    playNotificationSound();
+  }
+
+  function handleClinicalRefused() {
+    setShowClinicalContract(false);
+    setMainView("chat");
+    setSelectedContact("alexandre_morel");
+  }
+
   // ════════════════════════════════════════════════════════════════════
   // LOADING / ERROR
   // ════════════════════════════════════════════════════════════════════
@@ -2812,139 +3097,19 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
     // CLASSIC DEBRIEF (non-Founder scenarios)
     // ══════════════════════════════════════════════════════════════
     if (debriefData) {
-      // ── Rating badge helper ──
-      const ratingConfig: Record<string, { label: string; color: string; bg: string; icon: string }> = {
-        maitrise: { label: "Maîtrisé", color: "#1a7f37", bg: "#dcfce7", icon: "★" },
-        acquis: { label: "Acquis", color: "#2563eb", bg: "#dbeafe", icon: "●" },
-        en_cours: { label: "En cours", color: "#b45309", bg: "#fef3c7", icon: "◐" },
-        non_acquis: { label: "Non acquis", color: "#991b1b", bg: "#fee2e2", icon: "○" },
-      };
-      const aiEnding = debriefData?.ending || "failure";
-      const endingColor = aiEnding === "success" ? "#16a34a" : aiEnding === "partial_success" ? "#d97706" : "#dc2626";
-      const endingEmoji = aiEnding === "success" ? "🎉" : aiEnding === "partial_success" ? "⚠️" : "💡";
-      const endingLabel = aiEnding === "success" ? "Succès" : aiEnding === "partial_success" ? "Succès partiel" : "Échec";
-      const avgScore = debriefData.phases?.length > 0
-        ? Math.round(debriefData.phases.reduce((s: number, p: any) => s + (p.phase_score || 0), 0) / debriefData.phases.length)
-        : 0;
-
       return (
-        <div style={{ minHeight: "100vh", background: "#f3f2f1", fontFamily: "'Segoe UI', system-ui, sans-serif", overflowY: "auto" }}>
-          {/* Header banner */}
-          <div style={{ background: endingColor, padding: "36px 24px", textAlign: "center", color: "#fff" }}>
-            <div style={{ fontSize: 44, marginBottom: 8 }}>{endingEmoji}</div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, margin: "0 0 8px" }}>{endingLabel}</h1>
-            <p style={{ fontSize: 15, opacity: 0.92, maxWidth: 650, margin: "0 auto", lineHeight: 1.6 }}>
-              {debriefData.ending_narrative || debriefData.overall_summary}
-            </p>
-          </div>
-
-          <div style={{ maxWidth: 820, margin: "0 auto", padding: "28px 20px" }}>
-
-            {/* Global summary */}
-            {debriefData.overall_summary && (
-              <div style={{ background: "#fff", borderRadius: 12, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,.05)", marginBottom: 20 }}>
-                <h2 style={{ fontSize: 16, fontWeight: 700, color: "#333", margin: "0 0 10px" }}>Résumé global</h2>
-                <p style={{ margin: 0, fontSize: 14, color: "#444", lineHeight: 1.7 }}>{debriefData.overall_summary}</p>
-              </div>
-            )}
-
-            {/* Per-phase AI analysis */}
-            {debriefData.phases?.map((phase: any, idx: number) => {
-              return (
-                <div key={idx} style={{ background: "#fff", borderRadius: 12, padding: 24, boxShadow: "0 2px 12px rgba(0,0,0,.05)", marginBottom: 16 }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: "#333" }}>
-                      Phase {idx + 1} — {phase.phase_title}
-                    </h3>
-                  </div>
-                  {phase.phase_summary && (
-                    <p style={{ margin: "0 0 14px", fontSize: 13, color: "#555", lineHeight: 1.6, fontStyle: "italic" }}>{phase.phase_summary}</p>
-                  )}
-                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                    {phase.competencies?.map((comp: any, ci: number) => {
-                      const cfg = ratingConfig[comp.rating] || ratingConfig.non_acquis;
-                      return (
-                        <div key={ci} style={{ padding: "10px 14px", background: "#fafafa", borderRadius: 8, borderLeft: `3px solid ${cfg.color}` }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{comp.name}</span>
-                            <span style={{ fontSize: 11, fontWeight: 700, color: cfg.color, background: cfg.bg, padding: "2px 10px", borderRadius: 12 }}>
-                              {cfg.icon} {cfg.label}
-                            </span>
-                          </div>
-                          <p style={{ margin: 0, fontSize: 12, color: "#666", lineHeight: 1.5 }}>{comp.justification}</p>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              );
-            })}
-
-            {/* Strengths & Improvements side by side */}
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 20 }}>
-              {debriefData.strengths?.length > 0 && (
-                <div style={{ background: "#f0fdf4", borderRadius: 12, padding: 20, border: "1px solid #bbf7d0" }}>
-                  <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "#16a34a" }}>Points forts</h3>
-                  {debriefData.strengths.map((s: string, i: number) => (
-                    <p key={i} style={{ margin: "0 0 6px", fontSize: 13, color: "#333", lineHeight: 1.5 }}>• {s}</p>
-                  ))}
-                </div>
-              )}
-              {debriefData.improvements?.length > 0 && (
-                <div style={{ background: "#fffbeb", borderRadius: 12, padding: 20, border: "1px solid #fde68a" }}>
-                  <h3 style={{ margin: "0 0 10px", fontSize: 14, fontWeight: 700, color: "#b45309" }}>Axes d'amélioration</h3>
-                  {debriefData.improvements.map((s: string, i: number) => (
-                    <p key={i} style={{ margin: "0 0 6px", fontSize: 13, color: "#333", lineHeight: 1.5 }}>• {s}</p>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Pedagogical advice */}
-            {debriefData.pedagogical_advice && (
-              <div style={{ background: "#f0f0ff", borderRadius: 12, padding: 20, border: "1px solid #c7d2fe", marginBottom: 24 }}>
-                <h3 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "#5b5fc7" }}>Conseil pédagogique</h3>
-                <p style={{ margin: 0, fontSize: 13, color: "#444", lineHeight: 1.6 }}>{debriefData.pedagogical_advice}</p>
-              </div>
-            )}
-
-            {/* Actions */}
-            <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap", paddingBottom: 40 }}>
-              {isFounderScenario ? (
-                <button
-                  onClick={() => {
-                    const cid = typeof window !== "undefined" ? localStorage.getItem("founder_campaign_id") : null;
-                    router.push(cid ? `/founder/${cid}` : "/founder/intro");
-                  }}
-                  style={{ padding: "12px 28px", background: "#16a34a", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14, boxShadow: "0 2px 8px rgba(22,163,74,.3)" }}
-                >
-                  Continuer la campagne
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={() => router.push(`/scenarios/${scenarioId}`)}
-                    style={{ padding: "12px 28px", background: "#5b5fc7", color: "#fff", border: "none", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14, boxShadow: "0 2px 8px rgba(91,95,199,.3)" }}
-                  >
-                    Rejouer le scénario
-                  </button>
-                  <button
-                    onClick={() => router.push("/history")}
-                    style={{ padding: "12px 28px", background: "#fff", color: "#5b5fc7", border: "1px solid #5b5fc7", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14 }}
-                  >
-                    Historique
-                  </button>
-                </>
-              )}
-              <button
-                onClick={() => router.push("/")}
-                style={{ padding: "12px 28px", background: "#fff", color: "#666", border: "1px solid #ddd", borderRadius: 8, cursor: "pointer", fontWeight: 600, fontSize: 14 }}
-              >
-                Retour à l'accueil
-              </button>
-            </div>
-          </div>
-        </div>
+        <DebriefView
+          debriefData={debriefData}
+          isFounderScenario={isFounderScenario}
+          scenarioId={scenarioId}
+          onReplay={() => router.push(`/scenarios/${scenarioId}`)}
+          onHistory={() => router.push("/history")}
+          onHome={() => router.push("/")}
+          onContinueCampaign={() => {
+            const cid = typeof window !== "undefined" ? localStorage.getItem("founder_campaign_id") : null;
+            router.push(cid ? `/founder/${cid}` : "/founder/intro");
+          }}
+        />
       );
     }
 
@@ -2962,6 +3127,33 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
   const selectedDoc = allDocuments.find((d: any) => d.doc_id === selectedDocId);
   const phases = scenario.phases || [];
   const currentPhaseIndex = session.currentPhaseIndex;
+
+  // ── Handler resolution + pre-computed values for ChatView ──
+  const activeHandler = resolvePhaseHandler(currentPhaseConfig);
+  const chatIsManualStart = InterviewHandler.isGateActive(currentPhaseConfig, interviewStarted);
+  const chatCandidateFirstName = InterviewHandler.getCandidateFirstName(currentPhaseConfig, actors);
+  const chatContactAvailable = (() => {
+    if (!selectedContact) return true;
+    const contactActor = actors.find((a: any) => a.actor_id === selectedContact);
+    const contactResolvedId = resolveActor(selectedContact);
+    const contactInPhase = currentPhaseAiActors.includes(contactResolvedId);
+    const contactBusyAfter = (contactActor as any)?.busy_after_phase;
+    const contactIsBusy = contactBusyAfter && session && (() => {
+      const idx = scenario?.phases?.findIndex((p: any) => p.phase_id === contactBusyAfter);
+      return idx !== undefined && idx >= 0 && session.currentPhaseIndex > idx;
+    })();
+    return contactInPhase && !contactIsBusy;
+  })();
+  const chatContactBusyMessage = (() => {
+    if (!selectedContact) return "";
+    const contactActor = actors.find((a: any) => a.actor_id === selectedContact);
+    const contactBusyAfter = (contactActor as any)?.busy_after_phase;
+    const isBusyAfterPhase = contactBusyAfter && session && (() => {
+      const idx = scenario?.phases?.findIndex((p: any) => p.phase_id === contactBusyAfter);
+      return idx !== undefined && idx >= 0 && session.currentPhaseIndex > idx;
+    })();
+    return isBusyAfterPhase ? ((contactActor as any).busy_message || "Occupé") : ((contactActor as any)?.busy_message || "Ce contact n'est pas disponible pour le moment.");
+  })();
 
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#f3f2f1", overflow: "hidden" }}>
@@ -3182,1100 +3374,189 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
           </div>
         </div>
       )}
-      {/* ── Pacte d'associés overlay (S0) — powered by contracts module ── */}
-      {showSignatureView && (() => {
-        const ctoId = chosenCtoId || "sofia_renault";
-        const ctoInfo = getActorInfo(ctoId);
-        return (
-          <ContractOverlay
-            visible={showSignatureView}
-            onClose={() => setShowSignatureView(false)}
-            title="Signature électronique — Pacte d'associés"
-            subtitle={`Orisio SAS · ${new Date().toLocaleDateString("fr-FR")}`}
-            clauses={pacteArticles}
-            headerContent={
-              <div style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 13, lineHeight: 1.7, color: "#1a1a2e" }}>
-                <p style={{ fontWeight: 600 }}>Entre :</p>
-                <ol style={{ paddingLeft: 20, margin: "4px 0 12px" }}>
-                  <li><strong>{displayPlayerName || "CEO"}</strong> ({"«"} CEO {"»"})</li>
-                  <li><strong>Alexandre Morel</strong> ({"«"} CPO {"»"}), né le 14 mars 1986, demeurant 45 rue Judaïque, 33000 Bordeaux</li>
-                  <li><strong>{ctoInfo.name}</strong> ({"«"} CTO {"»"})</li>
-                </ol>
-                <p>Ci-après dénommés ensemble {"«"} les Associés {"»"}.</p>
-                <p><strong>Société :</strong> Orisio SAS, en cours d&apos;immatriculation, siège social à Bordeaux.</p>
-                <hr style={{ border: "none", borderTop: "1px solid #e8e8e8", margin: "16px 0" }} />
-              </div>
-            }
-            footerContent={
-              <div style={{ fontFamily: "Georgia, 'Times New Roman', serif", fontSize: 12, color: "#888" }}>
-                <p>Fait en trois exemplaires originaux, à Bordeaux, le {new Date().toLocaleDateString("fr-FR")}.</p>
-                <div style={{ display: "flex", justifyContent: "space-between", marginTop: 8 }}>
-                  <span>{displayPlayerName || "CEO"}</span>
-                  <span>Alexandre Morel</span>
-                  <span>{ctoInfo.name}</span>
-                </div>
-              </div>
-            }
-            thread={pacteThread}
-            isLoading={pacteThreadLoading}
-            inputValue={amendmentInput}
-            onInputChange={setAmendmentInput}
-            onSendMessage={sendPacteNegotiationMessage}
-            counterpart={{
-              name: ctoInfo.name,
-              role: "CTO — Orisio SAS",
-              color: ctoInfo.color,
-              initials: ctoInfo.initials,
-            }}
-            playerName={displayPlayerName}
-            loadingText={`${ctoInfo.name} est en train de répondre...`}
-            inputPlaceholder="Commenter une clause, demander une modification..."
-            showNegotiation={!pacteSigned && currentPhaseId === "phase_3_pacte"}
-            isSigned={pacteSigned}
-            onSign={() => {
-              // 1. Mark as signed
-              setPacteSigned(true);
-              // 2. Set flags
-              if (session && scenario) {
-                const next = cloneSession(session);
-                if (!next.flags.pacte_signed_clean) {
-                  next.flags.pacte_signed_dirty = true;
-                }
-                // Check if Article 6 was amended (structured check replaces old regex/contentEditable)
-                const art6Modified = pacteArticles.find(a => a.id === "article_6")?.modifiedContent !== null;
-                const hasExclusivityThread = pacteThread.some(m => m.role === "player" && detectsExclusivity(m.content));
-                if (art6Modified || hasExclusivityThread || next.flags.pacte_signed_clean) {
-                  next.flags.pacte_signed_clean = true;
-                  next.flags.pacte_signed_dirty = false;
-                }
-                // 3. Auto-fill mail draft and send
-                const phase = scenario.phases[next.currentPhaseIndex];
-                const phaseId = phase?.phase_id;
-                if (phaseId) {
-                  const modifiedArticles = pacteArticles.filter(a => a.modifiedContent !== null);
-                  const amendSummary = modifiedArticles.length > 0
-                    ? `\n\nArticles modifiés par négociation :\n${modifiedArticles.map(a => `- ${a.title}`).join("\n")}`
-                    : "";
-                  updateMailDraft(next, phaseId, {
-                    to: ctoInfo.name,
-                    cc: "",
-                    subject: "RE: Pacte d'associés — Orisio",
-                    body: `Bonjour,\n\nJ'ai relu et signé le pacte d'associés.${amendSummary}\n\nCordialement,\n${displayPlayerName || "CEO"}`,
-                    attachments: [{ id: "pacte_associes", label: "Pacte d'associés — Orisio SAS" }],
-                  });
-                  const mailKind = phase?.mail_config?.kind || "pacte_response";
-                  sendCurrentPhaseMail(next, mailKind);
-                  if (phase?.mail_config?.send_advances_phase) {
-                    completeCurrentPhaseAndAdvance(next);
-                    resolveDynamicActors(next);
-                    resolveEstablishmentPlaceholders(next);
-                    injectPhaseEntryEvents(next);
-                    const newPhase = scenario.phases[next.currentPhaseIndex];
-                    if (newPhase?.mail_config?.defaults) {
-                      updateMailDraft(next, newPhase.phase_id, {
-                        to: "", cc: "",
-                        subject: newPhase.mail_config.defaults.subject || "",
-                        body: "", attachments: [],
-                      });
-                    }
-                  }
-                }
-                setSession(next);
-              }
-              setShowSignatureView(false);
-              playNotificationSound();
-            }}
-            signLabel="Signer et envoyer"
-            progressSteps={[
-              { label: "1. Relire le document", active: true },
-              { label: "2. Négocier", active: pacteThread.length > 0 || pacteSigned },
-              { label: "3. Signer", active: pacteSigned },
-              { label: "4. Renvoyer par mail", active: false },
-            ]}
-          />
-        );
-      })()}
-
-      {/* ═══════ CONTRACT SIGNATURE OVERLAY (Scenario 2 — NovaDev) ═══════ */}
-      {showContractSignature && (() => {
-        const cv = contractVars;
-        const priceDisplay = cv.price && cv.price !== "À définir"
-          ? `${parseInt(cv.price).toLocaleString("fr-FR")} € HT`
-          : "Selon accord verbal";
-        const featuresHtml = cv.features.length > 0
-          ? cv.features.map((f, i) => `<p><strong>Module ${i + 1} — ${f}</strong></p>`).join("")
-          : "<p>Fonctionnalités selon accord entre les parties.</p>";
-        const equityClause = cv.equity
-          ? `<h2>Article 4 — Participation au capital</h2>
-<p>En complément du prix cash, le Client cède au Prestataire <strong>${cv.equity} du capital</strong> d'Orisio SAS, via BSPCE avec vesting de 2 ans et cliff de 6 mois.</p>
-<p>Le Prestataire n'a pas de droit de vote ni de siège au board.</p>`
-          : "";
-        const contractContent = `<h1 style="text-align:center;color:#1a1a2e;margin-bottom:24px;">Contrat de prestation de développement</h1>
-<p><strong>Entre les soussignés :</strong></p>
-<p><strong>Le Client :</strong><br/>Orisio SAS, société par actions simplifiée<br/>Représentée par ${displayPlayerName || "CEO"} en qualité de Président</p>
-<p><strong>Le Prestataire :</strong><br/>NovaDev Solutions SARL<br/>Représentée par Thomas Vidal, Directeur technique<br/>12 rue Sainte-Catherine, 33000 Bordeaux</p>
-<hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;"/>
-<h2>Article 1 — Objet</h2>
-<p>Le Prestataire s'engage à réaliser pour le compte du Client le développement d'un MVP de la plateforme Orisio, selon le périmètre défini à l'Article 2.</p>
-<h2>Article 2 — Périmètre de la prestation</h2>
-${featuresHtml}
-<p><strong>Infrastructure</strong><br/>Hébergement conforme HDS (OVH Healthcare). API REST sécurisée. Interface web responsive.</p>
-<h2>Article 3 — Prix et conditions de paiement</h2>
-<p>Le prix total de la prestation est fixé à <strong>${priceDisplay}</strong>.</p>
-<p>Paiement en trois échéances : 30% à la signature, 40% à la livraison beta, 30% à la recette finale.</p>
-${equityClause}
-<h2>Article ${cv.equity ? "5" : "4"} — Délais de réalisation</h2>
-<p>Prestation réalisée en <strong>7 semaines</strong> à compter de la signature.</p>
-<h2>Article ${cv.equity ? "6" : "5"} — Propriété intellectuelle</h2>
-<p>Le code source est la propriété exclusive du Client dès paiement intégral.</p>
-<h2>Article ${cv.equity ? "7" : "6"} — Confidentialité</h2>
-<p>Le Prestataire s'engage à maintenir la confidentialité de toutes les informations relatives au projet.</p>
-<h2>Article ${cv.equity ? "8" : "7"} — Garantie</h2>
-<p>Garantie de bon fonctionnement pendant <strong>3 mois</strong> après livraison. Corrections de bugs incluses.</p>
-<h2>Article ${cv.equity ? "9" : "8"} — Résiliation</h2>
-<p>Résiliation possible avec préavis de 15 jours. Le prorata du travail effectué est dû.</p>
-<hr style="margin:20px 0;border:none;border-top:1px solid #e0e0e0;"/>
-<p style="margin-top:16px;"><strong>Pour le Prestataire — NovaDev Solutions :</strong><br/>Signature : Thomas Vidal ✓</p>
-<p><strong>Pour le Client — Orisio SAS :</strong><br/>Signature : _________________________</p>`;
-        return (
-          <div style={{
-            position: "fixed", inset: 0, zIndex: 10001,
-            background: "rgba(0,0,0,0.7)", display: "flex",
-            alignItems: "center", justifyContent: "center", padding: 20,
-          }}>
-            <div style={{
-              background: "#fff", borderRadius: 16, maxWidth: 800, width: "100%",
-              maxHeight: "92vh", display: "flex", flexDirection: "column",
-              boxShadow: "0 24px 80px rgba(0,0,0,0.3)",
-            }}>
-              {/* Header */}
-              <div style={{
-                padding: "14px 24px", background: "linear-gradient(135deg, #1a1a2e, #16213e)",
-                borderRadius: "16px 16px 0 0",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: "#ffd700", display: "flex", alignItems: "center",
-                    justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#1a1a2e",
-                  }}>✍️</div>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>
-                      Signature — Contrat de prestation NovaDev
-                    </h2>
-                    <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                      Orisio SAS × NovaDev Solutions · {new Date().toLocaleDateString("fr-FR")}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowContractSignature(false)}
-                  style={{
-                    background: "rgba(255,255,255,0.1)", border: "none", fontSize: 18,
-                    color: "#fff", cursor: "pointer", padding: "4px 10px", borderRadius: 6,
-                  }}
-                >✕</button>
-              </div>
-
-              {/* Contract body */}
-              <div style={{ flex: 1, overflow: "auto", padding: "24px 32px" }}>
-                <div
-                  dangerouslySetInnerHTML={{ __html: contractContent }}
-                  style={{ fontSize: 13, lineHeight: 1.7, color: "#333" }}
-                />
-              </div>
-
-              {/* Signature bar */}
-              <div style={{
-                padding: "16px 24px", borderTop: "2px solid #ffd700",
-                background: contractSigned ? "#f0fdf4" : "#fffbeb",
-              }}>
-                {!contractSigned ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 4 }}>
-                        Signataire : {displayPlayerName || "CEO"} — Président, Orisio SAS
-                      </div>
-                      <div style={{ fontSize: 11, color: "#888" }}>
-                        Relisez le contrat puis signez pour lancer le développement du MVP.
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        setContractSigned(true);
-                        if (session && scenario) {
-                          const next = cloneSession(session);
-                          next.flags.contract_signed = true;
-                          // Store actual contract values for dynamic deltas
-                          if (contractVars.price && contractVars.price !== "À définir") {
-                            next.flags.contract_price = parseInt(contractVars.price, 10);
-                          }
-                          if (contractVars.equity) {
-                            // Extract numeric equity value (e.g. "3%" → 3)
-                            const eqMatch = contractVars.equity.match(/(\d+)/);
-                            if (eqMatch) {
-                              next.flags.contract_equity = parseInt(eqMatch[1], 10);
-                            }
-                          }
-                          // Send confirmation mail
-                          const phase = scenario.phases[next.currentPhaseIndex];
-                          if (phase) {
-                            updateMailDraft(next, phase.phase_id, {
-                              to: "Thomas Vidal (NovaDev)",
-                              cc: "",
-                              subject: "RE: Contrat de prestation — MVP Orisio",
-                              body: `Bonjour Thomas,\n\nJ'ai relu et signé le contrat de prestation. On est partis.\n\nCordialement,\n${displayPlayerName || "CEO"}`,
-                              attachments: [{ id: "contrat_novadev", label: "Contrat signé" }],
-                            });
-                            sendCurrentPhaseMail(next, "contract_signature");
-                            completeCurrentPhaseAndAdvance(next);
-                            injectPhaseEntryEvents(next);
-                          }
-                          // Finish the scenario
-                          finishScenario(next);
-                          setSession(next);
-                        }
-                        setShowContractSignature(false);
-                        playNotificationSound();
-                      }}
-                      style={{
-                        padding: "12px 32px", flexShrink: 0,
-                        background: "linear-gradient(135deg, #ffd700, #ffb300)",
-                        border: "2px solid #e6a800", borderRadius: 10,
-                        color: "#1a1a2e", fontSize: 15, fontWeight: 800, cursor: "pointer",
-                        boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
-                        transition: "all 0.2s",
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.02)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-                    >
-                      ✍️ Signer et lancer le MVP
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 20 }}>✅</span>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
-                      Contrat signé — MVP en cours de développement
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* ═══════ DEVIS NOVADEV NEGOTIATION OVERLAY (Scenario 4 Phase 3) ═══════ */}
-      {showDevisNego && (() => {
-        const featuresData = [
-          { key: "bug_fix", label: "Bug annulation (verrouillage + confirmation)", price: 2000 },
-          { key: "notifications", label: "Notifications basiques", price: 3500 },
-          { key: "dashboard", label: "Dashboard direction simple", price: 5000 },
-          { key: "materiel", label: "Module gestion matériel", price: 7000 },
-          { key: "api_si", label: "API SI établissement", price: 8000 },
-        ];
-
-        const totalPrice = featuresData.reduce((sum, feat) =>
-          devisFeatures[feat.key] ? sum + feat.price : sum, 0
-        );
-
-        // Discounted price based on deal terms
-        const cashPrice = Math.round(totalPrice * (1 - (dealTerms.discount || 0) / 100));
-
-        // Tier info
-        const tierLabel = totalPrice <= 3000 ? "TRANCHE 1 (petit scope)" : totalPrice <= 8000 ? "TRANCHE 2 (scope moyen)" : totalPrice <= 15000 ? "TRANCHE 3 (gros scope)" : "TRANCHE 4 (scope maximal)";
-        const tierShort = totalPrice <= 3000 ? "Petit scope" : totalPrice <= 8000 ? "Scope moyen" : totalPrice <= 15000 ? "Gros scope" : "Scope maximal";
-        const tierColor = totalPrice <= 3000 ? { bg: "#dcfce7", fg: "#166534" } : totalPrice <= 8000 ? { bg: "#dbeafe", fg: "#1e40af" } : totalPrice <= 15000 ? { bg: "#fef3c7", fg: "#92400e" } : { bg: "#fee2e2", fg: "#991b1b" };
-
-        // Scope context injected into each message to Thomas
-        const selectedFeatures = featuresData.filter(f => devisFeatures[f.key]).map(f => f.label).join(", ");
-        const scopeContext = `[Scope actuel : ${selectedFeatures || "Aucun module sélectionné"}. Montant total : ${totalPrice}€. ${tierLabel}]`;
-
-        // Establishment from S3
-        const estInfo = resolveEstablishment(session?.flags || {});
-
-        // ── Discount lookup table (front-end computes, AI never does math) ──
-        // Rationale: giving away equity/interest is VERY expensive long-term.
-        // 2% CA on 50k€/yr for 3 yrs = 3000€ — way more than a 2000€ invoice.
-        // So discounts must be aggressive: Thomas bets on future upside, player saves cash now.
-        const DISCOUNT_TABLE: Record<string, { int_only: number; bsa_only: number; both: number }> = {
-          tier1: { int_only: 50, bsa_only: 40, both: 75 },
-          tier2: { int_only: 40, bsa_only: 30, both: 60 },
-          tier3: { int_only: 35, bsa_only: 25, both: 50 },
-          tier4: { int_only: 30, bsa_only: 20, both: 45 },
-        };
-        const currentTier = totalPrice <= 3000 ? "tier1" : totalPrice <= 8000 ? "tier2" : totalPrice <= 15000 ? "tier3" : "tier4";
-
-        function computeDiscount(intPct: number, bsaPct: number): number {
-          const tier = DISCOUNT_TABLE[currentTier];
-          const hasInt = intPct > 0;
-          const hasBsa = bsaPct > 0;
-          if (hasInt && hasBsa) return tier.both;
-          if (hasInt) return tier.int_only;
-          if (hasBsa) return tier.bsa_only;
-          return 0;
-        }
-
-        // Parse [TERMS:...] tag from Thomas's response and strip it from display
-        // Format: [TERMS: int=X cap=Xk dur=X bsa=X]
-        function parseDealTag(reply: string): { clean: string; parsed: typeof dealTerms | null } {
-          // Try new TERMS format first
-          const termsMatch = reply.match(/\[TERMS:\s*int=(\d+(?:\.\d+)?)\s+cap=(\d+)k?\s+dur=(\d+)\s+bsa=(\d+(?:\.\d+)?)\s*\]/i);
-          if (termsMatch) {
-            const clean = reply.replace(termsMatch[0], "").trim();
-            const intPct = parseFloat(termsMatch[1]);
-            const intCap = parseInt(termsMatch[2]) * 1000;
-            const intDur = parseInt(termsMatch[3]);
-            const bsaPct = parseFloat(termsMatch[4]);
-            const discount = computeDiscount(intPct, bsaPct);
-            return {
-              clean,
-              parsed: {
-                interessement: intPct > 0 ? { pct: intPct, cap: intCap > 0 ? intCap : null, duration: intDur } : null,
-                bsa: bsaPct > 0 ? bsaPct : null,
-                discount,
-              },
-            };
-          }
-          // Fallback: old DEAL format for backward compat
-          const dealMatch = reply.match(/\[DEAL:\s*cash=(\d+),?\s*remise=(\d+(?:\.\d+)?)%,?\s*interessement=(\d+(?:\.\d+)?)%\s*plafond=(\d+)k?\s*duree=(\d+),?\s*bsa=(\d+(?:\.\d+)?)%\s*\]/i);
-          if (dealMatch) {
-            const clean = reply.replace(dealMatch[0], "").trim();
-            const intPct = parseFloat(dealMatch[3]);
-            const intCap = parseInt(dealMatch[4]) * 1000;
-            const intDur = parseInt(dealMatch[5]);
-            const bsaPct = parseFloat(dealMatch[6]);
-            const discount = computeDiscount(intPct, bsaPct);
-            return {
-              clean,
-              parsed: {
-                interessement: intPct > 0 ? { pct: intPct, cap: intCap > 0 ? intCap : null, duration: intDur } : null,
-                bsa: bsaPct > 0 ? bsaPct : null,
-                discount,
-              },
-            };
-          }
-          return { clean: reply, parsed: null };
-        }
-
-        async function sendDevisNegoMsg() {
-          if (!devisNegoInput.trim() || devisNegoLoading || !session || !scenario) return;
-          const userMsg = devisNegoInput.trim();
-          setDevisNegoInput("");
-          setDevisNegoMessages((prev) => [...prev, { role: "player", content: userMsg }]);
-          setDevisNegoLoading(true);
-          // Lock checkboxes on first message
-          if (!devisLocked) setDevisLocked(true);
-          setTimeout(() => devisNegoChatRef.current?.scrollTo(0, 99999), 50);
-          try {
-            const activePrompt = aiPromptsMapRef.current["thomas_vidal"] || aiPromptRef.current;
-            const recentConv = devisNegoMessages.slice(-10).map((m) => ({
-              role: m.role === "player" ? "user" as const : "assistant" as const,
-              content: m.content,
-            }));
-            const res = await fetch("/api/chat", {
-              method: "POST",
-              headers: apiHeaders(),
-              body: JSON.stringify({
+      {/* ── Contract overlays (S0/S2/S4/S5) — rendered by ContractOverlayHost ── */}
+      <ContractOverlayHost
+        playerName={displayPlayerName}
+        s0={{
+          visible: showSignatureView,
+          onClose: () => setShowSignatureView(false),
+          articles: pacteArticles,
+          thread: pacteThread,
+          threadLoading: pacteThreadLoading,
+          input: amendmentInput,
+          onInputChange: setAmendmentInput,
+          onSendMessage: sendPacteNegotiationMessage,
+          signed: pacteSigned,
+          onSign: () => {
+            setPacteSigned(true);
+            if (session && scenario) {
+              const next = cloneSession(session);
+              const phase = scenario.phases[next.currentPhaseIndex];
+              const phaseId = phase?.phase_id;
+              const signResult = ContractHandler.computeSign("s0_pacte", {
                 playerName: displayPlayerName,
-                message: `${scopeContext}\n\n${userMsg}`,
-                phaseTitle: view?.phaseTitle || "Négociation NovaDev",
-                phaseObjective: view?.phaseObjective || "",
-                phaseFocus: view?.phaseFocus || "",
-                phasePrompt: view?.phasePrompt || "",
-                criteria: view?.criteria || [],
-                mode: view?.adaptiveMode || "standard",
-                narrative: scenario.narrative,
-                recentConversation: recentConv,
-                playerMessages: devisNegoMessages.filter((m) => m.role === "player").map((m) => m.content).concat([userMsg]),
-                roleplayPrompt: activePrompt,
-                devisScope: selectedFeatures,
-                devisTotal: totalPrice,
-              }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              const { clean, parsed } = parseDealTag(data.reply);
-              if (parsed) setDealTerms(parsed);
-              setDevisNegoMessages((prev) => [...prev, { role: "npc", content: clean }]);
-              if (session) {
-                const next = cloneSession(session);
-                addPlayerMessage(next, `[Négo devis] ${userMsg}`, "thomas_vidal");
-                addAIMessage(next, clean, "thomas_vidal");
-                applyEvaluation(next, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-                setSession(next);
+                articles: pacteArticles,
+                thread: pacteThread,
+                currentFlags: next.flags,
+                ctoName: getActorInfo(chosenCtoId || "sofia_renault").name,
+                phaseMailConfig: phase?.mail_config,
+              });
+              Object.assign(next.flags, signResult.flags);
+              if (phaseId && signResult.mailDraft) {
+                updateMailDraft(next, phaseId, signResult.mailDraft);
               }
+              if (signResult.mailKind) {
+                sendCurrentPhaseMail(next, signResult.mailKind);
+              }
+              if (signResult.shouldAdvancePhase) {
+                completeCurrentPhaseAndAdvance(next);
+                resolveDynamicActors(next);
+                resolveEstablishmentPlaceholders(next);
+                injectPhaseEntryEvents(next);
+                const newPhase = scenario.phases[next.currentPhaseIndex];
+                if (newPhase?.mail_config?.defaults) {
+                  updateMailDraft(next, newPhase.phase_id, {
+                    to: "", cc: "",
+                    subject: newPhase.mail_config.defaults.subject || "",
+                    body: "", attachments: [],
+                  });
+                }
+              }
+              setSession(next);
             }
-          } catch (err) {
-            console.error("Devis negotiation error:", err);
-          } finally {
-            setDevisNegoLoading(false);
-            setTimeout(() => devisNegoChatRef.current?.scrollTo(0, 99999), 100);
-          }
-        }
+            setShowSignatureView(false);
+            playNotificationSound();
+          },
+          ctoInfo: (() => {
+            const info = getActorInfo(chosenCtoId || "sofia_renault");
+            return { name: info.name, color: info.color, initials: info.initials };
+          })(),
+          currentPhaseId,
+        }}
+        s2={{
+          visible: showContractSignature,
+          onClose: () => setShowContractSignature(false),
+          articles: novadevArticles,
+          thread: novadevThread,
+          threadLoading: novadevThreadLoading,
+          input: novadevNegInput,
+          onInputChange: setNovadevNegInput,
+          onSendMessage: sendNovadevNegotiationMessage,
+          signed: contractSigned,
+          onSign: () => {
+            if (!ContractHandler.canSign("s2_novadev", novadevThread.length)) return;
+            setContractSigned(true);
+            if (session && scenario) {
+              const next = cloneSession(session);
+              const phase = scenario.phases[next.currentPhaseIndex];
+              const signResult = ContractHandler.computeSign("s2_novadev", {
+                playerName: displayPlayerName,
+                articles: novadevArticles,
+                contractVars: { price: contractVars.price, equity: contractVars.equity },
+              });
+              Object.assign(next.flags, signResult.flags);
+              if (phase && signResult.mailDraft) {
+                updateMailDraft(next, phase.phase_id, signResult.mailDraft);
+              }
+              if (signResult.mailKind) {
+                sendCurrentPhaseMail(next, signResult.mailKind);
+              }
+              if (signResult.shouldAdvancePhase && phase) {
+                completeCurrentPhaseAndAdvance(next);
+                injectPhaseEntryEvents(next);
+              }
+              if (signResult.shouldFinishScenario) finishScenario(next);
+              setSession(next);
+            }
+            setShowContractSignature(false);
+            playNotificationSound();
+          },
+        }}
+        s4={{
+          visible: showDevisNego,
+          onClose: () => setShowDevisNego(false),
+          features: devisFeatures,
+          onFeatureChange: setDevisFeatures,
+          locked: devisLocked,
+          onLock: () => setDevisLocked(true),
+          messages: devisNegoMessages,
+          input: devisNegoInput,
+          onInputChange: setDevisNegoInput,
+          loading: devisNegoLoading,
+          onSendMessage: sendDevisNegoMsg,
+          dealTerms,
+          prevDealTerms,
+          signed: devisSigned,
+          onSign: handleDevisSign,
+          chatRef: devisNegoChatRef,
+          establishmentLabel: resolveEstablishment(session?.flags || {})?.label || null,
+        }}
+        s5={{
+          visible: showExceptionsOverlay,
+          onClose: () => setShowExceptionsOverlay(false),
+          articles: exceptionsArticles,
+          thread: exceptionsThread,
+          threadLoading: exceptionsThreadLoading,
+          input: exceptionsNegInput,
+          onInputChange: setExceptionsNegInput,
+          onSendMessage: sendExceptionsNegotiationMessage,
+          signed: exceptionsSigned,
+          onSign: () => {
+            if (!ContractHandler.canSign("s5_exceptions", exceptionsThread.length)) return;
+            setExceptionsSigned(true);
+            if (session && scenario) {
+              const next = cloneSession(session);
+              const phase = scenario.phases[next.currentPhaseIndex];
+              const signResult = ContractHandler.computeSign("s5_exceptions", {
+                playerName: displayPlayerName,
+                articles: exceptionsArticles,
+              });
+              Object.assign(next.flags, signResult.flags);
+              if (phase && signResult.mailDraft) {
+                updateMailDraft(next, phase.phase_id, signResult.mailDraft);
+              }
+              if (signResult.mailKind) {
+                sendCurrentPhaseMail(next, signResult.mailKind);
+              }
+              if (signResult.shouldAdvancePhase && phase) {
+                completeCurrentPhaseAndAdvance(next);
+                injectPhaseEntryEvents(next);
+              }
+              setSession(next);
+            }
+            setShowExceptionsOverlay(false);
+            playNotificationSound();
+          },
+        }}
+      />
 
-        const hasDeal = dealTerms.interessement || dealTerms.bsa || dealTerms.discount > 0;
-        const canSign = devisNegoMessages.length >= 2;
 
-        return (
-          <div style={{
-            position: "fixed", inset: 0, zIndex: 10001,
-            background: "rgba(0,0,0,0.7)", display: "flex",
-            alignItems: "center", justifyContent: "center", padding: 20,
-          }}>
-            <div style={{
-              background: "#fff", borderRadius: 16, maxWidth: 1050, width: "100%",
-              maxHeight: "92vh", display: "flex", flexDirection: "column",
-              boxShadow: "0 24px 80px rgba(0,0,0,0.3)",
-            }}>
-              {/* Header */}
-              <div style={{
-                padding: "14px 24px", background: "linear-gradient(135deg, #1a1a2e, #16213e)",
-                borderRadius: "16px 16px 0 0",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: "#E65100", display: "flex", alignItems: "center",
-                    justifyContent: "center", fontSize: 14, fontWeight: 700, color: "#fff",
-                  }}>TV</div>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>
-                      Devis NovaDev — Passage en V1
-                    </h2>
-                    <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                      Thomas Vidal · NovaDev Solutions{estInfo ? ` · Pilote : ${estInfo.label}` : ""}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowDevisNego(false)}
-                  style={{
-                    background: "rgba(255,255,255,0.1)", border: "none", fontSize: 18,
-                    color: "#fff", cursor: "pointer", padding: "4px 10px", borderRadius: 6,
-                  }}
-                >✕</button>
-              </div>
-
-              {/* Split view: devis left, chat right */}
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                {/* Left: devis content (dynamic) */}
-                <div style={{ flex: 1, overflow: "auto", padding: "20px 24px", borderRight: "1px solid #e8e8e8" }}>
-                  <div style={{ textAlign: "center", marginBottom: 12 }}>
-                    <span style={{
-                      display: "inline-block", padding: "3px 12px", borderRadius: 12,
-                      fontSize: 11, fontWeight: 700, background: tierColor.bg, color: tierColor.fg,
-                    }}>
-                      {tierShort}
-                    </span>
-                  </div>
-                  <p style={{ fontSize: 12, color: "#666", margin: "0 0 12px" }}>
-                    <strong>De :</strong> Thomas Vidal — NovaDev Solutions<br/>
-                    <strong>Pour :</strong> {displayPlayerName || "CEO"} — Orisio SAS
-                  </p>
-
-                  {/* Feature table with lock */}
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
-                    <tbody>
-                      <tr style={{ background: "#f5f5f5" }}>
-                        <th style={{ textAlign: "left", padding: "6px 8px", border: "1px solid #ddd" }}>Module</th>
-                        <th style={{ textAlign: "center", padding: "6px 8px", border: "1px solid #ddd", width: 60 }}>Inclus</th>
-                        <th style={{ textAlign: "right", padding: "6px 8px", border: "1px solid #ddd", width: 90 }}>Prix</th>
-                      </tr>
-                      {featuresData.map((feat) => (
-                        <tr key={feat.key} style={{ opacity: devisFeatures[feat.key] ? 1 : 0.5 }}>
-                          <td style={{ padding: "6px 8px", border: "1px solid #ddd" }}>{feat.label}</td>
-                          <td style={{ padding: "6px 8px", border: "1px solid #ddd", textAlign: "center" }}>
-                            <input
-                              type="checkbox"
-                              checked={devisFeatures[feat.key]}
-                              disabled={devisLocked}
-                              onChange={(e) => setDevisFeatures((prev) => ({
-                                ...prev,
-                                [feat.key]: e.target.checked,
-                              }))}
-                              title={devisLocked ? "Scope verrouillé — la négociation est en cours" : ""}
-                              style={{ cursor: devisLocked ? "not-allowed" : "pointer" }}
-                            />
-                          </td>
-                          <td style={{ textAlign: "right", padding: "6px 8px", border: "1px solid #ddd" }}>
-                            {devisFeatures[feat.key] ? `${feat.price.toLocaleString("fr-FR")} €` : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                      <tr style={{ background: "#f5f5f5", fontWeight: "bold" }}>
-                        <td colSpan={2} style={{ padding: "6px 8px", border: "1px solid #ddd" }}>Sous-total HT</td>
-                        <td style={{ textAlign: "right", padding: "6px 8px", border: "1px solid #ddd" }}>
-                          {totalPrice.toLocaleString("fr-FR")} €
-                        </td>
-                      </tr>
-                      {dealTerms.discount > 0 && (
-                        <tr style={{ color: "#16a34a" }}>
-                          <td colSpan={2} style={{ padding: "6px 8px", border: "1px solid #ddd" }}>
-                            Remise négociée ({dealTerms.discount}%)
-                          </td>
-                          <td style={{ textAlign: "right", padding: "6px 8px", border: "1px solid #ddd" }}>
-                            −{(totalPrice - cashPrice).toLocaleString("fr-FR")} €
-                          </td>
-                        </tr>
-                      )}
-                      <tr style={{ background: "#1a1a2e", color: "#fff", fontWeight: "bold" }}>
-                        <td colSpan={2} style={{ padding: "8px", border: "1px solid #333" }}>
-                          MONTANT À PAYER
-                        </td>
-                        <td style={{ textAlign: "right", padding: "8px", border: "1px solid #333" }}>
-                          {cashPrice.toLocaleString("fr-FR")} €
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-
-                  {devisLocked && (
-                    <p style={{ fontSize: 10, color: "#999", marginTop: 4, fontStyle: "italic" }}>
-                      Scope verrouillé — la négociation est en cours.
-                    </p>
-                  )}
-
-                  {/* Dynamic deal terms section */}
-                  <div style={{ marginTop: 16, padding: 12, background: hasDeal ? "#f0f9ff" : "#fafafa", borderRadius: 8, border: `1px solid ${hasDeal ? "#bae6fd" : "#e8e8e8"}` }}>
-                    <h3 style={{ margin: "0 0 8px", fontSize: 13, fontWeight: 700, color: hasDeal ? "#0369a1" : "#999" }}>
-                      Conditions négociées
-                    </h3>
-                    {!hasDeal ? (
-                      <p style={{ margin: 0, fontSize: 12, color: "#999", fontStyle: "italic" }}>
-                        Aucune condition négociée pour l'instant. Discutez avec Thomas pour définir les termes.
-                      </p>
-                    ) : (
-                      <div style={{ fontSize: 12, lineHeight: 1.8 }}>
-                        {dealTerms.interessement && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ color: "#e65100", fontWeight: 700 }}>Intéressement :</span>
-                            <span>{dealTerms.interessement.pct}% du CA net</span>
-                            {dealTerms.interessement.cap ? (
-                              <span style={{ color: "#666" }}>(plafonné {(dealTerms.interessement.cap / 1000).toLocaleString("fr-FR")}k€)</span>
-                            ) : (
-                              <span style={{ color: "#dc2626", fontWeight: 700 }}>SANS PLAFOND</span>
-                            )}
-                            <span style={{ color: "#666" }}>· {dealTerms.interessement.duration} ans</span>
-                          </div>
-                        )}
-                        {dealTerms.bsa != null && dealTerms.bsa > 0 && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ color: "#7c3aed", fontWeight: 700 }}>BSA/BSPCE :</span>
-                            <span>{dealTerms.bsa}% du capital</span>
-                          </div>
-                        )}
-                        {dealTerms.discount > 0 && (
-                          <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                            <span style={{ color: "#16a34a", fontWeight: 700 }}>Remise :</span>
-                            <span>{dealTerms.discount}% sur le tarif (−{(totalPrice - cashPrice).toLocaleString("fr-FR")} €)</span>
-                          </div>
-                        )}
-                        {!dealTerms.interessement && !(dealTerms.bsa && dealTerms.bsa > 0) && dealTerms.discount === 0 && (
-                          <div style={{ color: "#666" }}>Cash seul — tarif plein, pas de remise.</div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-
-                  <hr style={{ margin: "12px 0", border: "none", borderTop: "1px solid #e0e0e0" }} />
-                  <p style={{ fontSize: 11, color: "#888" }}><strong>PI :</strong> Cession complète et irrévocable de tout le code au Client.</p>
-                </div>
-
-                {/* Right: negotiation chat */}
-                <div style={{ width: 380, display: "flex", flexDirection: "column", flexShrink: 0 }}>
-                  <div style={{ padding: "12px 16px", borderBottom: "1px solid #e8e8e8", fontSize: 12, fontWeight: 700, color: "#555" }}>
-                    💬 Négociation avec Thomas Vidal
-                  </div>
-                  <div ref={devisNegoChatRef} style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }}>
-                    {!devisLocked && devisNegoMessages.length === 0 && (
-                      <div style={{ textAlign: "center", marginTop: 32, padding: "0 16px" }}>
-                        <div style={{ fontSize: 28, marginBottom: 12 }}>📋</div>
-                        <p style={{ color: "#555", fontSize: 13, lineHeight: 1.6, margin: "0 0 8px" }}>
-                          <strong>Étape 1 :</strong> Cochez les modules que vous souhaitez commander à gauche.
-                        </p>
-                        <p style={{ color: "#888", fontSize: 12, lineHeight: 1.5, margin: "0 0 16px" }}>
-                          Une fois votre sélection validée, le scope sera verrouillé et vous pourrez négocier les conditions avec Thomas.
-                        </p>
-                        <button
-                          onClick={() => {
-                            const anyChecked = Object.values(devisFeatures).some(v => v);
-                            if (!anyChecked) return;
-                            setDevisLocked(true);
-                          }}
-                          disabled={!Object.values(devisFeatures).some(v => v)}
-                          style={{
-                            padding: "10px 28px",
-                            background: Object.values(devisFeatures).some(v => v) ? "linear-gradient(135deg, #5b5fc7, #4338ca)" : "#ddd",
-                            color: Object.values(devisFeatures).some(v => v) ? "#fff" : "#999",
-                            border: "none", borderRadius: 10, fontSize: 14, fontWeight: 700,
-                            cursor: Object.values(devisFeatures).some(v => v) ? "pointer" : "not-allowed",
-                            boxShadow: Object.values(devisFeatures).some(v => v) ? "0 4px 12px rgba(91,95,199,0.3)" : "none",
-                          }}
-                        >
-                          Valider le scope ({totalPrice.toLocaleString("fr-FR")} €)
-                        </button>
-                      </div>
-                    )}
-                    {devisLocked && devisNegoMessages.length === 0 && (
-                      <div style={{ textAlign: "center", color: "#888", fontSize: 12, marginTop: 24 }}>
-                        Scope verrouillé à {totalPrice.toLocaleString("fr-FR")} €.<br/>
-                        Écrivez à Thomas pour négocier les termes.
-                      </div>
-                    )}
-                    {devisNegoMessages.map((msg, i) => (
-                      <div key={i} style={{
-                        display: "flex", justifyContent: msg.role === "player" ? "flex-end" : "flex-start",
-                        marginBottom: 8,
-                      }}>
-                        <div style={{
-                          maxWidth: "85%", padding: "8px 12px", borderRadius: 12,
-                          background: msg.role === "player" ? "#5b5fc7" : "#f0f0f0",
-                          color: msg.role === "player" ? "#fff" : "#333",
-                          fontSize: 13, lineHeight: 1.5,
-                        }}>
-                          {msg.content}
-                        </div>
-                      </div>
-                    ))}
-                    {devisNegoLoading && (
-                      <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 8 }}>
-                        <div style={{ padding: "8px 16px", background: "#f0f0f0", borderRadius: 12, color: "#999", fontSize: 13 }}>
-                          Thomas écrit...
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ padding: "10px 16px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8 }}>
-                    <input
-                      type="text"
-                      value={devisNegoInput}
-                      onChange={(e) => setDevisNegoInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && devisLocked) sendDevisNegoMsg(); }}
-                      placeholder={devisLocked ? "Votre position..." : "Validez le scope d'abord →"}
-                      disabled={!devisLocked}
-                      style={{
-                        flex: 1, padding: "8px 12px", border: "1px solid #ddd", borderRadius: 8,
-                        fontSize: 13, fontFamily: "inherit",
-                        background: devisLocked ? "#fff" : "#f5f5f5",
-                        color: devisLocked ? "#333" : "#bbb",
-                      }}
-                    />
-                    <button
-                      onClick={sendDevisNegoMsg}
-                      disabled={!devisLocked || devisNegoLoading || !devisNegoInput.trim()}
-                      style={{
-                        padding: "8px 16px", borderRadius: 8, border: "none",
-                        background: !devisLocked || devisNegoLoading ? "#ccc" : "#5b5fc7",
-                        color: "#fff", fontSize: 13, fontWeight: 600,
-                        cursor: !devisLocked || devisNegoLoading ? "not-allowed" : "pointer",
-                      }}
-                    >↑</button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Signature bar */}
-              <div style={{
-                padding: "12px 24px", borderTop: "2px solid #ffd700",
-                background: devisSigned ? "#f0fdf4" : "#fffbeb",
-              }}>
-                {!devisSigned ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 2 }}>
-                        Signataire : {displayPlayerName || "CEO"} — Président, Orisio SAS
-                      </div>
-                      <div style={{ fontSize: 11, color: "#888" }}>
-                        {!canSign
-                          ? "Négociez d'abord les termes avec Thomas avant de signer."
-                          : `À payer : ${cashPrice.toLocaleString("fr-FR")} €${dealTerms.interessement ? ` + ${dealTerms.interessement.pct}% intéressement` : ""}${dealTerms.bsa ? ` + ${dealTerms.bsa}% BSA` : ""}`
-                        }
-                      </div>
-                    </div>
-                    <button
-                      disabled={!canSign}
-                      onClick={() => {
-                        setShowDevisNego(false);
-                        if (session && scenario) {
-                          const next = cloneSession(session);
-                          next.flags.devis_signed = true;
-                          next.flags.devis_total = totalPrice;
-                          next.flags.devis_cash_paid = cashPrice;
-                          next.flags.devis_discount = dealTerms.discount;
-                          next.flags.devis_selected_features = Object.keys(devisFeatures).filter(k => devisFeatures[k]);
-                          // Store exact deal terms for campaign propagation
-                          if (dealTerms.interessement) {
-                            next.flags.deal_interessement_pct = dealTerms.interessement.pct;
-                            next.flags.deal_interessement_cap = dealTerms.interessement.cap;
-                            next.flags.deal_interessement_duration = dealTerms.interessement.duration;
-                            if (dealTerms.interessement.cap === null || dealTerms.interessement.cap === 0) {
-                              next.flags.deal_interessement_uncapped = true;
-                            } else {
-                              next.flags.deal_interessement_capped = true;
-                            }
-                          }
-                          if (dealTerms.bsa && dealTerms.bsa > 0) {
-                            next.flags.deal_bsa_pct = dealTerms.bsa;
-                            if (dealTerms.bsa > 3) {
-                              next.flags.deal_bsa_excessive = true;
-                            } else {
-                              next.flags.deal_bsa_reasonable = true;
-                            }
-                          }
-                          if (!dealTerms.interessement && (!dealTerms.bsa || dealTerms.bsa === 0)) {
-                            next.flags.deal_cash_only = true;
-                          }
-                          // Store royalties info for future scenarios
-                          if (dealTerms.interessement) {
-                            next.flags.royalties_pct = dealTerms.interessement.pct;
-                            next.flags.royalties_cap = dealTerms.interessement.cap;
-                            next.flags.royalties_duration_years = dealTerms.interessement.duration;
-                          }
-                          finishScenario(next);
-                          setSession(next);
-                        }
-                        playNotificationSound();
-                        setDevisSigned(true);
-                      }}
-                      style={{
-                        padding: "12px 32px", flexShrink: 0,
-                        background: !canSign
-                          ? "#ddd"
-                          : "linear-gradient(135deg, #ffd700, #ffb300)",
-                        border: !canSign ? "2px solid #ccc" : "2px solid #e6a800",
-                        borderRadius: 10,
-                        color: !canSign ? "#999" : "#1a1a2e",
-                        fontSize: 15, fontWeight: 800,
-                        cursor: !canSign ? "not-allowed" : "pointer",
-                        boxShadow: !canSign ? "none" : "0 4px 16px rgba(255,215,0,0.3)",
-                      }}
-                    >
-                      ✍️ Signer le devis
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 20 }}>✅</span>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
-                      Devis signé — Accord NovaDev formalisé
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
 
       {/* ═══════ CLINICAL CONTRACT SIGNATURE OVERLAY (Scenario 3) ═══════ */}
-      {showClinicalContract && (() => {
+      {(() => {
         const isCHU = !!session?.flags?.chose_chu;
         const isSM = !!session?.flags?.chose_saint_martin;
-        const isClinique = !!session?.flags?.chose_clinique || (!isCHU && !isSM);
-        const etablissementLabel = isCHU ? "CHU de Bordeaux (Pellegrin)" : isSM ? "Hôpital Privé Saint-Martin" : "Clinique Saint-Augustin";
-        const juristeName = isCHU ? "Me Laurent Gauthier" : isSM ? "Me Sophie Arnaud" : "Me Pauline Roche";
         const contactActor = isCHU ? "contact_chu" : isSM ? "contact_saint_martin" : "contact_clinique";
-        const contactInfo = getActorInfo(contactActor);
-        const signataireName = isCHU ? "Dr. Pierre Lemaire" : isSM ? "Laurent Castex" : "Dr. Claire Renaud-Picard";
-        const hasModifications = clinicalContractArticles.some(a => a.modifiedContent !== null);
-
         return (
-          <div style={{
-            position: "fixed", inset: 0, zIndex: 10001,
-            background: "rgba(0,0,0,0.7)", display: "flex",
-            alignItems: "center", justifyContent: "center", padding: 20,
-          }}>
-            <div style={{
-              background: "#fff", borderRadius: 16, maxWidth: 900, width: "100%",
-              maxHeight: "92vh", display: "flex", flexDirection: "column",
-              boxShadow: "0 24px 80px rgba(0,0,0,0.3)",
-            }}>
-              {/* Header */}
-              <div style={{
-                padding: "14px 24px", background: "linear-gradient(135deg, #1a1a2e, #16213e)",
-                borderRadius: "16px 16px 0 0",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: "#ffd700", display: "flex", alignItems: "center",
-                    justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#1a1a2e",
-                  }}>✍️</div>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>
-                      Convention de test pilote
-                    </h2>
-                    <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                      {etablissementLabel} × Orisio SAS · {new Date().toLocaleDateString("fr-FR")}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowClinicalContract(false)}
-                  style={{
-                    background: "rgba(255,255,255,0.1)", border: "none", fontSize: 18,
-                    color: "#fff", cursor: "pointer", padding: "4px 10px", borderRadius: 6,
-                  }}
-                >✕</button>
-              </div>
-
-              {/* Two-panel layout: Contract (left) + Negotiation (right) */}
-              <div style={{ flex: 1, display: "flex", overflow: "hidden", minHeight: 0 }}>
-
-                {/* LEFT — Contract body (read-only, structured articles) */}
-                <div style={{
-                  flex: 1, overflow: "auto", background: "#fff", padding: "24px 32px",
-                  fontFamily: "Georgia, 'Times New Roman', serif",
-                }}>
-                  <h1 style={{ textAlign: "center", color: "#1a1a2e", marginBottom: 4, fontSize: 18 }}>Convention de test pilote</h1>
-                  <p style={{ textAlign: "center", color: "#888", fontSize: 12, marginBottom: 24 }}>{etablissementLabel} × Orisio SAS</p>
-                  <hr style={{ border: "none", borderTop: "1px solid #e0e0e0", margin: "16px 0" }} />
-                  <p style={{ fontSize: 13, lineHeight: 1.7, color: "#1a1a2e" }}><strong>Entre :</strong></p>
-                  <p style={{ fontSize: 13, lineHeight: 1.7, color: "#1a1a2e" }}>{etablissementLabel}, représenté(e) par {signataireName}<br/>Et Orisio SAS, représentée par {displayPlayerName || "CEO"}, Président</p>
-                  <hr style={{ border: "none", borderTop: "1px solid #e0e0e0", margin: "16px 0" }} />
-
-                  {clinicalContractArticles.map((article) => (
-                    <div key={article.id} style={{ marginBottom: 16 }}>
-                      <h2 style={{ fontSize: 14, color: "#1a1a2e", marginBottom: 6 }}>{article.title}</h2>
-                      {article.modifiedContent ? (
-                        <>
-                          <p style={{
-                            fontSize: 13, lineHeight: 1.7, color: "#999",
-                            textDecoration: "line-through", marginBottom: 6,
-                          }}>{article.content}</p>
-                          <p style={{
-                            fontSize: 13, lineHeight: 1.7, color: "#16a34a", fontWeight: 500,
-                            background: "rgba(22,163,106,0.06)", padding: "8px 12px",
-                            borderLeft: "3px solid #16a34a", borderRadius: "0 6px 6px 0",
-                          }}>{article.modifiedContent}</p>
-                        </>
-                      ) : (
-                        <p style={{ fontSize: 13, lineHeight: 1.7, color: "#1a1a2e" }}>{article.content}</p>
-                      )}
-                    </div>
-                  ))}
-
-                  <hr style={{ border: "none", borderTop: "1px solid #e0e0e0", margin: "20px 0" }} />
-                  <p style={{ fontSize: 13, lineHeight: 1.7, color: "#1a1a2e" }}><strong>Pour {etablissementLabel} :</strong><br/>{signataireName} ✓</p>
-                  <p style={{ fontSize: 13, lineHeight: 1.7, color: "#1a1a2e" }}><strong>Pour Orisio SAS :</strong><br/>Signature : _________________________</p>
-                </div>
-
-                {/* RIGHT — Negotiation panel */}
-                {!clinicalContractSigned && !clinicalContractRefused && (
-                  <div style={{
-                    width: 320, minWidth: 280, display: "flex", flexDirection: "column",
-                    borderLeft: "1px solid #e8e8e8", background: "#fafafa",
-                  }}>
-                    <div style={{ padding: "12px 16px", borderBottom: "1px solid #e8e8e8" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                        <div style={{
-                          width: 28, height: 28, borderRadius: "50%",
-                          background: contactInfo.color,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 11, fontWeight: 700, color: "#fff",
-                        }}>{contactInfo.initials}</div>
-                        <div>
-                          <div style={{ fontSize: 13, fontWeight: 700, color: "#333" }}>{juristeName}</div>
-                          <div style={{ fontSize: 10, color: "#888" }}>Juriste — {etablissementLabel}</div>
-                        </div>
-                      </div>
-                      {hasModifications && (
-                        <div style={{
-                          marginTop: 8, padding: "4px 8px", background: "rgba(22,163,106,0.08)",
-                          border: "1px solid rgba(22,163,106,0.2)", borderRadius: 6,
-                          fontSize: 11, color: "#16a34a", fontWeight: 600,
-                        }}>
-                          {clinicalContractArticles.filter(a => a.modifiedContent).length} article(s) modifié(s)
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Thread messages */}
-                    <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px" }} ref={(el) => { if (el) el.scrollTop = el.scrollHeight; }}>
-                      {clinicalNegThread.length === 0 && (
-                        <div style={{ textAlign: "center", padding: "24px 8px", color: "#aaa", fontSize: 12 }}>
-                          Lisez le contrat attentivement, puis discutez ici pour négocier les clauses qui vous posent problème.
-                        </div>
-                      )}
-                      {clinicalNegThread.map((msg, i) => {
-                        const isJuriste = msg.role === "juriste";
-                        return (
-                          <div key={i} style={{
-                            display: "flex", gap: 8, marginBottom: 10,
-                            flexDirection: isJuriste ? "row" : "row-reverse",
-                          }}>
-                            <div style={{
-                              width: 22, height: 22, borderRadius: "50%", flexShrink: 0,
-                              background: isJuriste ? contactInfo.color : "#5b5fc7",
-                              display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: 9, fontWeight: 700, color: "#fff",
-                            }}>
-                              {isJuriste ? contactInfo.initials : (displayPlayerName || "CEO").charAt(0).toUpperCase()}
-                            </div>
-                            <div style={{
-                              padding: "8px 12px", borderRadius: 12, fontSize: 12, lineHeight: 1.5,
-                              maxWidth: "85%", wordBreak: "break-word",
-                              background: isJuriste ? "#fff" : "#5b5fc7",
-                              color: isJuriste ? "#333" : "#fff",
-                              border: isJuriste ? "1px solid #e8e8e8" : "none",
-                              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
-                            }}>
-                              {msg.content}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {clinicalNegLoading && (
-                        <div style={{ fontSize: 11, color: "#888", fontStyle: "italic", padding: "4px 0" }}>
-                          {juristeName} est en train de répondre...
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Input */}
-                    <div style={{ padding: "10px 16px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8 }}>
-                      <input
-                        type="text"
-                        value={clinicalNegInput}
-                        onChange={(e) => setClinicalNegInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && clinicalNegInput.trim() && !clinicalNegLoading) {
-                            e.preventDefault();
-                            sendClinicalNegotiationMessage();
-                          }
-                        }}
-                        placeholder="Discuter une clause..."
-                        disabled={clinicalNegLoading}
-                        style={{
-                          flex: 1, padding: "8px 12px", border: "1px solid #d4d4d8",
-                          borderRadius: 8, fontSize: 12, outline: "none",
-                          opacity: clinicalNegLoading ? 0.6 : 1,
-                        }}
-                      />
-                      <button
-                        onClick={() => { if (clinicalNegInput.trim() && !clinicalNegLoading) sendClinicalNegotiationMessage(); }}
-                        style={{
-                          padding: "8px 14px", background: clinicalNegInput.trim() && !clinicalNegLoading ? "#5b5fc7" : "#ccc",
-                          border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 700,
-                          cursor: clinicalNegInput.trim() && !clinicalNegLoading ? "pointer" : "not-allowed",
-                        }}
-                      >↑</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Signature / Refusal footer */}
-              <div style={{
-                padding: "14px 24px", borderTop: "2px solid #ffd700",
-                background: clinicalContractSigned ? "#f0fdf4" : clinicalContractRefused ? "#fef2f2" : "#fffbeb",
-              }}>
-                {clinicalContractRefused ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 20 }}>❌</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>
-                        Contrat refusé par l&apos;établissement
-                      </div>
-                      <div style={{ fontSize: 11, color: "#666" }}>
-                        Vos demandes ne sont pas acceptables. Discutez avec Alexandre pour trouver une alternative.
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => { setShowClinicalContract(false); setMainView("chat"); setSelectedContact("alexandre_morel"); }}
-                      style={{
-                        marginLeft: "auto", padding: "8px 16px",
-                        background: "#5b5fc7", border: "none", borderRadius: 8,
-                        color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer",
-                      }}
-                    >
-                      Parler à Alexandre
-                    </button>
-                  </div>
-                ) : !clinicalContractSigned ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 4 }}>
-                        Signataire : {displayPlayerName || "CEO"} — Président, Orisio SAS
-                      </div>
-                      <div style={{ fontSize: 11, color: "#888" }}>
-                        {hasModifications
-                          ? `${clinicalContractArticles.filter(a => a.modifiedContent).length} article(s) modifié(s) par négociation. La signature vaut acceptation de la version actuelle.`
-                          : "Lisez le contrat et négociez si nécessaire avant de signer."}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        // ── Sign the contract ──
-                        setClinicalContractSigned(true);
-                        if (session && scenario) {
-                          const next = cloneSession(session);
-                          // Determine if signed clean or toxic based on article modifications
-                          if (isCHU) {
-                            // CHU: toxic if Article 5 (PI) and Article 6 (intéressement) were NOT modified
-                            const art5Modified = clinicalContractArticles.find(a => a.id === "article_5")?.modifiedContent !== null;
-                            const art6Modified = clinicalContractArticles.find(a => a.id === "article_6")?.modifiedContent !== null;
-                            if (art5Modified && art6Modified) {
-                              next.flags.contrat_signed_clean = true;
-                            } else {
-                              next.flags.contrat_signed_toxic = true;
-                            }
-                          } else {
-                            // Saint-Martin and Clinique: always clean
-                            next.flags.contrat_signed_clean = true;
-                          }
-                          next.flags.contrat_received = true;
-                          finishScenario(next);
-                          setSession(next);
-                        }
-                        setShowClinicalContract(false);
-                        playNotificationSound();
-                      }}
-                      style={{
-                        padding: "12px 32px", flexShrink: 0,
-                        background: "linear-gradient(135deg, #ffd700, #ffb300)",
-                        border: "2px solid #e6a800", borderRadius: 10,
-                        color: "#1a1a2e", fontSize: 15, fontWeight: 800, cursor: "pointer",
-                        boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
-                        transition: "all 0.2s",
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.02)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-                    >
-                      ✍️ Signer la convention
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                    <span style={{ fontSize: 20 }}>✅</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
-                        Convention signée — Le test pilote peut démarrer
-                      </div>
-                      <div style={{ fontSize: 11, color: "#666" }}>
-                        {displayPlayerName || "CEO"} — {new Date().toLocaleDateString("fr-FR")}
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowClinicalContract(false)}
-                      style={{
-                        marginLeft: "auto", padding: "8px 16px",
-                        background: "#5b5fc7", border: "none", borderRadius: 8,
-                        color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer",
-                      }}
-                    >
-                      Fermer
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
+          <ClinicalContractOverlay
+            visible={showClinicalContract}
+            onClose={() => setShowClinicalContract(false)}
+            playerName={displayPlayerName || "CEO"}
+            etablissementLabel={isCHU ? "CHU de Bordeaux (Pellegrin)" : isSM ? "Hôpital Privé Saint-Martin" : "Clinique Saint-Augustin"}
+            signataireName={isCHU ? "Dr. Pierre Lemaire" : isSM ? "Laurent Castex" : "Dr. Claire Renaud-Picard"}
+            juristeName={isCHU ? "Me Laurent Gauthier" : isSM ? "Me Sophie Arnaud" : "Me Pauline Roche"}
+            contactInfo={getActorInfo(contactActor)}
+            articles={clinicalContractArticles}
+            thread={clinicalNegThread}
+            threadLoading={clinicalNegLoading}
+            inputValue={clinicalNegInput}
+            onInputChange={setClinicalNegInput}
+            onSendMessage={sendClinicalNegotiationMessage}
+            signed={clinicalContractSigned}
+            refused={clinicalContractRefused}
+            onSign={handleClinicalSign}
+            onRefused={handleClinicalRefused}
+          />
         );
       })()}
 
@@ -5313,1176 +4594,94 @@ ${equityClause}
 
           {/* ─── CHAT VIEW ─── */}
           {mainView === "chat" && (
-            <>
-              {/* Chat header */}
-              <div style={{ padding: "10px 16px", borderBottom: "1px solid #e8e8e8", display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
-                {(() => {
-                  if (selectedContact) {
-                    const contactActor = actors.find((a: any) => a.actor_id === selectedContact);
-                    const cColor = contactActor?.avatar?.color || "#666";
-                    const cIni = contactActor?.avatar?.initials || getInitials(contactActor?.name || "");
-                    return (
-                      <>
-                        <Avatar initials={cIni} color={cColor} size={28} status={contactActor?.contact_status || "available"} />
-                        <span style={{ fontSize: 15, fontWeight: 600, color: "#333" }}>{contactActor?.name || selectedContact}</span>
-                        <span style={{ fontSize: 12, color: "#999" }}>— {phaseTitle}</span>
-                      </>
-                    );
-                  }
-                  return <span style={{ fontSize: 15, fontWeight: 600, color: "#333" }}>💬 Messagerie — {phaseTitle}</span>;
-                })()}
-              </div>
-
-              {/* Messages */}
-              <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 6 }}>
-                {filteredConversation.map((msg: any) => {
-                  const isPlayer = msg.role === "player";
-                  const isSystem = msg.role === "system";
-                  const actor = !isPlayer && !isSystem ? getActorInfo(msg.actor || "npc") : null;
-                  const msgType = msg.type || "";
-
-                  if (isSystem) {
-                    const isError = msg.type === "error";
-                    return (
-                      <div key={msg.id} style={{ textAlign: "center", padding: "6px 0" }}>
-                        <span style={{
-                          background: isError ? "#fff3cd" : "#f0f0f0",
-                          color: isError ? "#856404" : "#888",
-                          fontSize: isError ? 12 : 11,
-                          padding: isError ? "8px 16px" : "4px 12px",
-                          borderRadius: 12,
-                          border: isError ? "1px solid #ffc107" : "none",
-                          display: "inline-block",
-                          maxWidth: "80%",
-                        }}>
-                          {msg.content}
-                        </span>
-                      </div>
-                    );
-                  }
-
-                  // Type badge for non-chat messages
-                  const typeBadgeMap: Record<string, string> = { phone_call: "📞 Appel", whatsapp_message: "📱 WhatsApp", sms: "📱 SMS", visio: "📹 Visio" };
-                  const typeBadge = typeBadgeMap[msgType] || null;
-
-                  return (
-                    <div
-                      key={msg.id}
-                      style={{
-                        display: "flex", gap: 8, alignItems: "flex-start",
-                        flexDirection: isPlayer ? "row-reverse" : "row",
-                        maxWidth: "85%", alignSelf: isPlayer ? "flex-end" : "flex-start",
-                      }}
-                    >
-                      {!isPlayer && actor && (
-                        <Avatar initials={actor.initials} color={actor.color} size={32} status={actor.status} />
-                      )}
-                      {isPlayer && (
-                        <Avatar initials={displayPlayerName ? getInitials(displayPlayerName) : "CEO"} color="#5b5fc7" size={32} />
-                      )}
-                      <div>
-                        {/* Sender name */}
-                        <div style={{ fontSize: 11, color: "#888", marginBottom: 2, textAlign: isPlayer ? "right" : "left" }}>
-                          {isPlayer ? (displayPlayerName || "CEO") : actor?.name}
-                          {typeBadge && <span style={{ marginLeft: 6, fontSize: 10, color: "#5b5fc7" }}>{typeBadge}</span>}
-                        </div>
-                        {/* Bubble */}
-                        <div
-                          style={{
-                            background: isPlayer ? "#5b5fc7" : "#f3f2f1",
-                            color: isPlayer ? "#fff" : "#333",
-                            padding: "8px 14px", borderRadius: 12,
-                            borderTopRightRadius: isPlayer ? 4 : 12,
-                            borderTopLeftRadius: isPlayer ? 12 : 4,
-                            fontSize: 13, lineHeight: 1.5, wordBreak: "break-word",
-                            whiteSpace: "pre-wrap",
-                          }}
-                        >
-                          {msg.content}
-                        </div>
-                        {/* Attachments (documents sent in chat) — click opens PDF or editor */}
-                        {msg.attachments && msg.attachments.length > 0 && (
-                          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 4 }}>
-                            {msg.attachments.map((att: any) => {
-                              const attDoc = scenario?.resources?.documents?.find((d: any) => d.doc_id === att.id);
-                              const fp = (attDoc as any)?.file_path || "";
-                              const isPublicPdf = fp.startsWith("/") && fp.endsWith(".pdf");
-                              const docUrl = isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
-                              // One-pager template: open editor instead of PDF
-                              const isOnePagerTemplate = att.id === "one_pager_template";
-                              if (isOnePagerTemplate) {
-                                return (
-                                  <button
-                                    key={att.id}
-                                    onClick={() => setShowOnePagerEditor(true)}
-                                    style={{
-                                      display: "inline-flex", alignItems: "center", gap: 4,
-                                      padding: "6px 14px", background: onePagerSubmitted ? "#f0fdf4" : (isPlayer ? "rgba(255,255,255,0.15)" : "#fff"),
-                                      border: onePagerSubmitted ? "1px solid #86efac" : (isPlayer ? "1px solid rgba(255,255,255,0.25)" : "1px solid #5b5fc7"),
-                                      borderRadius: 8, fontSize: 11, fontWeight: 700,
-                                      color: onePagerSubmitted ? "#16a34a" : (isPlayer ? "#fff" : "#5b5fc7"),
-                                      cursor: "pointer",
-                                      animation: !onePagerSubmitted ? "none" : "none",
-                                    }}
-                                  >
-                                    {onePagerSubmitted ? "✅" : "📝"} {onePagerSubmitted ? "One-pager soumis" : "Ouvrir et remplir le one-pager"}
-                                  </button>
-                                );
-                              }
-                              return (
-                                <a
-                                  key={att.id}
-                                  href={attDoc ? docUrl : "#"}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  style={{
-                                    display: "inline-flex", alignItems: "center", gap: 4,
-                                    padding: "4px 10px", background: isPlayer ? "rgba(255,255,255,0.15)" : "#fff",
-                                    border: isPlayer ? "1px solid rgba(255,255,255,0.25)" : "1px solid #ddd",
-                                    borderRadius: 8, fontSize: 11, fontWeight: 600,
-                                    color: isPlayer ? "#fff" : "#5b5fc7", cursor: attDoc ? "pointer" : "default",
-                                    textDecoration: "none",
-                                  }}
-                                >
-                                  📑 {att.label}
-                                </a>
-                              );
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-                {isSending && (
-                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                    <div style={{ width: 32, height: 32, borderRadius: "50%", background: "#ddd", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                      <TypingDots />
-                    </div>
-                  </div>
-                )}
-                <div ref={chatEndRef} />
-              </div>
-
-              {/* Input bar — or "Faire entrer le candidat" gate for manual_start phases */}
-              {(currentPhaseConfig as any)?.manual_start && !interviewStarted ? (
-                <div style={{
-                  padding: "16px", borderTop: "1px solid #e8e8e8", flexShrink: 0,
-                  background: "linear-gradient(135deg, #f8f9ff, #f0f0ff)",
-                  display: "flex", flexDirection: "column", alignItems: "center", gap: 10,
-                }}>
-                  <div style={{ fontSize: 12, color: "#666", textAlign: "center" }}>
-                    Prenez le temps de lire les CV dans l'onglet Documents avant de commencer l'entretien.
-                  </div>
-                  <button
-                    onClick={handleStartInterview}
-                    style={{
-                      padding: "12px 32px", borderRadius: 12, border: "none",
-                      background: "linear-gradient(135deg, #5b5fc7, #4a4eb3)",
-                      color: "#fff", cursor: "pointer", fontWeight: 700, fontSize: 14,
-                      boxShadow: "0 4px 16px rgba(91,95,199,0.25)",
-                      transition: "all 0.2s",
-                    }}
-                    onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.02)"; }}
-                    onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-                  >
-                    Faire entrer {(() => {
-                      const candidateName = (currentPhaseConfig as any)?.ai_actors?.[0];
-                      const actor = actors.find((a: any) => a.actor_id === candidateName);
-                      return actor?.name?.split(" ")[0] || "le candidat";
-                    })()}
-                  </button>
-                </div>
-              ) : (() => {
-                // Check if selected contact is available in current phase
-                const contactActor = actors.find((a: any) => a.actor_id === selectedContact);
-                const contactResolvedId = selectedContact ? resolveActor(selectedContact) : "";
-                const contactInPhase = currentPhaseAiActors.includes(contactResolvedId);
-                const contactBusyAfter = (contactActor as any)?.busy_after_phase;
-                const contactIsBusy = contactBusyAfter && session && (() => {
-                  const idx = scenario?.phases?.findIndex((p: any) => p.phase_id === contactBusyAfter);
-                  return idx !== undefined && idx >= 0 && session.currentPhaseIndex > idx;
-                })();
-                const contactAvailable = contactInPhase && !contactIsBusy;
-
-                if (!contactAvailable && selectedContact) {
-                  return (
-                    <div style={{ padding: "12px 16px", borderTop: "1px solid #e8e8e8", textAlign: "center", background: "#f5f5f5", color: "#999", fontSize: 12, fontStyle: "italic" }}>
-                      {(contactActor as any)?.busy_message || "Ce contact n'est pas disponible pour le moment."}
-                    </div>
-                  );
-                }
-
-                return (
-                  <div style={{ padding: "10px 16px", borderTop: "1px solid #e8e8e8", display: "flex", gap: 8, flexShrink: 0, background: "#fafafa" }}>
-                    {hasMindmapTool && outlineItems.filter((i) => i.text.trim()).length > 0 && (
-                      <button
-                        onClick={() => {
-                          const text = outlineToText(outlineItems);
-                          setPlayerInput((prev) => prev ? prev + "\n" + text : text);
-                          inputRef.current?.focus();
-                        }}
-                        title="Insérer mes notes"
-                        style={{
-                          padding: "8px 10px", borderRadius: 20, border: "1px solid #ddd",
-                          background: "#f8f8ff", color: "#5b5fc7", cursor: "pointer",
-                          fontSize: 14, flexShrink: 0, lineHeight: 1,
-                        }}
-                      >
-                        🗒️
-                      </button>
-                    )}
-                    <input
-                      ref={inputRef}
-                      type="text"
-                      value={playerInput}
-                      onChange={(e) => setPlayerInput(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") sendMessage(); }}
-                      placeholder="Votre message..."
-                      style={{
-                        flex: 1, padding: "10px 14px", border: "1px solid #ddd", borderRadius: 20,
-                        fontSize: 13, fontFamily: "inherit", outline: "none", background: "#fff", color: "#111",
-                      }}
-                    />
-                    <button
-                      onClick={sendMessage}
-                      disabled={!playerInput.trim()}
-                      style={{
-                        padding: "8px 20px", borderRadius: 20, border: "none",
-                        background: playerInput.trim() ? "#5b5fc7" : "#ccc",
-                        color: "#fff", cursor: playerInput.trim() ? "pointer" : "not-allowed",
-                        fontWeight: 600, fontSize: 13,
-                      }}
-                    >
-                      Envoyer
-                    </button>
-                  </div>
-                );
-              })()}
-            </>
+            <ChatView
+              selectedContact={selectedContact}
+              actors={actors}
+              phaseTitle={phaseTitle}
+              getActorInfo={getActorInfo}
+              displayPlayerName={displayPlayerName}
+              filteredConversation={filteredConversation}
+              isSending={isSending}
+              chatEndRef={chatEndRef}
+              scenarioId={scenarioId}
+              scenarioDocs={scenario?.resources?.documents || []}
+              onePagerSubmitted={onePagerSubmitted}
+              onOpenOnePager={() => setShowOnePagerEditor(true)}
+              playerInput={playerInput}
+              onPlayerInputChange={setPlayerInput}
+              inputRef={inputRef}
+              onSendMessage={sendMessage}
+              isManualStart={chatIsManualStart}
+              candidateFirstName={chatCandidateFirstName}
+              onStartInterview={handleStartInterview}
+              contactAvailable={chatContactAvailable}
+              contactBusyMessage={chatContactBusyMessage}
+              hasNotesForInsert={hasMindmapTool && outlineItems.filter((i) => i.text.trim()).length > 0}
+              onInsertNotesInChat={handleInsertNotesInChat}
+            />
           )}
 
           {/* ─── MAIL VIEW ─── */}
           {mainView === "mail" && (
-            <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
-              {/* Mail list sidebar */}
-              <div style={{ width: 280, borderRight: "1px solid #e8e8e8", display: "flex", flexDirection: "column", overflowY: "auto", flexShrink: 0 }}>
-                <div style={{ padding: "12px 14px", borderBottom: "1px solid #e8e8e8", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600 }}>📧 Boîte de réception</h3>
-                  {canComposeMail && (
-                    <button
-                      onClick={() => {
-                        // Save current draft per-recipient, then reset for new compose
-                        if (session && scenario) {
-                          const phase = scenario.phases[session.currentPhaseIndex];
-                          const phaseId = phase?.phase_id || view.phaseId;
-                          const defaults = (phase?.mail_config?.defaults || {}) as Record<string, any>;
-                          const next = cloneSession(session);
-                          // Save current draft if it has a recipient and body
-                          const cur = next.mailDrafts[phaseId];
-                          if (cur && cur.to && cur.body) {
-                            if (!next.savedDrafts) next.savedDrafts = {};
-                            next.savedDrafts[`${phaseId}::${cur.to.trim().toLowerCase()}`] = { ...cur };
-                          }
-                          // Reset to blank
-                          updateMailDraft(next, phaseId, {
-                            to: defaults.to || "",
-                            cc: defaults.cc || "",
-                            subject: defaults.subject || "",
-                            body: "",
-                            attachments: [],
-                          });
-                          setSession(next);
-                        }
-                        setShowCompose(true);
-                        setSelectedMailId(null);
-                      }}
-                      style={{
-                        padding: "4px 12px", background: "#5b5fc7", color: "#fff",
-                        border: "none", borderRadius: 4, cursor: "pointer", fontSize: 12, fontWeight: 600,
-                      }}
-                    >
-                      + Nouveau
-                    </button>
-                  )}
-                </div>
-
-                {inboxMails.length === 0 && !showCompose && (
-                  <div style={{ padding: 20, textAlign: "center", color: "#999", fontSize: 13 }}>
-                    Aucun email reçu pour le moment
-                  </div>
-                )}
-
-                {inboxMails.map((mail: any) => {
-                  const sender = getActorInfo(mail.from);
-                  const isActive = selectedMailId === mail.id && !showCompose;
-                  return (
-                    <div
-                      key={mail.id}
-                      onClick={() => { setSelectedMailId(mail.id); setShowCompose(false); }}
-                      style={{
-                        padding: "10px 14px", cursor: "pointer",
-                        background: isActive ? "#f0f0ff" : "#fff",
-                        borderBottom: "1px solid #f0f0f0",
-                        borderLeft: isActive ? "3px solid #5b5fc7" : "3px solid transparent",
-                      }}
-                    >
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "#333", marginBottom: 2 }}>
-                        {sender.name}
-                      </div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: "#555", marginBottom: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {mail.subject}
-                      </div>
-                      <div style={{ fontSize: 11, color: "#999", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {mail.body.slice(0, 60)}...
-                      </div>
-                    </div>
-                  );
-                })}
-
-                {/* Sent mails */}
-                {view.sentMails && view.sentMails.length > 0 && (
-                  <>
-                    <div style={{ padding: "10px 14px", borderBottom: "1px solid #e8e8e8", borderTop: "1px solid #e8e8e8", marginTop: 8 }}>
-                      <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#999", textTransform: "uppercase" }}>Envoyés</h4>
-                    </div>
-                    {view.sentMails.map((mail: any) => (
-                      <div key={mail.id} style={{ padding: "8px 14px", borderBottom: "1px solid #f0f0f0", opacity: 0.7 }}>
-                        <div style={{ fontSize: 11, color: "#888" }}>→ {mail.to}</div>
-                        <div style={{ fontSize: 12, color: "#555", fontWeight: 600 }}>{mail.subject}</div>
-                      </div>
-                    ))}
-                  </>
-                )}
-              </div>
-
-              {/* Mail content / compose */}
-              <div style={{ flex: 1, overflowY: "auto", padding: 0 }}>
-
-                {/* Reading a mail */}
-                {selectedMail && !showCompose && (
-                  <div style={{ padding: 24 }}>
-                    <h2 style={{ fontSize: 18, color: "#333", marginBottom: 16 }}>{selectedMail.subject}</h2>
-                    <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 16, paddingBottom: 16, borderBottom: "1px solid #e8e8e8" }}>
-                      <Avatar initials={getActorInfo(selectedMail.from).initials} color={getActorInfo(selectedMail.from).color} size={36} />
-                      <div>
-                        <div style={{ fontSize: 13, fontWeight: 600 }}>{getActorInfo(selectedMail.from).name}</div>
-                        <div style={{ fontSize: 11, color: "#888" }}>
-                          À : {selectedMail.to || displayPlayerName || "CEO"}
-                          {selectedMail.cc && <span> — Cc : {selectedMail.cc}</span>}
-                        </div>
-                      </div>
-                    </div>
-                    <div style={{ fontSize: 13, lineHeight: 1.7, color: "#333", whiteSpace: "pre-wrap" }}>
-                      {selectedMail.body}
-                    </div>
-                    {selectedMail.attachments && selectedMail.attachments.length > 0 && (
-                      <div style={{ marginTop: 16, padding: 14, background: "#f8f9fa", borderRadius: 8, border: "1px solid #e8e8e8" }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, color: "#555", marginBottom: 10, textTransform: "uppercase", letterSpacing: "0.3px" }}>
-                          📎 Pièces jointes ({selectedMail.attachments.length})
-                        </div>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-                          {selectedMail.attachments.map((a: any) => {
-                            // Match attachment to scenario document
-                            const doc = scenario?.resources?.documents?.find((d: any) => d.doc_id === a.id);
-                            const hasFile = doc?.file_path;
-                            const hasImage = doc?.image_path;
-                            const isPDF = hasFile && doc.file_path!.endsWith(".pdf");
-                            const isImage = !!hasImage;
-                            const isClickable = !!doc;
-                            const fileIcon = isPDF ? "📑" : isImage ? "🖼️" : "📄";
-                            const fileType = isPDF ? "PDF" : isImage ? "Image" : "Document";
-
-                            return (
-                              <div
-                                key={a.id}
-                                style={{
-                                  display: "flex", alignItems: "center", gap: 8,
-                                  padding: "8px 12px", background: "#fff", borderRadius: 6,
-                                  border: "1px solid #ddd", cursor: isClickable ? "pointer" : "default",
-                                  transition: "all .15s", minWidth: 180, maxWidth: 280,
-                                }}
-                                onMouseEnter={(e) => { if (isClickable) { e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.background = "#f0f0ff"; } }}
-                                onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#ddd"; e.currentTarget.style.background = "#fff"; }}
-                                onClick={() => {
-                                  if (doc) {
-                                    // Open document in new tab (PDF or image)
-                                    const fp = (doc as any).file_path || "";
-                                    const ip = (doc as any).image_path || "";
-                                    const isImg = !!ip || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(fp);
-                                    const isPublicPdf = fp.startsWith("/") && fp.endsWith(".pdf");
-                                    const url = isImg ? (ip || fp) : isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
-                                    window.open(url, "_blank");
-                                  }
-                                }}
-                              >
-                                <span style={{ fontSize: 22, flexShrink: 0 }}>{fileIcon}</span>
-                                <div style={{ flex: 1, minWidth: 0 }}>
-                                  <div style={{ fontSize: 12, fontWeight: 600, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                    {a.label}
-                                  </div>
-                                  <div style={{ fontSize: 10, color: "#888" }}>{fileType}</div>
-                                </div>
-                                {isClickable && (
-                                  <span style={{ fontSize: 14, color: "#5b5fc7", flexShrink: 0 }} title="Consulter">📖</span>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* ── "Ouvrir et signer le pacte" — only in phase_3_pacte, only on the pacte mail ── */}
-                    {currentPhaseId === "phase_3_pacte" &&
-                      selectedMail.attachments?.some((a: any) => a.id === "pacte_associes") && (
-                      <div style={{ marginTop: 16 }}>
-                        {pacteSigned ? (
-                          <div style={{
-                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
-                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
-                            display: "flex", alignItems: "center", gap: 10,
-                          }}>
-                            <span style={{ fontSize: 20 }}>✅</span>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Pacte signé</div>
-                              <div style={{ fontSize: 11, color: "#666" }}>
-                                Renvoyez le pacte signé par mail au CTO pour finaliser.
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              // Initialize pacte articles if not already done
-                              if (pacteArticles.length === 0) {
-                                const ctoId = chosenCtoId || "sofia_renault";
-                                const ctoActor = actors.find((a: any) => a.actor_id === ctoId);
-                                const ctoName = ctoActor?.name || "CTO";
-                                setPacteArticles(buildPacteArticles(displayPlayerName, ctoName));
-                                setPacteThread([]);
-                              }
-                              setShowSignatureView(true);
-                            }}
-                            style={{
-                              width: "100%", padding: "14px 24px",
-                              background: "linear-gradient(135deg, #ffd700, #ffb300)",
-                              border: "2px solid #e6a800", borderRadius: 12,
-                              color: "#1a1a2e", fontSize: 14, fontWeight: 800, cursor: "pointer",
-                              boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
-                              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                              transition: "all 0.2s",
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(255,215,0,0.4)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(255,215,0,0.3)"; }}
-                          >
-                            ✍️ Ouvrir et signer le pacte
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* ── "Ouvrir et signer le contrat" — only in phase_3_sign (scenario 2) ── */}
-                    {currentPhaseId === "phase_3_sign" &&
-                      (selectedMail.from === "thomas_novadev" || selectedMail.from === "Thomas Vidal") && (
-                      <div style={{ marginTop: 16 }}>
-                        {contractSigned ? (
-                          <div style={{
-                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
-                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
-                            display: "flex", alignItems: "center", gap: 10,
-                          }}>
-                            <span style={{ fontSize: 20 }}>✅</span>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Contrat signé</div>
-                              <div style={{ fontSize: 11, color: "#666" }}>
-                                Le développement du MVP est lancé. Livraison dans 7 semaines.
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setShowContractSignature(true)}
-                            style={{
-                              width: "100%", padding: "14px 24px",
-                              background: "linear-gradient(135deg, #ffd700, #ffb300)",
-                              border: "2px solid #e6a800", borderRadius: 12,
-                              color: "#1a1a2e", fontSize: 14, fontWeight: 800, cursor: "pointer",
-                              boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
-                              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                              transition: "all 0.2s",
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-                          >
-                            ✍️ Ouvrir et signer le contrat
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* ── "Ouvrir et signer la convention" — only in phase_3_contract (scenario 3) ── */}
-                    {currentPhaseId === "phase_3_contract" &&
-                      selectedMail.attachments?.some((a: any) => a.id?.startsWith("contrat_")) && (() => {
-                        // If this mail is the pivot contract (clinique after refusal), show button even if previous was refused
-                        const isPivotContract = session?.flags?.switched_to_clinique && selectedMail.attachments?.some((a: any) => a.id === "contrat_clinique");
-                        const effectiveRefused = clinicalContractRefused && !isPivotContract;
-                        return (
-                      <div style={{ marginTop: 16 }}>
-                        {clinicalContractSigned ? (
-                          <div style={{
-                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
-                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
-                            display: "flex", alignItems: "center", gap: 10,
-                          }}>
-                            <span style={{ fontSize: 20 }}>✅</span>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Convention signée</div>
-                              <div style={{ fontSize: 11, color: "#666" }}>
-                                Le test pilote peut démarrer.
-                              </div>
-                            </div>
-                          </div>
-                        ) : effectiveRefused ? (
-                          <div style={{
-                            padding: "14px 18px", background: "rgba(220,38,38,0.06)",
-                            border: "1px solid rgba(220,38,38,0.2)", borderRadius: 10,
-                            display: "flex", alignItems: "center", gap: 10,
-                          }}>
-                            <span style={{ fontSize: 20 }}>❌</span>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#dc2626" }}>Convention refusée</div>
-                              <div style={{ fontSize: 11, color: "#666" }}>
-                                Discutez avec Alexandre pour trouver une alternative.
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              // Initialize articles for the correct establishment
-                              const type = session?.flags?.chose_chu ? "chu" as const : session?.flags?.chose_saint_martin ? "sm" as const : "clinique" as const;
-                              setClinicalContractArticles(buildClinicalArticles(type));
-                              setClinicalNegThread([]); setClinicalContractRefused(false); setShowClinicalContract(true);
-                            }}
-                            style={{
-                              width: "100%", padding: "14px 24px",
-                              background: "linear-gradient(135deg, #ffd700, #ffb300)",
-                              border: "2px solid #e6a800", borderRadius: 12,
-                              color: "#1a1a2e", fontSize: 14, fontWeight: 800, cursor: "pointer",
-                              boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
-                              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                              transition: "all 0.2s",
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-                          >
-                            ✍️ Ouvrir et signer la convention
-                          </button>
-                        )}
-                      </div>
-                        );
-                      })()}
-
-                    {/* ── "Négocier et signer le devis" — Scenario 4 Phase 3 ── */}
-                    {currentPhaseId === "phase_3_negotiation" &&
-                      selectedMail.from === "thomas_vidal" && (
-                      <div style={{ marginTop: 16 }}>
-                        {devisSigned ? (
-                          <div style={{
-                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
-                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
-                            display: "flex", alignItems: "center", gap: 10,
-                          }}>
-                            <span style={{ fontSize: 20 }}>✅</span>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>Devis signé</div>
-                              <div style={{ fontSize: 11, color: "#666" }}>
-                                L'accord avec NovaDev est formalisé.
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              setDevisNegoMessages([]);
-                              setShowDevisNego(true);
-                            }}
-                            style={{
-                              width: "100%", padding: "14px 24px",
-                              background: "linear-gradient(135deg, #ffd700, #ffb300)",
-                              border: "2px solid #e6a800", borderRadius: 12,
-                              color: "#1a1a2e", fontSize: 14, fontWeight: 800, cursor: "pointer",
-                              boxShadow: "0 4px 16px rgba(255,215,0,0.3)",
-                              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                              transition: "all 0.2s",
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
-                          >
-                            ✍️ Négocier et signer le devis
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* ── "Ouvrir et remplir le one-pager" — only in phase_1_onepager ── */}
-                    {currentPhaseId === "phase_1_onepager" && (
-                      <div style={{ marginTop: 16 }}>
-                        {onePagerSubmitted ? (
-                          <div style={{
-                            padding: "14px 18px", background: "rgba(74,222,128,0.08)",
-                            border: "1px solid rgba(74,222,128,0.25)", borderRadius: 10,
-                            display: "flex", alignItems: "center", gap: 10,
-                          }}>
-                            <span style={{ fontSize: 20 }}>✅</span>
-                            <div>
-                              <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>One-pager soumis</div>
-                              <div style={{ fontSize: 11, color: "#666" }}>
-                                Le jury va examiner votre candidature. Préparez votre pitch.
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => setShowOnePagerEditor(true)}
-                            style={{
-                              width: "100%", padding: "14px 24px",
-                              background: "linear-gradient(135deg, #5b5fc7, #4a4eb3)",
-                              border: "2px solid rgba(91,95,199,0.4)", borderRadius: 12,
-                              color: "#fff", fontSize: 14, fontWeight: 800, cursor: "pointer",
-                              boxShadow: "0 4px 16px rgba(91,95,199,0.3)",
-                              display: "flex", alignItems: "center", justifyContent: "center", gap: 10,
-                              transition: "all 0.2s",
-                            }}
-                            onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.01)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(91,95,199,0.4)"; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = "0 4px 16px rgba(91,95,199,0.3)"; }}
-                          >
-                            📝 Ouvrir et remplir le one-pager
-                          </button>
-                        )}
-                      </div>
-                    )}
-
-                    {/* Reply All button if mail is enabled */}
-                    {canComposeMail && (
-                      <button
-                        onClick={() => {
-                          // Reply All: pre-fill To with sender, Cc from mail_config defaults + original Cc
-                          const senderEmail = (() => {
-                            const a = actors.find((x: any) => x.actor_id === selectedMail.from);
-                            return (a as any)?.email || getActorInfo(selectedMail.from).name;
-                          })();
-                          // Gather Cc: original mail cc + phase mail_config defaults cc
-                          const ccParts: string[] = [];
-                          if (selectedMail.cc) ccParts.push(selectedMail.cc);
-                          const currentPhase = scenario.phases[session.currentPhaseIndex];
-                          const defaultCc = currentPhase?.mail_config?.defaults?.cc || "";
-                          if (defaultCc && !ccParts.includes(defaultCc)) ccParts.push(defaultCc);
-                          const reSubject = selectedMail.subject.startsWith("Re:") ? selectedMail.subject : `Re: ${selectedMail.subject}`;
-                          updateDraft({ to: senderEmail, cc: ccParts.join(", "), subject: reSubject });
-                          setShowCompose(true);
-                        }}
-                        style={{ marginTop: 20, padding: "8px 20px", background: "#5b5fc7", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", fontWeight: 600, fontSize: 13 }}
-                      >
-                        Répondre à tous
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                {/* Compose form */}
-                {showCompose && canComposeMail && (
-                  <div style={{ padding: 20, display: "flex", flexDirection: "column", gap: 12, height: "100%" }}>
-                    <h3 style={{ margin: 0, fontSize: 15, fontWeight: 600, color: "#333" }}>
-                      {view.sendMailLabel || "Nouveau message"}
-                    </h3>
-
-                    {/* To */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
-                      <label style={{ width: 40, fontSize: 12, fontWeight: 600, color: "#666" }}>À :</label>
-                      <input
-                        type="text" value={currentMailDraft.to}
-                        onChange={(e) => updateDraft({ to: e.target.value })}
-                        placeholder="Saisissez ou choisissez un contact"
-                        style={{ flex: 1, padding: "8px 10px", border: "1px solid #ddd", borderRadius: 4, fontSize: 13, fontFamily: "inherit" }}
-                      />
-                      <button
-                        onClick={() => setShowContactPicker(showContactPicker === "to" ? null : "to")}
-                        title="Répertoire de contacts"
-                        style={{
-                          background: showContactPicker === "to" ? "#5b5fc7" : "#f0f0f0",
-                          color: showContactPicker === "to" ? "#fff" : "#555",
-                          border: "1px solid #ddd", borderRadius: 4, padding: "6px 10px",
-                          cursor: "pointer", fontSize: 16, lineHeight: 1, flexShrink: 0,
-                        }}
-                      >
-                        📇
-                      </button>
-                      {showContactPicker === "to" && (
-                        <div style={{
-                          position: "absolute", top: "100%", right: 0, marginTop: 4, zIndex: 100,
-                          background: "#fff", border: "1px solid #ddd", borderRadius: 8,
-                          boxShadow: "0 4px 16px rgba(0,0,0,.12)", width: 300, maxHeight: 280, overflowY: "auto",
-                        }}>
-                          <div style={{ padding: "8px 12px", borderBottom: "1px solid #eee", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase" }}>
-                            Répertoire — Destinataire
-                          </div>
-                          {actors
-                            .filter((a: any) => a.actor_id !== "player" && (a.visible_in_contacts || a.email))
-                            .map((a: any) => {
-                              const contactEmail = a.email || a.name;
-                              const isAlreadyAdded = currentMailDraft.to.toLowerCase().includes(contactEmail.toLowerCase());
-                              return (
-                                <div
-                                  key={a.actor_id}
-                                  onClick={() => {
-                                    if (isAlreadyAdded) {
-                                      // Remove from To field
-                                      const parts = currentMailDraft.to.split(",").map((s: string) => s.trim()).filter((s: string) => s.toLowerCase() !== contactEmail.toLowerCase());
-                                      updateDraft({ to: parts.join(", ") });
-                                    } else {
-                                      const existing = currentMailDraft.to.trim();
-                                      updateDraft({ to: existing ? `${existing}, ${contactEmail}` : contactEmail });
-                                    }
-                                  }}
-                                  style={{
-                                    padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-                                    borderBottom: "1px solid #f5f5f5", transition: "background .1s",
-                                    background: isAlreadyAdded ? "#f0f0ff" : "#fff",
-                                  }}
-                                  onMouseEnter={(e) => { if (!isAlreadyAdded) e.currentTarget.style.background = "#fafafa"; }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.background = isAlreadyAdded ? "#f0f0ff" : "#fff"; }}
-                                >
-                                  <Avatar initials={a.avatar?.initials || getInitials(a.name)} color={a.avatar?.color || "#666"} size={28} />
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{a.name}</div>
-                                    <div style={{ fontSize: 11, color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                      {a.role?.slice(0, 40)}{a.role?.length > 40 ? "..." : ""}
-                                    </div>
-                                    {a.email && <div style={{ fontSize: 10, color: "#5b5fc7" }}>{a.email}</div>}
-                                  </div>
-                                  {isAlreadyAdded && <span style={{ fontSize: 16, color: "#5b5fc7", flexShrink: 0 }}>✓</span>}
-                                </div>
-                              );
-                            })}
-                        </div>
-                      )}
-                    </div>
-                    {/* Cc */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, position: "relative" }}>
-                      <label style={{ width: 40, fontSize: 12, fontWeight: 600, color: "#666" }}>Cc :</label>
-                      <input
-                        type="text" value={currentMailDraft.cc}
-                        onChange={(e) => updateDraft({ cc: e.target.value })}
-                        placeholder="Copie (optionnel)"
-                        style={{ flex: 1, padding: "8px 10px", border: "1px solid #ddd", borderRadius: 4, fontSize: 13, fontFamily: "inherit" }}
-                      />
-                      <button
-                        onClick={() => setShowContactPicker(showContactPicker === "cc" ? null : "cc")}
-                        title="Répertoire de contacts"
-                        style={{
-                          background: showContactPicker === "cc" ? "#5b5fc7" : "#f0f0f0",
-                          color: showContactPicker === "cc" ? "#fff" : "#555",
-                          border: "1px solid #ddd", borderRadius: 4, padding: "6px 10px",
-                          cursor: "pointer", fontSize: 16, lineHeight: 1, flexShrink: 0,
-                        }}
-                      >
-                        📇
-                      </button>
-                      {showContactPicker === "cc" && (
-                        <div style={{
-                          position: "absolute", top: "100%", right: 0, marginTop: 4, zIndex: 100,
-                          background: "#fff", border: "1px solid #ddd", borderRadius: 8,
-                          boxShadow: "0 4px 16px rgba(0,0,0,.12)", width: 300, maxHeight: 280, overflowY: "auto",
-                        }}>
-                          <div style={{ padding: "8px 12px", borderBottom: "1px solid #eee", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase" }}>
-                            Répertoire — Copie (Cc)
-                          </div>
-                          {actors
-                            .filter((a: any) => a.actor_id !== "player" && (a.visible_in_contacts || a.email))
-                            .map((a: any) => {
-                              const contactEmail = a.email || a.name;
-                              const isAlreadyAdded = currentMailDraft.cc.toLowerCase().includes(contactEmail.toLowerCase());
-                              return (
-                                <div
-                                  key={a.actor_id}
-                                  onClick={() => {
-                                    if (isAlreadyAdded) {
-                                      const parts = currentMailDraft.cc.split(",").map((s: string) => s.trim()).filter((s: string) => s.toLowerCase() !== contactEmail.toLowerCase());
-                                      updateDraft({ cc: parts.join(", ") });
-                                    } else {
-                                      const existing = currentMailDraft.cc.trim();
-                                      updateDraft({ cc: existing ? `${existing}, ${contactEmail}` : contactEmail });
-                                    }
-                                  }}
-                                  style={{
-                                    padding: "8px 12px", cursor: "pointer", display: "flex", alignItems: "center", gap: 8,
-                                    borderBottom: "1px solid #f5f5f5", transition: "background .1s",
-                                    background: isAlreadyAdded ? "#f0f0ff" : "#fff",
-                                  }}
-                                  onMouseEnter={(e) => { if (!isAlreadyAdded) e.currentTarget.style.background = "#fafafa"; }}
-                                  onMouseLeave={(e) => { e.currentTarget.style.background = isAlreadyAdded ? "#f0f0ff" : "#fff"; }}
-                                >
-                                  <Avatar initials={a.avatar?.initials || getInitials(a.name)} color={a.avatar?.color || "#666"} size={28} />
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>{a.name}</div>
-                                    <div style={{ fontSize: 11, color: "#888", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                                      {a.role?.slice(0, 40)}{a.role?.length > 40 ? "..." : ""}
-                                    </div>
-                                    {a.email && <div style={{ fontSize: 10, color: "#5b5fc7" }}>{a.email}</div>}
-                                  </div>
-                                  {isAlreadyAdded && <span style={{ fontSize: 16, color: "#5b5fc7", flexShrink: 0 }}>✓</span>}
-                                </div>
-                              );
-                            })}
-                        </div>
-                      )}
-                    </div>
-                    {/* Subject */}
-                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                      <label style={{ width: 40, fontSize: 12, fontWeight: 600, color: "#666" }}>Objet :</label>
-                      <input
-                        type="text" value={currentMailDraft.subject}
-                        onChange={(e) => updateDraft({ subject: e.target.value })}
-                        style={{ flex: 1, padding: "8px 10px", border: "1px solid #ddd", borderRadius: 4, fontSize: 13, fontFamily: "inherit" }}
-                      />
-                    </div>
-                    {/* Body */}
-                    {hasMindmapTool && outlineItems.filter((i) => i.text.trim()).length > 0 && (
-                      <button
-                        onClick={() => {
-                          const text = outlineToText(outlineItems);
-                          if (!text) return;
-                          const body = currentMailDraft.body;
-                          const newBody = body ? body + "\n\n--- Mes notes d'analyse ---\n" + text : text;
-                          updateDraft({ body: newBody });
-                        }}
-                        style={{
-                          padding: "6px 14px", borderRadius: 6,
-                          border: "1px dashed rgba(91,95,199,0.4)",
-                          background: "#f8f8ff", color: "#5b5fc7", fontSize: 12,
-                          cursor: "pointer", fontWeight: 500,
-                          display: "flex", alignItems: "center", gap: 6,
-                          alignSelf: "flex-start",
-                        }}
-                      >
-                        🗒️ Insérer mes notes ({outlineItems.filter((i) => i.text.trim()).length} éléments)
-                      </button>
-                    )}
-                    <textarea
-                      value={currentMailDraft.body}
-                      onChange={(e) => updateDraft({ body: e.target.value })}
-                      placeholder="Rédigez votre message ici..."
-                      style={{ flex: 1, padding: 12, border: "1px solid #ddd", borderRadius: 4, fontSize: 13, fontFamily: "inherit", resize: "none", minHeight: 180 }}
-                    />
-
-                    {/* Attachments */}
-                    {attachableDocs.length > 0 && (
-                      <div style={{ padding: 10, background: "#fafafa", borderRadius: 6, border: "1px solid #eee" }}>
-                        <strong style={{ fontSize: 12, color: "#555" }}>📎 Pièces jointes :</strong>
-                        <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 8 }}>
-                          {attachableDocs.map((doc: any) => {
-                            const isAttached = currentMailDraft.attachments.some((a: any) => a.id === doc.doc_id);
-                            return (
-                              <label
-                                key={doc.doc_id}
-                                style={{
-                                  display: "flex", alignItems: "center", gap: 6,
-                                  padding: "4px 10px", borderRadius: 16, cursor: "pointer",
-                                  background: isAttached ? "#e8e5ff" : "#f0f0f0",
-                                  border: isAttached ? "1px solid #5b5fc7" : "1px solid #ddd",
-                                  fontSize: 12, color: isAttached ? "#5b5fc7" : "#555",
-                                  fontWeight: isAttached ? 600 : 400,
-                                  transition: "all .15s",
-                                }}
-                              >
-                                <input
-                                  type="checkbox" checked={isAttached}
-                                  onChange={() => handleToggleAttachment(doc.doc_id, doc.label)}
-                                  style={{ display: "none" }}
-                                />
-                                {isAttached ? "✓" : "+"} {doc.label}
-                              </label>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Send */}
-                    <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                      <button
-                        onClick={() => setShowCompose(false)}
-                        style={{ padding: "8px 16px", background: "#f0f0f0", color: "#666", border: "none", borderRadius: 4, cursor: "pointer", fontSize: 13 }}
-                      >
-                        Annuler
-                      </button>
-                      <button
-                        onClick={handleSendMail}
-                        disabled={!canActuallySendMail}
-                        title={mailSendBlockReason || undefined}
-                        style={{
-                          padding: "8px 24px", borderRadius: 4, border: "none",
-                          background: canActuallySendMail ? "#5b5fc7" : "#ccc",
-                          color: "#fff", cursor: canActuallySendMail ? "pointer" : "not-allowed",
-                          fontWeight: 600, fontSize: 13,
-                        }}
-                      >
-                        {view.sendMailLabel || "Envoyer"}
-                      </button>
-                      {!canActuallySendMail && mailSendBlockReason && (
-                        <div style={{ fontSize: 11, color: "#e74c3c", marginTop: 4, textAlign: "right" }}>
-                          {mailSendBlockReason}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Empty state */}
-                {!selectedMail && !showCompose && (
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#999", fontSize: 14 }}>
-                    {inboxMails.length > 0
-                      ? "Sélectionnez un email pour le lire"
-                      : canComposeMail
-                        ? "Cliquez sur « + Nouveau » pour rédiger un email"
-                        : "Aucun email pour le moment"
-                    }
-                  </div>
-                )}
-              </div>
-            </div>
+            <MailView
+              inboxMails={inboxMails}
+              selectedMailId={selectedMailId}
+              selectedMail={selectedMail}
+              sentMails={view.sentMails || []}
+              showCompose={showCompose}
+              canComposeMail={canComposeMail}
+              canActuallySendMail={canActuallySendMail}
+              mailSendBlockReason={mailSendBlockReason}
+              currentMailDraft={currentMailDraft}
+              sendMailLabel={view.sendMailLabel || "Envoyer"}
+              attachableDocs={attachableDocs}
+              showContactPicker={showContactPicker}
+              actors={actors}
+              getActorInfo={getActorInfo}
+              displayPlayerName={displayPlayerName}
+              scenarioId={scenarioId}
+              currentPhaseId={currentPhaseId}
+              scenarioDocs={scenario?.resources?.documents || []}
+              pacteSigned={pacteSigned}
+              contractSigned={contractSigned}
+              clinicalContractSigned={clinicalContractSigned}
+              clinicalContractRefused={clinicalContractRefused}
+              devisSigned={devisSigned}
+              exceptionsSigned={exceptionsSigned}
+              onePagerSubmitted={onePagerSubmitted}
+              sessionFlags={session?.flags || {}}
+              hasMindmapTool={hasMindmapTool}
+              outlineItemCount={outlineItems.filter((i) => i.text.trim()).length}
+              onSelectMail={(mailId) => { setSelectedMailId(mailId); setShowCompose(false); }}
+              onNewCompose={handleNewCompose}
+              onSetShowCompose={setShowCompose}
+              onUpdateDraft={updateDraft}
+              onSendMail={handleSendMail}
+              onToggleAttachment={handleToggleAttachment}
+              onSetContactPicker={setShowContactPicker}
+              onReplyAll={handleReplyAll}
+              onInsertOutlineNotes={handleInsertOutlineNotes}
+              onOpenPacteSign={handleOpenPacteSign}
+              onOpenContractSign={handleOpenContractSign}
+              onOpenClinicalSign={handleOpenClinicalSign}
+              onOpenDevisSign={handleOpenDevisSign}
+              onOpenExceptionsSign={handleOpenExceptionsSign}
+              onOpenOnePager={() => setShowOnePagerEditor(true)}
+            />
           )}
           {/* ═══ NOTES / MIND MAP VIEW ═══ */}
-          {mainView === "notes" && hasMindmapTool && (() => {
-            const depthColors = ["#1a3c6e", "#5b5fc7", "#7c3aed", "#0891b2", "#059669", "#d97706"];
-
-            // Build tree structure from flat items for mind map rendering
-            type TreeNode = { item: OutlineItem; children: TreeNode[] };
-            function buildTree(items: OutlineItem[]): TreeNode[] {
-              const roots: TreeNode[] = [];
-              const stack: TreeNode[] = [];
-              for (const item of items) {
-                const node: TreeNode = { item, children: [] };
-                while (stack.length > 0 && stack[stack.length - 1].item.depth >= item.depth) {
-                  stack.pop();
-                }
-                if (stack.length === 0) {
-                  roots.push(node);
-                } else {
-                  stack[stack.length - 1].children.push(node);
-                }
-                stack.push(node);
-              }
-              return roots;
-            }
-
-            function renderTreeNode(node: TreeNode, isLast: boolean, parentColor: string): React.ReactNode {
-              const d = Math.min(node.item.depth, depthColors.length - 1);
-              const color = depthColors[d];
-              const hasChildren = node.children.length > 0;
-              return (
-                <div key={node.item.id} style={{ marginLeft: node.item.depth === 0 ? 0 : 20 }}>
-                  <div style={{
-                    display: "flex", alignItems: "flex-start", gap: 8, padding: "4px 0",
-                    position: "relative",
-                  }}>
-                    {node.item.depth > 0 && (
-                      <div style={{
-                        position: "absolute", left: -14, top: 0, bottom: isLast ? "50%" : 0,
-                        width: 1, background: parentColor, opacity: 0.25,
-                      }} />
-                    )}
-                    {node.item.depth > 0 && (
-                      <div style={{
-                        position: "absolute", left: -14, top: "50%", width: 10, height: 1,
-                        background: parentColor, opacity: 0.25,
-                      }} />
-                    )}
-                    <span style={{
-                      width: 8, height: 8, borderRadius: hasChildren ? 2 : "50%",
-                      background: color, flexShrink: 0, marginTop: 5,
-                    }} />
-                    <span style={{
-                      fontSize: node.item.depth === 0 ? 14 : 13,
-                      fontWeight: node.item.depth === 0 ? 700 : 400,
-                      color, lineHeight: 1.5,
-                    }}>
-                      {node.item.text}
-                    </span>
-                  </div>
-                  {hasChildren && (
-                    <div style={{ position: "relative" }}>
-                      {node.children.map((child, ci) =>
-                        renderTreeNode(child, ci === node.children.length - 1, color)
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            }
-
-            const tree = buildTree(outlineItems);
-
-            return (
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
-              {/* Header */}
-              <div style={{ padding: "12px 20px", borderBottom: "1px solid #e8e8e8", background: "#fff", flexShrink: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                  <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#1a3c6e" }}>
-                    🗒️ Notes d'analyse
-                  </h2>
-                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-                    {outlineCopiedFeedback && (
-                      <span style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>
-                        {outlineCopiedFeedback}
-                      </span>
-                    )}
-                    {/* View mode toggle */}
-                    <div style={{ display: "flex", border: "1px solid #ddd", borderRadius: 6, overflow: "hidden" }}>
-                      {(["editor", "split", "map"] as const).map((mode) => (
-                        <button
-                          key={mode}
-                          onClick={() => setMindmapView(mode)}
-                          style={{
-                            padding: "4px 10px", border: "none", cursor: "pointer", fontSize: 11, fontWeight: 600,
-                            background: mindmapView === mode ? "#5b5fc7" : "#fff",
-                            color: mindmapView === mode ? "#fff" : "#666",
-                          }}
-                        >
-                          {mode === "editor" ? "Éditeur" : mode === "split" ? "Split" : "Mind Map"}
-                        </button>
-                      ))}
-                    </div>
-                    <button
-                      onClick={() => {
-                        const text = outlineToText(outlineItems);
-                        if (!text) return;
-                        navigator.clipboard.writeText(text);
-                        setOutlineCopiedFeedback("Copié !");
-                        setTimeout(() => setOutlineCopiedFeedback(""), 1500);
-                      }}
-                      style={{
-                        padding: "5px 12px", borderRadius: 6, border: "1px solid #ddd",
-                        background: "#fff", color: "#555", fontSize: 12, cursor: "pointer",
-                        fontWeight: 500, display: "flex", alignItems: "center", gap: 4,
-                      }}
-                    >
-                      📋 Copier
-                    </button>
-                    <button
-                      onClick={() => {
-                        const text = outlineToText(outlineItems);
-                        if (!text) return;
-                        const body = currentMailDraft.body;
-                        const newBody = body ? body + "\n\n--- Mes notes d'analyse ---\n" + text : text;
-                        updateDraft({ body: newBody });
-                        setMainView("mail");
-                        setShowCompose(true);
-                        setOutlineCopiedFeedback("Inséré dans le mail !");
-                        setTimeout(() => setOutlineCopiedFeedback(""), 2000);
-                      }}
-                      style={{
-                        padding: "5px 12px", borderRadius: 6, border: "1px solid rgba(91,95,199,0.3)",
-                        background: "#f0f0ff", color: "#5b5fc7", fontSize: 12, cursor: "pointer",
-                        fontWeight: 600, display: "flex", alignItems: "center", gap: 4,
-                      }}
-                    >
-                      ✉️ Insérer dans le mail
-                    </button>
-                  </div>
-                </div>
-                <p style={{ margin: "4px 0 0", fontSize: 12, color: "#888" }}>
-                  Tape ou colle ton analyse. Indente avec <strong>2 espaces</strong> ou <strong>Tab</strong> pour créer des sous-niveaux. Préfixes reconnus : <strong>- * • ◦ ▪</strong>
-                </p>
-              </div>
-
-              {/* Content area — split, editor-only, or map-only */}
-              <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
-                {/* Textarea editor */}
-                {(mindmapView === "editor" || mindmapView === "split") && (
-                  <div style={{
-                    flex: mindmapView === "split" ? 1 : 1,
-                    display: "flex", flexDirection: "column",
-                    borderRight: mindmapView === "split" ? "1px solid #e8e8e8" : "none",
-                    minWidth: 0,
-                  }}>
-                    <textarea
-                      value={outlineRawText}
-                      onChange={(e) => setOutlineRawText(e.target.value)}
-                      onKeyDown={(e) => {
-                        // Tab inserts 2 spaces at cursor position
-                        if (e.key === "Tab") {
-                          e.preventDefault();
-                          const ta = e.target as HTMLTextAreaElement;
-                          const start = ta.selectionStart;
-                          const end = ta.selectionEnd;
-                          if (e.shiftKey) {
-                            // Remove up to 2 leading spaces on the current line
-                            const before = outlineRawText.slice(0, start);
-                            const lineStart = before.lastIndexOf("\n") + 1;
-                            const line = outlineRawText.slice(lineStart);
-                            const spacesToRemove = line.startsWith("  ") ? 2 : line.startsWith(" ") ? 1 : line.startsWith("\t") ? 1 : 0;
-                            if (spacesToRemove > 0) {
-                              const newText = outlineRawText.slice(0, lineStart) + outlineRawText.slice(lineStart + spacesToRemove);
-                              setOutlineRawText(newText);
-                              setTimeout(() => {
-                                ta.selectionStart = ta.selectionEnd = Math.max(lineStart, start - spacesToRemove);
-                              }, 0);
-                            }
-                          } else {
-                            const newText = outlineRawText.slice(0, start) + "  " + outlineRawText.slice(end);
-                            setOutlineRawText(newText);
-                            setTimeout(() => {
-                              ta.selectionStart = ta.selectionEnd = start + 2;
-                            }, 0);
-                          }
-                        }
-                      }}
-                      placeholder={"Problème adoption\n  Seulement 2/12 chirurgiens actifs\n  Secrétariat reste sur Excel\n    Mme Bertrand refuse de partager\n  Pas de formation initiale\nBug annulation\n  Double système Excel/Orisio\n  Incident Mme Dupont\n    Prothèse annulée sans notification\nModules demandés par Alexandre\n  Dashboard direction — 5K\n  Notifications — 3.5K\n  Gestion matériel — 7K"}
-                      style={{
-                        flex: 1, padding: "16px 20px", border: "none", outline: "none",
-                        resize: "none", fontSize: 13, fontFamily: "'SF Mono', 'Fira Code', 'Consolas', monospace",
-                        lineHeight: 1.7, color: "#333", background: "#fafbfc",
-                        tabSize: 2,
-                      }}
-                    />
-                  </div>
-                )}
-
-                {/* Visual Mind Map */}
-                {(mindmapView === "map" || mindmapView === "split") && (
-                  <div style={{
-                    flex: 1, overflowY: "auto", padding: "16px 20px", background: "#fff",
-                    minWidth: 0,
-                  }}>
-                    {outlineItems.length === 0 ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", color: "#bbb", gap: 8 }}>
-                        <span style={{ fontSize: 32 }}>🌳</span>
-                        <span style={{ fontSize: 13 }}>Ta mind map apparaîtra ici</span>
-                        <span style={{ fontSize: 11, color: "#ccc" }}>Commence à écrire dans l'éditeur</span>
-                      </div>
-                    ) : (
-                      <div style={{ padding: "8px 0" }}>
-                        {tree.map((node, i) => renderTreeNode(node, i === tree.length - 1, depthColors[0]))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* Stats footer */}
-              <div style={{
-                padding: "8px 20px", borderTop: "1px solid #e8e8e8", background: "#fafafa",
-                fontSize: 11, color: "#999", display: "flex", justifyContent: "space-between", flexShrink: 0,
-              }}>
-                <span>{outlineItems.length} éléments</span>
-                <span>{outlineItems.filter((i) => i.depth === 0).length} catégories principales</span>
-              </div>
-            </div>
-            );
-          })()}
+          {mainView === "notes" && hasMindmapTool && (
+            <NotesView
+              outlineItems={outlineItems}
+              outlineRawText={outlineRawText}
+              onOutlineRawTextChange={setOutlineRawText}
+              mindmapView={mindmapView}
+              onMindmapViewChange={setMindmapView}
+              outlineCopiedFeedback={outlineCopiedFeedback}
+              onCopy={handleNotesCopy}
+              onInsertInMail={handleNotesInsertInMail}
+            />
+          )}
 
         </main>
 
@@ -6561,111 +4760,13 @@ ${equityClause}
 
             {/* ── Documents panel ── */}
             {rightPanel === "docs" && (
-              <div>
-                {/* Document list — click opens in new tab */}
-                <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-                  {allDocuments.map((doc: any) => {
-                    const hasPJ = doc.usable_as_pj || doc.usable_as_attachment;
-                    const fp = (doc as any).file_path || "";
-                    const ip = (doc as any).image_path || "";
-                    const isPublicPdf = fp.startsWith("/") && fp.endsWith(".pdf");
-                    const isImage = !!ip || /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(fp);
-                    const hasInlineContent = !fp && !ip && !!(doc as any).content;
-                    const docUrl = hasInlineContent ? "#" : isImage ? (ip || fp) : isPublicPdf ? fp : `/api/download?file=${encodeURIComponent(fp)}&scenarioId=${encodeURIComponent(scenarioId)}`;
-                    const docIcon = isImage ? "🖼️" : hasInlineContent ? "📄" : "📑";
-                    const docType = isImage ? "Image" : hasInlineContent ? "Texte" : "PDF";
-                    const docTypeColor = isImage ? { fg: "#1e40af", bg: "#dbeafe" } : hasInlineContent ? { fg: "#16a34a", bg: "#f0fdf4" } : { fg: "#c2410c", bg: "#fff7ed" };
-                    return (
-                      <li
-                        key={doc.doc_id}
-                        style={{
-                          padding: "10px", marginBottom: 4, borderRadius: 6,
-                          background: "#fff", border: "1px solid #e8e8e8",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontSize: 13, fontWeight: 500, color: "#333", display: "flex", alignItems: "center", gap: 6 }}>
-                              <span>{docIcon}</span>
-                              {doc.label}
-                            </div>
-                            <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-                              <span style={{ fontSize: 10, color: docTypeColor.fg, background: docTypeColor.bg, padding: "1px 6px", borderRadius: 8, fontWeight: 600 }}>
-                                {docType}
-                              </span>
-                              {hasPJ && (
-                                <span style={{ fontSize: 10, color: "#5b5fc7", background: "#f0f0ff", padding: "1px 6px", borderRadius: 8 }}>
-                                  PJ
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                          <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>
-                            {hasInlineContent ? (
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setInlineDocContent({ title: doc.label, content: (doc as any).content });
-                                }}
-                                style={{
-                                  display: "flex", alignItems: "center", gap: 4,
-                                  padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                  background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
-                                  border: "1px solid rgba(91,95,199,0.2)", cursor: "pointer",
-                                }}
-                              >
-                                Lire
-                              </button>
-                            ) : (
-                              <>
-                                <a
-                                  href={docUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{
-                                    display: "flex", alignItems: "center", gap: 4,
-                                    padding: "6px 12px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                    background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
-                                    border: "1px solid rgba(91,95,199,0.2)", cursor: "pointer",
-                                  }}
-                                >
-                                  Ouvrir
-                                </a>
-                                <a
-                                  href={docUrl}
-                                  download
-                                  onClick={(e) => e.stopPropagation()}
-                                  style={{
-                                    display: "flex", alignItems: "center", gap: 4,
-                                    padding: "6px 10px", borderRadius: 6, fontSize: 11, fontWeight: 600,
-                                    background: "#fff", color: "#666", textDecoration: "none",
-                                    border: "1px solid #ddd", cursor: "pointer",
-                                  }}
-                                >
-                                  ⬇
-                                </a>
-                              </>
-                            )}
-                          </div>
-                        </div>
-                        {/* Pacte signing status */}
-                        {doc.doc_id === "pacte_associes" && currentPhaseId === "phase_3_pacte" && (
-                          <div style={{ marginTop: 8 }}>
-                            {pacteSigned ? (
-                              <div style={{ fontSize: 11, color: "#16a34a", fontWeight: 600 }}>✅ Pacte signé</div>
-                            ) : (
-                              <div style={{ fontSize: 11, color: "#555" }}>
-                                Pour signer, ouvrez le <strong>mail du CTO</strong>.
-                              </div>
-                            )}
-                          </div>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
+              <DocumentsView
+                documents={allDocuments}
+                scenarioId={scenarioId}
+                currentPhaseId={currentPhaseId}
+                pacteSigned={pacteSigned}
+                onOpenInlineDoc={(title, content) => setInlineDocContent({ title, content })}
+              />
             )}
           </div>
         </aside>

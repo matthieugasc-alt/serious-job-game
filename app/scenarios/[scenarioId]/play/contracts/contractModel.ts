@@ -89,6 +89,116 @@ export function buildContractSummary(clauses: ContractClause[]): string {
     .join("\n");
 }
 
+// ══════════════════════════════════════════════════════════════════
+// S2 — Contrat de prestation NovaDev
+// ══════════════════════════════════════════════════════════════════
+
+export interface NovadevContractVars {
+  price: string;              // e.g. "15000" or "À définir"
+  features: string[];         // e.g. ["Planning temps réel", "Notifications"]
+  equity: string | null;      // e.g. "3%" or null
+  playerName: string;
+}
+
+/**
+ * Build the structured articles for the NovaDev development contract.
+ * Dynamic content based on what the player negotiated in phase 2.
+ */
+export function buildNovadevArticles(vars: NovadevContractVars): ContractClause[] {
+  const priceDisplay = vars.price && vars.price !== "À définir"
+    ? `${parseInt(vars.price).toLocaleString("fr-FR")} € HT`
+    : "Selon accord verbal";
+
+  const featuresText = vars.features.length > 0
+    ? vars.features.map((f, i) => `Module ${i + 1} — ${f}`).join("\n")
+    : "Fonctionnalités selon accord entre les parties.";
+
+  const articles: ContractClause[] = [
+    clause("article_1", "Article 1 — Objet",
+      "Le Prestataire s'engage à réaliser pour le compte du Client le développement d'un MVP de la plateforme Orisio, selon le périmètre défini à l'Article 2."),
+
+    clause("article_2", "Article 2 — Périmètre de la prestation",
+      `${featuresText}\n\nInfrastructure : Hébergement conforme HDS (OVH Healthcare). API REST sécurisée. Interface web responsive.`),
+
+    clause("article_3", "Article 3 — Prix et conditions de paiement",
+      `Le prix total de la prestation est fixé à ${priceDisplay}.\nPaiement en trois échéances : 30% à la signature, 40% à la livraison beta, 30% à la recette finale.`),
+  ];
+
+  let nextNum = 4;
+
+  if (vars.equity) {
+    articles.push(
+      clause(`article_${nextNum}`, `Article ${nextNum} — Participation au capital`,
+        `En complément du prix cash, le Client cède au Prestataire ${vars.equity} du capital d'Orisio SAS, via BSPCE avec vesting de 2 ans et cliff de 6 mois.\nLe Prestataire n'a pas de droit de vote ni de siège au board.`),
+    );
+    nextNum++;
+  }
+
+  articles.push(
+    clause(`article_${nextNum}`, `Article ${nextNum} — Délais de réalisation`,
+      "Prestation réalisée en 7 semaines à compter de la signature."),
+  );
+  nextNum++;
+
+  articles.push(
+    clause(`article_${nextNum}`, `Article ${nextNum} — Propriété intellectuelle`,
+      "Le code source est la propriété exclusive du Client dès paiement intégral."),
+  );
+  nextNum++;
+
+  articles.push(
+    clause(`article_${nextNum}`, `Article ${nextNum} — Confidentialité`,
+      "Le Prestataire s'engage à maintenir la confidentialité de toutes les informations relatives au projet."),
+  );
+  nextNum++;
+
+  articles.push(
+    clause(`article_${nextNum}`, `Article ${nextNum} — Garantie`,
+      "Garantie de bon fonctionnement pendant 3 mois après livraison. Corrections de bugs incluses."),
+  );
+  nextNum++;
+
+  articles.push(
+    clause(`article_${nextNum}`, `Article ${nextNum} — Résiliation`,
+      "Résiliation possible avec préavis de 15 jours. Le prorata du travail effectué est dû."),
+  );
+
+  return articles;
+}
+
+// ══════════════════════════════════════════════════════════════════
+// S5 — Bon de commande — Conditions particulières (exceptions CGV)
+// ══════════════════════════════════════════════════════════════════
+
+/**
+ * Build the 5 exception articles for the S5 bon de commande.
+ * These are conditions particulières proposed by the establishment's jurist
+ * that derogate from Orisio's CGV.
+ */
+export function buildExceptionsArticles(establishmentName: string): ContractClause[] {
+  return [
+    clause("article_1", "Article 1 — Remise commerciale",
+      `En tant que premier client référencé, l'établissement ${establishmentName} bénéficie d'une remise de 15% sur le tarif par salle/mois communiqué à la DSI.`,
+      false, true),  // moderate = true (negotiable)
+
+    clause("article_2", "Article 2 — Communication (déroge à l'art. 6.5 CGV)",
+      `L'établissement refuse toute communication publique de la part de l'Éditeur mentionnant l'établissement comme client ou référence, y compris sur le site web, en congrès ou dans des supports marketing.`,
+      false, true),
+
+    clause("article_3", "Article 3 — Pénalités de retard de paiement (déroge à l'art. 3.5 CGV)",
+      `Les pénalités de retard de paiement prévues aux CGV sont supprimées. L'établissement étant un acteur public, les délais de mandatement sont une contrainte administrative incompressible.`,
+      false, true),
+
+    clause("article_4", "Article 4 — Pénalités d'indisponibilité (clause additionnelle)",
+      `En cas de disponibilité inférieure à 99,5% sur un mois donné, un avoir proportionnel au temps d'indisponibilité est appliqué. En cas d'indisponibilité supérieure à 48h consécutives, résiliation de plein droit sans indemnité.`,
+      false, true),
+
+    clause("article_5", "Article 5 — Durée d'engagement (déroge à l'art. 2.1 CGV)",
+      `L'engagement de 36 mois prévu aux CGV est remplacé par une période de test de 6 mois, suivie d'un engagement de 12 mois renouvelable tacitement.`,
+      true, false),  // toxic = true (jurist won't budge on this one)
+  ];
+}
+
 // ── Exclusivity detection (S0 pedagogical mechanic) ──
 
 /** Broad regex matching any mention of exclusivity / full-time / Article 6 issues */

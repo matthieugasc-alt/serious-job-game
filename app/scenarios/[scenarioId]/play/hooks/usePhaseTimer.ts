@@ -11,6 +11,7 @@ import {
   injectPhaseEntryEvents,
   updateMailDraft,
 } from "@/app/lib/runtime";
+import { InterviewHandler } from "../handlers";
 
 /**
  * Parameters for the usePhaseTimer hook.
@@ -86,8 +87,8 @@ export function usePhaseTimer({
       resolveDynamicActors(next);
       resolveEstablishmentPlaceholders(next);
       const newPhase = scenario.phases[next.currentPhaseIndex];
-      // For manual_start phases, only inject Alexandre's intro (delay_ms=0)
-      if ((newPhase as any)?.manual_start) {
+      // For interview phases, only inject Alexandre's intro (delay_ms=0)
+      if (InterviewHandler.matches(newPhase)) {
         injectIntroEventsOnly(next);
         setInterviewStarted(false);
       } else {
@@ -172,8 +173,8 @@ export function usePhaseTimer({
     const phase = scenario.phases[session.currentPhaseIndex] as any;
     const maxSec = phase?.max_duration_sec;
     if (!maxSec || typeof maxSec !== "number") return;
-    // Don't start timer for manual_start phases until interview has started
-    if (phase?.manual_start && !interviewStarted) return;
+    // Don't start timer for interview phases until interview has started
+    if (InterviewHandler.isGateActive(phase, interviewStarted)) return;
     const phaseId = phase?.phase_id || `phase_${session.currentPhaseIndex}`;
     if (phaseMaxDurationTriggeredRef.current === phaseId) return;
 
@@ -205,7 +206,7 @@ export function usePhaseTimer({
             completeCurrentPhaseAndAdvance(next);
             // For manual_start phases, only inject intro events
             const newPhase = scenario.phases[next.currentPhaseIndex];
-            if ((newPhase as any)?.manual_start) {
+            if (InterviewHandler.matches(newPhase)) {
               injectIntroEventsOnly(next);
               setInterviewStarted(false);
             } else {

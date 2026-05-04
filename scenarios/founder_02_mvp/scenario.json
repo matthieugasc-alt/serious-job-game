@@ -187,6 +187,10 @@
           "to": "thomas@novadev.fr",
           "subject": "Orisio — Proposition MVP"
         },
+        "on_send_flags": {
+          "scope_reduced": true,
+          "alexandre_convinced": true
+        },
         "send_advances_phase": true
       },
       "scoring": {
