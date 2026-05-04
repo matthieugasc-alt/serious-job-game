@@ -202,6 +202,7 @@ function computeS2Sign(p: SignFlagsParams): SignResult {
   const articles = p.articles || [];
 
   // Extract price from article_3
+  // Always set contract_price so the debrief has a definitive value
   const priceArticle = articles.find((a) => a.id === "article_3");
   const priceContent = priceArticle?.modifiedContent || priceArticle?.content || "";
   const priceMatch = priceContent.match(/(\d[\d\s]*)\s*€/);
@@ -209,9 +210,12 @@ function computeS2Sign(p: SignFlagsParams): SignResult {
     flags.contract_price = parseInt(priceMatch[1].replace(/\s/g, ""), 10);
   } else if (p.contractVars?.price && p.contractVars.price !== "À définir") {
     flags.contract_price = parseInt(p.contractVars.price, 10);
+  } else {
+    flags.contract_price = 0;
   }
 
   // Extract equity from capital article
+  // Always set contract_equity so the debrief has a definitive value (0 if no equity negotiated)
   if (p.contractVars?.equity) {
     const eqArticle = articles.find(
       (a) =>
@@ -222,7 +226,12 @@ function computeS2Sign(p: SignFlagsParams): SignResult {
     const eqMatch = eqContent.match(/(\d+)\s*%/);
     if (eqMatch) {
       flags.contract_equity = parseInt(eqMatch[1], 10);
+    } else {
+      flags.contract_equity = 0;
     }
+  } else {
+    // No equity negotiated → explicitly set to 0
+    flags.contract_equity = 0;
   }
 
   flags.contract_amendments = articles.filter((a) => a.modifiedContent !== null).length;

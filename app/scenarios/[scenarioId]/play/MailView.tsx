@@ -178,7 +178,7 @@ export default function MailView({
           </div>
         )}
 
-        {inboxMails.map((mail: any) => {
+        {[...inboxMails].reverse().map((mail: any) => {
           const sender = getActorInfo(mail.from);
           const isActive = selectedMailId === mail.id && !showCompose;
           return (
@@ -211,7 +211,7 @@ export default function MailView({
             <div style={{ padding: "10px 14px", borderBottom: "1px solid #e8e8e8", borderTop: "1px solid #e8e8e8", marginTop: 8 }}>
               <h4 style={{ margin: 0, fontSize: 12, fontWeight: 700, color: "#999", textTransform: "uppercase" }}>Envoyés</h4>
             </div>
-            {sentMails.map((mail: any) => (
+            {[...sentMails].reverse().map((mail: any) => (
               <div key={mail.id} style={{ padding: "8px 14px", borderBottom: "1px solid #f0f0f0", opacity: 0.7 }}>
                 <div style={{ fontSize: 11, color: "#888" }}>→ {mail.to}</div>
                 <div style={{ fontSize: 12, color: "#555", fontWeight: 600 }}>{mail.subject}</div>

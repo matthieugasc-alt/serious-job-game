@@ -114,8 +114,8 @@ export async function POST(req: NextRequest) {
       setsFlags: {
         ...(outcome.setsFlags || {}),
         royalties_pct: debrief.royaltiesPct,
-        royalties_cap: debrief.royaltiesCap || null,
-        royalties_duration_years: debrief.royaltiesDuration || null,
+        royalties_cap: debrief.royaltiesCap ?? null,
+        royalties_duration_years: debrief.royaltiesDuration ?? null,
       },
     };
   }

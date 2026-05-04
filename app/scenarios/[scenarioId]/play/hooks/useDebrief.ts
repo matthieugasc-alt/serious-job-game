@@ -118,8 +118,8 @@ export function useDebrief({
         }
       } else if (scenarioId === "founder_04_v1") {
         // Scenario 4 — Passage en V1 : diagnostic pilote + négociation Thomas
-        const devisTotal = flags.devis_total || 0;
-        const selectedFeatures: string[] = flags.devis_selected_features || [];
+        const devisTotal = flags.devis_total ?? 0;
+        const selectedFeatures: string[] = flags.devis_selected_features ?? [];
         const badDeal = !!flags.deal_interessement_uncapped || !!flags.deal_bsa_excessive;
         const featureTrap = devisTotal > 15000 || selectedFeatures.length >= 4;
         const goodDeal = !!flags.deal_interessement_capped || !!flags.deal_bsa_reasonable;
@@ -178,11 +178,11 @@ export function useDebrief({
         strengths: [strength],
         improvements: risk ? [risk] : [],
         pedagogical_advice: advice,
-        contractPrice: flags.devis_cash_paid || flags.devis_total || flags.contract_price || null,
-        contractEquity: flags.deal_bsa_pct || flags.contract_equity || null,
-        royaltiesPct: flags.royalties_pct || null,
-        royaltiesCap: flags.royalties_cap || null,
-        royaltiesDuration: flags.royalties_duration_years || null,
+        contractPrice: flags.devis_cash_paid ?? flags.devis_total ?? flags.contract_price ?? null,
+        contractEquity: flags.deal_bsa_pct ?? flags.contract_equity ?? null,
+        royaltiesPct: flags.royalties_pct ?? null,
+        royaltiesCap: flags.royalties_cap ?? null,
+        royaltiesDuration: flags.royalties_duration_years ?? null,
       };
       setDebriefData(founderDebrief);
       setDebriefLoading(false);
