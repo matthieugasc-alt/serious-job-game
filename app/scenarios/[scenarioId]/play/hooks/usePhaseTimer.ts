@@ -103,9 +103,14 @@ export function usePhaseTimer({
         });
       }
       // Auto-select appropriate contact for the new phase
-      const newActors = (newPhase?.ai_actors || []).map((a: string) => a === "chosen_cto" && chosenCtoId ? chosenCtoId : a);
-      const primaryActor = newActors.find((a: string) => a !== "alexandre_morel") || newActors[0];
-      if (primaryActor) setSelectedContact(primaryActor);
+      // For interview phases, select the briefing actor (not the candidate)
+      const briefingActor = InterviewHandler.getBriefingActor(newPhase);
+      if (briefingActor) {
+        setSelectedContact(briefingActor);
+      } else {
+        const newActors = (newPhase?.ai_actors || []).map((a: string) => a === "chosen_cto" && chosenCtoId ? chosenCtoId : a);
+        if (newActors[0]) setSelectedContact(newActors[0]);
+      }
       setSession(next);
     }
   }, [view?.canAdvance, view?.phaseId]);
@@ -131,8 +136,12 @@ export function usePhaseTimer({
       completeCurrentPhaseAndAdvance(next);
       resolveDynamicActors(next);
       resolveEstablishmentPlaceholders(next);
-      injectPhaseEntryEvents(next);
       const newPhase = scenario.phases[next.currentPhaseIndex];
+      injectPhaseEntryEvents(next);
+      // For interview phases, select the briefing actor; otherwise first ai_actor
+      const briefingActorTime = InterviewHandler.getBriefingActor(newPhase);
+      const newPhaseActor = briefingActorTime || newPhase?.ai_actors?.[0];
+      if (newPhaseActor) setSelectedContact(newPhaseActor);
       if (newPhase?.mail_config?.defaults) {
         updateMailDraft(next, newPhase.phase_id, {
           to: "", cc: "",
@@ -140,9 +149,6 @@ export function usePhaseTimer({
           body: "", attachments: [],
         });
       }
-      // Auto-select the first AI actor of the new phase
-      const newPhaseActor = newPhase?.ai_actors?.[0];
-      if (newPhaseActor) setSelectedContact(newPhaseActor);
       setSession(next);
     }
   }, [session?.simulatedTime, session?.currentPhaseIndex]);
@@ -212,7 +218,10 @@ export function usePhaseTimer({
             } else {
               injectPhaseEntryEvents(next);
             }
-            if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
+            // For interview phases, select the briefing actor; otherwise first ai_actor
+            const briefingActorDur = InterviewHandler.getBriefingActor(newPhase);
+            const durActor = briefingActorDur || newPhase?.ai_actors?.[0];
+            if (durActor) setSelectedContact(durActor);
             return next;
           });
         }

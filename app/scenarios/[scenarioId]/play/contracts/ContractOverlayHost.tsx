@@ -119,6 +119,7 @@ interface S0PacteConfig {
   input: string;
   onInputChange: (v: string) => void;
   onSendMessage: () => void;
+  onClauseAction?: (message: string) => void;
   signed: boolean;
   onSign: () => void;
   /** CTO info resolved from chosenCtoId */
@@ -136,6 +137,7 @@ interface S2NovadevConfig {
   input: string;
   onInputChange: (v: string) => void;
   onSendMessage: () => void;
+  onClauseAction?: (message: string) => void;
   signed: boolean;
   onSign: () => void;
 }
@@ -171,6 +173,7 @@ interface S5ExceptionsConfig {
   input: string;
   onInputChange: (v: string) => void;
   onSendMessage: () => void;
+  onClauseAction?: (message: string) => void;
   signed: boolean;
   onSign: () => void;
 }
@@ -246,6 +249,7 @@ export default function ContractOverlayHost({
           showNegotiation={!s0.signed && s0.currentPhaseId === "phase_3_pacte"}
           isSigned={s0.signed}
           onSign={s0.onSign}
+          onClauseAction={s0.onClauseAction}
           signLabel="Signer et envoyer"
           progressSteps={[
             { label: "1. Relire le document", active: true },
@@ -297,6 +301,7 @@ export default function ContractOverlayHost({
           inputPlaceholder="Négocier le prix, le périmètre, les délais, l'equity..."
           showNegotiation={!s2.signed}
           isSigned={s2.signed}
+          onClauseAction={s2.onClauseAction}
           signLabel="Signer et lancer le MVP"
           signatureSummary={
             s2.articles.filter(a => a.modifiedContent).length > 0
@@ -356,6 +361,7 @@ export default function ContractOverlayHost({
           inputPlaceholder="Négocier la remise, la communication, les pénalités, l'engagement..."
           showNegotiation={!s5.signed}
           isSigned={s5.signed}
+          onClauseAction={s5.onClauseAction}
           signLabel="Valider le bon de commande"
           signatureSummary={
             s5.articles.filter(a => a.modifiedContent).length > 0

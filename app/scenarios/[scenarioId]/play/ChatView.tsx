@@ -105,6 +105,7 @@ export interface ChatViewProps {
   // Manual start gate
   isManualStart: boolean;
   candidateFirstName: string;
+  interviewButtonLabel: string;
   onStartInterview: () => void;
 
   // Contact availability
@@ -137,6 +138,7 @@ export default function ChatView({
   onSendMessage,
   isManualStart,
   candidateFirstName,
+  interviewButtonLabel,
   onStartInterview,
   contactAvailable,
   contactBusyMessage,
@@ -317,7 +319,7 @@ export default function ChatView({
             onMouseEnter={(e) => { e.currentTarget.style.transform = "scale(1.02)"; }}
             onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; }}
           >
-            Faire entrer {candidateFirstName}
+            {interviewButtonLabel}
           </button>
         </div>
       ) : !contactAvailable && selectedContact ? (

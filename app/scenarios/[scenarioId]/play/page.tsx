@@ -568,6 +568,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     phaseStartRealTimeRef.current = Date.now();
     const next = InterviewHandler.startInterview(session, scenario, cloneSession);
     setSession(next);
+    // Switch to the target actor's conversation (the candidate)
+    const targetActor = InterviewHandler.getTargetActor(scenario.phases[session.currentPhaseIndex]);
+    if (targetActor) setSelectedContact(targetActor);
   }
 
   // ── Founder checkpoint: notify server on phase advance ──
@@ -1034,8 +1037,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         setLoading(false);
 
         // Auto-select the first AI actor of the active phase
-        const activePhaseIdx = s.currentPhaseIndex || 0;
-        const activePhaseActor = data.phases[activePhaseIdx]?.ai_actors?.[0];
+        // For interview phases, select the briefing actor (not the candidate)
+        const initBriefing = InterviewHandler.getBriefingActor(activePhaseData);
+        const activePhaseActor = initBriefing || activePhaseData?.ai_actors?.[0];
         if (activePhaseActor) setSelectedContact(activePhaseActor);
 
         // Load ALL AI actor prompts
@@ -1200,7 +1204,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     completeCurrentPhaseAndAdvance(next);
     injectPhaseEntryEvents(next);
     const newPhase = scenario.phases[next.currentPhaseIndex];
-    if (newPhase?.ai_actors?.[0]) setSelectedContact(newPhase.ai_actors[0]);
+    const newBriefing = InterviewHandler.getBriefingActor(newPhase);
+    if (newBriefing) {
+      setSelectedContact(newBriefing);
+    } else if (newPhase?.ai_actors?.[0]) {
+      setSelectedContact(newPhase.ai_actors[0]);
+    }
     setSession(next);
 
     // Clear UI state — the new phase will render its own mode
@@ -2639,10 +2648,10 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
   // ════════════════════════════════════════════════════════════════════
   // PACTE NEGOTIATION — send amendment message to CTO via contracts module
   // ════════════════════════════════════════════════════════════════════
-  async function sendPacteNegotiationMessage() {
-    const text = amendmentInput.trim();
+  async function sendPacteNegotiationMessage(textOverride?: string) {
+    const text = textOverride || amendmentInput.trim();
     if (!text || pacteThreadLoading) return;
-    setAmendmentInput("");
+    if (!textOverride) setAmendmentInput("");
     setPacteThread((prev) => [...prev, { role: "player", content: text }]);
     // Detect exclusivity mention (S0 pedagogical trap)
     const mentionsExcl = detectsExclusivity(text);
@@ -2685,10 +2694,10 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
   // ════════════════════════════════════════════════════════════════════
   // NOVADEV NEGOTIATION — send message to Thomas Vidal via contracts module
   // ════════════════════════════════════════════════════════════════════
-  async function sendNovadevNegotiationMessage() {
-    const text = novadevNegInput.trim();
+  async function sendNovadevNegotiationMessage(textOverride?: string) {
+    const text = textOverride || novadevNegInput.trim();
     if (!text || novadevThreadLoading || !session || !scenario) return;
-    setNovadevNegInput("");
+    if (!textOverride) setNovadevNegInput("");
     setNovadevThread((prev) => [...prev, { role: "player", content: text }]);
     setNovadevThreadLoading(true);
     const negConfig = ContractHandler.getNegotiationConfig("s2_novadev");
@@ -2715,10 +2724,10 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
   // ════════════════════════════════════════════════════════════════════
   // EXCEPTIONS NEGOTIATION — send message to Me Vasseur via contracts module (S5)
   // ════════════════════════════════════════════════════════════════════
-  async function sendExceptionsNegotiationMessage() {
-    const text = exceptionsNegInput.trim();
+  async function sendExceptionsNegotiationMessage(textOverride?: string) {
+    const text = textOverride || exceptionsNegInput.trim();
     if (!text || exceptionsThreadLoading || !session || !scenario) return;
-    setExceptionsNegInput("");
+    if (!textOverride) setExceptionsNegInput("");
     setExceptionsThread((prev) => [...prev, { role: "player", content: text }]);
     setExceptionsThreadLoading(true);
     const negConfig = ContractHandler.getNegotiationConfig("s5_exceptions");
@@ -3130,8 +3139,15 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
 
   // ── Handler resolution + pre-computed values for ChatView ──
   const activeHandler = resolvePhaseHandler(currentPhaseConfig);
-  const chatIsManualStart = InterviewHandler.isGateActive(currentPhaseConfig, interviewStarted);
+  const interviewGateActive = InterviewHandler.isGateActive(currentPhaseConfig, interviewStarted);
+  const interviewBriefingActor = InterviewHandler.getBriefingActor(currentPhaseConfig);
+  // Show the "Faire entrer" button on the briefing actor's conversation (if configured),
+  // or on any conversation if no briefing_actor is set (legacy behavior).
+  const chatIsManualStart = interviewGateActive && (
+    interviewBriefingActor ? selectedContact === interviewBriefingActor : true
+  );
   const chatCandidateFirstName = InterviewHandler.getCandidateFirstName(currentPhaseConfig, actors);
+  const chatInterviewButtonLabel = InterviewHandler.getButtonLabel(currentPhaseConfig);
   const chatContactAvailable = (() => {
     if (!selectedContact) return true;
     const contactActor = actors.find((a: any) => a.actor_id === selectedContact);
@@ -3386,6 +3402,7 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
           input: amendmentInput,
           onInputChange: setAmendmentInput,
           onSendMessage: sendPacteNegotiationMessage,
+          onClauseAction: (msg: string) => sendPacteNegotiationMessage(msg),
           signed: pacteSigned,
           onSign: () => {
             setPacteSigned(true);
@@ -3442,6 +3459,7 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
           input: novadevNegInput,
           onInputChange: setNovadevNegInput,
           onSendMessage: sendNovadevNegotiationMessage,
+          onClauseAction: (msg: string) => sendNovadevNegotiationMessage(msg),
           signed: contractSigned,
           onSign: () => {
             if (!ContractHandler.canSign("s2_novadev", novadevThread.length)) return;
@@ -3500,6 +3518,7 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
           input: exceptionsNegInput,
           onInputChange: setExceptionsNegInput,
           onSendMessage: sendExceptionsNegotiationMessage,
+          onClauseAction: (msg: string) => sendExceptionsNegotiationMessage(msg),
           signed: exceptionsSigned,
           onSign: () => {
             if (!ContractHandler.canSign("s5_exceptions", exceptionsThread.length)) return;
@@ -4613,6 +4632,7 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
               onSendMessage={sendMessage}
               isManualStart={chatIsManualStart}
               candidateFirstName={chatCandidateFirstName}
+              interviewButtonLabel={chatInterviewButtonLabel}
               onStartInterview={handleStartInterview}
               contactAvailable={chatContactAvailable}
               contactBusyMessage={chatContactBusyMessage}

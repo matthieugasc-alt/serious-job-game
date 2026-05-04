@@ -18,9 +18,24 @@ export interface PhaseHandler {
   matches(phase: any): boolean;
 }
 
+/** Declarative config for manual_start phases (from scenario.json) */
+export interface ManualStartConfig {
+  /** Actor who introduces the candidate (shown first) */
+  briefing_actor: string;
+  /** Actor to interview (the candidate) */
+  target_actor: string;
+  /** Custom label for the "Faire entrer" button */
+  button_label: string;
+  /** Actor to return to after the interview ends */
+  return_to_actor: string;
+  /** Whether to mark the target actor as unavailable after the interview */
+  mark_target_unavailable: boolean;
+}
+
 /**
  * Interview handler — manages phases with manual_start.
- * Covers: detection, gate state, start action, candidate name resolution.
+ * Covers: detection, gate state, start action, candidate name resolution,
+ * and routing (briefing actor, return actor) via declarative config.
  * Timer remains in usePhaseTimer (reads interviewStarted via props).
  */
 export interface InterviewPhaseHandler extends PhaseHandler {
@@ -36,6 +51,36 @@ export interface InterviewPhaseHandler extends PhaseHandler {
    * Resolve the candidate's first name for the "Faire entrer X" button.
    */
   getCandidateFirstName(phase: any, actors: any[]): string;
+
+  /**
+   * Read the manual_start_config from the phase (null if absent).
+   */
+  getConfig(phase: any): ManualStartConfig | null;
+
+  /**
+   * Get the briefing actor ID (from config, or null if no config).
+   */
+  getBriefingActor(phase: any): string | null;
+
+  /**
+   * Get the target actor ID (from config, or ai_actors[0]).
+   */
+  getTargetActor(phase: any): string;
+
+  /**
+   * Get the button label (from config, or default "Faire entrer le candidat").
+   */
+  getButtonLabel(phase: any): string;
+
+  /**
+   * Get the actor to return to after interview ends (from config, or null).
+   */
+  getReturnActor(phase: any): string | null;
+
+  /**
+   * Should the target actor be marked unavailable after the interview?
+   */
+  shouldMarkUnavailable(phase: any): boolean;
 
   /**
    * Build the new session state after "Faire entrer le candidat".

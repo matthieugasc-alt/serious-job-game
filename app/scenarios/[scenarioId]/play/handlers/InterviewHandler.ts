@@ -9,12 +9,16 @@
 // This handler provides:
 //   - Detection: does a phase require manual interview start?
 //   - Gate: is the "Faire entrer le candidat" gate blocking?
-//   - Candidate name: first name for the button label
+//   - Config: reads manual_start_config for routing (briefing actor, etc.)
+//   - Candidate name / button label resolution
 //   - Start action: session mutation for entering the candidate
-//   - Intro injection: delay_ms=0 events only (Alexandre's transition msg)
+//   - Intro injection: delay_ms=0 events only (briefing actor's transition msg)
+//
+// All routing decisions (which contact to show, which actor to return to)
+// are driven by the declarative manual_start_config in scenario.json.
 // ══════════════════════════════════════════════════════════════════
 
-import type { InterviewPhaseHandler } from "./types";
+import type { InterviewPhaseHandler, ManualStartConfig } from "./types";
 
 export const InterviewHandler: InterviewPhaseHandler = {
   type: "interview",
@@ -31,7 +35,7 @@ export const InterviewHandler: InterviewPhaseHandler = {
     return this.matches(phase) && !interviewStarted;
   },
 
-  // ── Candidate resolution ───────────────────────────────────────
+  // ── Candidate resolution (legacy — used when no config) ────────
 
   getCandidateFirstName(phase: any, actors: any[]): string {
     const candidateId = (phase as any)?.ai_actors?.[0];
@@ -40,12 +44,41 @@ export const InterviewHandler: InterviewPhaseHandler = {
     return actor?.name?.split(" ")[0] || "le candidat";
   },
 
+  // ── Config readers ─────────────────────────────────────────────
+
+  getConfig(phase: any): ManualStartConfig | null {
+    const cfg = (phase as any)?.manual_start_config;
+    if (!cfg || typeof cfg !== "object") return null;
+    return cfg as ManualStartConfig;
+  },
+
+  getBriefingActor(phase: any): string | null {
+    return this.getConfig(phase)?.briefing_actor ?? null;
+  },
+
+  getTargetActor(phase: any): string {
+    return this.getConfig(phase)?.target_actor ?? (phase as any)?.ai_actors?.[0] ?? "";
+  },
+
+  getButtonLabel(phase: any): string {
+    return this.getConfig(phase)?.button_label ?? "Faire entrer le candidat";
+  },
+
+  getReturnActor(phase: any): string | null {
+    return this.getConfig(phase)?.return_to_actor ?? null;
+  },
+
+  shouldMarkUnavailable(phase: any): boolean {
+    return this.getConfig(phase)?.mark_target_unavailable ?? false;
+  },
+
   // ── Start interview action ─────────────────────────────────────
   // Returns a cloned + mutated session with remaining entry_events
   // scheduled as timed events. Caller is responsible for:
   //   1. setInterviewStarted(true)
   //   2. phaseStartRealTimeRef.current = Date.now()
   //   3. setSession(returnedSession)
+  //   4. setSelectedContact(targetActor) — if config has target_actor
 
   startInterview(
     session: any,
@@ -76,7 +109,7 @@ export const InterviewHandler: InterviewPhaseHandler = {
 
   // ── Intro injection (delay_ms=0 only) ──────────────────────────
   // For manual_start phases on initial load or auto-advance:
-  // inject Alexandre's transition message but NOT the candidate's hello.
+  // inject briefing actor's transition message but NOT the candidate's hello.
   // Mutates session in place (caller already cloned).
 
   injectIntroEventsOnly(
@@ -91,7 +124,7 @@ export const InterviewHandler: InterviewPhaseHandler = {
       const evKey = `${phId}__${ev.event_id}`;
       if (session.injectedPhaseEntryEvents.includes(evKey)) continue;
       if (ev.delay_ms === 0) {
-        // Inject immediately (Alexandre's transition message)
+        // Inject immediately (briefing actor's transition message)
         session.injectedPhaseEntryEvents.push(evKey);
         addAIMessage(session, ev.content, ev.actor);
         if (ev.attachments) {

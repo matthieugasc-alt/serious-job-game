@@ -276,10 +276,18 @@
       "duration_target_min": 5,
       "max_duration_sec": 240,
       "manual_start": true,
+      "manual_start_config": {
+        "briefing_actor": "alexandre_morel",
+        "target_actor": "sofia_renault",
+        "button_label": "Faire entrer Sofia",
+        "return_to_actor": "alexandre_morel",
+        "mark_target_unavailable": true
+      },
       "active_channels": [
         "chat"
       ],
       "ai_actors": [
+        "alexandre_morel",
         "sofia_renault"
       ],
       "entry_events": [
@@ -338,10 +346,18 @@
       "duration_target_min": 5,
       "max_duration_sec": 240,
       "manual_start": true,
+      "manual_start_config": {
+        "briefing_actor": "alexandre_morel",
+        "target_actor": "marc_lefevre",
+        "button_label": "Faire entrer Marc",
+        "return_to_actor": "alexandre_morel",
+        "mark_target_unavailable": true
+      },
       "active_channels": [
         "chat"
       ],
       "ai_actors": [
+        "alexandre_morel",
         "marc_lefevre"
       ],
       "entry_events": [
@@ -400,10 +416,18 @@
       "duration_target_min": 5,
       "max_duration_sec": 240,
       "manual_start": true,
+      "manual_start_config": {
+        "briefing_actor": "alexandre_morel",
+        "target_actor": "karim_benzarti",
+        "button_label": "Faire entrer Karim",
+        "return_to_actor": "alexandre_morel",
+        "mark_target_unavailable": true
+      },
       "active_channels": [
         "chat"
       ],
       "ai_actors": [
+        "alexandre_morel",
         "karim_benzarti"
       ],
       "entry_events": [

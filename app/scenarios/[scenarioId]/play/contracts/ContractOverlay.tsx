@@ -11,7 +11,7 @@
 // This component is UI-only. All state management stays in page.tsx.
 // ══════════════════════════════════════════════════════════════════
 
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import type { ContractClause, ContractThreadMessage } from "./types";
 
 // ── Props ──
@@ -71,6 +71,14 @@ export interface ContractOverlayProps {
   /** Summary text shown in the signature area */
   signatureSummary?: string;
 
+  // ── Clause-level actions ──
+  /**
+   * Callback for clause-level comments (rewrite request or player proposal).
+   * Receives a pre-formatted message to inject into the negotiation thread.
+   * If not provided, clause comment buttons are hidden.
+   */
+  onClauseAction?: (message: string) => void;
+
   // ── Progress bar ──
   /** Progress steps (optional) */
   progressSteps?: Array<{ label: string; active: boolean }>;
@@ -100,12 +108,18 @@ export default function ContractOverlay({
   showNegotiation = true,
   isSigned,
   onSign,
+  onClauseAction,
   signLabel = "Signer",
   signatureSummary,
   progressSteps,
   instructionBanner,
 }: ContractOverlayProps) {
   const threadRef = useRef<HTMLDivElement>(null);
+
+  // ── Clause comment popover state ──
+  const [activeClauseId, setActiveClauseId] = useState<string | null>(null);
+  const [clauseMode, setClauseMode] = useState<"rewrite" | "propose">("rewrite");
+  const [clauseInput, setClauseInput] = useState("");
 
   // Auto-scroll thread
   useEffect(() => {
@@ -295,61 +309,216 @@ export default function ContractOverlay({
             {headerContent}
 
             {/* Structured articles */}
-            {clauses.map((article) => (
-              <div key={article.id} style={{ marginBottom: 16 }}>
-                <h2
-                  style={{
-                    fontSize: 14,
-                    color: "#1a1a2e",
-                    marginBottom: 6,
-                  }}
-                >
-                  {article.title}
-                </h2>
-                {article.modifiedContent ? (
-                  <>
+            {clauses.map((article) => {
+              const isPopoverOpen = activeClauseId === article.id;
+              return (
+                <div key={article.id} style={{ marginBottom: 16, position: "relative" }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <h2
+                      style={{
+                        fontSize: 14,
+                        color: "#1a1a2e",
+                        marginBottom: 6,
+                        flex: 1,
+                      }}
+                    >
+                      {article.title}
+                    </h2>
+                    {/* Clause comment button — only when negotiation is active */}
+                    {onClauseAction && showNegotiation && !isSigned && (
+                      <button
+                        onClick={() => {
+                          if (isPopoverOpen) {
+                            setActiveClauseId(null);
+                            setClauseInput("");
+                          } else {
+                            setActiveClauseId(article.id);
+                            setClauseMode("rewrite");
+                            setClauseInput("");
+                          }
+                        }}
+                        style={{
+                          flexShrink: 0,
+                          padding: "3px 10px",
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: isPopoverOpen ? "#fff" : "#5b5fc7",
+                          background: isPopoverOpen ? "#5b5fc7" : "transparent",
+                          border: `1px solid ${isPopoverOpen ? "#5b5fc7" : "#d4d4d8"}`,
+                          borderRadius: 6,
+                          cursor: "pointer",
+                          fontFamily: "inherit",
+                          transition: "all 0.15s",
+                        }}
+                      >
+                        {isPopoverOpen ? "Fermer" : "Commenter"}
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Article content (unchanged rendering) */}
+                  {article.modifiedContent ? (
+                    <>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          lineHeight: 1.7,
+                          color: "#999",
+                          textDecoration: "line-through",
+                          marginBottom: 6,
+                          whiteSpace: "pre-line",
+                        }}
+                      >
+                        {article.content}
+                      </p>
+                      <p
+                        style={{
+                          fontSize: 13,
+                          lineHeight: 1.7,
+                          color: "#16a34a",
+                          fontWeight: 500,
+                          background: "rgba(22,163,106,0.06)",
+                          padding: "8px 12px",
+                          borderLeft: "3px solid #16a34a",
+                          borderRadius: "0 6px 6px 0",
+                          whiteSpace: "pre-line",
+                        }}
+                      >
+                        {article.modifiedContent}
+                      </p>
+                    </>
+                  ) : (
                     <p
                       style={{
                         fontSize: 13,
                         lineHeight: 1.7,
-                        color: "#999",
-                        textDecoration: "line-through",
-                        marginBottom: 6,
+                        color: "#1a1a2e",
                         whiteSpace: "pre-line",
                       }}
                     >
                       {article.content}
                     </p>
-                    <p
+                  )}
+
+                  {/* ── Clause comment popover ── */}
+                  {isPopoverOpen && onClauseAction && (
+                    <div
                       style={{
-                        fontSize: 13,
-                        lineHeight: 1.7,
-                        color: "#16a34a",
-                        fontWeight: 500,
-                        background: "rgba(22,163,106,0.06)",
-                        padding: "8px 12px",
-                        borderLeft: "3px solid #16a34a",
-                        borderRadius: "0 6px 6px 0",
-                        whiteSpace: "pre-line",
+                        marginTop: 8,
+                        padding: "12px 14px",
+                        background: "#f8f9ff",
+                        border: "1px solid #d4d4f8",
+                        borderRadius: 10,
+                        boxShadow: "0 2px 12px rgba(91,95,199,0.08)",
                       }}
                     >
-                      {article.modifiedContent}
-                    </p>
-                  </>
-                ) : (
-                  <p
-                    style={{
-                      fontSize: 13,
-                      lineHeight: 1.7,
-                      color: "#1a1a2e",
-                      whiteSpace: "pre-line",
-                    }}
-                  >
-                    {article.content}
-                  </p>
-                )}
-              </div>
-            ))}
+                      {/* Mode selector */}
+                      <div style={{ display: "flex", gap: 6, marginBottom: 10 }}>
+                        <button
+                          onClick={() => { setClauseMode("rewrite"); setClauseInput(""); }}
+                          style={{
+                            flex: 1,
+                            padding: "7px 10px",
+                            fontSize: 11,
+                            fontWeight: clauseMode === "rewrite" ? 700 : 500,
+                            color: clauseMode === "rewrite" ? "#fff" : "#555",
+                            background: clauseMode === "rewrite" ? "#5b5fc7" : "#fff",
+                            border: `1px solid ${clauseMode === "rewrite" ? "#5b5fc7" : "#d4d4d8"}`,
+                            borderRadius: 6,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          Demander une réécriture
+                        </button>
+                        <button
+                          onClick={() => { setClauseMode("propose"); setClauseInput(""); }}
+                          style={{
+                            flex: 1,
+                            padding: "7px 10px",
+                            fontSize: 11,
+                            fontWeight: clauseMode === "propose" ? 700 : 500,
+                            color: clauseMode === "propose" ? "#fff" : "#555",
+                            background: clauseMode === "propose" ? "#5b5fc7" : "#fff",
+                            border: `1px solid ${clauseMode === "propose" ? "#5b5fc7" : "#d4d4d8"}`,
+                            borderRadius: 6,
+                            cursor: "pointer",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          Proposer une rédaction
+                        </button>
+                      </div>
+
+                      {/* Hint */}
+                      <p style={{ fontSize: 11, color: "#888", margin: "0 0 8px", lineHeight: 1.4 }}>
+                        {clauseMode === "rewrite"
+                          ? `Expliquez ce que vous souhaitez changer. Ex : "Ajoute une clause d'exclusivité", "Rends cette clause plus protectrice pour la société."`
+                          : `Rédigez directement le nouveau texte de la clause. Il sera soumis pour validation.`}
+                      </p>
+
+                      {/* Input */}
+                      <textarea
+                        value={clauseInput}
+                        onChange={(e) => setClauseInput(e.target.value)}
+                        placeholder={
+                          clauseMode === "rewrite"
+                            ? "Votre demande de modification..."
+                            : "Votre nouvelle rédaction de la clause..."
+                        }
+                        rows={clauseMode === "propose" ? 4 : 2}
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          fontSize: 12,
+                          border: "1px solid #d4d4d8",
+                          borderRadius: 6,
+                          fontFamily: clauseMode === "propose" ? "Georgia, 'Times New Roman', serif" : "inherit",
+                          resize: "vertical",
+                          outline: "none",
+                          lineHeight: 1.5,
+                          boxSizing: "border-box",
+                        }}
+                      />
+
+                      {/* Send */}
+                      <div style={{ display: "flex", justifyContent: "flex-end", marginTop: 8 }}>
+                        <button
+                          disabled={!clauseInput.trim() || isLoading}
+                          onClick={() => {
+                            const trimmed = clauseInput.trim();
+                            if (!trimmed) return;
+                            const articleLabel = article.title;
+                            let formattedMessage: string;
+                            if (clauseMode === "rewrite") {
+                              formattedMessage = `[${playerName} demande une réécriture de ${articleLabel}]\n${trimmed}`;
+                            } else {
+                              formattedMessage = `[${playerName} propose une nouvelle rédaction de ${articleLabel}]\nProposition :\n${trimmed}`;
+                            }
+                            onClauseAction(formattedMessage);
+                            setActiveClauseId(null);
+                            setClauseInput("");
+                          }}
+                          style={{
+                            padding: "7px 18px",
+                            fontSize: 12,
+                            fontWeight: 700,
+                            color: "#fff",
+                            background: clauseInput.trim() && !isLoading ? "#5b5fc7" : "#ccc",
+                            border: "none",
+                            borderRadius: 6,
+                            cursor: clauseInput.trim() && !isLoading ? "pointer" : "not-allowed",
+                            fontFamily: "inherit",
+                          }}
+                        >
+                          Envoyer
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
 
             {/* Optional document footer (signature block, etc.) */}
             <hr
