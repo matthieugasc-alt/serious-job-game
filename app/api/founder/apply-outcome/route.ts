@@ -7,6 +7,7 @@ import {
   loadRules,
   resolveOutcome,
   applyOutcomeToCampaign,
+  interpolateMicroDebrief,
 } from '@/app/lib/founder';
 
 /**
@@ -71,14 +72,11 @@ export async function POST(req: NextRequest) {
   // For scenarios where the player negotiates a price/equity (e.g. founder_02_mvp),
   // the treasury and ownership deltas must reflect the actual contract, not hardcoded values.
   const debrief = matchingRecord.debrief;
-  if (debrief?.contractPrice && typeof debrief.contractPrice === 'number') {
+  if (debrief?.contractPrice != null && typeof debrief.contractPrice === 'number') {
     // Treasury delta = -(contract price + burn for the period)
-    // Burn is included in the hardcoded deltas already, so we compute:
-    // burn = hardcodedDelta - (-hardcodedContractPrice)
-    // But simpler: just use the contract price directly as the cost.
-    // The elapsed months burn is kept from the outcome (250€/month is negligible vs contract).
-    const burnPerMonth = campaign.burnRateMonthly || 250;
-    const months = outcome.deltas.elapsedMonths || 0;
+    // The elapsed months burn is kept from the outcome.
+    const burnPerMonth = campaign.burnRateMonthly ?? 250;
+    const months = outcome.deltas.elapsedMonths ?? 0;
     const burn = burnPerMonth * months;
     outcome = {
       ...outcome,
@@ -88,7 +86,8 @@ export async function POST(req: NextRequest) {
       },
     };
   }
-  if (debrief?.contractEquity && typeof debrief.contractEquity === 'number') {
+  if (debrief?.contractEquity != null && typeof debrief.contractEquity === 'number') {
+    // contractEquity can be 0 (cash-only deal) — 0 is a valid value
     outcome = {
       ...outcome,
       deltas: {
@@ -96,19 +95,10 @@ export async function POST(req: NextRequest) {
         ownership: -debrief.contractEquity,
       },
     };
-  } else if (debrief?.contractPrice && !debrief?.contractEquity) {
-    // Player negotiated cash-only (no equity given)
-    outcome = {
-      ...outcome,
-      deltas: {
-        ...outcome.deltas,
-        ownership: 0,
-      },
-    };
   }
 
   // ── Store royalties (intéressement) in campaign flags for future scenarios ──
-  if (debrief?.royaltiesPct && typeof debrief.royaltiesPct === 'number') {
+  if (debrief?.royaltiesPct != null && typeof debrief.royaltiesPct === 'number') {
     outcome = {
       ...outcome,
       setsFlags: {
@@ -119,6 +109,40 @@ export async function POST(req: NextRequest) {
       },
     };
   }
+
+  // ── Interpolate microDebrief templates with actual values ──
+  // Variables available: contract_price, contract_equity, burn, treasury_after,
+  // devis_total, devis_cash_paid, devis_features_count, deal_detail
+  const burnPerMonthForTemplate = campaign.burnRateMonthly ?? 250;
+  const monthsForTemplate = outcome.deltas.elapsedMonths ?? 0;
+  const burnForTemplate = burnPerMonthForTemplate * monthsForTemplate;
+  const treasuryAfterForTemplate = campaign.state.treasury + outcome.deltas.treasury;
+
+  // Build deal_detail for S4 bad_deal
+  let dealDetail = '';
+  if (debrief?.royaltiesPct != null && debrief.royaltiesPct > 0) {
+    dealDetail = `Interessement de ${debrief.royaltiesPct}%${debrief.royaltiesCap ? ` (plafond ${debrief.royaltiesCap} €)` : ' sans plafond'}`;
+  }
+  if (debrief?.contractEquity != null && debrief.contractEquity > 0) {
+    dealDetail += (dealDetail ? ' + ' : '') + `${debrief.contractEquity}% de BSA`;
+  }
+  if (!dealDetail) dealDetail = 'Conditions trop genereux';
+
+  const templateVars: Record<string, string | number | null> = {
+    contract_price: debrief?.contractPrice ?? null,
+    contract_equity: debrief?.contractEquity ?? null,
+    burn: burnForTemplate,
+    treasury_after: treasuryAfterForTemplate,
+    devis_total: debrief?.devisTotal ?? debrief?.contractPrice ?? null,
+    devis_cash_paid: debrief?.contractPrice ?? null,
+    devis_features_count: Array.isArray(debrief?.selectedFeatures) ? debrief.selectedFeatures.length : null,
+    deal_detail: dealDetail,
+  };
+
+  outcome = {
+    ...outcome,
+    microDebrief: interpolateMicroDebrief(outcome.microDebrief, templateVars),
+  };
 
   // Apply deltas + flags via unified helper
   const stateBefore = { ...campaign.state };

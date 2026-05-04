@@ -1,0 +1,209 @@
+{
+  "version": "1.1",
+  "description": "Invariants métier pour chaque scénario Founder. Validés par scripts/validate-founder.mjs.",
+  "scenarios": {
+    "founder_00_cto": {
+      "scenario_id": "founder_00_cto",
+      "has_dynamic_negotiation": false,
+      "allowed_deltas": {
+        "treasury": { "min": -2500, "max": 0 },
+        "ownership": { "min": 0, "max": 0 },
+        "mrr": { "min": 0, "max": 0 },
+        "elapsedMonths": { "min": 0, "max": 0 }
+      },
+      "required_flags_at_completion": [],
+      "valid_endings": ["success", "partial_success", "failure"],
+      "ending_conditions": {
+        "success": "pacte_signed_clean AND bad_leaver_triggered",
+        "partial_success": "pacte_signed_dirty AND NOT bad_leaver_triggered",
+        "failure": "cto_paid_to_leave"
+      },
+      "allowed_hidden_metric_deltas": {
+        "productQuality":     { "min": 0, "max": 0 },
+        "techDebt":           { "min": 0, "max": 0 },
+        "investorConfidence": { "min": -15, "max": 15 },
+        "marketValidation":   { "min": 0, "max": 0 }
+      },
+      "rules": [
+        "No dynamic negotiation — hardcoded deltas are the source of truth",
+        "ownership_delta is always 0 (CTO equity is handled via flags, not state)"
+      ],
+      "forbidden_patterns": []
+    },
+    "founder_01_incubator": {
+      "scenario_id": "founder_01_incubator",
+      "has_dynamic_negotiation": false,
+      "allowed_deltas": {
+        "treasury": { "min": -250, "max": -250 },
+        "ownership": { "min": 0, "max": 0 },
+        "mrr": { "min": 0, "max": 0 },
+        "elapsedMonths": { "min": 1, "max": 1 }
+      },
+      "required_flags_at_completion": [],
+      "valid_endings": ["success", "partial_success", "failure"],
+      "ending_conditions": {
+        "success": "Jury convinced (AI debrief determines ending)",
+        "partial_success": "Jury partially convinced",
+        "failure": "Jury not convinced"
+      },
+      "allowed_hidden_metric_deltas": {
+        "productQuality":     { "min": 0, "max": 0 },
+        "techDebt":           { "min": 0, "max": 0 },
+        "investorConfidence": { "min": -10, "max": 20 },
+        "marketValidation":   { "min": 0, "max": 10 }
+      },
+      "rules": [
+        "Treasury always -250 (1 month burn, same for all outcomes)",
+        "No dynamic negotiation",
+        "hasAdvisoryBoard set via setsFlags in outcome"
+      ],
+      "forbidden_patterns": []
+    },
+    "founder_02_mvp": {
+      "scenario_id": "founder_02_mvp",
+      "has_dynamic_negotiation": true,
+      "dynamic_variables": ["contract_price", "contract_equity"],
+      "allowed_deltas": {
+        "treasury": { "min": -35000, "max": -500 },
+        "ownership": { "min": -5, "max": 0 },
+        "mrr": { "min": 0, "max": 0 },
+        "elapsedMonths": { "min": 2, "max": 7 }
+      },
+      "required_flags_at_completion": [
+        "contract_signed",
+        "contract_price",
+        "contract_equity"
+      ],
+      "valid_endings": ["success", "partial_success", "failure"],
+      "ending_conditions": {
+        "success": "contract_signed AND scope_reduced",
+        "partial_success": "novadev_negotiated AND NOT scope_reduced",
+        "failure": "NOT novadev_negotiated"
+      },
+      "rules": [
+        "If contract_equity == 0, ownership_delta must be 0",
+        "If contract_equity > 0, ownership_delta must equal -contract_equity",
+        "treasury_delta must equal -(contract_price + burnPerMonth * elapsedMonths)",
+        "microDebrief text must reference actual contract_price via template, not hardcoded value",
+        "microDebrief text must reference actual contract_equity via template, not hardcoded value",
+        "0 is a valid value for contract_equity — never treat as absence",
+        "plancher_novadev (11000) comes from scenario.constraints, not hardcoded in code"
+      ],
+      "allowed_hidden_metric_deltas": {
+        "productQuality":     { "min": 35, "max": 60 },
+        "techDebt":           { "min": 5, "max": 50 },
+        "investorConfidence": { "min": -10, "max": 10 },
+        "marketValidation":   { "min": 5, "max": 15 }
+      },
+      "forbidden_patterns": [
+        "|| on contract_price or contract_equity",
+        "Hardcoded '12 000' or '15 000' or '3%' in microDebrief text",
+        "&& guard on contract_equity (0 is valid)"
+      ]
+    },
+    "founder_03_clinical": {
+      "scenario_id": "founder_03_clinical",
+      "has_dynamic_negotiation": false,
+      "allowed_deltas": {
+        "treasury": { "min": -1500, "max": -250 },
+        "ownership": { "min": 0, "max": 0 },
+        "mrr": { "min": 0, "max": 0 },
+        "elapsedMonths": { "min": 1, "max": 6 }
+      },
+      "required_flags_at_completion": [],
+      "valid_endings": ["switched_success", "success", "partial_success", "failure"],
+      "ending_conditions": {
+        "success": "Clinique chosen, contract clean, 1 month",
+        "switched_success": "Failed first pitch, pivoted to clinique",
+        "partial_success": "Saint-Martin, clause Ramsay, 3 months",
+        "failure": "CHU toxic contract, 6 months"
+      },
+      "allowed_hidden_metric_deltas": {
+        "productQuality":     { "min": 5, "max": 10 },
+        "techDebt":           { "min": 0, "max": 5 },
+        "investorConfidence": { "min": -15, "max": 10 },
+        "marketValidation":   { "min": 10, "max": 25 }
+      },
+      "rules": [
+        "No dynamic price negotiation — deltas are fixed per outcome",
+        "useDebrief has a specific S3 branch based on establishment choice flags",
+        "Ending must be determined by establishment choice flags, not generic score"
+      ],
+      "forbidden_patterns": []
+    },
+    "founder_04_v1": {
+      "scenario_id": "founder_04_v1",
+      "has_dynamic_negotiation": true,
+      "dynamic_variables": ["devis_total", "devis_cash_paid", "deal_bsa_pct", "deal_interessement_pct"],
+      "allowed_deltas": {
+        "treasury": { "min": -25000, "max": -1000 },
+        "ownership": { "min": -5, "max": 0 },
+        "mrr": { "min": 0, "max": 0 },
+        "elapsedMonths": { "min": 2, "max": 3 }
+      },
+      "required_flags_at_completion": [
+        "devis_signed",
+        "devis_total",
+        "devis_cash_paid"
+      ],
+      "valid_endings": ["optimal", "good", "feature_trap", "bad_deal"],
+      "ending_conditions": {
+        "optimal": "devis_total <= 5000 AND (deal_interessement_capped OR deal_cash_only) AND NOT (deal_interessement_uncapped OR deal_bsa_excessive)",
+        "bad_deal": "deal_interessement_uncapped OR deal_bsa_excessive",
+        "feature_trap": "devis_total > 15000 OR selected_features.length >= 4",
+        "good": "otherwise (not optimal, not bad_deal, not feature_trap)"
+      },
+      "rules": [
+        "treasury_delta must equal -(devis_cash_paid + burnPerMonth * elapsedMonths)",
+        "If deal_bsa_pct > 0, ownership_delta must equal -deal_bsa_pct",
+        "If deal_cash_only, ownership_delta must be 0",
+        "microDebrief text must reference actual devis_total/devis_cash_paid via template",
+        "0 is a valid value for deal_bsa_pct — never treat as absence",
+        "BSA excessive threshold = 3% (business rule, keep hardcoded)",
+        "Feature trap threshold = 15000 or 4+ features (business rule, keep hardcoded)"
+      ],
+      "allowed_hidden_metric_deltas": {
+        "productQuality":     { "min": 15, "max": 40 },
+        "techDebt":           { "min": -5, "max": 35 },
+        "investorConfidence": { "min": -20, "max": 15 },
+        "marketValidation":   { "min": 5, "max": 20 }
+      },
+      "forbidden_patterns": [
+        "|| on devis_total, devis_cash_paid, deal_bsa_pct",
+        "Hardcoded '5 000', '8 000', '21 000' in microDebrief text"
+      ]
+    },
+    "founder_05_sales": {
+      "scenario_id": "founder_05_sales",
+      "has_dynamic_negotiation": false,
+      "allowed_deltas": {
+        "treasury": { "min": -500, "max": 8000 },
+        "ownership": { "min": 0, "max": 0 },
+        "mrr": { "min": -5, "max": 1700 },
+        "elapsedMonths": { "min": 1, "max": 2 }
+      },
+      "required_flags_at_completion": [],
+      "valid_endings": ["success_clean", "success_risky", "success_with_lies", "partial_dsi_blocked", "failure_no_interest"],
+      "ending_conditions": {
+        "success_clean": "Clean sale, good contract, DSI convinced",
+        "success_risky": "Signed but conditions too generous",
+        "success_with_lies": "Signed but lied about SIH interop",
+        "partial_dsi_blocked": "KOL convinced but DSI blocked",
+        "failure_no_interest": "No KOL convinced"
+      },
+      "allowed_hidden_metric_deltas": {
+        "productQuality":     { "min": 0, "max": 5 },
+        "techDebt":           { "min": 0, "max": 0 },
+        "investorConfidence": { "min": -10, "max": 25 },
+        "marketValidation":   { "min": -5, "max": 30 }
+      },
+      "rules": [
+        "No dynamic contract price — outcomes have fixed deltas",
+        "First scenario with positive MRR (1700 or 1450)",
+        "useDebrief has a specific S5 branch based on gameplay flags",
+        "Ending must be determined by gameplay flags, not generic score"
+      ],
+      "forbidden_patterns": []
+    }
+  }
+}

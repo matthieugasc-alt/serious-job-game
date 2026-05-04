@@ -46,6 +46,26 @@ export const FOUNDER_STATE_KEYS: readonly FounderStateKey[] = [
   'elapsedMonths',
 ] as const;
 
+// -- Semantic classification: visible KPIs vs hidden simulation metrics --
+
+/** Metrics shown to the player on the dashboard */
+export const VISIBLE_METRICS: readonly FounderStateKey[] = [
+  'treasury', 'ownership', 'mrr', 'payroll', 'elapsedMonths',
+] as const;
+
+/** Metrics that drive outcomes but are NEVER shown raw to the player */
+export const HIDDEN_METRICS: readonly FounderStateKey[] = [
+  'productQuality', 'techDebt', 'investorConfidence', 'marketValidation',
+] as const;
+
+/** Bounds for hidden metrics (all 0-100 by design) */
+export const HIDDEN_METRIC_BOUNDS: Record<string, { min: number; max: number }> = {
+  productQuality:     { min: 0, max: 100 },
+  techDebt:           { min: 0, max: 100 },
+  investorConfidence: { min: 0, max: 100 },
+  marketValidation:   { min: 0, max: 100 },
+};
+
 // ── Delta ───────────────────────────────────────────────────────
 
 export type FounderStateDelta = Record<FounderStateKey, number>;
@@ -291,6 +311,32 @@ export function projectTreasury(campaign: FounderCampaign): {
     monthlyBurn: burn,
     monthsRemaining,
     runwayDate: runwayEnd.toISOString().split('T')[0],
+  };
+}
+
+// ── MicroDebrief Template Interpolation ──────────────────────
+
+/**
+ * Interpolate {{variable}} templates in a FounderMicroDebrief.
+ * Variables that are not found in `vars` are left as-is ({{missing}})
+ * so the bug is VISIBLE, not silently masked.
+ */
+export function interpolateMicroDebrief(
+  md: FounderMicroDebrief,
+  vars: Record<string, string | number | null | undefined>,
+): FounderMicroDebrief {
+  const replace = (s: string): string =>
+    s.replace(/\{\{(\w+)\}\}/g, (match, key) => {
+      const val = vars[key];
+      if (val == null) return match; // keep {{key}} visible — don't mask missing data
+      return String(val);
+    });
+  return {
+    decision: replace(md.decision),
+    impact: replace(md.impact),
+    strength: replace(md.strength),
+    risk: replace(md.risk),
+    advice: md.advice ? replace(md.advice) : undefined,
   };
 }
 

@@ -155,8 +155,87 @@ export function useDebrief({
           advice = "Surveille les métriques d'adoption de près. Si dans 3 semaines les connexions ne remontent pas, le problème est humain, pas technique.";
           ending = "good";
         }
+      } else if (scenarioId === "founder_03_clinical") {
+        // Scenario 3 — Test clinique : choix établissement + contrat
+        const choseChu = !!flags.chose_chu;
+        const choseStMartin = !!flags.chose_saint_martin;
+        const choseClinique = !!flags.chose_clinique;
+        const pitchRejected = !!flags.pitch_rejected;
+        const switchedToClinique = !!flags.switched_to_clinique;
+        const contractSigned = !!flags.contract_signed;
+
+        if (switchedToClinique || (pitchRejected && choseClinique)) {
+          decision = "Tu as visé un grand établissement mais le pitch ou la négociation n'a pas abouti. Tu as dû pivoter vers la clinique.";
+          impact = "2 mois perdus + burn. La clinique accepte mais la référence est moins forte.";
+          strength = "Tu as fini par signer un contrat propre.";
+          risk = "Tu as grillé une cartouche avec un grand établissement.";
+          ending = "switched_success";
+        } else if (choseClinique && contractSigned) {
+          decision = "Choix pragmatique : Clinique Saint-Augustin. Contrat simple, PI préservée.";
+          impact = "1 mois. Le test démarre vite et dans de bonnes conditions.";
+          strength = "Tu as choisi la vitesse et le pragmatisme.";
+          risk = "Un petit établissement = une petite référence.";
+          ending = "success";
+        } else if (choseStMartin && contractSigned) {
+          decision = "Saint-Martin : 8 salles, groupe Ramsay. Contrat négocié mais clause de validation groupe.";
+          impact = "3 mois avant que le test démarre. La PI est protégée mais tu ne peux pas utiliser le nom librement.";
+          strength = "Tu as négocié les pires clauses.";
+          risk = "3 mois c'est long. Et la clause groupe peut ralentir toute collaboration future.";
+          ending = "partial_success";
+        } else if (choseChu) {
+          decision = "CHU de Bordeaux pour le prestige. Contrat toxique.";
+          impact = "6 mois de contractualisation. PI potentiellement compromise.";
+          strength = "Le CHU est une référence prestigieuse.";
+          risk = "Si la PI est cédée, les investisseurs fuiront.";
+          ending = "failure";
+        } else {
+          decision = "Le test clinique est terminé.";
+          impact = "Les résultats sont sur le dashboard.";
+          strength = "Tu as complété cette étape.";
+          risk = "";
+          ending = contractSigned ? "success" : "failure";
+        }
+      } else if (scenarioId === "founder_05_sales") {
+        // Scenario 5 — Vente complexe : cold emails + DSI + contrat
+        const kolInterested = !!flags.kol_interested;
+        const dsiApproved = !!flags.dsi_approved;
+        const contractSigned = !!flags.contract_signed;
+        const liedAboutInterop = !!flags.lied_about_interop;
+        const contractTooGenerous = !!flags.contract_too_generous;
+
+        if (contractSigned && !liedAboutInterop && !contractTooGenerous) {
+          decision = "Tu as ciblé le bon KOL, convaincu la DSI, et négocié un contrat équilibré.";
+          impact = "Premier client payant. L'acompte tombe en trésorerie.";
+          strength = "Tu as su valoriser ton produit à un prix juste.";
+          risk = "Un seul client ne fait pas un business.";
+          ending = "success_clean";
+        } else if (contractSigned && contractTooGenerous) {
+          decision = "Tu as signé mais à des conditions trop généreuses pour le client.";
+          impact = "L'acompte tombe mais réduit. Pas de droit de communication.";
+          strength = "Tu as signé. Le client est content.";
+          risk = "Les investisseurs verront un fondateur qui ne sait pas négocier.";
+          ending = "success_risky";
+        } else if (contractSigned && liedAboutInterop) {
+          decision = "Tu as menti à la DSI sur l'interopérabilité pour closer la vente.";
+          impact = "L'acompte tombe, mais quand la DSI découvrira la vérité, le contrat sera en danger.";
+          strength = "Tu as su closer. C'est une compétence.";
+          risk = "La DSI hospitalière est un petit monde. Ta réputation est en jeu.";
+          ending = "success_with_lies";
+        } else if (kolInterested && !dsiApproved) {
+          decision = "Un KOL était intéressé mais la DSI n'a pas validé.";
+          impact = "Pas de client, pas de MRR. 2 mois de burn.";
+          strength = "Tu as réussi la prospection.";
+          risk = "Si tu ne closes pas bientôt, la trésorerie va devenir critique.";
+          ending = "partial_dsi_blocked";
+        } else {
+          decision = "Tes cold emails n'ont convaincu personne.";
+          impact = "1 mois perdu, pas de prospect.";
+          strength = "Au moins tu as essayé.";
+          risk = "Sans pipeline commercial, pas de revenu.";
+          ending = "failure_no_interest";
+        }
       } else {
-        // Generic founder debrief for other scenarios
+        // Generic founder debrief for future scenarios
         decision = "Scénario terminé.";
         impact = "Les résultats seront visibles sur le dashboard de campagne.";
         strength = "Tu as complété cette étape.";
@@ -183,6 +262,9 @@ export function useDebrief({
         royaltiesPct: flags.royalties_pct ?? null,
         royaltiesCap: flags.royalties_cap ?? null,
         royaltiesDuration: flags.royalties_duration_years ?? null,
+        // S4-specific: pass devis details for microDebrief template interpolation
+        devisTotal: flags.devis_total ?? null,
+        selectedFeatures: flags.devis_selected_features ?? null,
       };
       setDebriefData(founderDebrief);
       setDebriefLoading(false);

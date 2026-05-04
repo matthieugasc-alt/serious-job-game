@@ -256,8 +256,8 @@
           },
           "setsFlags": {},
           "microDebrief": {
-            "decision": "Scope reduit a l'essentiel. Deal cash a 12 000 € avec NovaDev, livre en 7 semaines. Burn de 500 € sur la periode.",
-            "impact": "MVP fonctionnel, code propre, dette technique quasi nulle. Il te reste environ 2 500 € en tresorerie — c'est serre mais tu as un produit.",
+            "decision": "Scope reduit a l'essentiel. Deal cash a {{contract_price}} € avec NovaDev, livre en 7 semaines. Burn de {{burn}} € sur la periode.",
+            "impact": "MVP fonctionnel, code propre, dette technique quasi nulle. Il te reste environ {{treasury_after}} € en tresorerie — c'est serre mais tu as un produit.",
             "strength": "Tu as su dire non a ton cofondateur perfectionniste ET negocier ferme. Le code est propre parce que le scope est petit.",
             "risk": "Le MVP est minimal. 2 features seulement. Si le test terrain revele des manques critiques, il faudra trouver de l'argent vite.",
             "advice": "Lance le test terrain IMMEDIATEMENT. Chaque jour sans feedback utilisateur est un jour perdu."
@@ -266,7 +266,7 @@
         "partial_success": {
           "outcomeId": "mvp_costly",
           "label": "MVP livre mais couteux — Equity cedee",
-          "summary": "Tu as cede 3% d'equity a NovaDev pour obtenir le scope complet. Le produit est riche mais la dette technique est reelle : 1 dev seul, 4 mois de rush.",
+          "summary": "Tu as cede de l'equity a NovaDev pour obtenir le scope complet. Le produit est riche mais la dette technique est reelle : 1 dev seul, 4 mois de rush.",
           "signal": "costly",
           "deltas": {
             "treasury": -16000,
@@ -281,10 +281,10 @@
           },
           "setsFlags": {},
           "microDebrief": {
-            "decision": "Deal equity : 15 000 € cash + 3% d'equity a NovaDev pour le scope complet. 4 mois de dev. Burn de 1 000 € sur la periode.",
+            "decision": "Deal : {{contract_price}} € cash + {{contract_equity}}% d'equity a NovaDev pour le scope complet. 4 mois de dev. Burn de {{burn}} € sur la periode.",
             "impact": "Le produit est riche en features mais la dette technique est lourde : un seul dev qui a rush 7 modules en 4 mois. Ca TIENDRA pour le test, mais chaque nouvelle feature sera douloureuse.",
             "strength": "Tu as un produit complet. C'est un argument de vente.",
-            "risk": "3% d'equity chez un prestataire, c'est un signal negatif pour les investisseurs. Et la dette technique va te rattraper.",
+            "risk": "{{contract_equity}}% d'equity chez un prestataire, c'est un signal negatif pour les investisseurs. Et la dette technique va te rattraper.",
             "advice": "Ne touche PLUS au code avant d'avoir des retours terrain. Le prochain investissement tech doit etre guide par les utilisateurs, pas par Alexandre."
           }
         },
@@ -306,7 +306,7 @@
           },
           "setsFlags": {},
           "microDebrief": {
-            "decision": "Vision perfectionniste d'Alexandre suivie a la lettre. 7 modules, 28 semaines. 15 000 € + 3% equity + 1 750 € de burn.",
+            "decision": "Vision perfectionniste d'Alexandre suivie a la lettre. 7 modules, 28 semaines. {{contract_price}} € + {{contract_equity}}% equity + {{burn}} € de burn.",
             "impact": "Le produit est complet sur le papier mais la dette technique est MASSIVE : 1 dev seul qui a construit 7 modules en parallele de ses autres missions. Tests insuffisants, architecture fragile, bugs latents.",
             "strength": "Si le produit marche, il est plus complet que ce que proposent les concurrents.",
             "risk": "7 mois sans revenu, tresorerie a sec, dette technique a 50%. Le moindre bug en test terrain sera catastrophique parce qu'il n'y a plus d'argent pour corriger.",
@@ -450,7 +450,7 @@
           "setsFlags": {},
           "microDebrief": {
             "decision": "Tu as lu le rapport comme un CEO, pas comme un ingenieur. Le bug est corrige, la formation est lancee, le scope est maitrise.",
-            "impact": "5 000 € de dev cible (bug + ameliorations mineures) + budget formation. La dette technique baisse parce que le code est nettoyé au lieu d'empiler des features. Les utilisateurs commencent a adopter l'outil.",
+            "impact": "{{devis_cash_paid}} € de dev cible (bug + ameliorations mineures) + budget formation. La dette technique baisse parce que le code est nettoyé au lieu d'empiler des features. Les utilisateurs commencent a adopter l'outil.",
             "strength": "Tu as resiste a la pression de ton cofondateur. C'est la competence la plus rare chez un fondateur : dire non a son associe quand il a tort.",
             "risk": "Alexandre est frustre. Il a passe un mois sur le terrain et tu as ignore ses recommandations principales. Il faudra gerer cette tension.",
             "advice": "Documente les resultats du plan de formation. Dans 4 semaines, si l'adoption monte, tu auras les donnees pour convaincre Alexandre. Si ca ne bouge pas, il faudra re-evaluer."
@@ -475,7 +475,7 @@
           "setsFlags": {},
           "microDebrief": {
             "decision": "Le bug est corrige et quelques ameliorations utiles sont en cours. Le deal avec Thomas est acceptable sans etre optimal.",
-            "impact": "8 000 € de dev. La dette technique monte legerement (plus de code = plus de maintenance). La validation marche progresse.",
+            "impact": "{{devis_cash_paid}} € de dev. La dette technique monte legerement (plus de code = plus de maintenance). La validation marche progresse.",
             "strength": "Tu as pris des decisions raisonnables sous pression. Pas parfaites, mais raisonnables.",
             "risk": "Le plan de formation n'est pas assez pousse. L'adoption risque de stagner meme avec un meilleur produit.",
             "advice": "Surveille les metriques d'adoption de pres. Si dans 3 semaines les connexions ne remontent pas, c'est que le probleme est humain, pas technique."
@@ -499,10 +499,10 @@
           },
           "setsFlags": {},
           "microDebrief": {
-            "decision": "Tu as commande 5 modules a 21 000 €. Alexandre est content. Ton compte en banque beaucoup moins.",
-            "impact": "21K de dev, 3 mois de timeline. La qualite produit monte mais la dette technique explose (1 dev seul qui rush 5 modules). Et personne n'a ete forme — les 10 chirurgiens inactifs le resteront.",
+            "decision": "Tu as commande {{devis_features_count}} modules a {{devis_total}} €. Alexandre est content. Ton compte en banque beaucoup moins.",
+            "impact": "{{devis_cash_paid}} € de dev, 3 mois de timeline. La qualite produit monte mais la dette technique explose (1 dev seul qui rush {{devis_features_count}} modules). Et personne n'a ete forme — les 10 chirurgiens inactifs le resteront.",
             "strength": "Le produit sera plus complet. Si l'adoption finit par decoller, tu auras de l'avance sur les features.",
-            "risk": "Tu as depense 21K sans adresser le vrai probleme. Un produit riche que personne n'utilise ne vaut rien. Les investisseurs verront un fondateur qui ne sait pas prioriser.",
+            "risk": "Tu as depense {{devis_total}} € sans adresser le vrai probleme. Un produit riche que personne n'utilise ne vaut rien. Les investisseurs verront un fondateur qui ne sait pas prioriser.",
             "advice": "Il n'est pas trop tard pour lancer un plan de formation EN PARALLELE du dev. Mais ca aurait du etre la priorite 1."
           }
         },
@@ -524,8 +524,8 @@
           },
           "setsFlags": {},
           "microDebrief": {
-            "decision": "Tu as accepte un deal trop genereux avec Thomas. Interessement sans plafond ou 5% de BSA — c'est au-dessus du marche pour 12 semaines de prestations.",
-            "impact": "Si Orisio fait 2M de CA, un interessement de 8% sans plafond = 160K/an verses a un prestataire. Les investisseurs verront une cap table polluee ou un engagement financier disproportionne.",
+            "decision": "Tu as accepte un deal trop genereux avec Thomas. {{deal_detail}} — c'est au-dessus du marche pour 12 semaines de prestations.",
+            "impact": "Devis a {{devis_cash_paid}} €. Les investisseurs verront une cap table polluee ou un engagement financier disproportionne.",
             "strength": "Tu as maintenu la relation avec Thomas. Il est aligne et motive.",
             "risk": "Les VCs en due diligence vont tiquer. Un prestataire a 5% du capital ou un interessement sans plafond, c'est un signal de fondateur naif.",
             "advice": "Si tu peux encore renegocier, fais-le. Sinon, assume et prepare une explication solide pour les investisseurs. Et lis TOUJOURS la note de l'avocat AVANT de negocier."

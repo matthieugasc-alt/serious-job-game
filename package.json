@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "validate:scenarios": "node scripts/validate-scenarios.mjs"
+    "validate:scenarios": "node scripts/validate-scenarios.mjs",
+    "validate:founder": "node scripts/validate-founder.mjs"
   },
   "dependencies": {
     "next": "16.2.2",
