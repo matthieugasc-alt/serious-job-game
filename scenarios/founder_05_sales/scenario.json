@@ -411,7 +411,11 @@
         }
       },
       "auto_advance": true,
-      "next_phase": "phase_2_dsi"
+      "next_phase": "phase_2_dsi",
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_2_dsi",
@@ -544,7 +548,11 @@
             "delay_ms": 0
           }
         ]
-      }
+      },
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_3_implementation",
@@ -635,7 +643,11 @@
         }
       },
       "auto_advance": true,
-      "next_phase": "phase_5_exceptions"
+      "next_phase": "phase_5_exceptions",
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_5_exceptions",
@@ -743,7 +755,8 @@
       "phase_type": "contract_negotiation",
       "modules": [
         "chat",
-        "contract"
+        "contract",
+        "mail"
       ],
       "completion_trigger": "contract_signed",
       "handler_config": {
@@ -836,7 +849,11 @@
           "recap_sent": true
         }
       },
-      "auto_advance": false
+      "auto_advance": false,
+      "modules": [
+        "chat",
+        "mail"
+      ]
     }
   ],
   "endings": [

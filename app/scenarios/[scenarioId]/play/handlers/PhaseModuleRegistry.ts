@@ -16,6 +16,7 @@
 import type { PhaseModule } from "./modules/types";
 import { InterviewModule } from "./modules/InterviewModule";
 import { ContractModule } from "./modules/ContractModule";
+import { MailModule } from "./modules/MailModule";
 
 // ── Registered modules ──
 
@@ -26,6 +27,7 @@ import { ContractModule } from "./modules/ContractModule";
 const MODULE_MAP: Record<string, PhaseModule> = {
   interview: InterviewModule,
   contract: ContractModule,
+  mail: MailModule,
 };
 
 // ── Resolution ──

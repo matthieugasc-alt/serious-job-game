@@ -33,7 +33,17 @@ export type ModuleAction =
   | { type: "open_contract"; contractType: string }
   | { type: "mark_unavailable"; actorId: string }
   | { type: "advance_phase" }
-  | { type: "finish_scenario" };
+  | { type: "finish_scenario" }
+  // ── Mail module actions ──
+  | { type: "set_view"; view: string }
+  | { type: "set_compose"; show: boolean }
+  | { type: "add_inbox_mail"; mail: InboxMailAction }
+  | { type: "play_sound" }
+  | { type: "set_contract_vars"; vars: Record<string, unknown> }
+  | { type: "complete_advance_phase" }
+  | { type: "schedule_timed_event"; event: Record<string, unknown> }
+  | { type: "async_effect"; effect: AsyncEffectDescriptor }
+  | { type: "delayed_actions"; delayMs: number; actions: ModuleAction[] };
 
 /** Minimal mail draft shape for the set_mail_draft action. */
 export interface MailDraftAction {
@@ -51,6 +61,25 @@ export interface TimedEventAction {
   content: string;
   channel: string;
   delay_ms: number;
+}
+
+/** Shape of a mail to add to the player's inbox. */
+export interface InboxMailAction {
+  from: string;
+  subject: string;
+  body: string;
+  phaseId: string;
+  attachments?: { id: string; label: string }[];
+}
+
+/**
+ * Descriptor for an async side-effect that the module requests.
+ * The module describes WHAT to do; page.tsx EXECUTES it.
+ * `kind` discriminates the effect type; remaining fields are payload.
+ */
+export interface AsyncEffectDescriptor {
+  kind: string;
+  [key: string]: unknown;
 }
 
 // ── Module result ──

@@ -261,7 +261,11 @@
       },
       "completion_rules": {},
       "auto_advance": false,
-      "next_phase": "phase_2_negotiation"
+      "next_phase": "phase_2_negotiation",
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_2_negotiation",
@@ -331,7 +335,11 @@
         ]
       },
       "auto_advance": false,
-      "next_phase": "phase_3_sign"
+      "next_phase": "phase_3_sign",
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_3_sign",

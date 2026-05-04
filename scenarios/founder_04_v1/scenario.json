@@ -298,7 +298,11 @@
           }
         ]
       },
-      "next_phase": "phase_2_roadmap"
+      "next_phase": "phase_2_roadmap",
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_2_roadmap",
@@ -365,7 +369,11 @@
           }
         ]
       },
-      "next_phase": "phase_3_negotiation"
+      "next_phase": "phase_3_negotiation",
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_3_negotiation",

@@ -562,7 +562,11 @@
         }
       },
       "auto_advance": true,
-      "next_phase": "phase_3_accept"
+      "next_phase": "phase_3_accept",
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_3_accept",
@@ -703,7 +707,8 @@
       "phase_type": "contract_negotiation",
       "modules": [
         "chat",
-        "contract"
+        "contract",
+        "mail"
       ],
       "completion_trigger": "contract_signed",
       "handler_config": {
@@ -786,7 +791,11 @@
           "formal_mail_sent"
         ]
       },
-      "auto_advance": false
+      "auto_advance": false,
+      "modules": [
+        "chat",
+        "mail"
+      ]
     }
   ],
   "endings": [

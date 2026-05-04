@@ -382,7 +382,11 @@
             "points": 2
           }
         ]
-      }
+      },
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_4",
@@ -453,7 +457,11 @@
             "points": 2
           }
         ]
-      }
+      },
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_5",
@@ -546,7 +554,11 @@
             "points": 2
           }
         ]
-      }
+      },
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_6",
@@ -638,7 +650,11 @@
             "points": 2
           }
         ]
-      }
+      },
+      "modules": [
+        "chat",
+        "mail"
+      ]
     }
   ],
   "endings": [

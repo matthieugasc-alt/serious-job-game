@@ -7,6 +7,8 @@ export type {
   ModuleAction,
   MailDraftAction,
   TimedEventAction,
+  InboxMailAction,
+  AsyncEffectDescriptor,
   ModuleResult,
   ModuleContext,
   ModuleEvent,
@@ -18,3 +20,5 @@ export { EMPTY_RESULT } from "./types";
 // ── Concrete modules ──
 export { InterviewModule, buildInterviewStartActions, buildInterviewEndActions } from "./InterviewModule";
 export { ContractModule, mapSignResultToActions } from "./ContractModule";
+export { MailModule } from "./MailModule";
+export type { MailModuleExtra } from "./MailModule";

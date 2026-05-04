@@ -39,7 +39,9 @@ import DebriefView from "./DebriefView";
 import NotesView from "./NotesView";
 import ChatView from "./ChatView";
 import { usePhaseTimer } from "./hooks/usePhaseTimer";
-import { resolvePhaseHandler, InterviewHandler, ContractHandler, MailHandler } from "./handlers";
+import { resolvePhaseHandler, InterviewHandler, ContractHandler, MailHandler, resolveModules, dispatch, buildModuleContext } from "./handlers";
+import type { ModuleAction } from "./handlers";
+import type { MailModuleExtra } from "./handlers";
 import {
   type ContractClause,
   type ContractThreadMessage,
@@ -1955,6 +1957,251 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     }
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // applyMailActions — Execute ModuleAction[] from MailModule
+  // ══════════════════════════════════════════════════════════════════
+  function applyMailActions(actions: ModuleAction[], next: any) {
+    for (const action of actions) {
+      switch (action.type) {
+        case "set_flags":
+          Object.assign(next.flags, action.flags);
+          break;
+        case "add_ai_message":
+          addAIMessage(next, action.content, action.actor);
+          break;
+        case "set_contact":
+          setSelectedContact(action.actorId);
+          break;
+        case "set_view":
+          setMainView(action.view as MainView);
+          break;
+        case "set_compose":
+          setShowCompose(action.show);
+          break;
+        case "play_sound":
+          playNotificationSound();
+          break;
+        case "set_contract_vars":
+          setContractVars(action.vars as any);
+          break;
+        case "add_inbox_mail": {
+          const mail = { ...action.mail };
+          // Resolve __next_phase__ placeholder
+          if (mail.phaseId === "__next_phase__") {
+            const newPhase = scenario!.phases[next.currentPhaseIndex];
+            mail.phaseId = newPhase?.phase_id || mail.phaseId;
+          }
+          addInboxMail(next, mail);
+          break;
+        }
+        case "complete_advance_phase": {
+          completeCurrentPhaseAndAdvance(next);
+          resolveDynamicActors(next);
+          resolveEstablishmentPlaceholders(next);
+          injectPhaseEntryEvents(next);
+          const newPhase = scenario!.phases[next.currentPhaseIndex];
+          if (newPhase?.mail_config?.defaults) {
+            updateMailDraft(next, newPhase.phase_id, {
+              to: "",
+              cc: "",
+              subject: newPhase.mail_config.defaults.subject || "",
+              body: "", attachments: [],
+            });
+          }
+          break;
+        }
+        case "schedule_timed_event": {
+          const ev = { ...action.event } as any;
+          // Resolve __next_phase__ placeholders
+          if (ev.phaseId === "__next_phase__") {
+            const newPhase = scenario!.phases[next.currentPhaseIndex];
+            ev.phaseId = newPhase?.phase_id || ev.phaseId;
+          }
+          if (typeof ev.id === "string" && ev.id.startsWith("__next_phase__::")) {
+            const newPhase = scenario!.phases[next.currentPhaseIndex];
+            ev.id = ev.id.replace("__next_phase__", newPhase?.phase_id || "unknown");
+          }
+          next.pendingTimedEvents.push(ev);
+          break;
+        }
+        case "delayed_actions":
+          setTimeout(() => {
+            const delayed = cloneSession(next);
+            applyMailActions(action.actions, delayed);
+            setSession(delayed);
+          }, action.delayMs);
+          break;
+        case "async_effect":
+          executeMailAsyncEffect(action.effect as any, next);
+          break;
+        case "advance_phase":
+          completeCurrentPhaseAndAdvance(next);
+          break;
+        case "finish_scenario":
+          finishScenario(next);
+          break;
+        default:
+          break;
+      }
+    }
+  }
+
+  // ── Execute async effects described by MailModule ──
+  function executeMailAsyncEffect(effect: any, next: any) {
+    switch (effect.kind) {
+      case "mail_auto_reply": {
+        // Scope proposal auto-reply from Thomas
+        const mailSummary = effect.mailSummary;
+        (async () => {
+          try {
+            const res = await fetch("/api/chat", {
+              method: "POST",
+              headers: apiHeaders(),
+              body: JSON.stringify({
+                playerName: effect.displayPlayerName,
+                message: mailSummary,
+                phaseTitle: (effect.runtimeView as any).phaseTitle,
+                phaseObjective: (effect.runtimeView as any).phaseObjective,
+                phaseFocus: (effect.runtimeView as any).phaseFocus,
+                phasePrompt: (effect.runtimeView as any).phasePrompt,
+                criteria: (effect.runtimeView as any).criteria,
+                mode: (effect.runtimeView as any).adaptiveMode,
+                narrative: effect.narrative,
+                recentConversation: [],
+                playerMessages: [effect.mailBody],
+                roleplayPrompt: effect.roleplayPrompt,
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              playNotificationSound();
+              const final2 = cloneSession(next);
+              addPlayerMessage(final2, effect.playerMessageSummary, effect.actorId);
+              addAIMessage(final2, data.reply, effect.actorId);
+              applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+              setSession(final2);
+            }
+          } catch (err) {
+            console.error("Error in mail_auto_reply async effect:", err);
+          }
+        })();
+        break;
+      }
+      case "negotiation_chat_reply": {
+        // Thomas chat response to negotiation mail
+        (async () => {
+          try {
+            const res = await fetch("/api/chat", {
+              method: "POST",
+              headers: apiHeaders(),
+              body: JSON.stringify({
+                playerName: effect.displayPlayerName,
+                message: effect.mailSummary,
+                phaseTitle: (effect.runtimeView as any).phaseTitle,
+                phaseObjective: (effect.runtimeView as any).phaseObjective,
+                phaseFocus: (effect.runtimeView as any).phaseFocus,
+                phasePrompt: (effect.runtimeView as any).phasePrompt,
+                criteria: (effect.runtimeView as any).criteria,
+                mode: (effect.runtimeView as any).adaptiveMode,
+                narrative: effect.narrative,
+                recentConversation: effect.recentConversation,
+                playerMessages: effect.playerMessages,
+                roleplayPrompt: effect.roleplayPrompt,
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              playNotificationSound();
+              const final2 = cloneSession(next);
+              addPlayerMessage(final2, effect.playerMessageSummary, effect.actorId);
+              addAIMessage(final2, data.reply, effect.actorId);
+              applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+              setSession(final2);
+            }
+          } catch (err) {
+            console.error("Error in negotiation_chat_reply async effect:", err);
+          }
+        })();
+        break;
+      }
+      case "fourviere_dynamic_mail": {
+        // Generate dynamic Claire mail via API
+        const nextPhase = scenario!.phases[next.currentPhaseIndex];
+        const dynConfig = (nextPhase as any)?.dynamic_entry_mail;
+        const p4Id = nextPhase?.phase_id || "phase_4";
+        const truncatedAnalyse = effect.analyseBody;
+        (async () => {
+          try {
+            const prompt = `Tu es Claire Beaumont, directrice d'ImmoLyon Patrimoine. Écris un mail interne COURT (max 12 lignes) à ton agent junior.
+
+L'agent t'a envoyé cette analyse du RDV Delvaux (85m² Fourvière) :
+---
+${truncatedAnalyse}
+---
+
+Ton mail doit :
+- Remercier brièvement
+- Résumer les travaux que Delvaux a faits suite aux recommandations (cuisine refaite si mentionnée, meubles retirés/remplacés si demandé, régime fiscal choisi, etc. — invente les détails cohérents)
+- Dire que quelques semaines ont passé, tout est prêt
+- Demander de rédiger une annonce Le Bon Coin (points forts : vue Saône, parquet chêne, cheminée, Fourvière)
+- Demander d'envoyer par mail pour validation
+
+Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". Réponds UNIQUEMENT le corps du mail.`;
+
+            const res = await fetch("/api/chat", {
+              method: "POST",
+              headers: apiHeaders(),
+              body: JSON.stringify({
+                playerName: effect.displayPlayerName,
+                message: prompt,
+                phaseTitle: "Génération mail transition",
+                phaseObjective: "",
+                phaseFocus: "",
+                phasePrompt: "",
+                criteria: [],
+                mode: "default",
+                narrative: scenario!.narrative,
+                recentConversation: [],
+                playerMessages: [],
+                roleplayPrompt: prompt,
+                skipEvaluation: true,
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const mailBody = data.reply || "Bonjour,\n\nBon travail pour l'analyse. M. Delvaux a effectué les travaux nécessaires suite à tes recommandations. Il faut maintenant publier une annonce sur Le Bon Coin.\n\nRédige un texte attractif mais honnête. Mets en avant les vrais points forts : vue sur la Saône, parquet chêne massif, cheminée d'époque, quartier Fourvière.\n\nEnvoie-moi l'annonce par mail pour validation.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine";
+              const updated = cloneSession(next);
+              addInboxMail(updated, {
+                from: dynConfig?.actor || "claire_beaumont",
+                subject: dynConfig?.subject || "Annonce Le Bon Coin — Bien Delvaux Fourvière",
+                body: mailBody,
+                phaseId: p4Id,
+              });
+              setSession(updated);
+              setMainView("mail");
+              playNotificationSound();
+            }
+          } catch (err) {
+            // Fallback: inject a generic mail
+            console.error("Error generating dynamic Claire mail:", err);
+            const fallback = cloneSession(next);
+            addInboxMail(fallback, {
+              from: "claire_beaumont",
+              subject: "Annonce Le Bon Coin — Bien Delvaux Fourvière",
+              body: "Bonjour,\n\nBon travail pour l'analyse du rendez-vous Delvaux. M. Delvaux a effectué les travaux nécessaires suite à tes recommandations — le bien est maintenant prêt pour la location.\n\nIl faut publier rapidement une annonce sur Le Bon Coin. Rédige un texte attractif mais honnête. Mets en avant les vrais points forts : la vue sur la Saône, le parquet chêne massif, la cheminée d'époque, le quartier Fourvière.\n\nN'exagère pas et ne mens pas sur l'état du bien.\n\nEnvoie-moi l'annonce par mail pour validation.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine",
+              phaseId: p4Id,
+            });
+            setSession(fallback);
+            setMainView("mail");
+          }
+        })();
+        break;
+      }
+      default:
+        console.warn("Unknown mail async effect kind:", effect.kind);
+    }
+  }
+
   function handleSendMail() {
     if (!session || !scenario || !view || !canActuallySendMail) return;
     const phase = scenario.phases[session.currentPhaseIndex];
@@ -1967,6 +2214,51 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     }
     sendCurrentPhaseMail(next, mailKind);
     playNotificationSound();
+
+    // ══════════════════════════════════════════════════════════════════
+    // Module system — try MailModule BEFORE legacy code
+    // If modules are active and return actions, apply them and return.
+    // Otherwise, fall through to the legacy code below.
+    // ══════════════════════════════════════════════════════════════════
+    const mailModules = resolveModules(phase, scenario);
+    if (mailModules) {
+      const mailCtx = {
+        ...buildModuleContext({
+          session: next,
+          scenario,
+          phase,
+          playerName: displayPlayerName,
+          scenarioId: scenarioId || "",
+        }),
+        extra: {
+          mailBody: currentMailDraft?.body || "",
+          mailTo: currentMailDraft?.to || "",
+          mailKind,
+          isFounderScenario,
+          chosenCtoId: chosenCtoId || "sofia_renault",
+          actors,
+          conversation: view?.conversation || [],
+          scores: session.scores || {},
+          constraints: (scenario as any)?.constraints || {},
+          currentMailDraft: currentMailDraft || { to: "", subject: "", body: "" },
+          runtimeView: buildRuntimeView(next),
+          activePromptMap: aiPromptsMapRef.current,
+          defaultPrompt: aiPromptRef.current,
+          displayPlayerName,
+        } as MailModuleExtra,
+      };
+      const mailResult = dispatch(
+        { type: "mail_sent", mailKind, mailBody: currentMailDraft?.body || "" },
+        mailModules,
+        mailCtx,
+      );
+      if (mailResult.actions.length > 0) {
+        applyMailActions(mailResult.actions, next);
+        setSession(next);
+        return; // Module handled it — skip legacy code
+      }
+      // No actions → fall through to legacy code
+    }
 
     // ── Founder rupture mail: apply bad leaver logic BEFORE finishing ──
     if (mailKind === "rupture_cto" && isFounderScenario) {

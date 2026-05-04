@@ -9,7 +9,15 @@
     "job_family": "founder",
     "difficulty": "senior",
     "estimated_duration_min": 25,
-    "tags": ["B2B", "santé", "pilote", "contrat", "négociation", "CHU", "clinique"],
+    "tags": [
+      "B2B",
+      "santé",
+      "pilote",
+      "contrat",
+      "négociation",
+      "CHU",
+      "clinique"
+    ],
     "show_objective": false,
     "show_background_fact": false
   },
@@ -155,28 +163,54 @@
         "doc_id": "fiche_chu",
         "label": "Fiche — CHU de Bordeaux (Pellegrin)",
         "file_path": "/scenarios/founder_03_clinical/documents/fiche_chu_bordeaux.pdf",
-        "contains": ["CHU", "Pellegrin", "32 salles", "public", "DxPlanning", "Lemaire"],
+        "contains": [
+          "CHU",
+          "Pellegrin",
+          "32 salles",
+          "public",
+          "DxPlanning",
+          "Lemaire"
+        ],
         "usable_as_pj": false
       },
       {
         "doc_id": "fiche_saint_martin",
         "label": "Fiche — Hôpital Privé Saint-Martin",
         "file_path": "/scenarios/founder_03_clinical/documents/fiche_hopital_prive_saint_martin.pdf",
-        "contains": ["Saint-Martin", "Ramsay", "8 salles", "Castex", "Girard"],
+        "contains": [
+          "Saint-Martin",
+          "Ramsay",
+          "8 salles",
+          "Castex",
+          "Girard"
+        ],
         "usable_as_pj": false
       },
       {
         "doc_id": "fiche_clinique",
         "label": "Fiche — Clinique Saint-Augustin",
         "file_path": "/scenarios/founder_03_clinical/documents/fiche_clinique_saint_augustin.pdf",
-        "contains": ["Saint-Augustin", "5 salles", "Alexandre", "Laroche", "indépendant"],
+        "contains": [
+          "Saint-Augustin",
+          "5 salles",
+          "Alexandre",
+          "Laroche",
+          "indépendant"
+        ],
         "usable_as_pj": false
       },
       {
         "doc_id": "contrat_chu",
         "label": "Contrat de test — CHU de Bordeaux",
         "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_chu_bordeaux.pdf",
-        "contains": ["contrat", "PI", "intéressement", "CHU", "données", "SecNumCloud"],
+        "contains": [
+          "contrat",
+          "PI",
+          "intéressement",
+          "CHU",
+          "données",
+          "SecNumCloud"
+        ],
         "usable_as_pj": true,
         "hidden_until_phase": "phase_3_contract"
       },
@@ -184,7 +218,12 @@
         "doc_id": "contrat_saint_martin",
         "label": "Contrat de test — Hôpital Saint-Martin",
         "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_hopital_saint_martin.pdf",
-        "contains": ["contrat", "Ramsay", "référencement", "pilote"],
+        "contains": [
+          "contrat",
+          "Ramsay",
+          "référencement",
+          "pilote"
+        ],
         "usable_as_pj": true,
         "hidden_until_phase": "phase_3_contract"
       },
@@ -192,7 +231,12 @@
         "doc_id": "contrat_clinique",
         "label": "Contrat de test — Clinique Saint-Augustin",
         "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_clinique_saint_augustin.pdf",
-        "contains": ["contrat", "test", "8 semaines", "simple"],
+        "contains": [
+          "contrat",
+          "test",
+          "8 semaines",
+          "simple"
+        ],
         "usable_as_pj": true,
         "hidden_until_phase": "phase_3_contract"
       }
@@ -227,9 +271,18 @@
       "actor": "alexandre_morel",
       "content": "Le MVP est prêt, bravo à l'équipe. Maintenant faut qu'on le teste en vrai. J'ai 3 pistes via mon réseau. Je t'envoie les fiches. Le CHU de Bordeaux ce serait une référence incroyable. Saint-Martin c'est un bon compromis — privé, réputé, taille correcte. Et il y a ma clinique, Saint-Augustin, mais franchement pour un premier test je trouve que c'est trop petit et pas assez crédible. À toi de voir, mais je pense qu'on devrait viser haut. Ah et quoi qu'il arrive : le test DOIT être gratuit. C'est notre premier client, c'est son réseau, on offre.",
       "attachments": [
-        { "id": "fiche_chu", "label": "Fiche CHU Bordeaux" },
-        { "id": "fiche_saint_martin", "label": "Fiche Hôpital Saint-Martin" },
-        { "id": "fiche_clinique", "label": "Fiche Clinique Saint-Augustin" }
+        {
+          "id": "fiche_chu",
+          "label": "Fiche CHU Bordeaux"
+        },
+        {
+          "id": "fiche_saint_martin",
+          "label": "Fiche Hôpital Saint-Martin"
+        },
+        {
+          "id": "fiche_clinique",
+          "label": "Fiche Clinique Saint-Augustin"
+        }
       ]
     }
   ],
@@ -241,8 +294,13 @@
       "phase_focus": "Discussion avec Alexandre sur le choix d'établissement. Alexandre est contre la clinique (trop petit, c'est sa clinique, pas crédible) et pousse pour le CHU ou Saint-Martin. Le joueur peut argumenter. Quand il est prêt, il envoie un mail à Alexandre pour formaliser son choix.",
       "duration_target_min": 5,
       "max_duration_sec": 420,
-      "active_channels": ["chat", "mail"],
-      "ai_actors": ["alexandre_morel"],
+      "active_channels": [
+        "chat",
+        "mail"
+      ],
+      "ai_actors": [
+        "alexandre_morel"
+      ],
       "mail_config": {
         "enabled": true,
         "kind": "choice_confirmation",
@@ -252,7 +310,9 @@
           "subject": "Décision établissement pilote"
         },
         "require_attachments": false,
-        "on_send_flags": { "choice_confirmed": true },
+        "on_send_flags": {
+          "choice_confirmed": true
+        },
         "send_label": "Confirmer mon choix",
         "send_advances_phase": true
       },
@@ -276,7 +336,11 @@
           }
         ]
       },
-      "next_phase": "phase_2_pitch_mail"
+      "next_phase": "phase_2_pitch_mail",
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_2_pitch_mail",
@@ -285,8 +349,13 @@
       "phase_focus": "Le joueur rédige un mail de prospection. Il doit vendre le test gratuit, rassurer sur les données, et donner envie. Alexandre rappelle : test gratuit, pas de bla-bla, aller droit au but. IMPORTANT : l'envoi du mail ne fait PAS avancer la phase. L'établissement va répondre (acceptation ou refus selon la qualité du mail). C'est la réponse qui débloque la suite.",
       "duration_target_min": 5,
       "max_duration_sec": 420,
-      "active_channels": ["mail", "chat"],
-      "ai_actors": ["alexandre_morel"],
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "alexandre_morel"
+      ],
       "entry_events": [],
       "mail_config": {
         "enabled": true,
@@ -297,7 +366,9 @@
           "subject": "Orisio — Proposition de test pilote gratuit"
         },
         "require_attachments": false,
-        "on_send_flags": { "pitch_mail_sent": true },
+        "on_send_flags": {
+          "pitch_mail_sent": true
+        },
         "send_label": "Envoyer la proposition",
         "send_advances_phase": false
       },
@@ -331,10 +402,16 @@
         ]
       },
       "completion_rules": {
-        "any_flags": ["pitch_accepted"]
+        "any_flags": [
+          "pitch_accepted"
+        ]
       },
       "auto_advance": true,
-      "next_phase": "phase_3_contract"
+      "next_phase": "phase_3_contract",
+      "modules": [
+        "chat",
+        "mail"
+      ]
     },
     {
       "phase_id": "phase_3_contract",
@@ -343,8 +420,16 @@
       "phase_focus": "L'établissement envoie un contrat. Selon le choix du joueur : le CHU envoie un contrat très agressif (PI, intéressement, asymétrie), Saint-Martin envoie un contrat intermédiaire (clause groupe), la clinique envoie un contrat souple. Le joueur doit identifier les clauses problématiques et négocier par mail.",
       "duration_target_min": 10,
       "max_duration_sec": 720,
-      "active_channels": ["mail", "chat"],
-      "ai_actors": ["contact_chu", "contact_saint_martin", "contact_clinique", "alexandre_morel"],
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "contact_chu",
+        "contact_saint_martin",
+        "contact_clinique",
+        "alexandre_morel"
+      ],
       "entry_events": [],
       "scoring": {
         "criteria": [
@@ -380,7 +465,10 @@
         ]
       },
       "completion_rules": {
-        "any_flags": ["contrat_signed_clean", "contrat_signed_toxic"],
+        "any_flags": [
+          "contrat_signed_clean",
+          "contrat_signed_toxic"
+        ],
         "max_exchanges": 12
       },
       "auto_advance": true
@@ -393,7 +481,10 @@
       "priority": 4,
       "content": "Tu as visé trop haut et tu t'es fait recaler. Alexandre a dû te rabattre sur sa clinique. Le contrat est propre mais tu as perdu du temps et de la crédibilité. Le pilote démarre avec 2 mois de retard.",
       "conditions": {
-        "core_flags": ["switched_to_clinique", "contrat_signed_clean"],
+        "core_flags": [
+          "switched_to_clinique",
+          "contrat_signed_clean"
+        ],
         "min_core_flags": 2
       }
     },
@@ -403,7 +494,9 @@
       "priority": 3,
       "content": "Tu as signé un contrat qui cède ta PI ou qui donne un intéressement délirant à l'établissement. Le pilote démarre, mais le prix payé est trop élevé — ça hypothèque l'avenir commercial d'Orisio.",
       "conditions": {
-        "core_flags": ["contrat_signed_toxic"],
+        "core_flags": [
+          "contrat_signed_toxic"
+        ],
         "min_core_flags": 1
       }
     },
@@ -413,7 +506,10 @@
       "priority": 2,
       "content": "Tu as choisi un établissement adapté, proposé un test convaincant et négocié un contrat qui protège Orisio. Le pilote démarre dans 2 semaines. Première étape vers un vrai client.",
       "conditions": {
-        "core_flags": ["pitch_mail_sent", "contrat_signed_clean"],
+        "core_flags": [
+          "pitch_mail_sent",
+          "contrat_signed_clean"
+        ],
         "min_core_flags": 2
       }
     },
@@ -423,7 +519,9 @@
       "priority": 1,
       "content": "Le pilote est signé mais tu as accepté des conditions qui pourraient poser problème plus tard (clause groupe, référence commerciale limitée, ou timing serré). Le test démarre, mais tu n'as pas le contrôle total.",
       "conditions": {
-        "core_flags": ["pitch_mail_sent"],
+        "core_flags": [
+          "pitch_mail_sent"
+        ],
         "min_core_flags": 1
       }
     }
