@@ -9,7 +9,14 @@
     "job_family": "founder",
     "difficulty": "intermediate",
     "estimated_duration_min": 20,
-    "tags": ["MVP", "négociation", "prestataire", "scope", "budget", "cofondateur"],
+    "tags": [
+      "MVP",
+      "négociation",
+      "prestataire",
+      "scope",
+      "budget",
+      "cofondateur"
+    ],
     "show_objective": false,
     "show_background_fact": false
   },
@@ -117,28 +124,54 @@
         "doc_id": "synthese_entretiens",
         "label": "Synthèse des entretiens — 10 chirurgiens",
         "file_path": "/scenarios/founder_02_mvp/documents/synthese_entretiens.pdf",
-        "contains": ["entretiens", "chirurgiens", "annulations", "planning", "bloc", "cadre de bloc"],
+        "contains": [
+          "entretiens",
+          "chirurgiens",
+          "annulations",
+          "planning",
+          "bloc",
+          "cadre de bloc"
+        ],
         "usable_as_pj": true
       },
       {
         "doc_id": "note_cadrage",
         "label": "Note de cadrage produit — Alexandre Morel",
         "file_path": "/scenarios/founder_02_mvp/documents/note_cadrage_produit.pdf",
-        "contains": ["cadrage", "modules", "architecture", "planning", "budget"],
+        "contains": [
+          "cadrage",
+          "modules",
+          "architecture",
+          "planning",
+          "budget"
+        ],
         "usable_as_pj": true
       },
       {
         "doc_id": "devis_novadev",
         "label": "Devis NovaDev — 32 150 € HT",
         "file_path": "/scenarios/founder_02_mvp/documents/devis_prestataire.pdf",
-        "contains": ["devis", "NovaDev", "développement", "backend", "frontend", "déploiement"],
+        "contains": [
+          "devis",
+          "NovaDev",
+          "développement",
+          "backend",
+          "frontend",
+          "déploiement"
+        ],
         "usable_as_pj": true
       },
       {
         "doc_id": "contrat_novadev",
         "label": "Contrat de prestation NovaDev",
         "file_path": "_internal_contract_",
-        "contains": ["contrat", "prestation", "NovaDev", "signature", "conditions"],
+        "contains": [
+          "contrat",
+          "prestation",
+          "NovaDev",
+          "signature",
+          "conditions"
+        ],
         "usable_as_pj": false,
         "hidden_until_phase": "phase_3_sign"
       }
@@ -164,9 +197,18 @@
       "actor": "alexandre_morel",
       "content": "Salut ! Grosse session de boulot. Je t'envoie tout : la synthèse des 10 entretiens que j'ai faits avec les chirurgiens, ma note de cadrage pour le produit, et le devis de NovaDev que j'ai demandé. Franchement c'est du solide, je pense qu'on tient un truc. Le devis est à 32k€ HT, c'est un investissement mais le produit sera complet. On lance ?",
       "attachments": [
-        { "id": "synthese_entretiens", "label": "Synthèse entretiens" },
-        { "id": "note_cadrage", "label": "Note de cadrage produit" },
-        { "id": "devis_novadev", "label": "Devis NovaDev — 32 150 € HT" }
+        {
+          "id": "synthese_entretiens",
+          "label": "Synthèse entretiens"
+        },
+        {
+          "id": "note_cadrage",
+          "label": "Note de cadrage produit"
+        },
+        {
+          "id": "devis_novadev",
+          "label": "Devis NovaDev — 32 150 € HT"
+        }
       ]
     }
   ],
@@ -178,8 +220,13 @@
       "phase_focus": "Discussion libre avec Alexandre sur la vision produit. Le joueur peut poser des questions, explorer les modules, puis proposer un scope réduit. Alexandre est ouvert au début, défensif quand on parle de couper, puis lâche progressivement. Quand le joueur est prêt, il envoie un mail à Thomas de NovaDev pour passer à la négociation.",
       "duration_target_min": 8,
       "max_duration_sec": 900,
-      "active_channels": ["chat", "mail"],
-      "ai_actors": ["alexandre_morel"],
+      "active_channels": [
+        "chat",
+        "mail"
+      ],
+      "ai_actors": [
+        "alexandre_morel"
+      ],
       "mail_config": {
         "enabled": true,
         "kind": "scope_proposal",
@@ -223,8 +270,14 @@
       "phase_focus": "Le joueur envoie un mail à Thomas pour lui annoncer le scope réduit. Thomas répond en CHAT (messagerie directe) pour négocier en direct. La discussion est rapide, fluide, en temps réel. Quand un accord est trouvé, Thomas envoie un mail formel avec le devis révisé et le contrat — ce qui déclenche la phase suivante.",
       "duration_target_min": 8,
       "max_duration_sec": 600,
-      "active_channels": ["mail", "chat"],
-      "ai_actors": ["thomas_novadev", "alexandre_morel"],
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "thomas_novadev",
+        "alexandre_morel"
+      ],
       "mail_config": {
         "enabled": true,
         "kind": "negotiation_proposal",
@@ -265,7 +318,14 @@
       "completion_rules": {
         "required_npc_evidence": [
           {
-            "keywords": ["envoyez-moi un mail", "envoyez-moi un email", "mail récapitulatif", "email récapitulatif", "je vous prépare le contrat derrière", "je prépare le contrat derrière"],
+            "keywords": [
+              "envoyez-moi un mail",
+              "envoyez-moi un email",
+              "mail récapitulatif",
+              "email récapitulatif",
+              "je vous prépare le contrat derrière",
+              "je prépare le contrat derrière"
+            ],
             "min_matches": 1
           }
         ]
@@ -280,8 +340,14 @@
       "phase_focus": "Thomas envoie le contrat final par mail avec le devis révisé. Le joueur doit le lire et le signer via l'interface de signature. Une fois signé, le MVP est lancé.",
       "duration_target_min": 3,
       "max_duration_sec": 300,
-      "active_channels": ["mail", "chat"],
-      "ai_actors": ["thomas_novadev", "alexandre_morel"],
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "thomas_novadev",
+        "alexandre_morel"
+      ],
       "entry_events": [
         {
           "event_id": "novadev_sends_contract",
@@ -303,9 +369,22 @@
         ]
       },
       "completion_rules": {
-        "any_flags": ["contract_signed"]
+        "any_flags": [
+          "contract_signed"
+        ]
       },
-      "auto_advance": true
+      "auto_advance": true,
+      "phase_type": "contract_negotiation",
+      "modules": [
+        "chat",
+        "contract"
+      ],
+      "completion_trigger": "contract_signed",
+      "handler_config": {
+        "contract": {
+          "type": "s2_novadev"
+        }
+      }
     }
   ],
   "endings": [
@@ -315,7 +394,11 @@
       "priority": 1,
       "content": "Tu as convaincu Alexandre, négocié un prix serré avec NovaDev, et signé le contrat. Le MVP sera livré en 7 semaines. Budget maîtrisé, scope clair, équipe alignée.",
       "conditions": {
-        "core_flags": ["scope_reduced", "novadev_negotiated", "contract_signed"],
+        "core_flags": [
+          "scope_reduced",
+          "novadev_negotiated",
+          "contract_signed"
+        ],
         "min_core_flags": 3
       }
     },
@@ -325,7 +408,9 @@
       "priority": 2,
       "content": "Le MVP est lancé, mais le prix négocié laisse peu de marge. La trésorerie sera sous tension.",
       "conditions": {
-        "core_flags": ["contract_signed"],
+        "core_flags": [
+          "contract_signed"
+        ],
         "min_core_flags": 1
       }
     },

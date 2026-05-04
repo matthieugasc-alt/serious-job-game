@@ -9,7 +9,15 @@
     "job_family": "founder",
     "difficulty": "senior",
     "estimated_duration_min": 30,
-    "tags": ["produit", "priorisation", "PI", "négociation", "bug", "adoption", "roadmap"],
+    "tags": [
+      "produit",
+      "priorisation",
+      "PI",
+      "négociation",
+      "bug",
+      "adoption",
+      "roadmap"
+    ],
     "show_objective": false,
     "show_background_fact": false
   },
@@ -120,21 +128,49 @@
         "doc_id": "rapport_alexandre",
         "label": "Rapport de terrain — Retour pilote Mois 1",
         "file_path": "/scenarios/founder_04_v1/documents/rapport_terrain_alexandre.pdf",
-        "contains": ["adoption", "métriques", "interviews", "chirurgiens", "IDE", "incident", "annulations", "recommandations", "budget", "modules"],
+        "contains": [
+          "adoption",
+          "métriques",
+          "interviews",
+          "chirurgiens",
+          "IDE",
+          "incident",
+          "annulations",
+          "recommandations",
+          "budget",
+          "modules"
+        ],
         "usable_as_pj": false
       },
       {
         "doc_id": "reclamation_patient",
         "label": "Réclamation patient — Mme Dupont",
         "file_path": "/scenarios/founder_04_v1/documents/reclamation_patient_dupont.pdf",
-        "contains": ["patiente", "annulation", "prothèse", "hanche", "incident", "bug", "qualité"],
+        "contains": [
+          "patiente",
+          "annulation",
+          "prothèse",
+          "hanche",
+          "incident",
+          "bug",
+          "qualité"
+        ],
         "usable_as_pj": false
       },
       {
         "doc_id": "note_avocat",
         "label": "Note avocat — Rémunération prestataire par intéressement PI",
         "file_path": "/scenarios/founder_04_v1/documents/note_avocat_pi_interessement.pdf",
-        "contains": ["intéressement", "CA", "BSA", "equity", "PI", "plafond", "cession", "prestataire"],
+        "contains": [
+          "intéressement",
+          "CA",
+          "BSA",
+          "equity",
+          "PI",
+          "plafond",
+          "cession",
+          "prestataire"
+        ],
         "usable_as_pj": false,
         "hidden_until_phase": "phase_3_negotiation"
       }
@@ -174,7 +210,10 @@
       "actor": "alexandre_morel",
       "content": "Bon. Le rapport est fini. 24 pages. Lis-le.",
       "attachments": [
-        { "id": "rapport_alexandre", "label": "Rapport de terrain (24 pages)" }
+        {
+          "id": "rapport_alexandre",
+          "label": "Rapport de terrain (24 pages)"
+        }
       ]
     },
     {
@@ -184,7 +223,10 @@
       "delay_seconds": 2,
       "content": "Et lis ça aussi. Réclamation d'une patiente de 67 ans. Prothèse de hanche annulée par le système, personne prévenu. Elle s'est pointée à 7h30 du mat pour rien.",
       "attachments": [
-        { "id": "reclamation_patient", "label": "Réclamation Mme Dupont" }
+        {
+          "id": "reclamation_patient",
+          "label": "Réclamation Mme Dupont"
+        }
       ]
     },
     {
@@ -203,8 +245,13 @@
       "phase_focus": "Le joueur doit lire les documents et discuter avec Alexandre. Le PIÈGE : Alexandre présente le problème comme un manque de fonctionnalités (5 modules à 21K€). La RÉALITÉ : le vrai problème est l'adoption — 2/12 chirurgiens actifs, pas de formation, pas de conduite du changement, double système Excel/Orisio. Le bug d'annulation est réel et urgent, mais c'est un symptôme du double système, pas un problème de features manquantes. Le joueur doit citer les verbatims du rapport (Dr Martinez : 'Faites d'abord en sorte que tout le monde utilise ce qui existe', M. Ferreira : 'Vous n'avez pas fait de conduite du changement') pour montrer qu'il a compris.",
       "duration_target_min": 10,
       "max_duration_sec": 720,
-      "active_channels": ["chat", "mail"],
-      "ai_actors": ["alexandre_morel"],
+      "active_channels": [
+        "chat",
+        "mail"
+      ],
+      "ai_actors": [
+        "alexandre_morel"
+      ],
       "mail_config": {
         "enabled": true,
         "kind": "diagnostic_analysis",
@@ -214,7 +261,9 @@
           "subject": "Mon analyse du rapport terrain"
         },
         "require_attachments": false,
-        "on_send_flags": { "diagnostic_sent": true },
+        "on_send_flags": {
+          "diagnostic_sent": true
+        },
         "send_label": "Envoyer mon diagnostic",
         "send_advances_phase": true
       },
@@ -258,8 +307,13 @@
       "phase_focus": "Le joueur doit écrire à la direction de l'établissement choisi au scénario 3 (CHU, Saint-Martin ou Saint-Augustin). Le mail doit expliquer : (1) les problèmes identifiés lors du pilote (adoption faible, double système, incident patient), (2) les mesures correctives prévues (correction du bug, formation, conduite du changement). La BONNE réponse : reconnaître les vrais problèmes (adoption, pas features) et proposer un plan d'action concret. La MAUVAISE réponse : promettre 5 nouveaux modules sans adresser l'adoption.",
       "duration_target_min": 8,
       "max_duration_sec": 600,
-      "active_channels": ["chat", "mail"],
-      "ai_actors": ["alexandre_morel"],
+      "active_channels": [
+        "chat",
+        "mail"
+      ],
+      "ai_actors": [
+        "alexandre_morel"
+      ],
       "dynamic_mail_to": "establishment",
       "entry_events": [
         {
@@ -279,7 +333,9 @@
           "subject": "Retour pilote Orisio — Bilan et mesures correctives"
         },
         "require_attachments": false,
-        "on_send_flags": { "roadmap_sent": true },
+        "on_send_flags": {
+          "roadmap_sent": true
+        },
         "send_label": "Envoyer à la direction",
         "send_advances_phase": true
       },
@@ -318,8 +374,14 @@
       "phase_focus": "Thomas envoie un mail pour renégocier. Il a développé le MVP et il veut maintenant un intéressement sur le CA (il propose 8% sans plafond) ou des BSA (5% du capital). La note de l'avocat est l'arme du joueur : elle recommande un mix cash + intéressement plafonné (5% CA, plafond 80K, 5 ans) ou des BSA raisonnables (2-3% max). Le joueur doit négocier par mail : refuser le 8% sans plafond, proposer une contre-offre cohérente, et surtout PRÉSERVER LA PI (cession complète et irrévocable).",
       "duration_target_min": 10,
       "max_duration_sec": 720,
-      "active_channels": ["mail", "chat"],
-      "ai_actors": ["thomas_vidal", "alexandre_morel"],
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "thomas_vidal",
+        "alexandre_morel"
+      ],
       "entry_events": [
         {
           "event_id": "thomas_mail_nego",
@@ -364,7 +426,20 @@
         "actor": "thomas_vidal",
         "title": "Devis NovaDev — Développement V1",
         "sign_label": "Accepter et signer le devis",
-        "on_sign_flags": ["devis_signed"]
+        "on_sign_flags": [
+          "devis_signed"
+        ]
+      },
+      "phase_type": "contract_negotiation",
+      "modules": [
+        "chat",
+        "contract"
+      ],
+      "completion_trigger": "contract_signed",
+      "handler_config": {
+        "contract": {
+          "type": "s4_devis"
+        }
       }
     }
   ],
@@ -375,8 +450,17 @@
       "priority": 1,
       "content": "Tu as lu le rapport comme un CEO, pas comme un ingénieur. Tu as identifié que le problème était l'adoption — pas les features. Le bug est corrigé, un plan de formation est en place, et Thomas a un deal qui l'aligne sans menacer ta cap table. La V1 peut démarrer sur des bases saines.",
       "conditions": {
-        "core_flags": ["identified_adoption_problem", "identified_bug_critical", "roadmap_includes_training", "roadmap_includes_bug_fix"],
-        "deal_flags_any": ["deal_cash_only", "deal_interessement_capped", "deal_bsa_reasonable"],
+        "core_flags": [
+          "identified_adoption_problem",
+          "identified_bug_critical",
+          "roadmap_includes_training",
+          "roadmap_includes_bug_fix"
+        ],
+        "deal_flags_any": [
+          "deal_cash_only",
+          "deal_interessement_capped",
+          "deal_bsa_reasonable"
+        ],
         "min_core_flags": 4
       }
     },
@@ -386,8 +470,15 @@
       "priority": 2,
       "content": "Tu as bien identifié les problèmes terrain et construit une roadmap raisonnable. La négociation avec Thomas aurait pu être plus serrée, mais le deal est acceptable. La V1 est lancée.",
       "conditions": {
-        "core_flags": ["identified_bug_critical", "roadmap_includes_bug_fix"],
-        "deal_flags_any": ["deal_cash_only", "deal_interessement_capped", "deal_bsa_reasonable"],
+        "core_flags": [
+          "identified_bug_critical",
+          "roadmap_includes_bug_fix"
+        ],
+        "deal_flags_any": [
+          "deal_cash_only",
+          "deal_interessement_capped",
+          "deal_bsa_reasonable"
+        ],
         "min_core_flags": 2
       }
     },
@@ -397,7 +488,10 @@
       "priority": 3,
       "content": "Tu as commandé les 5 modules d'Alexandre à 21K€. Le budget explose, et le vrai problème (l'adoption) n'est pas adressé. Même avec un produit plus riche, personne ne l'utilisera si tu ne fais pas de conduite du changement. Le pilote risque d'échouer une deuxième fois.",
       "conditions": {
-        "core_flags": ["fell_for_feature_trap", "roadmap_bloated"],
+        "core_flags": [
+          "fell_for_feature_trap",
+          "roadmap_bloated"
+        ],
         "min_core_flags": 1
       }
     },
@@ -407,7 +501,10 @@
       "priority": 4,
       "content": "Tu as cédé trop à Thomas : intéressement sans plafond ou BSA excessifs. La PI est formellement chez Orisio, mais le coût total peut exploser. Les investisseurs verront ça comme un signal de faiblesse dans ta cap table.",
       "conditions": {
-        "core_flags": ["deal_interessement_uncapped", "deal_bsa_excessive"],
+        "core_flags": [
+          "deal_interessement_uncapped",
+          "deal_bsa_excessive"
+        ],
         "min_core_flags": 1
       }
     }

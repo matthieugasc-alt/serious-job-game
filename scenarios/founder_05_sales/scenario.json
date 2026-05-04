@@ -9,7 +9,19 @@
     "job_family": "founder",
     "difficulty": "senior",
     "estimated_duration_min": 35,
-    "tags": ["vente", "prospection", "cold-email", "KOL", "DSI", "RGPD", "cybersécurité", "négociation", "pricing", "contrat", "CGV"],
+    "tags": [
+      "vente",
+      "prospection",
+      "cold-email",
+      "KOL",
+      "DSI",
+      "RGPD",
+      "cybersécurité",
+      "négociation",
+      "pricing",
+      "contrat",
+      "CGV"
+    ],
     "show_objective": false,
     "show_background_fact": false
   },
@@ -230,14 +242,33 @@
         "doc_id": "liste_kol",
         "label": "Liste KOL — Alexandre Morel",
         "file_path": "/scenarios/founder_05_sales/documents/liste_kol.pdf",
-        "contains": ["KOL", "prospection", "contacts", "chirurgiens", "cadre de bloc", "directeur médical", "email"],
+        "contains": [
+          "KOL",
+          "prospection",
+          "contacts",
+          "chirurgiens",
+          "cadre de bloc",
+          "directeur médical",
+          "email"
+        ],
         "usable_as_pj": false
       },
       {
         "doc_id": "cgv_orisio",
         "label": "CGV — Orisio SAS",
         "file_path": "/scenarios/founder_05_sales/documents/cgv_orisio.pdf",
-        "contains": ["CGV", "conditions générales", "HDS", "RGPD", "hébergement", "tarification", "SLA", "interopérabilité", "API", "support"],
+        "contains": [
+          "CGV",
+          "conditions générales",
+          "HDS",
+          "RGPD",
+          "hébergement",
+          "tarification",
+          "SLA",
+          "interopérabilité",
+          "API",
+          "support"
+        ],
         "usable_as_pj": true
       }
     ]
@@ -303,7 +334,10 @@
       "phase_focus": "Le joueur doit lire la liste des KOL, choisir ses cibles et rédiger des cold emails personnalisés. Les KOL IA évaluent la qualité du mail et répondent : intéressé, pas intéressé, ou demande de précisions. Si un KOL est intéressé, il redirige vers sa DSI. Si tous les KOL refusent, le joueur peut retenter avec un meilleur mail dans la même phase. La phase avance quand un KOL est convaincu (flag kol_interested).",
       "duration_target_min": 10,
       "max_duration_sec": 600,
-      "active_channels": ["mail", "chat"],
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
       "ai_actors": [
         "alexandre_morel",
         "isabelle_fontaine",
@@ -367,7 +401,9 @@
         ]
       },
       "completion_rules": {
-        "any_flags": ["kol_interested"]
+        "any_flags": [
+          "kol_interested"
+        ]
       },
       "on_complete": {
         "set_flags": {
@@ -384,7 +420,10 @@
       "phase_focus": "Le DSI (Éric Moreau) contacte le joueur par mail avec une liste d'exigences : certification HDS, conformité RGPD, interopérabilité SIH, et demande de grille tarifaire. Le joueur doit répondre point par point. L'intégration SIH fait l'objet d'un module complémentaire livrable en 3 mois sur devis (article 7.2 des CGV). Le joueur doit être factuel. Si le joueur ment sur l'interop, le flag lied_about_interop est set. Sur le pricing, le DSI réagit selon la grille : > 500€/salle = refus, 350-500€ = négo serrée, 200-350€ = négo facile, < 200€ = accord direct. Les CGV prévoient 30% d'acompte + facturation mensuelle + engagement 36 mois.",
       "duration_target_min": 10,
       "max_duration_sec": 600,
-      "active_channels": ["mail", "chat"],
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
       "ai_actors": [
         "alexandre_morel",
         "eric_moreau",
@@ -468,7 +507,9 @@
         ]
       },
       "completion_rules": {
-        "any_flags": ["dsi_approved"]
+        "any_flags": [
+          "dsi_approved"
+        ]
       },
       "on_complete": {
         "set_flags": {
@@ -479,9 +520,20 @@
       "auto_advance": true,
       "next_phase": "phase_3_implementation",
       "failure_rules": {
-        "npc_keywords": ["avis défavorable", "processus est interrompu", "ne peux pas valider", "ne suis pas en mesure de valider"],
+        "npc_keywords": [
+          "avis défavorable",
+          "processus est interrompu",
+          "ne peux pas valider",
+          "ne suis pas en mesure de valider"
+        ],
         "next_phase": "phase_1_prospection",
-        "reset_flags": ["kol_interested", "cold_emails_sent", "dsi_contacted", "dsi_objections_answered", "pricing_negotiated"],
+        "reset_flags": [
+          "kol_interested",
+          "cold_emails_sent",
+          "dsi_contacted",
+          "dsi_objections_answered",
+          "pricing_negotiated"
+        ],
         "message": "Le DSI a refusé la solution. Vous devez prospecter un autre KOL.",
         "entry_events": [
           {
@@ -501,7 +553,10 @@
       "phase_focus": "Le KOL exprime ses exigences d'implémentation par chat : planning de déploiement, formation des équipes, migration des données, accompagnement au changement, indicateurs de succès. Le joueur doit utiliser l'outil note (mind map) pour structurer les informations, puis envoyer un mail de synthèse au KOL avec le plan d'implémentation complet. Le trigger de fin est l'envoi du mail de synthèse.",
       "duration_target_min": 8,
       "max_duration_sec": 480,
-      "active_channels": ["chat", "mail"],
+      "active_channels": [
+        "chat",
+        "mail"
+      ],
       "ai_actors": [
         "alexandre_morel",
         "chosen_kol"
@@ -570,7 +625,9 @@
         ]
       },
       "completion_rules": {
-        "any_flags": ["implementation_plan_sent"]
+        "any_flags": [
+          "implementation_plan_sent"
+        ]
       },
       "on_complete": {
         "set_flags": {
@@ -587,7 +644,10 @@
       "phase_focus": "La juriste (Me Claire Vasseur) envoie un bon de commande avec 5 conditions particulières qui dérogent aux CGV : remise de 15%, refus de communication, suppression des pénalités de retard, pénalités SLA, et remplacement de l'engagement 36 mois par 6 mois test + 12 mois renouvelable. Le joueur utilise l'outil de modification dynamique de contrat pour amender et négocier par chat en direct. La juriste est ferme UNIQUEMENT sur la durée d'engagement (jamais 36 mois ferme). Les autres points elle peut lâcher avec résistance. Si le joueur accepte tout → flag contract_too_generous. La phase se termine quand la juriste valide le document (flag contract_signed).",
       "duration_target_min": 8,
       "max_duration_sec": 480,
-      "active_channels": ["chat", "mail"],
+      "active_channels": [
+        "chat",
+        "mail"
+      ],
       "ai_actors": [
         "alexandre_morel",
         "claire_vasseur",
@@ -669,7 +729,9 @@
         ]
       },
       "completion_rules": {
-        "any_flags": ["contract_signed"]
+        "any_flags": [
+          "contract_signed"
+        ]
       },
       "on_complete": {
         "set_flags": {
@@ -677,7 +739,18 @@
         }
       },
       "auto_advance": true,
-      "next_phase": "phase_6_recap"
+      "next_phase": "phase_6_recap",
+      "phase_type": "contract_negotiation",
+      "modules": [
+        "chat",
+        "contract"
+      ],
+      "completion_trigger": "contract_signed",
+      "handler_config": {
+        "contract": {
+          "type": "s5_exceptions"
+        }
+      }
     },
     {
       "phase_id": "phase_6_recap",
@@ -686,7 +759,10 @@
       "phase_focus": "Alexandre veut un mail de synthèse qui résume : le KOL ciblé et pourquoi, les réponses données à la DSI, le pricing négocié, le plan d'implémentation, les exceptions contractuelles acceptées/refusées, et les leçons apprises. Ce mail servira de playbook pour répliquer la vente dans la clinique du pilote (scénario 3). Le trigger de fin est l'envoi du mail à Alexandre.",
       "duration_target_min": 5,
       "max_duration_sec": 300,
-      "active_channels": ["mail", "chat"],
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
       "ai_actors": [
         "alexandre_morel"
       ],
@@ -751,7 +827,9 @@
         ]
       },
       "completion_rules": {
-        "any_flags": ["recap_sent"]
+        "any_flags": [
+          "recap_sent"
+        ]
       },
       "on_complete": {
         "set_flags": {
@@ -768,9 +846,16 @@
       "priority": 1,
       "content": "Cold email personnalisé, DSI convaincue, exceptions négociées, contrat signé, et récap envoyé à Alexandre. Tu as ton premier client payant ET un playbook pour dupliquer la vente. Le cycle de vente complexe en santé n'a plus de secrets pour toi.",
       "conditions": {
-        "core_flags": ["contract_signed", "dsi_approved", "recap_sent"],
+        "core_flags": [
+          "contract_signed",
+          "dsi_approved",
+          "recap_sent"
+        ],
         "min_core_flags": 3,
-        "forbidden_flags": ["lied_about_interop", "liability_accepted_unlimited"]
+        "forbidden_flags": [
+          "lied_about_interop",
+          "liability_accepted_unlimited"
+        ]
       }
     },
     {
@@ -779,7 +864,10 @@
       "priority": 2,
       "content": "Tu as signé ton premier client. Mais tu as tout accepté : 15% de remise, pas de droit de communication, engagement réduit. Le MRR démarre plus bas que prévu et tu ne peux même pas utiliser ce client comme référence. Les investisseurs verront un fondateur qui ne sait pas négocier.",
       "conditions": {
-        "core_flags": ["contract_signed", "contract_too_generous"],
+        "core_flags": [
+          "contract_signed",
+          "contract_too_generous"
+        ],
         "min_core_flags": 2
       }
     },
@@ -789,7 +877,10 @@
       "priority": 3,
       "content": "Tu as signé ton premier client. Mais tu as menti sur l'interopérabilité. Quand la DSI découvrira que l'intégration SIH n'est pas prête, le contrat sera en danger. Tu as un client, mais une bombe à retardement.",
       "conditions": {
-        "core_flags": ["contract_signed", "lied_about_interop"],
+        "core_flags": [
+          "contract_signed",
+          "lied_about_interop"
+        ],
         "min_core_flags": 2
       }
     },
@@ -799,9 +890,13 @@
       "priority": 3,
       "content": "Un KOL était intéressé, mais la DSI n'a pas validé. Cybersécurité, RGPD, interop, pricing — l'un de ces points n'a pas passé. Tu repars sans client et avec un mois de perdu.",
       "conditions": {
-        "core_flags": ["kol_interested"],
+        "core_flags": [
+          "kol_interested"
+        ],
         "min_core_flags": 1,
-        "forbidden_flags": ["dsi_approved"]
+        "forbidden_flags": [
+          "dsi_approved"
+        ]
       }
     },
     {
@@ -812,7 +907,9 @@
       "conditions": {
         "core_flags": [],
         "min_core_flags": 0,
-        "forbidden_flags": ["kol_interested"]
+        "forbidden_flags": [
+          "kol_interested"
+        ]
       }
     }
   ],

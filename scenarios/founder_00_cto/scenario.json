@@ -336,7 +336,13 @@
         }
       },
       "auto_advance": true,
-      "next_phase": "phase_1_marc"
+      "next_phase": "phase_1_marc",
+      "phase_type": "interview",
+      "modules": [
+        "chat",
+        "interview",
+        "timer"
+      ]
     },
     {
       "phase_id": "phase_1_marc",
@@ -406,7 +412,13 @@
         }
       },
       "auto_advance": true,
-      "next_phase": "phase_1_karim"
+      "next_phase": "phase_1_karim",
+      "phase_type": "interview",
+      "modules": [
+        "chat",
+        "interview",
+        "timer"
+      ]
     },
     {
       "phase_id": "phase_1_karim",
@@ -470,7 +482,13 @@
         }
       },
       "auto_advance": true,
-      "next_phase": "phase_2_offer"
+      "next_phase": "phase_2_offer",
+      "phase_type": "interview",
+      "modules": [
+        "chat",
+        "interview",
+        "timer"
+      ]
     },
     {
       "phase_id": "phase_2_offer",
@@ -681,7 +699,18 @@
         }
       },
       "auto_advance": true,
-      "next_phase": "phase_4_twist"
+      "next_phase": "phase_4_twist",
+      "phase_type": "contract_negotiation",
+      "modules": [
+        "chat",
+        "contract"
+      ],
+      "completion_trigger": "contract_signed",
+      "handler_config": {
+        "contract": {
+          "type": "s0_pacte"
+        }
+      }
     },
     {
       "phase_id": "phase_4_twist",

@@ -4,7 +4,7 @@
 
 import type { ContractClause, ContractDocument, ContractThreadMessage } from "./types";
 
-// ── Helper ──
+// ── Helpers ──
 function clause(
   id: string,
   title: string,
@@ -13,6 +13,22 @@ function clause(
   moderate = false,
 ): ContractClause {
   return { id, title, content, modifiedContent: null, toxic, moderate };
+}
+
+/**
+ * Append a standard e-signature article as the last clause of any contract.
+ * The article number is computed from the existing clauses.
+ */
+function appendESignatureClause(articles: ContractClause[]): ContractClause[] {
+  const nextNum = articles.length + 1;
+  return [
+    ...articles,
+    clause(
+      `article_${nextNum}`,
+      `Article ${nextNum} — Signature électronique`,
+      `Conformément aux articles 1366 et 1367 du Code civil, les Parties conviennent que le présent document peut être signé par voie électronique. La signature électronique produit les mêmes effets juridiques qu'une signature manuscrite. Chaque Partie reconnaît avoir vérifié l'identité de son signataire et l'intégrité du document avant signature. Le procédé de signature utilisé garantit le lien entre la signature et l'acte auquel elle s'attache, conformément au règlement eIDAS (UE) n° 910/2014.`,
+    ),
+  ];
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -24,7 +40,7 @@ function clause(
  * Article 6 is the pedagogical trap: CTO has NO exclusivity / full-time clause.
  */
 export function buildPacteArticles(playerName: string, ctoName: string): ContractClause[] {
-  return [
+  const articles: ContractClause[] = [
     clause("article_1", "Article 1 — Objet",
       "Le présent pacte définit les droits et obligations des Associés entre eux, en complément des statuts de la Société. En cas de contradiction, le pacte prévaut entre les Associés."),
 
@@ -72,6 +88,7 @@ export function buildPacteArticles(playerName: string, ctoName: string): Contrac
     clause("article_15", "Article 15 — Durée",
       "Le présent pacte prend effet à la date d'immatriculation de la Société et reste en vigueur tant que les signataires sont actionnaires."),
   ];
+  return appendESignatureClause(articles);
 }
 
 // ── Contract summary builder (for AI prompt injection) ──
@@ -163,7 +180,7 @@ export function buildNovadevArticles(vars: NovadevContractVars): ContractClause[
       "Résiliation possible avec préavis de 15 jours. Le prorata du travail effectué est dû."),
   );
 
-  return articles;
+  return appendESignatureClause(articles);
 }
 
 // ══════════════════════════════════════════════════════════════════
@@ -176,7 +193,7 @@ export function buildNovadevArticles(vars: NovadevContractVars): ContractClause[
  * that derogate from Orisio's CGV.
  */
 export function buildExceptionsArticles(establishmentName: string): ContractClause[] {
-  return [
+  const articles: ContractClause[] = [
     clause("article_1", "Article 1 — Remise commerciale",
       `En tant que premier client référencé, l'établissement ${establishmentName} bénéficie d'une remise de 15% sur le tarif par salle/mois communiqué à la DSI.`,
       false, true),  // moderate = true (negotiable)
@@ -197,6 +214,7 @@ export function buildExceptionsArticles(establishmentName: string): ContractClau
       `L'engagement de 36 mois prévu aux CGV est remplacé par une période de test de 6 mois, suivie d'un engagement de 12 mois renouvelable tacitement.`,
       true, false),  // toxic = true (jurist won't budge on this one)
   ];
+  return appendESignatureClause(articles);
 }
 
 // ── Exclusivity detection (S0 pedagogical mechanic) ──
