@@ -133,6 +133,40 @@ export type ModuleEvent =
   | { type: "clause_action"; message: string; articleId: string }
   | { type: "tick"; elapsed: number };
 
+// ── Contract module extended context ──
+
+/**
+ * Extended context for contract operations.
+ * page.tsx passes these via `(ctx as any).extra` — same pattern as MailModuleContext.
+ *
+ * Each field maps to what ContractHandler.computeSign() needs (SignFlagsParams).
+ * Not all fields are used by every contract type:
+ *   - S0: articles, thread, currentFlags, ctoName, phaseMailConfig
+ *   - S2: articles, contractVars
+ *   - S4: features, dealTerms
+ *   - S5: articles
+ */
+export interface ContractModuleContext {
+  /** Contract type being signed */
+  contractType: string;
+  /** Contract articles (S0, S2, S5) */
+  articles?: import("../../contracts/types").ContractClause[];
+  /** Negotiation thread (S0, S2, S5) */
+  thread?: import("../../contracts/types").ContractThreadMessage[];
+  /** Current session flags — S0 needs pacte_signed_clean */
+  currentFlags?: Record<string, unknown>;
+  /** CTO name — S0 only */
+  ctoName?: string;
+  /** Phase mail config — S0 only (reads send_advances_phase) */
+  phaseMailConfig?: Record<string, unknown>;
+  /** Backup contract vars — S2 only (price/equity fallback) */
+  contractVars?: { price: string; equity: string | null };
+  /** Selected features — S4 only */
+  features?: Record<string, boolean>;
+  /** Negotiated deal terms — S4 only */
+  dealTerms?: import("../../contracts/ContractOverlayHost").DealTerms;
+}
+
 // ── PhaseModule interface ──
 
 /**

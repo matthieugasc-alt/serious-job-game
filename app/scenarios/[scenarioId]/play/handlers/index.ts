@@ -10,7 +10,7 @@ export type { PhaseHandler, InterviewPhaseHandler, ContractPhaseHandler, Contrac
 export { resolveModules, hasActiveModules } from "./PhaseModuleRegistry";
 export { dispatch, buildModuleContext, EMPTY_ORCHESTRATOR_RESULT } from "./PhaseOrchestrator";
 export type { OrchestratorResult } from "./PhaseOrchestrator";
-export type { PhaseModule, ModuleType, ModuleAction, ModuleEvent, ModuleContext, ModuleResult, MailDraftAction, TimedEventAction, InboxMailAction, AsyncEffectDescriptor } from "./modules";
+export type { PhaseModule, ModuleType, ModuleAction, ModuleEvent, ModuleContext, ModuleResult, MailDraftAction, TimedEventAction, InboxMailAction, AsyncEffectDescriptor, ContractModuleContext } from "./modules";
 export { EMPTY_RESULT } from "./modules";
 
 // ── Concrete modules + helpers ──

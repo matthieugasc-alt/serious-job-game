@@ -39,8 +39,8 @@ import DebriefView from "./DebriefView";
 import NotesView from "./NotesView";
 import ChatView from "./ChatView";
 import { usePhaseTimer } from "./hooks/usePhaseTimer";
-import { resolvePhaseHandler, InterviewHandler, ContractHandler, MailHandler, resolveModules, dispatch, buildModuleContext } from "./handlers";
-import type { ModuleAction } from "./handlers";
+import { resolvePhaseHandler, InterviewHandler, ContractHandler, resolveModules, dispatch, buildModuleContext } from "./handlers";
+import type { ModuleAction, ContractModuleContext } from "./handlers";
 import type { MailModuleExtra } from "./handlers";
 import {
   type ContractClause,
@@ -1206,11 +1206,16 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     completeCurrentPhaseAndAdvance(next);
     injectPhaseEntryEvents(next);
     const newPhase = scenario.phases[next.currentPhaseIndex];
-    const newBriefing = InterviewHandler.getBriefingActor(newPhase);
-    if (newBriefing) {
-      setSelectedContact(newBriefing);
-    } else if (newPhase?.ai_actors?.[0]) {
-      setSelectedContact(newPhase.ai_actors[0]);
+    // Module system: dispatch enter_phase (may set contact, open contract, etc.)
+    const modulesHandled = dispatchEnterPhase(next);
+    // Legacy fallback: manual contact selection if modules didn't handle it
+    if (!modulesHandled) {
+      const newBriefing = InterviewHandler.getBriefingActor(newPhase);
+      if (newBriefing) {
+        setSelectedContact(newBriefing);
+      } else if (newPhase?.ai_actors?.[0]) {
+        setSelectedContact(newPhase.ai_actors[0]);
+      }
     }
     setSession(next);
 
@@ -1958,9 +1963,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   }
 
   // ══════════════════════════════════════════════════════════════════
-  // applyMailActions — Execute ModuleAction[] from MailModule
+  // applyModuleActions — Execute ModuleAction[] from any module
   // ══════════════════════════════════════════════════════════════════
-  function applyMailActions(actions: ModuleAction[], next: any) {
+  // Generic action executor. Handles all ModuleAction types returned
+  // by MailModule, InterviewModule, ContractModule, etc.
+  // ══════════════════════════════════════════════════════════════════
+  function applyModuleActions(actions: ModuleAction[], next: any) {
     for (const action of actions) {
       switch (action.type) {
         case "set_flags":
@@ -1999,6 +2007,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           resolveDynamicActors(next);
           resolveEstablishmentPlaceholders(next);
           injectPhaseEntryEvents(next);
+          dispatchEnterPhase(next); // Module system: run enter_phase on new phase
           const newPhase = scenario!.phases[next.currentPhaseIndex];
           if (newPhase?.mail_config?.defaults) {
             updateMailDraft(next, newPhase.phase_id, {
@@ -2027,7 +2036,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         case "delayed_actions":
           setTimeout(() => {
             const delayed = cloneSession(next);
-            applyMailActions(action.actions, delayed);
+            applyModuleActions(action.actions, delayed);
             setSession(delayed);
           }, action.delayMs);
           break;
@@ -2039,6 +2048,42 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           break;
         case "finish_scenario":
           finishScenario(next);
+          break;
+        // ── New actions for InterviewModule / ContractModule ──
+        case "mark_unavailable":
+          // Store unavailability as a session flag for downstream consumers
+          next.flags[`unavailable_${action.actorId}`] = true;
+          break;
+        case "open_contract":
+          // Signal to open the contract overlay for the given type.
+          // Stored as a flag — the JSX reads it to show the overlay.
+          next.flags[`pending_contract_open`] = action.contractType;
+          break;
+        case "set_mail_draft": {
+          const phase = scenario!.phases[next.currentPhaseIndex];
+          const phaseId = phase?.phase_id || "unknown";
+          updateMailDraft(next, phaseId, {
+            to: action.draft.to,
+            cc: action.draft.cc,
+            subject: action.draft.subject,
+            body: action.draft.body,
+            attachments: action.draft.attachments,
+          });
+          break;
+        }
+        case "send_mail": {
+          // Trigger the full mail send flow: record the mail in session
+          // and set the flag so downstream logic knows mail was sent.
+          // The draft should already be set via a preceding set_mail_draft action.
+          sendCurrentPhaseMail(next, action.kind);
+          next.flags[`mail_sent_${action.kind}`] = true;
+          break;
+        }
+        case "inject_events":
+          // Add timed events directly to the pending queue
+          for (const ev of action.events) {
+            next.pendingTimedEvents.push(ev);
+          }
           break;
         default:
           break;
@@ -2202,6 +2247,78 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
     }
   }
 
+  // ══════════════════════════════════════════════════════════════════
+  // dispatchEnterPhase — Run orchestrator on phase entry
+  // ══════════════════════════════════════════════════════════════════
+  // Called after injectPhaseEntryEvents. If modules are registered for
+  // the new phase, dispatches enter_phase and applies actions.
+  // Returns true if modules handled it (caller can skip legacy code).
+  // ══════════════════════════════════════════════════════════════════
+  function dispatchEnterPhase(next: any): boolean {
+    if (!scenario) return false;
+    const phase = scenario.phases[next.currentPhaseIndex];
+    if (!phase) return false;
+
+    const modules = resolveModules(phase, scenario);
+    if (!modules) return false;
+
+    const ctx = buildModuleContext({
+      session: next,
+      scenario,
+      phase,
+      playerName: displayPlayerName,
+      scenarioId: scenarioId || "",
+    });
+
+    const result = dispatch({ type: "enter_phase" }, modules, ctx);
+    if (result.actions.length > 0) {
+      applyModuleActions(result.actions, next);
+      return true;
+    }
+    return false;
+  }
+
+  // ══════════════════════════════════════════════════════════════════
+  // dispatchContractSigned — try ContractModule before legacy code
+  // Returns the ModuleResult if modules handled it (actions.length > 0),
+  // null otherwise (caller falls back to legacy).
+  // Does NOT apply actions — caller must call applyModuleActions().
+  // ══════════════════════════════════════════════════════════════════
+  function dispatchContractSigned(
+    contractType: string,
+    extra: ContractModuleContext,
+    next: any,
+  ): { actions: ModuleAction[]; advance?: boolean; finish?: boolean } | null {
+    if (!scenario) return null;
+    const phase = scenario.phases[next.currentPhaseIndex];
+    if (!phase) return null;
+
+    const modules = resolveModules(phase, scenario);
+    if (!modules) return null;
+
+    const ctx = {
+      ...buildModuleContext({
+        session: next,
+        scenario,
+        phase,
+        playerName: displayPlayerName,
+        scenarioId: scenarioId || "",
+      }),
+      extra,
+    };
+
+    const result = dispatch(
+      { type: "contract_signed", contractType },
+      modules,
+      ctx,
+    );
+
+    if (result.actions.length > 0) {
+      return result;
+    }
+    return null;
+  }
+
   function handleSendMail() {
     if (!session || !scenario || !view || !canActuallySendMail) return;
     const phase = scenario.phases[session.currentPhaseIndex];
@@ -2253,45 +2370,36 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
         mailCtx,
       );
       if (mailResult.actions.length > 0) {
-        applyMailActions(mailResult.actions, next);
+        applyModuleActions(mailResult.actions, next);
         setSession(next);
         return; // Module handled it — skip legacy code
       }
       // No actions → fall through to legacy code
     }
 
-    // ── Founder rupture mail: apply bad leaver logic BEFORE finishing ──
-    if (mailKind === "rupture_cto" && isFounderScenario) {
-      const hasExclusivity = !!next.flags.pacte_signed_clean;
-      const ctoId = chosenCtoId || "sofia_renault";
-      const ctoActor = actors.find((a: any) => a.actor_id === ctoId);
-      const ctoName = ctoActor?.name || "le CTO";
-
-      if (hasExclusivity) {
-        // CAS 1: clause présente → bad leaver, CTO sort avec 0€
-        next.flags.bad_leaver_triggered = true;
-        addAIMessage(next, `La clause d'exclusivité est claire. Je ne peux pas la contester. Je quitte Orisio, sans compensation. Bonne continuation.`, ctoId);
-        addAIMessage(next, `C'est réglé. ${ctoName} sort en bad leaver — 0 € d'indemnité, equity récupérée. Le pacte t'a protégé. Maintenant il faut retrouver un CTO.`, "alexandre_morel");
-      } else {
-        // CAS 2: clause absente → CTO en position de force, indemnité 2 500€
-        next.flags.cto_paid_to_leave = true;
-        addAIMessage(next, `J'ai vérifié avec mon avocat : le pacte ne mentionne aucune clause d'exclusivité me concernant. Juridiquement, je n'ai rien violé. Si tu veux que je parte, on peut s'arranger : 2 500 € et on n'en parle plus.`, ctoId);
-        addAIMessage(next, `Merde. Le pacte n'avait pas de clause d'exclusivité côté CTO. On est obligés de payer pour qu'il parte — 2 500 € de trésorerie en moins. La leçon est claire : un pacte d'associés se lit ligne par ligne.`, "alexandre_morel");
-      }
-    }
-
-    // Track whether this is a Phase 1 scope_proposal mail (for auto-reply after advancing)
-    let wasPhase1ScopeProposal = false;
-    let phase1MailBody = "";
+    // ══════════════════════════════════════════════════════════════════
+    // LEGACY FALLBACK — generic send_advances_phase only.
+    //
+    // All specific mailKind branches (rupture_cto, scope_proposal,
+    // choice_confirmation, negotiation_proposal, analyse_rdv,
+    // pilot_pitch) are handled by MailModule and were removed here.
+    //
+    // This fallback only fires for phases that don't declare "mail"
+    // in their modules[] array. Currently:
+    //   - atterrissage/phase_3_execution (consulate_initial)
+    //   - atterrissage/phase_4_rebound (consulate_reply)
+    //   - client_qui_hesite/phase_2 (no kind)
+    //   - founder_01_incubator/phase_1_onepager (one_pager_submission)
+    //
+    // These only use the generic advance path (completion rules → advance).
+    // Safe to remove once these phases add "mail" to their modules[].
+    // ══════════════════════════════════════════════════════════════════
 
     if (phase?.mail_config?.send_advances_phase) {
       // ── Check completion rules BEFORE advancing ──
-      // For phases with required_npc_evidence or min_score, we must verify
-      // the rules are met before allowing the mail to advance the phase.
       const rulesPass = (() => {
         const rules = (phase as any).completion_rules;
         if (!rules) return true;
-        // Check required_npc_evidence
         if (Array.isArray(rules.required_npc_evidence) && rules.required_npc_evidence.length > 0) {
           const phaseConv = (view?.conversation || []);
           const npcText = phaseConv
@@ -2304,7 +2412,6 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
           });
           if (!allMet) return false;
         }
-        // Check required_player_evidence
         if (Array.isArray(rules.required_player_evidence) && rules.required_player_evidence.length > 0) {
           const phaseConv = (view?.conversation || []);
           const playerText = phaseConv
@@ -2317,7 +2424,6 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
           });
           if (!allMet) return false;
         }
-        // Check min_score
         if (rules.min_score !== undefined) {
           const phaseScore = session.scores?.[phase.phase_id] || 0;
           if (phaseScore < rules.min_score) return false;
@@ -2325,109 +2431,12 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
         return true;
       })();
 
-      // ── Detect scope_proposal for auto-reply (flags now set via on_send_flags in scenario.json) ──
-      wasPhase1ScopeProposal = mailKind === "scope_proposal";
-      phase1MailBody = wasPhase1ScopeProposal ? (currentMailDraft?.body || "") : "";
-
-      // ── Scénario 3 Phase 1: extract establishment choice from confirmation mail ──
-      if (mailKind === "choice_confirmation") {
-        const bodyLower = (currentMailDraft?.body || "").toLowerCase();
-        if (bodyLower.includes("chu") || bodyLower.includes("pellegrin") || bodyLower.includes("bordeaux")) {
-          next.flags.chose_chu = true;
-        } else if (bodyLower.includes("saint-martin") || bodyLower.includes("saint martin") || bodyLower.includes("ramsay")) {
-          next.flags.chose_saint_martin = true;
-        } else if (bodyLower.includes("saint-augustin") || bodyLower.includes("saint augustin") || bodyLower.includes("clinique")) {
-          next.flags.chose_clinique = true;
-        } else {
-          // Default: try to detect from conversation context — fallback to clinique
-          next.flags.chose_clinique = true;
-        }
-      }
-
-      // ── Extract contract variables from negotiation proposal mail ──
-      if (rulesPass && mailKind === "negotiation_proposal" && phase?.phase_id === "phase_2_negotiation") {
-        const body = currentMailDraft?.body || "";
-        // Extract price: look for numbers followed by €, k€, euros
-        const priceMatch = body.match(/(\d[\d\s.,]*)\s*(?:€|euros?|k€|k\s*€)/i);
-        let extractedPrice = "";
-        if (priceMatch) {
-          const raw = priceMatch[1].replace(/\s/g, "").replace(",", ".");
-          // Handle "11k€" → "11000", "12 000 €" → "12000"
-          if (body.toLowerCase().includes("k€") || body.toLowerCase().includes("k €")) {
-            extractedPrice = String(Math.round(parseFloat(raw) * 1000));
-          } else {
-            extractedPrice = String(Math.round(parseFloat(raw)));
-          }
-        }
-        // Validate price against NovaDev floor (11 000 €)
-        // If below floor → BLOCK the phase, Thomas rejects in chat
-        const plancherNovadev = (scenario as any)?.constraints?.plancher_novadev || 11000;
-        const priceNum = extractedPrice ? parseInt(extractedPrice, 10) : 0;
-        if (priceNum > 0 && priceNum < plancherNovadev) {
-          // Price is below Thomas's floor — reject and DON'T advance
-          setSession(next);
-          setShowCompose(false);
-          setMainView("chat");
-          setSelectedContact("thomas_novadev");
-          // Thomas sends an angry rejection in chat
-          setTimeout(async () => {
-            try {
-              const rejectMsg = `Non. ${priceNum.toLocaleString("fr-FR")} € c'est en dessous de mon plancher. Je vous l'ai dit : en dessous de ${plancherNovadev.toLocaleString("fr-FR")} €, c'est non. Revoyez votre proposition.`;
-              const updated = cloneSession(next);
-              addAIMessage(updated, rejectMsg, "thomas_novadev");
-              setSession(updated);
-            } catch {}
-          }, 800);
-          return; // ← EXIT: don't advance, don't extract contract vars
-        }
-
-        // Price is valid — set novadev_negotiated flag
-        next.flags.novadev_negotiated = true;
-
-        // Extract equity: look for X%
-        const equityMatch = body.match(/(\d+)\s*%/);
-        const extractedEquity = equityMatch ? equityMatch[1] + "%" : null;
-        // Extract features: look for known module keywords
-        const featureKeywords: Record<string, string> = {
-          "planning": "Planning du bloc opératoire",
-          "annulation": "Gestion des annulations et remplacements",
-          "scoring": "Scoring des chirurgiens",
-          "salle": "Gestion des salles et du matériel",
-          "suivi patient": "Suivi patient pré/post-opératoire",
-          "suivi": "Suivi patient pré/post-opératoire",
-          "équipe": "Gestion des équipes",
-          "rapport": "Rapport post-opératoire",
-          "post-op": "Rapport post-opératoire",
-          "matériel": "Gestion des salles et du matériel",
-          "notification": "Notifications (email)",
-          "créneau": "Gestion des annulations et remplacements",
-          "remplacement": "Gestion des annulations et remplacements",
-        };
-        const bodyLower = body.toLowerCase();
-        const extractedFeatures: string[] = [];
-        const seen = new Set<string>();
-        for (const [kw, label] of Object.entries(featureKeywords)) {
-          if (bodyLower.includes(kw) && !seen.has(label)) {
-            extractedFeatures.push(label);
-            seen.add(label);
-          }
-        }
-        if (extractedFeatures.length === 0) {
-          extractedFeatures.push("Fonctionnalités selon accord verbal");
-        }
-        setContractVars({
-          price: extractedPrice || "À définir",
-          features: extractedFeatures,
-          equity: extractedEquity,
-          rawMailBody: body,
-        });
-      }
-
       if (rulesPass) {
         completeCurrentPhaseAndAdvance(next);
         resolveDynamicActors(next);
-      resolveEstablishmentPlaceholders(next);
+        resolveEstablishmentPlaceholders(next);
         injectPhaseEntryEvents(next);
+        dispatchEnterPhase(next); // Module system: run enter_phase on new phase
         const newPhase = scenario.phases[next.currentPhaseIndex];
         if (newPhase?.mail_config?.defaults) {
           updateMailDraft(next, newPhase.phase_id, {
@@ -2437,343 +2446,7 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
             body: "", attachments: [],
           });
         }
-
-        // ── Scénario 3: Phase 1→2 transition — Alexandre sends a mail with the contact info ──
-        if (mailKind === "choice_confirmation" && scenarioId?.startsWith("founder_03")) {
-          const contactMap: Record<string, { name: string; email: string; label: string }> = {
-            chose_chu: { name: "Dr. Pierre Lemaire", email: "p.lemaire@chu-bordeaux.fr", label: "le CHU de Bordeaux" },
-            chose_saint_martin: { name: "Laurent Castex", email: "l.castex@hp-saintmartin.fr", label: "l'Hôpital Saint-Martin" },
-            chose_clinique: { name: "Dr. Claire Renaud-Picard", email: "c.renaud-picard@clinique-saint-augustin.fr", label: "la Clinique Saint-Augustin" },
-          };
-          const choiceKey = next.flags.chose_chu ? "chose_chu" : next.flags.chose_saint_martin ? "chose_saint_martin" : "chose_clinique";
-          const contact = contactMap[choiceKey];
-          const p2Id = newPhase?.phase_id || "phase_2_pitch_mail";
-          addInboxMail(next, {
-            from: "alexandre_morel",
-            subject: "Contact pour le test pilote",
-            body: `OK c'est acté, on part sur ${contact.label}. Le contact c'est ${contact.name} — ${contact.email}. Envoie-lui un mail propre pour proposer le test : gratuit, 8 semaines, sans engagement. Sois clair et pro, c'est notre premier contact officiel.`,
-            phaseId: p2Id,
-          });
-          // Switch to mail view
-          setMainView("mail");
-        }
-
-        // ── Fourvière: generate dynamic Claire mail with travaux summary ──
-        if (mailKind === "analyse_rdv" && scenarioId === "heritage_fourviere") {
-          const analyseBody = currentMailDraft?.body || "";
-          const nextPhase = scenario.phases[next.currentPhaseIndex];
-          const dynConfig = (nextPhase as any)?.dynamic_entry_mail;
-          if (dynConfig && analyseBody.trim()) {
-            const p4Id = nextPhase?.phase_id || "phase_4";
-            // Truncate player's analysis to keep the prompt short and response fast
-            const truncatedAnalyse = analyseBody.length > 800 ? analyseBody.slice(0, 800) + "..." : analyseBody;
-            // Generate Claire's mail asynchronously based on the player's analysis
-            (async () => {
-              try {
-                const prompt = `Tu es Claire Beaumont, directrice d'ImmoLyon Patrimoine. Écris un mail interne COURT (max 12 lignes) à ton agent junior.
-
-L'agent t'a envoyé cette analyse du RDV Delvaux (85m² Fourvière) :
----
-${truncatedAnalyse}
----
-
-Ton mail doit :
-- Remercier brièvement
-- Résumer les travaux que Delvaux a faits suite aux recommandations (cuisine refaite si mentionnée, meubles retirés/remplacés si demandé, régime fiscal choisi, etc. — invente les détails cohérents)
-- Dire que quelques semaines ont passé, tout est prêt
-- Demander de rédiger une annonce Le Bon Coin (points forts : vue Saône, parquet chêne, cheminée, Fourvière)
-- Demander d'envoyer par mail pour validation
-
-Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". Réponds UNIQUEMENT le corps du mail.`;
-
-                const res = await fetch("/api/chat", {
-                  method: "POST",
-                  headers: apiHeaders(),
-                  body: JSON.stringify({
-                    playerName: displayPlayerName,
-                    message: prompt,
-                    phaseTitle: "Génération mail transition",
-                    phaseObjective: "",
-                    phaseFocus: "",
-                    phasePrompt: "",
-                    criteria: [],
-                    mode: "default",
-                    narrative: scenario.narrative,
-                    recentConversation: [],
-                    playerMessages: [],
-                    roleplayPrompt: prompt,
-                    skipEvaluation: true,
-                  }),
-                });
-                if (res.ok) {
-                  const data = await res.json();
-                  const mailBody = data.reply || "Bonjour,\n\nBon travail pour l'analyse. M. Delvaux a effectué les travaux nécessaires suite à tes recommandations. Il faut maintenant publier une annonce sur Le Bon Coin.\n\nRédige un texte attractif mais honnête. Mets en avant les vrais points forts : vue sur la Saône, parquet chêne massif, cheminée d'époque, quartier Fourvière.\n\nEnvoie-moi l'annonce par mail pour validation.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine";
-                  const updated = cloneSession(next);
-                  addInboxMail(updated, {
-                    from: dynConfig.actor || "claire_beaumont",
-                    subject: dynConfig.subject || "Annonce Le Bon Coin — Bien Delvaux Fourvière",
-                    body: mailBody,
-                    phaseId: p4Id,
-                  });
-                  setSession(updated);
-                  setMainView("mail");
-                  playNotificationSound();
-                }
-              } catch (err) {
-                // Fallback: inject a generic mail
-                console.error("Error generating dynamic Claire mail:", err);
-                const fallback = cloneSession(next);
-                addInboxMail(fallback, {
-                  from: "claire_beaumont",
-                  subject: "Annonce Le Bon Coin — Bien Delvaux Fourvière",
-                  body: "Bonjour,\n\nBon travail pour l'analyse du rendez-vous Delvaux. M. Delvaux a effectué les travaux nécessaires suite à tes recommandations — le bien est maintenant prêt pour la location.\n\nIl faut publier rapidement une annonce sur Le Bon Coin. Rédige un texte attractif mais honnête. Mets en avant les vrais points forts : la vue sur la Saône, le parquet chêne massif, la cheminée d'époque, le quartier Fourvière.\n\nN'exagère pas et ne mens pas sur l'état du bien.\n\nEnvoie-moi l'annonce par mail pour validation.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine",
-                  phaseId: p4Id,
-                });
-                setSession(fallback);
-                setMainView("mail");
-              }
-            })();
-            setSession(next);
-            setShowCompose(false);
-            return;
-          }
-        }
       }
-    }
-
-    // ── Auto-reply from Thomas when Phase 1 mail advances to Phase 2 ──
-    // Delegated to MailHandler — builds API payload, page.tsx executes the effect.
-    if (wasPhase1ScopeProposal && phase1MailBody && MailHandler.shouldAutoReply(mailKind)) {
-      const nextView = buildRuntimeView(next);
-      const activePrompt = aiPromptsMapRef.current["thomas_novadev"] || aiPromptRef.current;
-      const effect = MailHandler.buildAutoReplyEffect({
-        playerName: displayPlayerName,
-        mailBody: phase1MailBody,
-        narrative: scenario.narrative,
-        runtimeView: nextView,
-        roleplayPrompt: activePrompt,
-      });
-      setSession(next);
-      setShowCompose(false);
-      setMainView("chat");
-      setSelectedContact(effect.actorId);
-      (async () => {
-        try {
-          const res = await fetch("/api/chat", {
-            method: "POST",
-            headers: apiHeaders(),
-            body: JSON.stringify(effect.apiPayload),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            playNotificationSound();
-            const final2 = cloneSession(next);
-            addPlayerMessage(final2, effect.playerMessageSummary, effect.actorId);
-            addAIMessage(final2, data.reply, effect.actorId);
-            applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-            setSession(final2);
-          }
-        } catch (err) {
-          console.error("Error generating Thomas reply to scope proposal:", err);
-        }
-      })();
-      return;
-    }
-
-    // ── Auto-reply in chat when mail is sent in negotiation phase ──
-    // First mail (rules not met = Thomas hasn't asked for recap yet) → trigger chat reply
-    // Second mail (rules met = after chat negotiation) → phase already advanced above
-    if (mailKind === "negotiation_proposal" && phase?.phase_id === "phase_2_negotiation") {
-      const mailBody = currentMailDraft?.body || "";
-      setSession(next);
-      setShowCompose(false);
-      // Switch to chat view and trigger AI reply from Thomas
-      setMainView("chat");
-      setSelectedContact("thomas_novadev");
-      // Generate Thomas's chat response to the mail content
-      (async () => {
-        try {
-          const activePrompt = aiPromptsMapRef.current["thomas_novadev"] || aiPromptRef.current;
-          const convNow = buildRuntimeView(next).conversation || [];
-          const recentConv = convNow.slice(-10).map((m: any) => ({
-            role: m.role === "player" ? "user" : "assistant",
-            content: m.content,
-          }));
-          const playerOnlyMsgs = convNow
-            .filter((m: any) => m.role === "player")
-            .slice(-6)
-            .map((m: any) => m.content);
-          const mailSummary = `[Le joueur a envoyé un mail avec le contenu suivant : ${mailBody}]`;
-          const res = await fetch("/api/chat", {
-            method: "POST",
-            headers: apiHeaders(),
-            body: JSON.stringify({
-              playerName: displayPlayerName,
-              message: mailSummary,
-              phaseTitle: view.phaseTitle,
-              phaseObjective: view.phaseObjective,
-              phaseFocus: view.phaseFocus,
-              phasePrompt: view.phasePrompt,
-              criteria: view.criteria,
-              mode: view.adaptiveMode,
-              narrative: scenario.narrative,
-              recentConversation: recentConv,
-              playerMessages: [...playerOnlyMsgs, mailBody],
-              roleplayPrompt: activePrompt,
-            }),
-          });
-          if (res.ok) {
-            const data = await res.json();
-            playNotificationSound();
-            const final2 = cloneSession(next);
-            addPlayerMessage(final2, `[Mail envoyé à NovaDev] ${mailBody.substring(0, 200)}...`, "thomas_novadev");
-            addAIMessage(final2, data.reply, "thomas_novadev");
-            applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-            setSession(final2);
-          }
-        } catch (err) {
-          console.error("Error generating Thomas reply:", err);
-        }
-      })();
-      return; // Skip the normal setSession below
-    }
-
-    // ── Scénario 3 Phase 2: evaluate pitch mail and generate establishment response ──
-    if (mailKind === "pilot_pitch" && scenarioId?.startsWith("founder_03")) {
-      const mailBody = currentMailDraft?.body || "";
-      const bodyLower = mailBody.toLowerCase();
-      const toField = (currentMailDraft?.to || "").toLowerCase();
-
-      // Detect establishment from the "to" email address (primary detection)
-      if (toField.includes("chu-bordeaux") || toField.includes("lemaire")) {
-        next.flags.chose_chu = true; next.flags.chose_saint_martin = false; next.flags.chose_clinique = false;
-      } else if (toField.includes("saintmartin") || toField.includes("hp-saintmartin") || toField.includes("castex")) {
-        next.flags.chose_saint_martin = true; next.flags.chose_chu = false; next.flags.chose_clinique = false;
-      } else if (toField.includes("saint-augustin") || toField.includes("renaud-picard")) {
-        next.flags.chose_clinique = true; next.flags.chose_chu = false; next.flags.chose_saint_martin = false;
-      }
-      // If no email match, Phase 1 flags remain as fallback
-
-      // Evaluate pitch quality based on concrete criteria
-      let pitchScore = 0;
-      const gratuitKeywords = ["gratuit", "sans engagement", "offert", "sans frais", "aucun coût", "0 €", "0€"];
-      if (gratuitKeywords.some(k => bodyLower.includes(k))) pitchScore += 2;
-      const valuePropKeywords = ["planning", "bloc", "opératoire", "annulation", "créneau", "optimis", "gestion"];
-      if (valuePropKeywords.filter(k => bodyLower.includes(k)).length >= 2) pitchScore += 2;
-      const dataKeywords = ["données", "hds", "hébergement", "certifié", "patient", "sécurité", "rgpd", "confidentiel"];
-      if (dataKeywords.some(k => bodyLower.includes(k))) pitchScore += 2;
-      const durationKeywords = ["8 semaines", "deux mois", "2 mois", "semaines", "durée"];
-      if (durationKeywords.some(k => bodyLower.includes(k))) pitchScore += 1;
-      // Professional tone: at least 3 sentences, not too short
-      if (mailBody.length > 150) pitchScore += 1;
-
-      // pitchScore >= 4 = good, < 4 = bad
-      const pitchIsGood = pitchScore >= 4;
-
-      // Determine which establishment was chosen
-      const choseCHU = !!next.flags.chose_chu;
-      const choseSM = !!next.flags.chose_saint_martin;
-      const choseClinique = !!next.flags.chose_clinique;
-
-      // Resolve the correct contact actor_id based on establishment choice
-      const resolveContactActor = (flags: any) =>
-        flags.chose_chu ? "contact_chu" : flags.chose_saint_martin ? "contact_saint_martin" : "contact_clinique";
-
-      // Helper: advance to Phase 3 and inject the correct contract mail
-      const advanceToPhase3 = (s: typeof next) => {
-        completeCurrentPhaseAndAdvance(s);
-        resolveDynamicActors(s);
-        resolveEstablishmentPlaceholders(s);
-        injectPhaseEntryEvents(s);
-        const p3 = scenario.phases[s.currentPhaseIndex];
-        if (p3?.mail_config?.defaults) {
-          updateMailDraft(s, p3.phase_id, {
-            to: "", cc: "", subject: p3.mail_config.defaults.subject || "",
-            body: "", attachments: [],
-          });
-        }
-        // Inject the contract mail dynamically based on establishment choice
-        const p3Id = p3?.phase_id || "phase_3_contract";
-        const contratMap: Record<string, { id: string; label: string }> = {
-          chose_chu: { id: "contrat_chu", label: "Convention de test — CHU de Bordeaux" },
-          chose_saint_martin: { id: "contrat_saint_martin", label: "Convention de test — Hôpital Saint-Martin" },
-          chose_clinique: { id: "contrat_clinique", label: "Convention de test — Clinique Saint-Augustin" },
-        };
-        const choiceKey = s.flags.chose_chu ? "chose_chu" : s.flags.chose_saint_martin ? "chose_saint_martin" : "chose_clinique";
-        const contrat = contratMap[choiceKey];
-        const contactActor = resolveContactActor(s.flags);
-        // Schedule the contract mail after a short delay
-        s.pendingTimedEvents.push({
-          id: `${p3Id}::contrat_mail`,
-          actor: contactActor,
-          content: "Suite à votre demande de test pilote, veuillez trouver ci-joint la convention type applicable. Merci de retourner le document signé ou de transmettre vos observations sous 10 jours ouvrés.",
-          dueAt: Date.now() + 5000,
-          phaseId: p3Id,
-          type: "mail",
-          subject: "Re: Orisio — Proposition de test pilote gratuit",
-          attachments: [contrat],
-        });
-      };
-
-      if (pitchIsGood) {
-        // ── PITCH ACCEPTED → advance to Phase 3 ──
-        next.flags.pitch_accepted = true;
-        advanceToPhase3(next);
-        setSession(next);
-        setShowCompose(false);
-      } else {
-        // ── PITCH REJECTED → fallback mechanism ──
-        next.flags.pitch_rejected = true;
-        setSession(next);
-        setShowCompose(false);
-
-        if (!choseClinique) {
-          // CHU or Saint-Martin refused → Alexandre intervenes, switches to clinique
-          const rejectionActor = resolveContactActor(next.flags);
-          setTimeout(() => {
-            const final2 = cloneSession(next);
-            const etablissement = choseCHU ? "le CHU" : "Saint-Martin";
-            // Contact sends rejection mail
-            addInboxMail(final2, {
-              from: rejectionActor,
-              subject: "Re: Orisio — Proposition de test pilote gratuit",
-              body: `Votre proposition ne nous paraît pas suffisamment aboutie en l'état. Nous vous invitons à revenir vers nous ultérieurement avec un dossier plus complet.`,
-              phaseId: view.phaseId,
-            });
-            playNotificationSound();
-            setSession(final2);
-
-            // Alexandre intervenes in chat after a short delay
-            setTimeout(() => {
-              const final3 = cloneSession(final2);
-              addAIMessage(final3, `Aïe… ${etablissement} a refusé. Bon écoute, on se rabat sur ma clinique. C'est du tout cuit — je connais tout le monde là-bas, je les appelle et c'est réglé en 24h. C'est pas prestigieux mais au moins on avance.`, "alexandre_morel");
-              // Switch to clinique and advance
-              final3.flags.switched_to_clinique = true;
-              final3.flags.chose_chu = false;
-              final3.flags.chose_saint_martin = false;
-              final3.flags.chose_clinique = true;
-              final3.flags.pitch_accepted = true;
-              advanceToPhase3(final3);
-              setSession(final3);
-              setMainView("chat");
-              setSelectedContact("alexandre_morel");
-            }, 2000);
-          }, 1500);
-        } else {
-          // Already chose clinique → Alexandre smooths things over
-          setTimeout(() => {
-            const final2 = cloneSession(next);
-            addAIMessage(final2, `T'as envoyé quoi comme mail ?! C'est MA clinique, c'est MA réputation ! Laisse, je vais appeler Renaud-Picard directement et arranger le coup. Mais la prochaine fois, fais-moi relire avant d'envoyer n'importe quoi.`, "alexandre_morel");
-            // Alexandre fixes it — advance anyway
-            final2.flags.pitch_accepted = true;
-            advanceToPhase3(final2);
-            setSession(final2);
-            setMainView("chat");
-            setSelectedContact("alexandre_morel");
-          }, 1500);
-        }
-      }
-      return;
     }
 
     setSession(next);
@@ -3058,13 +2731,19 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
     setShowDevisNego(false);
     if (session && scenario) {
       const next = cloneSession(session);
-      const signResult = ContractHandler.computeSign("s4_devis", {
-        playerName: displayPlayerName,
+
+      // ── ContractModule handles sign via PhaseOrchestrator ──
+      const moduleResult = dispatchContractSigned("s4_devis", {
+        contractType: "s4_devis",
         features: devisFeatures,
         dealTerms,
-      });
-      Object.assign(next.flags, signResult.flags);
-      if (signResult.shouldFinishScenario) finishScenario(next);
+      }, next);
+
+      if (!moduleResult) {
+        console.error("[ContractModule] s4_devis: no module result — sign aborted");
+        return;
+      }
+      applyModuleActions(moduleResult.actions, next);
       setSession(next);
     }
     playNotificationSound();
@@ -3701,36 +3380,22 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
             if (session && scenario) {
               const next = cloneSession(session);
               const phase = scenario.phases[next.currentPhaseIndex];
-              const phaseId = phase?.phase_id;
-              const signResult = ContractHandler.computeSign("s0_pacte", {
-                playerName: displayPlayerName,
+
+              // ── ContractModule handles sign via PhaseOrchestrator ──
+              const moduleResult = dispatchContractSigned("s0_pacte", {
+                contractType: "s0_pacte",
                 articles: pacteArticles,
                 thread: pacteThread,
                 currentFlags: next.flags,
                 ctoName: getActorInfo(chosenCtoId || "sofia_renault").name,
                 phaseMailConfig: phase?.mail_config,
-              });
-              Object.assign(next.flags, signResult.flags);
-              if (phaseId && signResult.mailDraft) {
-                updateMailDraft(next, phaseId, signResult.mailDraft);
+              }, next);
+
+              if (!moduleResult) {
+                console.error("[ContractModule] s0_pacte: no module result — sign aborted");
+                return;
               }
-              if (signResult.mailKind) {
-                sendCurrentPhaseMail(next, signResult.mailKind);
-              }
-              if (signResult.shouldAdvancePhase) {
-                completeCurrentPhaseAndAdvance(next);
-                resolveDynamicActors(next);
-                resolveEstablishmentPlaceholders(next);
-                injectPhaseEntryEvents(next);
-                const newPhase = scenario.phases[next.currentPhaseIndex];
-                if (newPhase?.mail_config?.defaults) {
-                  updateMailDraft(next, newPhase.phase_id, {
-                    to: "", cc: "",
-                    subject: newPhase.mail_config.defaults.subject || "",
-                    body: "", attachments: [],
-                  });
-                }
-              }
+              applyModuleActions(moduleResult.actions, next);
               setSession(next);
             }
             setShowSignatureView(false);
@@ -3758,24 +3423,19 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
             setContractSigned(true);
             if (session && scenario) {
               const next = cloneSession(session);
-              const phase = scenario.phases[next.currentPhaseIndex];
-              const signResult = ContractHandler.computeSign("s2_novadev", {
-                playerName: displayPlayerName,
+
+              // ── ContractModule handles sign via PhaseOrchestrator ──
+              const moduleResult = dispatchContractSigned("s2_novadev", {
+                contractType: "s2_novadev",
                 articles: novadevArticles,
                 contractVars: { price: contractVars.price, equity: contractVars.equity },
-              });
-              Object.assign(next.flags, signResult.flags);
-              if (phase && signResult.mailDraft) {
-                updateMailDraft(next, phase.phase_id, signResult.mailDraft);
+              }, next);
+
+              if (!moduleResult) {
+                console.error("[ContractModule] s2_novadev: no module result — sign aborted");
+                return;
               }
-              if (signResult.mailKind) {
-                sendCurrentPhaseMail(next, signResult.mailKind);
-              }
-              if (signResult.shouldAdvancePhase && phase) {
-                completeCurrentPhaseAndAdvance(next);
-                injectPhaseEntryEvents(next);
-              }
-              if (signResult.shouldFinishScenario) finishScenario(next);
+              applyModuleActions(moduleResult.actions, next);
               setSession(next);
             }
             setShowContractSignature(false);
@@ -3817,22 +3477,18 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
             setExceptionsSigned(true);
             if (session && scenario) {
               const next = cloneSession(session);
-              const phase = scenario.phases[next.currentPhaseIndex];
-              const signResult = ContractHandler.computeSign("s5_exceptions", {
-                playerName: displayPlayerName,
+
+              // ── ContractModule handles sign via PhaseOrchestrator ──
+              const moduleResult = dispatchContractSigned("s5_exceptions", {
+                contractType: "s5_exceptions",
                 articles: exceptionsArticles,
-              });
-              Object.assign(next.flags, signResult.flags);
-              if (phase && signResult.mailDraft) {
-                updateMailDraft(next, phase.phase_id, signResult.mailDraft);
+              }, next);
+
+              if (!moduleResult) {
+                console.error("[ContractModule] s5_exceptions: no module result — sign aborted");
+                return;
               }
-              if (signResult.mailKind) {
-                sendCurrentPhaseMail(next, signResult.mailKind);
-              }
-              if (signResult.shouldAdvancePhase && phase) {
-                completeCurrentPhaseAndAdvance(next);
-                injectPhaseEntryEvents(next);
-              }
+              applyModuleActions(moduleResult.actions, next);
               setSession(next);
             }
             setShowExceptionsOverlay(false);
@@ -4087,6 +3743,7 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
                               resolveDynamicActors(next);
       resolveEstablishmentPlaceholders(next);
                               injectPhaseEntryEvents(next);
+                              dispatchEnterPhase(next); // Module system: run enter_phase on new phase
                               const newPhase = scenario.phases[next.currentPhaseIndex];
                               if (newPhase?.mail_config?.defaults) {
                                 updateMailDraft(next, newPhase.phase_id, {
@@ -5151,6 +4808,7 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
                           }
                           // injectPhaseEntryEvents mutates in place and returns void
                           injectPhaseEntryEvents(updated);
+                          dispatchEnterPhase(updated); // Module system
                           setSession({ ...updated });
                         }}
                         style={{

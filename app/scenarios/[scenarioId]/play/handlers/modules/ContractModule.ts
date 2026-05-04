@@ -14,7 +14,7 @@
 // Returns ModuleAction[] for page.tsx to execute.
 // ══════════════════════════════════════════════════════════════════
 
-import type { PhaseModule, ModuleContext, ModuleResult, ModuleAction } from "./types";
+import type { PhaseModule, ModuleContext, ModuleResult, ModuleAction, ContractModuleContext } from "./types";
 import { EMPTY_RESULT } from "./types";
 import { ContractHandler } from "../ContractHandler";
 import type { ContractType, SignResult, SignFlagsParams } from "../types";
@@ -87,16 +87,45 @@ export const ContractModule: PhaseModule = {
       return EMPTY_RESULT;
     }
 
-    // NOTE: page.tsx still calls ContractHandler.computeSign directly
-    // because it needs to pass React state (articles, thread, features).
-    // This module prepares the action mapping for when page.tsx
-    // delegates to the orchestrator.
-    //
-    // For now, return empty — page.tsx handles sign flow directly.
-    return EMPTY_RESULT;
+    // Read extended context passed by page.tsx via (ctx as any).extra
+    const extra = (ctx as any).extra as ContractModuleContext | undefined;
+    if (!extra) {
+      // No extra context → caller didn't enrich context, fall back to legacy
+      return EMPTY_RESULT;
+    }
+
+    // Build SignFlagsParams from extra context
+    const params: SignFlagsParams = {
+      playerName: ctx.playerName,
+      articles: extra.articles,
+      thread: extra.thread,
+      currentFlags: extra.currentFlags as Record<string, any> | undefined,
+      ctoName: extra.ctoName,
+      phaseMailConfig: extra.phaseMailConfig,
+      contractVars: extra.contractVars,
+      features: extra.features,
+      dealTerms: extra.dealTerms,
+    };
+
+    // Delegate to ContractHandler — pure computation, no side effects
+    const signResult = ContractHandler.computeSign(ct, params);
+
+    // Map SignResult → ModuleAction[]
+    return {
+      actions: mapSignResultToActions(signResult),
+      advance: signResult.shouldAdvancePhase,
+      finish: signResult.shouldFinishScenario,
+    };
   },
 
-  // ── Clause action: handled by page.tsx → sendNegotiationMessage ──
+  // ── Clause action: DEFERRED — stays in page.tsx ────────────────
+  //
+  // Why: onClauseAction delegates to sendXxxNegotiationMessage(), which is
+  // an async function that: (1) calls /api/chat, (2) parses AI response
+  // to update contract articles, (3) mutates React state (thread, loading).
+  // This is inherently async + stateful — cannot be expressed as
+  // synchronous ModuleAction[]. Would require async_effect + heavy refactor.
+  // Safe to keep in page.tsx until the negotiation system is extracted.
 
   onClauseAction(): ModuleResult {
     return EMPTY_RESULT;
@@ -164,8 +193,10 @@ export function mapSignResultToActions(result: SignResult): ModuleAction[] {
   }
 
   // Advance / finish
+  // Use complete_advance_phase (not advance_phase) because contract sign
+  // needs full treatment: resolve dynamic actors, establishments, entry events
   if (result.shouldAdvancePhase) {
-    actions.push({ type: "advance_phase" });
+    actions.push({ type: "complete_advance_phase" });
   }
   if (result.shouldFinishScenario) {
     actions.push({ type: "finish_scenario" });

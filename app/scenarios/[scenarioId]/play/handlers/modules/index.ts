@@ -13,6 +13,7 @@ export type {
   ModuleContext,
   ModuleEvent,
   PhaseModule,
+  ContractModuleContext,
 } from "./types";
 
 export { EMPTY_RESULT } from "./types";
@@ -21,4 +22,4 @@ export { EMPTY_RESULT } from "./types";
 export { InterviewModule, buildInterviewStartActions, buildInterviewEndActions } from "./InterviewModule";
 export { ContractModule, mapSignResultToActions } from "./ContractModule";
 export { MailModule } from "./MailModule";
-export type { MailModuleExtra } from "./MailModule";
+export type { MailModuleExtra, MailModuleContext, MailKind, MailBranchResult } from "./MailModule";
