@@ -397,16 +397,16 @@ function handleColdEmailReply(
   const activePrompt = extra.activePromptMap[actorId] || extra.defaultPrompt;
 
   actions.push({ type: "set_compose", show: false });
-  actions.push({ type: "set_view", view: "chat" });
-  actions.push({ type: "set_contact", actorId });
   actions.push({
     type: "async_effect",
     effect: {
-      kind: "mail_auto_reply",
+      kind: "mail_inbox_reply",
       actorId,
       mailBody: mailDraft.body || "",
       playerMessageSummary: `[Cold email envoyé à ${targetActor?.name || actorId}] ${(mailDraft.body || "").substring(0, 200)}...`,
       mailSummary: `[Le joueur a envoyé un cold email de prospection avec le contenu suivant : ${mailDraft.body || ""}]`,
+      replySubject: `RE: ${mailDraft.subject || "Prospection Orisio"}`,
+      originalSubject: mailDraft.subject || "Prospection Orisio",
       displayPlayerName: extra.displayPlayerName,
       narrative: (ctx.scenario as any).narrative,
       runtimeView: extra.runtimeView,
@@ -419,8 +419,8 @@ function handleColdEmailReply(
 
 // ── BRANCH 3c: dsi_response auto-reply ─────────────────────────
 // S5 Phase 2: player sends a mail to the DSI (Eric Moreau).
-// The DSI replies via mail_auto_reply async effect to evaluate
-// the player's answers on HDS, RGPD, interop, pricing.
+// The DSI replies via mail_inbox_reply so the response appears
+// in the player's inbox (not in chat).
 
 function handleDsiResponseReply(
   ctx: ModuleContext,
@@ -434,16 +434,16 @@ function handleDsiResponseReply(
   const activePrompt = extra.activePromptMap[actorId] || extra.defaultPrompt;
 
   actions.push({ type: "set_compose", show: false });
-  actions.push({ type: "set_view", view: "chat" });
-  actions.push({ type: "set_contact", actorId });
   actions.push({
     type: "async_effect",
     effect: {
-      kind: "mail_auto_reply",
+      kind: "mail_inbox_reply",
       actorId,
       mailBody: mailDraft.body || "",
       playerMessageSummary: `[Réponse envoyée à la DSI] ${(mailDraft.body || "").substring(0, 200)}...`,
       mailSummary: `[Le joueur a envoyé sa réponse à la DSI avec le contenu suivant : ${mailDraft.body || ""}]`,
+      replySubject: "RE: Demande d'information — Solution Orisio",
+      originalSubject: "Demande d'information — Solution Orisio",
       displayPlayerName: extra.displayPlayerName,
       narrative: (ctx.scenario as any).narrative,
       runtimeView: extra.runtimeView,

@@ -105,7 +105,7 @@
         "color": "#6A1B9A",
         "initials": "IF"
       },
-      "visible_in_contacts": false,
+      "visible_in_contacts": true,
       "contact_status": "available",
       "contact_preview": "Chef de service, CHU Toulouse",
       "tts_voice": "nova"
@@ -121,7 +121,7 @@
         "color": "#2E7D32",
         "initials": "PM"
       },
-      "visible_in_contacts": false,
+      "visible_in_contacts": true,
       "contact_status": "available",
       "contact_preview": "Chirurgien, Clinique Pasteur",
       "tts_voice": "echo"
@@ -137,7 +137,7 @@
         "color": "#C62828",
         "initials": "NB"
       },
-      "visible_in_contacts": false,
+      "visible_in_contacts": true,
       "contact_status": "available",
       "contact_preview": "Chef de bloc, AP-HP Paris",
       "tts_voice": "shimmer"
@@ -153,7 +153,7 @@
         "color": "#E65100",
         "initials": "AK"
       },
-      "visible_in_contacts": false,
+      "visible_in_contacts": true,
       "contact_status": "available",
       "contact_preview": "Cadre de bloc, Clinique Saint-Jean",
       "tts_voice": "nova"
@@ -169,7 +169,7 @@
         "color": "#00838F",
         "initials": "MC"
       },
-      "visible_in_contacts": false,
+      "visible_in_contacts": true,
       "contact_status": "available",
       "contact_preview": "Chirurgien, HP Sévigné (Rennes)",
       "tts_voice": "fable"
@@ -281,8 +281,8 @@
         "color": "#4E342E",
         "initials": "CV"
       },
-      "visible_in_contacts": false,
-      "contact_status": "unavailable",
+      "visible_in_contacts": true,
+      "contact_status": "available",
       "contact_preview": "Juriste de l'établissement",
       "tts_voice": "shimmer"
     }
@@ -632,6 +632,7 @@
         "next_phase": "phase_1_prospection",
         "reset_flags": [
           "kol_interested",
+          "chosen_kol_id",
           "cold_emails_sent",
           "dsi_contacted",
           "dsi_objections_answered",

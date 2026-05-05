@@ -518,34 +518,67 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     return null;
   }, [session?.sentMails?.length, session?.chatMessages?.length]);
 
-  // Resolve "chosen_cto" placeholder in phase config
-  const resolveActor = (actorId: string) => actorId === "chosen_cto" && chosenCtoId ? chosenCtoId : actorId;
+  // ── Chosen KOL detection (Founder scenario 5) ──
+  // After a cold email triggers a positive KOL response (kol_interested flag),
+  // the mail_inbox_reply handler stores the actor_id as chosen_kol_id flag.
+  const chosenKolId = useMemo(() => {
+    if (!session?.flags?.chosen_kol_id) return null;
+    return session.flags.chosen_kol_id as string;
+  }, [session?.flags?.chosen_kol_id]);
 
-  // Patch a session's scenario phase entry_events/ai_actors to replace "chosen_cto" with the real actor.
+  // Resolve "chosen_cto" / "chosen_kol" placeholders in phase config
+  const resolveActor = (actorId: string) => {
+    if (actorId === "chosen_cto" && chosenCtoId) return chosenCtoId;
+    if (actorId === "chosen_kol" && chosenKolId) return chosenKolId;
+    return actorId;
+  };
+
+  // Patch a session's scenario phase entry_events/ai_actors to replace "chosen_cto"/"chosen_kol" with the real actor.
   // This is called before injectPhaseEntryEvents so that runtime.ts sees the resolved actor.
   function resolveDynamicActors(sess: any) {
-    if (!chosenCtoId || !sess?.scenario?.phases) return;
+    if (!sess?.scenario?.phases) return;
     for (const phase of sess.scenario.phases) {
-      if (phase.dynamic_actor === "chosen_cto") {
-        // Replace in ai_actors
+      // ── chosen_cto resolution (S0) ──
+      if (phase.dynamic_actor === "chosen_cto" && chosenCtoId) {
         if (Array.isArray(phase.ai_actors)) {
           phase.ai_actors = phase.ai_actors.map((a: string) => a === "chosen_cto" ? chosenCtoId : a);
         }
-        // Replace in entry_events
         if (Array.isArray(phase.entry_events)) {
           for (const ev of phase.entry_events) {
             if (ev.actor === "chosen_cto") ev.actor = chosenCtoId;
           }
         }
-        // Replace in mail_config defaults "to"
         if (phase.mail_config?.defaults && !phase.mail_config.defaults.to) {
-          // Auto-fill "to" with chosen CTO's name for convenience
           const ctoActor = actors.find((a: any) => a.actor_id === chosenCtoId);
           if (ctoActor) {
             phase.mail_config.defaults.to = ctoActor.name;
           }
         }
-        // Mark as resolved so we don't re-process
+        phase.dynamic_actor = "resolved";
+      }
+      // ── chosen_kol resolution (S5) ──
+      if (phase.dynamic_actor === "chosen_kol" && chosenKolId) {
+        if (Array.isArray(phase.ai_actors)) {
+          phase.ai_actors = phase.ai_actors.map((a: string) => a === "chosen_kol" ? chosenKolId : a);
+        }
+        if (Array.isArray(phase.entry_events)) {
+          for (const ev of phase.entry_events) {
+            if (ev.actor === "chosen_kol") ev.actor = chosenKolId;
+          }
+        }
+        // Auto-fill mail "to" with chosen KOL's email/name
+        if (phase.mail_config?.defaults && !phase.mail_config.defaults.to) {
+          const kolActor = actors.find((a: any) => a.actor_id === chosenKolId);
+          if (kolActor) {
+            phase.mail_config.defaults.to = (kolActor as any).email || kolActor.name;
+          }
+        }
+        // Make the chosen KOL visible in contacts so the player can chat
+        const kolActorDef = actors.find((a: any) => a.actor_id === chosenKolId);
+        if (kolActorDef) {
+          (kolActorDef as any).visible_in_contacts = true;
+          (kolActorDef as any).contact_status = "available";
+        }
         phase.dynamic_actor = "resolved";
       }
     }
@@ -2211,6 +2244,76 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             }
           } catch (err) {
             console.error("Error in mail_auto_reply async effect:", err);
+          }
+        })();
+        break;
+      }
+      case "mail_inbox_reply": {
+        // NPC replies by mail (inbox) instead of chat — used for cold email KOL replies & DSI responses
+        const mailSummary3 = effect.mailSummary;
+        (async () => {
+          try {
+            const res = await fetch("/api/chat", {
+              method: "POST",
+              headers: apiHeaders(),
+              body: JSON.stringify({
+                playerName: effect.displayPlayerName,
+                message: mailSummary3,
+                phaseTitle: (effect.runtimeView as any).phaseTitle,
+                phaseObjective: (effect.runtimeView as any).phaseObjective,
+                phaseFocus: (effect.runtimeView as any).phaseFocus,
+                phasePrompt: (effect.runtimeView as any).phasePrompt,
+                criteria: (effect.runtimeView as any).criteria,
+                mode: (effect.runtimeView as any).adaptiveMode,
+                narrative: effect.narrative,
+                recentConversation: [],
+                playerMessages: [effect.mailBody],
+                roleplayPrompt: effect.roleplayPrompt,
+              }),
+            });
+            if (res.ok) {
+              const data = await res.json();
+              const replyText = (data.reply || "").trim();
+              const isSilence = replyText === "[PAS DE RÉPONSE]" || replyText.includes("[PAS DE RÉPONSE]");
+
+              const final2 = cloneSession(sessionRef.current || next);
+              // Record player's sent mail in conversation history
+              addPlayerMessage(final2, effect.playerMessageSummary, effect.actorId);
+
+              if (isSilence) {
+                // KOL decided not to respond — silence radio, no inbox mail, no notification
+                addAIMessage(final2, `[${effect.actorId} n'a pas répondu à votre email]`, effect.actorId);
+              } else {
+                // Normal response — deliver as inbox mail
+                playNotificationSound();
+                addAIMessage(final2, data.reply, effect.actorId);
+                applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+                addInboxMail(final2, {
+                  from: effect.actorId,
+                  subject: effect.replySubject || "RE: " + (effect.originalSubject || ""),
+                  body: data.reply,
+                  phaseId: scenario!.phases[final2.currentPhaseIndex]?.phase_id || "",
+                });
+                // Success keywords check (e.g., KOL interested, DSI approved)
+                const sf = checkNpcSuccessKeywords(final2, data.reply);
+                if (sf) {
+                  for (const [k, v] of Object.entries(sf)) {
+                    if (v === true) final2.flags[k] = true;
+                  }
+                  // If kol_interested was just set, also store which KOL was chosen
+                  if (sf.kol_interested && effect.actorId) {
+                    final2.flags.chosen_kol_id = effect.actorId;
+                  }
+                }
+                // Failure keywords check (e.g., DSI refuses → loop back)
+                if (checkNpcFailureKeywords(final2, data.reply)) {
+                  handlePhaseFailure(final2);
+                }
+              }
+              setSession(final2);
+            }
+          } catch (err) {
+            console.error("Error in mail_inbox_reply async effect:", err);
           }
         })();
         break;
