@@ -23,7 +23,8 @@
       "CGV"
     ],
     "show_objective": false,
-    "show_background_fact": false
+    "show_background_fact": false,
+    "notes_tool": true
   },
   "introduction": {
     "header": {
@@ -265,7 +266,7 @@
         "initials": "EM"
       },
       "visible_in_contacts": false,
-      "contact_status": "unavailable",
+      "contact_status": "available",
       "contact_preview": "DSI",
       "tts_voice": "echo"
     },
@@ -397,7 +398,6 @@
       "objective": "Choisis 1 à 3 KOL dans la liste et envoie-leur un cold email personnalisé pour présenter Orisio. Si aucun KOL ne répond positivement, la vente est ratée.",
       "phase_focus": "Le joueur doit lire la liste des KOL, choisir ses cibles et rédiger des cold emails personnalisés. Les KOL IA évaluent la qualité du mail et répondent : intéressé, pas intéressé, ou demande de précisions. Si un KOL est intéressé, il redirige vers sa DSI. Si tous les KOL refusent, le joueur peut retenter avec un meilleur mail dans la même phase. La phase avance quand un KOL est convaincu (flag kol_interested).",
       "duration_target_min": 10,
-      "max_duration_sec": 600,
       "active_channels": [
         "mail",
         "chat"
@@ -511,7 +511,6 @@
       "objective": "Le KOL t'a mis en contact avec la DSI de son établissement. Réponds à toutes les objections : cybersécurité, RGPD, interopérabilité et pricing. Envoie un mail complet à la DSI.",
       "phase_focus": "Le DSI (Éric Moreau) contacte le joueur par mail avec une liste d'exigences : certification HDS, conformité RGPD, interopérabilité SIH, et demande de grille tarifaire. Le joueur doit répondre point par point. L'intégration SIH fait l'objet d'un module complémentaire livrable en 3 mois sur devis (article 7.2 des CGV). Le joueur doit être factuel. Si le joueur ment sur l'interop, le flag lied_about_interop est set. Sur le pricing, le DSI réagit selon la grille : > 500€/salle = refus, 350-500€ = négo serrée, 200-350€ = négo facile, < 200€ = accord direct. Les CGV prévoient 30% d'acompte + facturation mensuelle + engagement 36 mois.",
       "duration_target_min": 10,
-      "max_duration_sec": 600,
       "active_channels": [
         "mail",
         "chat"
@@ -541,7 +540,7 @@
         {
           "event_id": "alex_advice_dsi",
           "actor": "alexandre_morel",
-          "content": "OK c'est le DSI. Tout est dans les CGV — relis bien les articles 4, 5 et 7 avant de répondre. Sur l'interop, le module SIH sort en 3 mois sur devis, c'est l'article 7.2. Sois factuel là-dessus. Et rappelle-toi : 30% d'acompte à la commande, facturation mensuelle, engagement 36 mois.",
+          "content": "OK c'est le DSI. Il va te poser des questions techniques. Tout est dans les CGV, relis-les bien avant de répondre. Sois factuel et surtout ne mens pas — les DSI vérifient tout.",
           "channel": "chat",
           "delay_ms": 8000
         }
@@ -609,6 +608,18 @@
           "dsi_contacted": true
         }
       },
+      "success_rules": {
+        "npc_keywords": [
+          "avis favorable",
+          "valider le dossier",
+          "je transmets le dossier",
+          "validation technique",
+          "je donne mon feu vert"
+        ],
+        "set_flags": {
+          "dsi_approved": true
+        }
+      },
       "auto_advance": true,
       "next_phase": "phase_3_implementation",
       "failure_rules": {
@@ -645,10 +656,9 @@
     {
       "phase_id": "phase_3_implementation",
       "title": "Plan d'implémentation avec le KOL",
-      "objective": "Le KOL veut co-construire le plan d'implémentation. Discute avec lui par chat, prends des notes (outil notes/mind map), puis envoie-lui une note de synthèse du process d'implémentation par mail.",
-      "phase_focus": "Le KOL exprime ses exigences d'implémentation par chat : planning de déploiement, formation des équipes, migration des données, accompagnement au changement, indicateurs de succès. Le joueur doit utiliser l'outil note (mind map) pour structurer les informations, puis envoyer un mail de synthèse au KOL avec le plan d'implémentation complet. Le trigger de fin est l'envoi du mail de synthèse.",
+      "objective": "Le KOL veut co-construire le plan d'implémentation. Discute avec lui par chat, prends des notes, puis envoie-lui une synthèse du process d'implémentation par mail.",
+      "phase_focus": "Le KOL exprime ses exigences d'implémentation par chat : planning de déploiement, formation des équipes, migration des données, accompagnement au changement, indicateurs de succès. Le joueur doit structurer les informations au fur et à mesure (un onglet Notes est disponible), puis envoyer un mail de synthèse au KOL avec le plan d'implémentation complet. Le trigger de fin est l'envoi du mail de synthèse.",
       "duration_target_min": 8,
-      "max_duration_sec": 480,
       "active_channels": [
         "chat",
         "mail"
@@ -676,7 +686,7 @@
         {
           "event_id": "alex_note_tip",
           "actor": "alexandre_morel",
-          "content": "Prends des notes au fur et à mesure — utilise l'outil notes pour structurer tout ça. À la fin il faudra lui envoyer une synthèse propre par mail.",
+          "content": "Prends des notes au fur et à mesure — structure bien ses demandes. À la fin il faudra lui envoyer une synthèse propre par mail.",
           "channel": "chat",
           "delay_ms": 8000
         }
@@ -743,7 +753,6 @@
       "objective": "La juriste de l'établissement t'envoie un bon de commande avec des conditions particulières. Négocie chaque clause pour protéger les intérêts d'Orisio tout en closant la vente.",
       "phase_focus": "La juriste (Me Claire Vasseur) envoie un bon de commande avec 5 conditions particulières qui dérogent aux CGV : remise de 15%, refus de communication, suppression des pénalités de retard, pénalités SLA, et remplacement de l'engagement 36 mois par 6 mois test + 12 mois renouvelable. Le joueur utilise l'outil de modification dynamique de contrat pour amender et négocier par chat en direct. La juriste est ferme UNIQUEMENT sur la durée d'engagement (jamais 36 mois ferme). Les autres points elle peut lâcher avec résistance. Si le joueur accepte tout → flag contract_too_generous. La phase se termine quand la juriste valide le document (flag contract_signed).",
       "duration_target_min": 8,
-      "max_duration_sec": 480,
       "active_channels": [
         "chat",
         "mail"
@@ -859,7 +868,6 @@
       "objective": "Alexandre te demande un email récapitulatif de toutes les conditions négociées pour pouvoir dupliquer cette approche dans l'établissement du MVP.",
       "phase_focus": "Alexandre veut un mail de synthèse qui résume : le KOL ciblé et pourquoi, les réponses données à la DSI, le pricing négocié, le plan d'implémentation, les exceptions contractuelles acceptées/refusées, et les leçons apprises. Ce mail servira de playbook pour répliquer la vente dans la clinique du pilote (scénario 3). Le trigger de fin est l'envoi du mail à Alexandre.",
       "duration_target_min": 5,
-      "max_duration_sec": 300,
       "active_channels": [
         "mail",
         "chat"

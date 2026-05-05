@@ -34,7 +34,12 @@ export type MailKind =
   | "choice_confirmation"
   | "negotiation_proposal"
   | "analyse_rdv"
-  | "pilot_pitch";
+  | "pilot_pitch"
+  | "cold_email"
+  | "dsi_response"
+  | "implementation_plan"
+  | "recap_vente"
+  | "exceptions_response";
 
 /** Return value of each branch handler. */
 export interface MailBranchResult {
@@ -402,6 +407,43 @@ function handleColdEmailReply(
       mailBody: mailDraft.body || "",
       playerMessageSummary: `[Cold email envoyé à ${targetActor?.name || actorId}] ${(mailDraft.body || "").substring(0, 200)}...`,
       mailSummary: `[Le joueur a envoyé un cold email de prospection avec le contenu suivant : ${mailDraft.body || ""}]`,
+      displayPlayerName: extra.displayPlayerName,
+      narrative: (ctx.scenario as any).narrative,
+      runtimeView: extra.runtimeView,
+      roleplayPrompt: activePrompt,
+    },
+  });
+
+  return { actions, earlyReturn: true, didAdvance: false };
+}
+
+// ── BRANCH 3c: dsi_response auto-reply ─────────────────────────
+// S5 Phase 2: player sends a mail to the DSI (Eric Moreau).
+// The DSI replies via mail_auto_reply async effect to evaluate
+// the player's answers on HDS, RGPD, interop, pricing.
+
+function handleDsiResponseReply(
+  ctx: ModuleContext,
+  extra: MailModuleContext,
+): MailBranchResult {
+  const actions: ModuleAction[] = [];
+  const mailDraft = extra.currentMailDraft;
+  if (!mailDraft) return { actions, earlyReturn: false, didAdvance: false };
+
+  const actorId = "eric_moreau";
+  const activePrompt = extra.activePromptMap[actorId] || extra.defaultPrompt;
+
+  actions.push({ type: "set_compose", show: false });
+  actions.push({ type: "set_view", view: "chat" });
+  actions.push({ type: "set_contact", actorId });
+  actions.push({
+    type: "async_effect",
+    effect: {
+      kind: "mail_auto_reply",
+      actorId,
+      mailBody: mailDraft.body || "",
+      playerMessageSummary: `[Réponse envoyée à la DSI] ${(mailDraft.body || "").substring(0, 200)}...`,
+      mailSummary: `[Le joueur a envoyé sa réponse à la DSI avec le contenu suivant : ${mailDraft.body || ""}]`,
       displayPlayerName: extra.displayPlayerName,
       narrative: (ctx.scenario as any).narrative,
       runtimeView: extra.runtimeView,
@@ -818,7 +860,16 @@ export const MailModule: PhaseModule = {
       }
     }
 
-    // ── 7. Default ──────────────────────────────────────────────
+    // ── 7. dsi_response auto-reply: DSI responds in chat ────────
+    if (mailKind === "dsi_response") {
+      const result = handleDsiResponseReply(ctx, extra);
+      actions.push(...result.actions);
+      if (result.earlyReturn) {
+        return { actions, advance: false, finish: false };
+      }
+    }
+
+    // ── 8. Default ──────────────────────────────────────────────
     if (actions.length === 0) {
       return EMPTY_RESULT;
     }
