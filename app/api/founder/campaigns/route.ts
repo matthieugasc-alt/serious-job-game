@@ -102,6 +102,9 @@ export async function PATCH(req: NextRequest) {
     campaign.lastMicroDebrief = null;
 
     // Replay outcomes for completed scenarios (0 to currentScenarioIndex - 1)
+    // ADMIN DEBUG: only apply elapsedMonths + flags, NOT treasury/ownership/etc.
+    // This prevents "trésorerie épuisée" when jumping to a later scenario.
+    const SKIP_DELTA_KEYS = new Set(["treasury", "ownership", "mrr", "payroll", "productQuality", "techDebt", "investorConfidence", "marketValidation"]);
     for (let i = 0; i < currentScenarioIndex && i < scenarioKeys.length; i++) {
       const scId = scenarioKeys[i];
       const scRules = rules.scenarios[scId];
@@ -109,8 +112,9 @@ export async function PATCH(req: NextRequest) {
       // Default to "success" outcome for admin jump
       const outcome = scRules.outcomes.success || Object.values(scRules.outcomes)[0];
       if (outcome) {
-        // Apply deltas
+        // Apply ONLY elapsedMonths (needed for timeline), skip economic deltas
         for (const key of Object.keys(outcome.deltas)) {
+          if (SKIP_DELTA_KEYS.has(key)) continue; // Don't drain treasury/ownership on debug skip
           const k = key as keyof typeof campaign.state;
           if (typeof campaign.state[k] === 'number' && typeof outcome.deltas[k] === 'number') {
             (campaign.state as any)[k] = Math.max(0, campaign.state[k] + outcome.deltas[k]);

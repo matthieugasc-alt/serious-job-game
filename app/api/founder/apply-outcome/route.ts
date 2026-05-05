@@ -9,6 +9,7 @@ import {
   applyOutcomeToCampaign,
   interpolateMicroDebrief,
 } from '@/app/lib/founder';
+import { logOutcomeApplied } from '@/app/lib/gameEvents';
 
 /**
  * POST /api/founder/apply-outcome
@@ -171,6 +172,21 @@ export async function POST(req: NextRequest) {
   }
 
   saveCampaign(updatedCampaign);
+
+  // ── Passive logging (fire-and-forget, never breaks the game) ──
+  try {
+    const gameSessionId = body.gameSessionId || "unknown";
+    logOutcomeApplied(
+      gameSessionId,
+      session.user.id,
+      scenarioId,
+      matchingRecord.ending,
+      outcome.deltas,
+      outcome.microDebrief?.decision || "none",
+    );
+  } catch {
+    // NEVER break the game — swallow errors
+  }
 
   return NextResponse.json({
     outcome: {

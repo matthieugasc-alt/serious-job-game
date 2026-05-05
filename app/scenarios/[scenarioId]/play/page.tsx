@@ -43,6 +43,17 @@ import { resolvePhaseHandler, InterviewHandler, ContractHandler, resolveModules,
 import type { ModuleAction, ContractModuleContext } from "./handlers";
 import type { MailModuleExtra } from "./handlers";
 import {
+  fireSessionStarted,
+  firePhaseStarted,
+  firePlayerMessage,
+  fireAIMessage,
+  fireMailSent,
+  fireContractSigned,
+  firePhaseCompleted,
+  fireScenarioCompleted,
+  firePhaseAbandoned,
+} from "@/app/lib/gameEvents/client";
+import {
   type ContractClause,
   type ContractThreadMessage,
   type DealTerms,
@@ -408,6 +419,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [pitchCutoff, setPitchCutoff] = useState(false); // true after 40s or manual stop
   const pitchTimerRef = useRef<any>(null);
   const pitchStartRef = useRef<number | null>(null);
+
+  // ── Game events: session ID for passive logging ──
+  const gameSessionIdRef = useRef<string>(
+    typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2)
+  );
+  const sessionStartTimeRef = useRef<number>(Date.now());
 
   // ── Auth token for API calls ──
   const authTokenRef = useRef<string | null>(
@@ -1037,6 +1054,17 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
         setSession(s);
         setLoading(false);
+
+        // ── Passive logging: session_started + initial phase_started ──
+        try {
+          const t = authTokenRef.current || "";
+          const gSid = gameSessionIdRef.current;
+          const pName = (typeof window !== "undefined" ? localStorage.getItem("user_name") : null) || "";
+          const campId = activeCampaign?.id || null;
+          fireSessionStarted(t, gSid, scenarioId as string, pName, !!isFounderMeta, campId);
+          const p0 = data.phases[s.currentPhaseIndex || 0];
+          firePhaseStarted(t, gSid, scenarioId as string, p0?.phase_id || "phase_0", s.currentPhaseIndex || 0, p0?.title || "", (p0 as any)?.modules || []);
+        } catch { /* never break the game */ }
 
         // Auto-select the first AI actor of the active phase
         // For interview phases, select the briefing actor (not the candidate)
@@ -1776,6 +1804,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     addPlayerMessage(next, text, targetActor);
     setSession(next);
 
+    // ── Passive logging: player_message ──
+    try { firePlayerMessage(authTokenRef.current || "", gameSessionIdRef.current, scenarioId as string, curPhaseId, targetActor, text); } catch { /* never break */ }
+
     // Fire AI request in background — don't block input
     setIsSending(true);
     try {
@@ -1895,6 +1926,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       const latestSession = sessionRef.current || next;
       const final = cloneSession(latestSession);
       addAIMessage(final, data.reply, targetActor);
+
+      // ── Passive logging: ai_message ──
+      try { fireAIMessage(authTokenRef.current || "", gameSessionIdRef.current, scenarioId as string, curPhaseId, targetActor, data.reply); } catch { /* never break */ }
       applyEvaluation(
         final,
         data.matched_criteria || [],
@@ -2003,7 +2037,33 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           break;
         }
         case "complete_advance_phase": {
+          const prevPhaseIdx = next.currentPhaseIndex;
+          const prevPhase = scenario!.phases[prevPhaseIdx];
           completeCurrentPhaseAndAdvance(next);
+          // ── Passive logging: phase_completed ──
+          try {
+            const t = authTokenRef.current || "", gSid = gameSessionIdRef.current, sId = scenarioId as string;
+            const dur = phaseStartRealTimeRef.current ? Date.now() - phaseStartRealTimeRef.current : 0;
+            firePhaseCompleted(t, gSid, sId, prevPhase?.phase_id || "", prevPhaseIdx, next.score || 0, dur);
+          } catch { /* never break */ }
+          // If we just finished the scenario (last phase), skip phase-entry work
+          // and clear checkpoint immediately to avoid race with redirect.
+          if (next.isFinished) {
+            // ── Passive logging: scenario_completed ──
+            try {
+              const t = authTokenRef.current || "", gSid = gameSessionIdRef.current, sId = scenarioId as string;
+              const totalDur = Date.now() - sessionStartTimeRef.current;
+              fireScenarioCompleted(t, gSid, sId, next.ending || "unknown", next.score || 0, next.completedPhases || [], totalDur);
+            } catch { /* never break */ }
+            notifyCheckpointClear();
+            break;
+          }
+          // ── Passive logging: phase_started (new phase) ──
+          try {
+            const t = authTokenRef.current || "", gSid = gameSessionIdRef.current, sId = scenarioId as string;
+            const np = scenario!.phases[next.currentPhaseIndex];
+            firePhaseStarted(t, gSid, sId, np?.phase_id || "", next.currentPhaseIndex, np?.title || "", (np as any)?.modules || []);
+          } catch { /* never break */ }
           resolveDynamicActors(next);
           resolveEstablishmentPlaceholders(next);
           injectPhaseEntryEvents(next);
@@ -2048,6 +2108,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           break;
         case "finish_scenario":
           finishScenario(next);
+          // ── Passive logging: scenario_completed ──
+          try {
+            const t = authTokenRef.current || "", gSid = gameSessionIdRef.current, sId = scenarioId as string;
+            const totalDur = Date.now() - sessionStartTimeRef.current;
+            fireScenarioCompleted(t, gSid, sId, next.ending || "unknown", next.score || 0, next.completedPhases || [], totalDur);
+          } catch { /* never break */ }
+          notifyCheckpointClear(); // Clear checkpoint immediately to avoid race with redirect
           break;
         // ── New actions for InterviewModule / ContractModule ──
         case "mark_unavailable":
@@ -2314,6 +2381,12 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
     );
 
     if (result.actions.length > 0) {
+      // ── Passive logging: contract_signed ──
+      try {
+        const phId = phase?.phase_id || "";
+        const flagNames = result.actions.filter((a: any) => a.type === "set_flags").flatMap((a: any) => Object.keys(a.flags || {}));
+        fireContractSigned(authTokenRef.current || "", gameSessionIdRef.current, scenarioId as string, phId, contractType, 0, flagNames);
+      } catch { /* never break */ }
       return result;
     }
     return null;
@@ -2331,6 +2404,16 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
     }
     sendCurrentPhaseMail(next, mailKind);
     playNotificationSound();
+
+    // ── Passive logging: mail_sent ──
+    try {
+      const draft = currentMailDraft || { to: "", subject: "", body: "" };
+      fireMailSent(
+        authTokenRef.current || "", gameSessionIdRef.current, scenarioId as string,
+        view.phaseId, mailKind, draft.to || "", draft.subject || "",
+        (draft.body || "").length, !!(draft as any).attachments?.length,
+      );
+    } catch { /* never break */ }
 
     // ══════════════════════════════════════════════════════════════════
     // Module system — try MailModule BEFORE legacy code
@@ -2433,18 +2516,22 @@ Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". 
 
       if (rulesPass) {
         completeCurrentPhaseAndAdvance(next);
-        resolveDynamicActors(next);
-        resolveEstablishmentPlaceholders(next);
-        injectPhaseEntryEvents(next);
-        dispatchEnterPhase(next); // Module system: run enter_phase on new phase
-        const newPhase = scenario.phases[next.currentPhaseIndex];
-        if (newPhase?.mail_config?.defaults) {
-          updateMailDraft(next, newPhase.phase_id, {
-            to: "",
-            cc: "",
-            subject: newPhase.mail_config.defaults.subject || "",
-            body: "", attachments: [],
-          });
+        if (next.isFinished) {
+          notifyCheckpointClear();
+        } else {
+          resolveDynamicActors(next);
+          resolveEstablishmentPlaceholders(next);
+          injectPhaseEntryEvents(next);
+          dispatchEnterPhase(next); // Module system: run enter_phase on new phase
+          const newPhase = scenario.phases[next.currentPhaseIndex];
+          if (newPhase?.mail_config?.defaults) {
+            updateMailDraft(next, newPhase.phase_id, {
+              to: "",
+              cc: "",
+              subject: newPhase.mail_config.defaults.subject || "",
+              body: "", attachments: [],
+            });
+          }
         }
       }
     }

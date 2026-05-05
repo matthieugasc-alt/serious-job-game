@@ -210,14 +210,15 @@ export default function FounderDashboardPage() {
       const campData = await campRes.json();
       setCampaign(campData.campaign);
 
-      // Only apply outcome if there's a pending scenario AND no active checkpoint
-      // (checkpoint = scenario in progress, not finished yet → don't resolve as lost)
+      // Apply outcome if there's a pending scenario.
+      // Previously we skipped when a checkpoint was still active, but this caused
+      // a race condition: the play page calls notifyCheckpointClear() but the
+      // dashboard can load before the clear propagates, causing the scenario to
+      // appear as "still in progress" instead of triggering debrief.
+      // The apply-outcome endpoint is safe to call regardless — it validates
+      // against the game record (which is saved before the redirect).
       if (campData.campaign.pendingScenarioId) {
-        const hasActiveCheckpoint = campData.campaign.checkpoint &&
-          campData.campaign.checkpoint.scenarioId === campData.campaign.pendingScenarioId;
-        if (!hasActiveCheckpoint) {
-          await checkAndApplyOutcome(campData.campaign);
-        }
+        await checkAndApplyOutcome(campData.campaign);
       }
     } catch (err: any) {
       setError(err.message || "Erreur de chargement");
