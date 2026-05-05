@@ -185,7 +185,7 @@
         "color": "#37474F",
         "initials": "LD"
       },
-      "visible_in_contacts": false,
+      "visible_in_contacts": true,
       "contact_status": "available",
       "contact_preview": "Directeur médical, CH Bayonne",
       "tts_voice": "onyx"
@@ -201,7 +201,7 @@
         "color": "#1A237E",
         "initials": "JD"
       },
-      "visible_in_contacts": false,
+      "visible_in_contacts": true,
       "contact_status": "available",
       "contact_preview": "PU-PH, AP-HP Cochin",
       "tts_voice": "onyx"
@@ -217,7 +217,7 @@
         "color": "#AD1457",
         "initials": "SO"
       },
-      "visible_in_contacts": false,
+      "visible_in_contacts": true,
       "contact_status": "available",
       "contact_preview": "Qualité bloc, Polyclinique du Parc",
       "tts_voice": "shimmer"
@@ -233,7 +233,7 @@
         "color": "#00695C",
         "initials": "VR"
       },
-      "visible_in_contacts": false,
+      "visible_in_contacts": true,
       "contact_status": "available",
       "contact_preview": "Dir. pôle chirurgie, CHU Grenoble",
       "tts_voice": "nova"
@@ -249,7 +249,7 @@
         "color": "#795548",
         "initials": "TB"
       },
-      "visible_in_contacts": false,
+      "visible_in_contacts": true,
       "contact_status": "available",
       "contact_preview": "Dir. achats, HP Jean Mermoz",
       "tts_voice": "echo"
