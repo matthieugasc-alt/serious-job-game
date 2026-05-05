@@ -21,6 +21,7 @@ import {
   filterDocumentsByPhase,
   addInboxMail,
   checkNpcFailureKeywords,
+  checkNpcSuccessKeywords,
   handlePhaseFailure,
 } from "@/app/lib/runtime";
 import type { ScenarioDefinition } from "@/app/lib/types";
@@ -1936,6 +1937,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         data.flags_to_set || {}
       );
 
+      // ── Success keywords: NPC positive response sets flags (e.g., KOL interested) ──
+      const successFlags = checkNpcSuccessKeywords(final, data.reply);
+      if (successFlags) {
+        for (const [key, value] of Object.entries(successFlags)) {
+          if (value === true) final.flags[key] = true;
+        }
+      }
+
       // ── Failure loop-back: NPC refusal triggers return to previous phase ──
       if (checkNpcFailureKeywords(final, data.reply)) {
         const handled = handlePhaseFailure(final);
@@ -2187,10 +2196,17 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             if (res.ok) {
               const data = await res.json();
               playNotificationSound();
-              const final2 = cloneSession(next);
+              const final2 = cloneSession(sessionRef.current || next);
               addPlayerMessage(final2, effect.playerMessageSummary, effect.actorId);
               addAIMessage(final2, data.reply, effect.actorId);
               applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+              // ── Success keywords: NPC positive response sets flags (e.g., KOL interested) ──
+              const sf = checkNpcSuccessKeywords(final2, data.reply);
+              if (sf) {
+                for (const [k, v] of Object.entries(sf)) {
+                  if (v === true) final2.flags[k] = true;
+                }
+              }
               setSession(final2);
             }
           } catch (err) {

@@ -42,7 +42,7 @@ const SCENARIO_CONTRACT_MAP: Record<string, ContractType> = {
   founder_00_cto: "s0_pacte",
   founder_02_novadev: "s2_novadev",
   founder_04_devis: "s4_devis",
-  founder_05_vente_complexe: "s5_exceptions",
+  founder_05_sales: "s5_exceptions",
 };
 
 // ══════════════════════════════════════════════════════════════════

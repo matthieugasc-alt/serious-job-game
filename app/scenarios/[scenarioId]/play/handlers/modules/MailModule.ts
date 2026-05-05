@@ -363,6 +363,55 @@ function handleScopeProposalMail(
   return { actions, earlyReturn: true, didAdvance: false };
 }
 
+// ── BRANCH 3b: cold_email auto-reply ────────────────────────────
+// S5 Phase 1: player sends a cold email to a KOL. The KOL responds
+// in chat. We trigger a mail_auto_reply async effect so the AI KOL
+// can react to the email content and potentially express interest
+// (which triggers the success_rules keyword detection in page.tsx).
+
+function handleColdEmailReply(
+  ctx: ModuleContext,
+  extra: MailModuleContext,
+): MailBranchResult {
+  const actions: ModuleAction[] = [];
+  const mailDraft = extra.currentMailDraft;
+  if (!mailDraft) return { actions, earlyReturn: false, didAdvance: false };
+
+  // Determine which KOL actor was targeted by the mail
+  const toField = (mailDraft.to || "").trim();
+  if (!toField) return { actions, earlyReturn: false, didAdvance: false };
+
+  // Resolve actor ID: the "to" field might be the actor_id or an email address
+  const actors = extra.actors || [];
+  const targetActor = actors.find(
+    (a: any) => a.actor_id === toField || a.actor_id === toField.split("@")[0]
+  );
+  const actorId = targetActor?.actor_id || toField;
+
+  // Find the actor's prompt file
+  const activePrompt = extra.activePromptMap[actorId] || extra.defaultPrompt;
+
+  actions.push({ type: "set_compose", show: false });
+  actions.push({ type: "set_view", view: "chat" });
+  actions.push({ type: "set_contact", actorId });
+  actions.push({
+    type: "async_effect",
+    effect: {
+      kind: "mail_auto_reply",
+      actorId,
+      mailBody: mailDraft.body || "",
+      playerMessageSummary: `[Cold email envoyé à ${targetActor?.name || actorId}] ${(mailDraft.body || "").substring(0, 200)}...`,
+      mailSummary: `[Le joueur a envoyé un cold email de prospection avec le contenu suivant : ${mailDraft.body || ""}]`,
+      displayPlayerName: extra.displayPlayerName,
+      narrative: (ctx.scenario as any).narrative,
+      runtimeView: extra.runtimeView,
+      roleplayPrompt: activePrompt,
+    },
+  });
+
+  return { actions, earlyReturn: true, didAdvance: false };
+}
+
 // ── BRANCH 4: negotiation_proposal chat reply ───────────────────
 // ⚠️ RISKY: S2 — this branch fires ONLY when send_advances_phase
 //    did NOT trigger (rulesPass was false or negotiation_proposal
@@ -760,7 +809,16 @@ export const MailModule: PhaseModule = {
       }
     }
 
-    // ── 6. Default ──────────────────────────────────────────────
+    // ── 6. cold_email auto-reply: KOL responds in chat ────────
+    if (mailKind === "cold_email") {
+      const result = handleColdEmailReply(ctx, extra);
+      actions.push(...result.actions);
+      if (result.earlyReturn) {
+        return { actions, advance: false, finish: false };
+      }
+    }
+
+    // ── 7. Default ──────────────────────────────────────────────
     if (actions.length === 0) {
       return EMPTY_RESULT;
     }

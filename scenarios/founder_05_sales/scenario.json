@@ -104,7 +104,7 @@
         "color": "#6A1B9A",
         "initials": "IF"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
       "contact_preview": "Chef de service, CHU Toulouse",
       "tts_voice": "nova"
@@ -120,7 +120,7 @@
         "color": "#2E7D32",
         "initials": "PM"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
       "contact_preview": "Chirurgien, Clinique Pasteur",
       "tts_voice": "echo"
@@ -136,7 +136,7 @@
         "color": "#C62828",
         "initials": "NB"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
       "contact_preview": "Chef de bloc, AP-HP Paris",
       "tts_voice": "shimmer"
@@ -152,7 +152,7 @@
         "color": "#E65100",
         "initials": "AK"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
       "contact_preview": "Cadre de bloc, Clinique Saint-Jean",
       "tts_voice": "nova"
@@ -168,7 +168,7 @@
         "color": "#00838F",
         "initials": "MC"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
       "contact_preview": "Chirurgien, HP Sévigné (Rennes)",
       "tts_voice": "fable"
@@ -184,10 +184,74 @@
         "color": "#37474F",
         "initials": "LD"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
       "contact_preview": "Directeur médical, CH Bayonne",
       "tts_voice": "onyx"
+    },
+    {
+      "actor_id": "jean_marc_delacroix",
+      "name": "Pr. Jean-Marc Delacroix",
+      "role": "PU-PH, chirurgie digestive, AP-HP Cochin (Paris)",
+      "personality": "Académique, intéressé par l'IA et la recherche. Cherche un angle publication. Vouvoie.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/jean_marc_delacroix.md",
+      "avatar": {
+        "color": "#1A237E",
+        "initials": "JD"
+      },
+      "visible_in_contacts": false,
+      "contact_status": "available",
+      "contact_preview": "PU-PH, AP-HP Cochin",
+      "tts_voice": "onyx"
+    },
+    {
+      "actor_id": "sandra_oliveira",
+      "name": "Dr. Sandra Oliveira",
+      "role": "Responsable qualité bloc opératoire, Polyclinique du Parc (Lyon, Ramsay)",
+      "personality": "Orientée données et conformité, mesure déjà les indicateurs. Vouvoie.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/sandra_oliveira.md",
+      "avatar": {
+        "color": "#AD1457",
+        "initials": "SO"
+      },
+      "visible_in_contacts": false,
+      "contact_status": "available",
+      "contact_preview": "Qualité bloc, Polyclinique du Parc",
+      "tts_voice": "shimmer"
+    },
+    {
+      "actor_id": "veronique_roche",
+      "name": "Dr. Véronique Roche",
+      "role": "Directrice du pôle chirurgie, CHU de Grenoble",
+      "personality": "Institutionnelle, pilote un projet bloc augmenté avec l'ARS. Vouvoie.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/veronique_roche.md",
+      "avatar": {
+        "color": "#00695C",
+        "initials": "VR"
+      },
+      "visible_in_contacts": false,
+      "contact_status": "available",
+      "contact_preview": "Dir. pôle chirurgie, CHU Grenoble",
+      "tts_voice": "nova"
+    },
+    {
+      "actor_id": "thomas_barbier",
+      "name": "M. Thomas Barbier",
+      "role": "Directeur des achats et de la logistique, Hôpital Privé Jean Mermoz (Lyon, Ramsay)",
+      "personality": "Non-médecin, profil école de commerce, raisonne en TCO et ROI. Vouvoie.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/thomas_barbier.md",
+      "avatar": {
+        "color": "#795548",
+        "initials": "TB"
+      },
+      "visible_in_contacts": false,
+      "contact_status": "available",
+      "contact_preview": "Dir. achats, HP Jean Mermoz",
+      "tts_voice": "echo"
     },
     {
       "actor_id": "eric_moreau",
@@ -345,7 +409,11 @@
         "nathalie_bergeron",
         "amina_khelifi",
         "maxime_chen",
-        "laurent_dubois"
+        "laurent_dubois",
+        "jean_marc_delacroix",
+        "sandra_oliveira",
+        "veronique_roche",
+        "thomas_barbier"
       ],
       "entry_events": [
         {
@@ -404,6 +472,26 @@
         "any_flags": [
           "kol_interested"
         ]
+      },
+      "success_rules": {
+        "npc_keywords": [
+          "intéressant",
+          "intéressé",
+          "transmettre",
+          "transmets",
+          "notre dsi",
+          "la dsi",
+          "démo",
+          "en discuter",
+          "en parler",
+          "évaluation",
+          "on en parle",
+          "je transmets",
+          "je fais remonter"
+        ],
+        "set_flags": {
+          "kol_interested": true
+        }
       },
       "on_complete": {
         "set_flags": {

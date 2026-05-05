@@ -490,6 +490,21 @@ export function checkNpcFailureKeywords(session: SessionState, npcMessage: strin
 }
 
 /**
+ * Check if an NPC response contains success keywords defined in the current phase's success_rules.
+ * Used for mechanics where an NPC response triggers flag-setting (e.g., KOL interested → set kol_interested).
+ * Returns the flags to set if keywords matched, or null if no match.
+ */
+export function checkNpcSuccessKeywords(session: SessionState, npcMessage: string): Record<string, boolean> | null {
+  const phase = getCurrentPhase(session);
+  const rules = (phase as any)?.success_rules;
+  if (!rules?.npc_keywords || !Array.isArray(rules.npc_keywords)) return null;
+  const lower = npcMessage.toLowerCase();
+  const matched = rules.npc_keywords.some((kw: string) => lower.includes(kw.toLowerCase()));
+  if (!matched) return null;
+  return rules.set_flags && typeof rules.set_flags === "object" ? rules.set_flags : null;
+}
+
+/**
  * Handle phase failure: reset flags, navigate to failure phase, inject failure events.
  * Returns true if failure was handled, false if no failure_rules exist.
  */
