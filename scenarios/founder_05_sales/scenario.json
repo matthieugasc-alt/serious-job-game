@@ -2,6 +2,7 @@
   "scenario_id": "founder_05_sales",
   "version": "1.0.0",
   "locale": "fr-FR",
+  "contact_visibility_mode": "explicit",
   "meta": {
     "title": "Gérer une vente complexe",
     "subtitle": "Prospecter, convaincre et closer un établissement de santé",
@@ -105,8 +106,9 @@
         "color": "#6A1B9A",
         "initials": "IF"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
+      "email": "isabelle.fontaine@chu-toulouse.fr",
       "contact_preview": "Chef de service, CHU Toulouse",
       "tts_voice": "nova"
     },
@@ -121,8 +123,9 @@
         "color": "#2E7D32",
         "initials": "PM"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
+      "email": "philippe.marchand@clinique-pasteur.fr",
       "contact_preview": "Chirurgien, Clinique Pasteur",
       "tts_voice": "echo"
     },
@@ -137,8 +140,9 @@
         "color": "#C62828",
         "initials": "NB"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
+      "email": "nathalie.bergeron@aphp.fr",
       "contact_preview": "Chef de bloc, AP-HP Paris",
       "tts_voice": "shimmer"
     },
@@ -153,8 +157,9 @@
         "color": "#E65100",
         "initials": "AK"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
+      "email": "amina.khelifi@elsan.care",
       "contact_preview": "Cadre de bloc, Clinique Saint-Jean",
       "tts_voice": "nova"
     },
@@ -169,8 +174,9 @@
         "color": "#00838F",
         "initials": "MC"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
+      "email": "maxime.chen@hp-sevigne.fr",
       "contact_preview": "Chirurgien, HP Sévigné (Rennes)",
       "tts_voice": "fable"
     },
@@ -185,8 +191,9 @@
         "color": "#37474F",
         "initials": "LD"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
+      "email": "laurent.dubois@ch-bayonne.fr",
       "contact_preview": "Directeur médical, CH Bayonne",
       "tts_voice": "onyx"
     },
@@ -201,8 +208,9 @@
         "color": "#1A237E",
         "initials": "JD"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
+      "email": "jean-marc.delacroix@aphp.fr",
       "contact_preview": "PU-PH, AP-HP Cochin",
       "tts_voice": "onyx"
     },
@@ -217,8 +225,9 @@
         "color": "#AD1457",
         "initials": "SO"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
+      "email": "sandra.oliveira@ramsaysante.fr",
       "contact_preview": "Qualité bloc, Polyclinique du Parc",
       "tts_voice": "shimmer"
     },
@@ -233,8 +242,9 @@
         "color": "#00695C",
         "initials": "VR"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
+      "email": "veronique.roche@chu-grenoble.fr",
       "contact_preview": "Dir. pôle chirurgie, CHU Grenoble",
       "tts_voice": "nova"
     },
@@ -249,8 +259,9 @@
         "color": "#795548",
         "initials": "TB"
       },
-      "visible_in_contacts": true,
+      "visible_in_contacts": false,
       "contact_status": "available",
+      "email": "thomas.barbier@ramsaysante.fr",
       "contact_preview": "Dir. achats, HP Jean Mermoz",
       "tts_voice": "echo"
     },
@@ -415,6 +426,9 @@
         "veronique_roche",
         "thomas_barbier"
       ],
+      "chat_visible_actors": [
+        "alexandre_morel"
+      ],
       "entry_events": [
         {
           "event_id": "alex_push",
@@ -519,6 +533,9 @@
         "alexandre_morel",
         "eric_moreau",
         "chosen_kol"
+      ],
+      "chat_visible_actors": [
+        "alexandre_morel"
       ],
       "dynamic_actor": "chosen_kol",
       "entry_events": [
@@ -668,6 +685,10 @@
         "alexandre_morel",
         "chosen_kol"
       ],
+      "chat_visible_actors": [
+        "alexandre_morel",
+        "chosen_kol"
+      ],
       "dynamic_actor": "chosen_kol",
       "entry_events": [
         {
@@ -762,6 +783,10 @@
         "alexandre_morel",
         "claire_vasseur",
         "chosen_kol"
+      ],
+      "chat_visible_actors": [
+        "alexandre_morel",
+        "claire_vasseur"
       ],
       "dynamic_actor": "chosen_kol",
       "entry_events": [
@@ -874,6 +899,9 @@
         "chat"
       ],
       "ai_actors": [
+        "alexandre_morel"
+      ],
+      "chat_visible_actors": [
         "alexandre_morel"
       ],
       "entry_events": [

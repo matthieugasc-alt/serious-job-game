@@ -25,6 +25,7 @@ import {
   handlePhaseFailure,
 } from "@/app/lib/runtime";
 import type { ScenarioDefinition } from "@/app/lib/types";
+import { computeVisibleContacts } from "@/app/lib/contactVisibility";
 import {
   startVoiceCapture,
   detectVoiceCapabilities,
@@ -483,7 +484,6 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const mailLockedForNow = false; // Mail is never locked — always accessible
   const simulatedTime = view?.simulatedTime ? fmtTime(view.simulatedTime) : "--:--";
   const actors = scenario?.actors || [];
-  const visibleContacts = actors.filter((a: any) => a.visible_in_contacts || a.actor_id === "player");
 
   // ── Chosen CTO detection (Founder scenario 0) ──
   // After the player sends the offer mail (phase_2_offer), detect which candidate was chosen
@@ -533,6 +533,16 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     return actorId;
   };
 
+  // Visible contacts in the left-hand panel.
+  // Uses contact_visibility_mode (explicit) when set on the scenario,
+  // otherwise falls back to the legacy `visible_in_contacts` filter.
+  // See app/lib/contactVisibility.ts.
+  const visibleContacts = computeVisibleContacts({
+    scenario: (scenario || { actors: [] }) as any,
+    currentPhase: scenario?.phases?.[session?.currentPhaseIndex ?? 0],
+    resolveActorId: resolveActor,
+  });
+
   // Patch a session's scenario phase entry_events/ai_actors to replace "chosen_cto"/"chosen_kol" with the real actor.
   // This is called before injectPhaseEntryEvents so that runtime.ts sees the resolved actor.
   function resolveDynamicActors(sess: any) {
@@ -573,12 +583,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             phase.mail_config.defaults.to = (kolActor as any).email || kolActor.name;
           }
         }
-        // Make the chosen KOL visible in contacts so the player can chat
-        const kolActorDef = actors.find((a: any) => a.actor_id === chosenKolId);
-        if (kolActorDef) {
-          (kolActorDef as any).visible_in_contacts = true;
-          (kolActorDef as any).contact_status = "available";
-        }
+        // NOTE: do NOT mutate the chosen KOL's `visible_in_contacts` / `contact_status` here.
+        // Contact panel visibility is now handled declaratively by the scenario via
+        // `contact_visibility_mode: "explicit"` + per-phase `chat_visible_actors`.
+        // See app/lib/contactVisibility.ts and computeVisibleContacts(...).
         phase.dynamic_actor = "resolved";
       }
     }
@@ -2281,12 +2289,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
               addPlayerMessage(final2, effect.playerMessageSummary, effect.actorId);
 
               if (isSilence) {
-                // KOL decided not to respond — silence radio, no inbox mail, no notification
-                addAIMessage(final2, `[${effect.actorId} n'a pas répondu à votre email]`, effect.actorId);
+                // KOL decided not to respond — silence radio, no inbox mail, no chat message, no notification
+                // Nothing to do — the player simply doesn't receive a reply
               } else {
-                // Normal response — deliver as inbox mail
+                // Normal response — deliver as inbox mail ONLY (not in chat)
                 playNotificationSound();
-                addAIMessage(final2, data.reply, effect.actorId);
                 applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
                 addInboxMail(final2, {
                   from: effect.actorId,
@@ -4703,11 +4710,17 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
                 return (
                   <li
                     key={actor.actor_id}
-                    onClick={() => { setSelectedContact(actor.actor_id); setMainView("chat"); }}
+                    onClick={() => {
+                      // Don't open the chat panel for contacts that aren't active
+                      // in the current phase (avoids the "phantom KOL chat" bug).
+                      if (!isAvailable) return;
+                      setSelectedContact(actor.actor_id);
+                      setMainView("chat");
+                    }}
                     style={{
                       display: "flex", alignItems: "center", gap: 10,
                       padding: "10px 8px", borderRadius: 8,
-                      marginBottom: 2, cursor: "pointer",
+                      marginBottom: 2, cursor: isAvailable ? "pointer" : "not-allowed",
                       background: isSelected ? (isAvailable ? "#f0f0ff" : "#f5f5f5") : "transparent",
                       borderLeft: isSelected ? (isAvailable ? "3px solid #5b5fc7" : "3px solid #ccc") : "3px solid transparent",
                       opacity: isAvailable ? 1 : 0.55,

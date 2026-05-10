@@ -386,10 +386,15 @@ function handleColdEmailReply(
   const toField = (mailDraft.to || "").trim();
   if (!toField) return { actions, earlyReturn: false, didAdvance: false };
 
-  // Resolve actor ID: the "to" field might be the actor_id or an email address
+  // Resolve actor ID: the "to" field might be the actor_id, an email address, or a display name
   const actors = extra.actors || [];
+  const toLower = toField.toLowerCase();
   const targetActor = actors.find(
-    (a: any) => a.actor_id === toField || a.actor_id === toField.split("@")[0]
+    (a: any) =>
+      a.actor_id === toField ||
+      a.actor_id === toField.split("@")[0] ||
+      (a.email && a.email.toLowerCase() === toLower) ||
+      (a.name && a.name.toLowerCase() === toLower)
   );
   const actorId = targetActor?.actor_id || toField;
 

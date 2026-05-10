@@ -76,6 +76,20 @@ export type ScenarioDefinition = {
     label: string;
     content: string;
   };
+
+  /**
+   * Contact visibility model used to populate the left-hand chat contacts panel.
+   *
+   * - omitted (default) → legacy behaviour: an actor is visible if its
+   *   `visible_in_contacts` flag is true.
+   * - "explicit" → only actors listed in the current phase's
+   *   `chat_visible_actors` are shown. `ai_actors` membership no longer implies
+   *   chat visibility. Placeholders ("chosen_kol", "chosen_cto") are resolved
+   *   from session flags and silently dropped if unresolved.
+   *
+   * Designed so existing scenarios remain unaffected unless they opt in.
+   */
+  contact_visibility_mode?: "explicit";
 };
 
 /**
@@ -364,6 +378,19 @@ export type PhaseDefinition = {
 
   /** IDs of AI actors that respond/participate in this phase */
   ai_actors: string[];
+
+  /**
+   * IDs of actors shown and chattable in the left-hand contacts panel.
+   * Only used when the scenario sets `contact_visibility_mode: "explicit"`.
+   *
+   * In explicit mode, being listed in `ai_actors` is NOT enough to appear
+   * in chat — only entries in `chat_visible_actors` (plus the player) are
+   * rendered as contacts. Supports the same placeholders as `ai_actors`
+   * ("chosen_kol", "chosen_cto"); unresolved placeholders are dropped.
+   *
+   * Ignored entirely in legacy mode.
+   */
+  chat_visible_actors?: string[];
 
   /** Optional player input configuration */
   player_input?: {
