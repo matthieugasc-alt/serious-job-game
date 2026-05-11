@@ -23,6 +23,8 @@ import {
   checkNpcFailureKeywords,
   checkNpcSuccessKeywords,
   handlePhaseFailure,
+  isCurrentPhaseValidatedByRules,
+  unlockCurrentPhase,
 } from "@/app/lib/runtime";
 import type { ScenarioDefinition } from "@/app/lib/types";
 import { computeVisibleContacts } from "@/app/lib/contactVisibility";
@@ -2434,6 +2436,27 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     }
                     if (cfg?.set_actor_flag && effect.actorId) {
                       final2.flags[cfg.set_actor_flag] = effect.actorId;
+                    }
+                    // ── Phase advancement NOW — same shape as the mail_send
+                    // legacy path (page.tsx:~2797). applyEvaluation above ran
+                    // BEFORE the flag was set so its internal check returned
+                    // false; we must re-check + complete + replay the phase
+                    // entry pipeline here. Otherwise the phase stays locked
+                    // until the next unrelated event, forcing the player to
+                    // "send another mail to advance" — the exact UX bug seen
+                    // in production (the second mail then triggers the
+                    // ALREADY_REPLIED safety net, looking like a regression).
+                    unlockCurrentPhase(final2);
+                    if (isCurrentPhaseValidatedByRules(final2)) {
+                      completeCurrentPhaseAndAdvance(final2);
+                      if (final2.isFinished) {
+                        notifyCheckpointClear();
+                      } else {
+                        resolveDynamicActors(final2);
+                        resolveEstablishmentPlaceholders(final2);
+                        injectPhaseEntryEvents(final2);
+                        dispatchEnterPhase(final2);
+                      }
                     }
                   }
                   // intentionally skip checkNpcSuccessKeywords for this phase

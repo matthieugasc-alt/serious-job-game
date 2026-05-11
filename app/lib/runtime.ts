@@ -617,7 +617,7 @@ export function updateAdaptiveMode(session: SessionState) {
   }
 }
 
-function isCurrentPhaseValidatedByRules(session: SessionState): boolean {
+export function isCurrentPhaseValidatedByRules(session: SessionState): boolean {
   const phase = getCurrentPhase(session);
   const phaseId = getCurrentPhaseId(session);
 
