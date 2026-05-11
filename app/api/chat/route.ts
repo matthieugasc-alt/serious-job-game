@@ -538,17 +538,18 @@ INTERDICTIONS ABSOLUES — tu n'as PAS le droit d'écrire :
           decisionBlock = `=== DÉCISION DÉTERMINISTE (OBLIGATOIRE — PRIORITÉ ABSOLUE) ===
 Le mail de ${playerName} ne te convainc pas. Tu ne donnes pas suite.
 
-TU DOIS choisir UNE de ces deux options :
-(A) Silence radio. Output EXACTEMENT cette chaîne : [PAS DE RÉPONSE]
-(B) Refus court et poli en 1 phrase max, sans expliquer en détail.
+TU DOIS répondre EXACTEMENT cette chaîne, sans guillemets, sans rien d'autre, sans ponctuation supplémentaire :
+[PAS DE RÉPONSE]
 
-INTERDICTIONS ABSOLUES — tu n'as PAS le droit d'écrire :
-- "je transmets", "transmettre", "transmission"
-- "DSI", "Éric Moreau"
-- "démo", "rendez-vous", "RDV"
-- "intéressant", "ça m'intéresse", "je suis ouvert"
-- aucune question de découverte
-- aucun encouragement à recontacter
+C'est un silence radio total. Pas de refus poli, pas de feedback, pas de conseil, pas de "merci pour votre message". Rien. La chaîne [PAS DE RÉPONSE] et c'est tout. Le moteur traite ce token comme "silence" et n'affiche aucun message dans la boîte de réception du joueur.
+
+INTERDICTIONS ABSOLUES :
+- ne PAS écrire de refus poli ("merci", "désolé", "pas le bon moment", etc.)
+- ne PAS donner de feedback ("manque de personnalisation", "trop générique", etc.)
+- ne PAS conseiller ("vous devriez", "je vous suggère")
+- ne PAS écrire "je transmets", "DSI", "Éric Moreau", "démo"
+- ne PAS poser de question
+- ne PAS écrire AUTRE CHOSE que [PAS DE RÉPONSE]
 === FIN DÉCISION ===`;
           break;
       }
@@ -581,16 +582,18 @@ INTERDICTIONS ABSOLUES — tu n'as PAS le droit d'écrire :
           ? "[PAS DE RÉPONSE]"
           : `Bien reçu, ${playerName}.`);
 
-      // ── Step 5: SAFETY NET — strip any mention of transmission/DSI when
-      // the state isn't success. Even with a hard directive, the LLM can
-      // occasionally drift; this guarantees text/decision consistency.
-      if (kolState !== "FIRST_CONTACT_SUCCESS") {
+      // ── Step 5: SAFETY NET — enforce strict text per state ──
+      // NOT_INTERESTED  → always [PAS DE RÉPONSE] (silence radio).
+      // ALREADY_REPLIED → short canonical line.
+      // The LLM is occasionally creative; this guarantees text matches state.
+      if (kolState === "NOT_INTERESTED") {
+        // Force absolute silence: the frontend treats this token as "do not
+        // create any inbox mail / chat message / notification".
+        prospReply = "[PAS DE RÉPONSE]";
+      } else if (kolState === "ALREADY_REPLIED") {
         const forbidden = /(transmets|transmettre|transmission|notre dsi|la dsi|éric moreau|eric moreau|ça m'intéresse|cela m'intéresse|sujet (m')?intéresse|démo|rendez-vous|rdv|on en parle)/i;
         if (forbidden.test(prospReply)) {
-          prospReply =
-            kolState === "ALREADY_REPLIED"
-              ? `Je vous ai déjà répondu, ma position n'a pas changé.`
-              : `Pas pour nous, merci.`;
+          prospReply = `Je vous ai déjà répondu, ma position n'a pas changé.`;
         }
       }
 

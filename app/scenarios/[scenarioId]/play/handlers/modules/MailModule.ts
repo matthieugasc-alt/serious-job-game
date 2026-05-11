@@ -483,6 +483,41 @@ function handleColdEmailReply(
 
   const actorId = targetActor.actor_id;
 
+  // ── Cold email whitelist (Bug C fix) ──
+  // A cold email is a *prospection* mail. It can only target an AI actor of
+  // the current phase WHO IS NOT already a visible contact in the left panel.
+  // In S5 Phase 1 this resolves to the 10 KOLs (ai_actors minus alexandre_morel).
+  //
+  // This stops the player from accidentally cold-emailing internal colleagues
+  // (Alexandre, Claire Vasseur, …) and getting a generic LLM reply that
+  // bypasses our prospection state machine.
+  //
+  // Driven by the declarative scenario fields — no scenario-specific code here.
+  const phaseAi: string[] = Array.isArray((ctx.phase as any)?.ai_actors)
+    ? ((ctx.phase as any).ai_actors as string[])
+    : [];
+  const phaseChatVisible: string[] = Array.isArray((ctx.phase as any)?.chat_visible_actors)
+    ? ((ctx.phase as any).chat_visible_actors as string[])
+    : [];
+  const isProspect =
+    phaseAi.includes(actorId) &&
+    !phaseChatVisible.includes(actorId) &&
+    actorId !== "player";
+  if (!isProspect) {
+    const phaseId = (extra.runtimeView as any)?.phaseId || "";
+    actions.push({ type: "set_compose", show: false });
+    actions.push({
+      type: "add_inbox_mail",
+      mail: {
+        from: "system",
+        subject: "Mail non distribué — cible inadéquate",
+        body: `« ${(targetActor as any).name || actorId} » n'est pas une cible de prospection pour cette phase (c'est un contact interne ou hors périmètre). Adresse ton mail à un KOL de la liste.`,
+        phaseId,
+      },
+    });
+    return { actions, earlyReturn: true, didAdvance: false };
+  }
+
   // Find the actor's prompt file
   // ── Strict: no defaultPrompt fallback in prospection mode ──
   // If the resolved KOL has no loaded prompt, that is a scenario data
@@ -583,6 +618,12 @@ function computeColdEmailSimilarity(
   if (targetActor?.name) aliases.add(String(targetActor.name).toLowerCase());
   if (targetActor?.email) aliases.add(String(targetActor.email).toLowerCase());
 
+  // CRITICAL: by the time this runs, handleSendMail has already pushed the
+  // current outbound mail into session.sentMails. We MUST exclude it from
+  // the "previous bodies" list, otherwise Jaccard returns 1.0 against the
+  // mail itself and the engine wrongly treats every first email as a
+  // re-send. (Symptom: KOL replies "Je vous ai déjà répondu" on first contact.)
+  const newBodyNormalised = newBody.trim();
   const previousBodies = sentMails
     .filter((m) => {
       const to = (m.to || "").trim().toLowerCase();
@@ -593,7 +634,13 @@ function computeColdEmailSimilarity(
       return aliases.has(localPart);
     })
     .map((m) => m.body || "")
-    .filter((b) => b.trim().length > 0);
+    .filter((b) => {
+      const t = b.trim();
+      if (t.length === 0) return false;
+      // Exclude the current outbound mail (same exact body) — see comment above.
+      if (t === newBodyNormalised) return false;
+      return true;
+    });
 
   if (previousBodies.length === 0) return 0;
 
