@@ -79,6 +79,17 @@ export function buildChatContext(
   const actorById = new Map<string, ActorDefinition>();
   for (const a of actors) actorById.set(a.actor_id, a);
 
+  // Read the prospect whitelist from the current phase. A "prospect" is an
+  // AI actor of the phase that is NOT already a visible contact — same rule
+  // we use for cold-email recipient eligibility in MailModule, so the two
+  // stay declaratively in sync.
+  const phaseAiActors: string[] = Array.isArray((currentPhase as any)?.ai_actors)
+    ? ((currentPhase as any).ai_actors as string[])
+    : [];
+  const phaseChatVisibleActors: string[] = Array.isArray((currentPhase as any)?.chat_visible_actors)
+    ? ((currentPhase as any).chat_visible_actors as string[])
+    : [];
+
   for (const key of blockKeys) {
     switch (key) {
       case "sent_mails": {
@@ -93,7 +104,9 @@ export function buildChatContext(
       }
       case "kol_profiles": {
         const block = buildKolProfilesBlock({
-          documents: scenario.resources?.documents ?? [],
+          actors,
+          phaseAiActors,
+          phaseChatVisibleActors,
         });
         if (block.length > 0) blocks.kol_profiles = block;
         break;
@@ -197,31 +210,61 @@ function buildSentMailsBlock(args: {
 }
 
 type KolProfileEntry = {
-  source: string;
+  actor_id: string;
+  name: string;
   summary: string;
 };
 
+/**
+ * Build a per-prospect profile block from the scenario's actor definitions.
+ *
+ * "Prospects" = actors that are in the phase's `ai_actors` list but NOT in
+ * `chat_visible_actors`. Same eligibility rule used by MailModule to gate
+ * cold-email recipients, so the two stay in sync declaratively.
+ *
+ * Each profile emits the actor's name, role, personality, and (when the
+ * scenario defines them) their phase-specific email and contact preview —
+ * giving the mentor enough to reason about why a KOL might or might not
+ * have responded, without inventing data.
+ *
+ * We do NOT read the KOL list PDF here: it is served as a binary file
+ * (`scenarios/founder_05_sales/documents/liste_kol.pdf`) and has no
+ * `.content` injected client-side. The actor definitions are the
+ * authoritative source.
+ */
 function buildKolProfilesBlock(args: {
-  documents: DocumentDefinition[];
+  actors: ActorDefinition[];
+  phaseAiActors: string[];
+  phaseChatVisibleActors: string[];
 }): KolProfileEntry[] {
-  const { documents } = args;
-  // Find any document whose id or label hints at "KOL list".
-  const kolDocs = documents.filter((d) => {
-    const id = d.doc_id?.toLowerCase() || "";
-    const label = d.label?.toLowerCase() || "";
-    return id.includes("kol") || label.includes("kol");
-  });
-  if (kolDocs.length === 0) return [];
+  const { actors, phaseAiActors, phaseChatVisibleActors } = args;
+  const visibleSet = new Set(phaseChatVisibleActors);
 
-  return kolDocs
-    .filter((d) => typeof (d as any).content === "string" && (d as any).content.trim().length > 0)
-    .map((d) => ({
-      source: d.label || d.doc_id,
-      // Cap at ~3000 chars so we don't blow the prompt budget. The KOL
-      // list document is typically structured per-KOL with section headers,
-      // so keeping a generous head still surfaces all relevant profiles.
-      summary: ((d as any).content as string).slice(0, 3000),
-    }));
+  const result: KolProfileEntry[] = [];
+  for (const aid of phaseAiActors) {
+    if (aid === "player") continue;
+    if (visibleSet.has(aid)) continue; // exclude internal/visible contacts
+    const actor = actors.find((a) => a.actor_id === aid);
+    if (!actor) continue;
+
+    const role = (actor as any).role || "";
+    const personality = (actor as any).personality || "";
+    const email = (actor as any).email || "";
+    const preview = (actor as any).contact_preview || "";
+
+    const summaryParts: string[] = [];
+    if (role) summaryParts.push(`Rôle : ${role}`);
+    if (personality) summaryParts.push(`Personnalité : ${personality}`);
+    if (preview) summaryParts.push(`Aperçu : ${preview}`);
+    if (email) summaryParts.push(`Email : ${email}`);
+
+    result.push({
+      actor_id: aid,
+      name: actor.name || aid,
+      summary: summaryParts.join("\n"),
+    });
+  }
+  return result;
 }
 
 type PhaseStateEntry = {

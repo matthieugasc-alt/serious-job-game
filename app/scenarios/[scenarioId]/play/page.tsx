@@ -2395,8 +2395,33 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 // The two paths must NOT both fire on the same reply (would
                 // re-introduce the keyword-trigger bug).
                 const prospEval = data.prospection_evaluation as
-                  | { interested?: boolean; actorId?: string }
+                  | {
+                      score?: number;
+                      interested?: boolean;
+                      actorId?: string;
+                      matched_criteria?: string[];
+                      missing_required_criteria?: string[];
+                      similarity_to_previous?: number;
+                      state?: string;
+                    }
                   | undefined;
+
+                // ── Dev-only log: surface the structured eval so we can debug
+                // why a mail did or didn't pass without showing anything to
+                // the end-user. Stripped from production builds.
+                if (prospEval && process.env.NODE_ENV !== "production") {
+                  // eslint-disable-next-line no-console
+                  console.log("[prospection]", {
+                    to_actor_id: effect.actorId,
+                    state: prospEval.state,
+                    interested: prospEval.interested,
+                    score: prospEval.score,
+                    matched_criteria: data.matched_criteria || prospEval.matched_criteria,
+                    missing_required_criteria: prospEval.missing_required_criteria,
+                    similarity_to_previous: prospEval.similarity_to_previous,
+                    previously_replied: previouslyReplied,
+                  });
+                }
 
                 if (prospEval) {
                   // (A) score-based path

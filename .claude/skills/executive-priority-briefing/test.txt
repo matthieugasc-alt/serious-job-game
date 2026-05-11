@@ -1,0 +1,3 @@
+# Marker file — safe to ignore
+This file is an artifact of skill folder creation and cannot be deleted from
+this session. It has no behavioral effect.

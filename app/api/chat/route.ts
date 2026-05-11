@@ -356,8 +356,100 @@ MODE AUTONOMY:
       ? playerMessages.map((m: string, i: number) => `[Player msg ${i + 1}]: ${sanitize(m)}`).join("\n")
       : `[Player msg]: ${message}`;
 
-    const evaluationPrompt = sanitize(`
-You are a STRICT evaluator of a professional serious game.
+    // ── EVALUATION PROMPT — two variants ─────────────────────────
+    // Default: "STRICT evaluator" used for in-phase chat scoring across
+    // most scenarios. Designed to be hard to game with hand-waving.
+    //
+    // Prospection variant (eval_mode === "prospection"): a cold email
+    // is judged like a senior commercial peer would judge it — exigent
+    // but realistic. A mail can pass without containing a peer-reviewed
+    // publication citation or a full ROI table, as long as it shows
+    // genuine understanding of the prospect and a concrete proposition.
+    // Generic corporate copy still gets rejected.
+    const evaluationPrompt = sanitize(
+      evalMode === "prospection"
+        ? `Tu évalues un cold email de prospection commerciale dans une simulation sérieuse.
+
+POSTURE :
+Tu juges comme un associé commercial senior qui regarde un mail envoyé à un prospect (un Key Opinion Leader hospitalier). Tu es exigeant mais RÉALISTE :
+- tu ne notes PAS comme un correcteur scolaire
+- tu décides si le mail mérite une réponse humaine, pas si c'est une dissertation parfaite
+- la phase 1 N'EST PAS une due diligence : pas besoin de chiffres exhaustifs, de publications citées au mot près, ou d'études détaillées
+- la phase 1 sert à savoir si le KOL trouve le sujet pertinent au point de transmettre à sa DSI
+
+=== RÈGLES ABSOLUES ===
+Tu analyses UNIQUEMENT le ou les mails du JOUEUR ci-dessous.
+Tu n'as PAS accès aux réponses des personnages.
+Tu ne crédites pas le joueur pour des choses qu'il n'a pas écrites.
+=== FIN RÈGLES ===
+
+PHASE : ${phaseTitle}
+OBJECTIF : ${phaseObjective}${phaseFocus ? `\nFOCUS PHASE : ${phaseFocus}` : ""}
+
+CRITÈRES À ÉVALUER (issus du scénario) :
+${sanitize(JSON.stringify(criteria, null, 2))}
+
+=== GUIDE D'INTERPRÉTATION DES CRITÈRES ===
+
+▸ "personalized_email" — VALIDE si le mail référence de manière reconnaissable au moins l'un de :
+  • le rôle ou la spécialité du KOL ("chef de service ortho", "directeur médical", etc.)
+  • le type d'établissement ("CHU", "clinique privée", "Ramsay", "AP-HP")
+  • une problématique terrain propre à son quotidien (planning bloc, retards, désorganisation)
+  • son orientation reconnue (innovation, organisation, qualité, recherche, achats)
+  • une référence à un travail / publication / poster spécifique du KOL si l'info est disponible
+  Une citation littérale d'une publication N'EST PAS exigée — une référence claire à ses travaux ou à son terrain suffit.
+  NON VALIDE si le mail est interchangeable et pourrait s'adresser à n'importe quel médecin :
+  • "votre profil m'intéresse"
+  • "vous êtes innovant"
+  • "notre solution pourrait vous intéresser"
+  • simple flatterie générique
+
+▸ "value_proposition_clear" — VALIDE si le mail explique simplement et concrètement ce que l'outil améliore côté terrain :
+  • coordination du bloc opératoire
+  • anticipation des retards / décalages
+  • circulation de l'information entre équipes
+  • réduction de la désorganisation / des appels inutiles
+  • gain opérationnel pour les équipes
+  Un ROI chiffré complet N'EST PAS requis. Une description claire et concrète du problème résolu suffit.
+  NON VALIDE si la proposition de valeur est creuse :
+  • "améliorer votre performance"
+  • "optimiser vos process"
+  • "transformer votre activité"
+  ou si elle ne touche pas au bloc / au sujet du prospect.
+
+▸ "proof_included" — VALIDE si le mail mentionne une preuve simple :
+  • un pilote terminé / déployé
+  • un résultat observé (même qualitatif : "moins d'appels", "meilleure anticipation des retards")
+  • un chiffre approximatif (même non-précis)
+  Pas obligé d'avoir un protocole formel ou un échantillon statistique.
+  NON VALIDE si le mail ne contient AUCUN élément de preuve, juste des promesses.
+
+▸ "call_to_action" — VALIDE si la demande est claire et raisonnable :
+  • "un échange de 15 minutes"
+  • "vous montrer le fonctionnement"
+  • "avoir votre avis"
+  • "vérifier si le sujet mérite d'être transmis"
+  Pas besoin d'une demande de démo très formelle.
+  NON VALIDE si la fin du mail est ouverte et molle : "n'hésitez pas à revenir vers moi", "à votre écoute".
+
+▸ "concise" — VALIDE si le mail est court (< 20 lignes) et va à l'essentiel.
+  NON VALIDE si c'est un pavé de 30+ lignes ou plein de paragraphes redondants.
+
+=== INSTRUCTION ===
+Pour chaque critère ci-dessus, regarde le ou les mails du joueur et coche-le si le mail le démontre selon le guide. Ne sois ni laxiste ni scolaire — décide comme un humain qui juge si un mail mérite une réponse.
+
+=== MAILS DU JOUEUR ===
+${playerMsgBlock}
+=== FIN MAILS ===
+
+Retourne UNIQUEMENT du JSON strict, sans commentaire ni markdown :
+{
+  "matched_criteria": ["personalized_email", "value_proposition_clear", "call_to_action"],
+  "score_delta": 10,
+  "flags_to_set": {}
+}
+`
+        : `You are a STRICT evaluator of a professional serious game.
 
 === RULE ABSOLUE ===
 Tu dois analyser UNIQUEMENT les messages du JOUEUR ci-dessous.
@@ -393,7 +485,8 @@ Return STRICT JSON only:
   "score_delta": 1,
   "flags_to_set": {}
 }
-`);
+`
+    );
 
     // ── Build structured messages for the LLM ──
     // Instead of a single string, we pass the system prompt + conversation
