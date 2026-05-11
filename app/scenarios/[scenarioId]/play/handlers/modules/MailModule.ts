@@ -375,6 +375,73 @@ function handleScopeProposalMail(
 // can react to the email content and potentially express interest
 // (which triggers the success_rules keyword detection in page.tsx).
 
+/**
+ * Resolve a free-form "to" field into a known scenario actor.
+ *
+ * Accepted forms (in priority order):
+ *   1. exact actor_id ("isabelle_fontaine")
+ *   2. local-part of an email ("isabelle.fontaine" / "isabelle_fontaine")
+ *   3. canonical email registered on the actor
+ *   4. full display name ("Dr. Isabelle Fontaine")
+ *   5. tolerant match: if the local-part splits into ≥2 tokens (e.g.
+ *      "i.fontaine" → ["i","fontaine"]), AND at least one substantial
+ *      token (>2 chars) is a substring of the actor's name, AND a
+ *      character of the short token matches a first-name initial,
+ *      the actor is considered matched. This keeps the resolver
+ *      forgiving across small data drifts between the KOL list document
+ *      and scenario.json — without ever silently falling back to the
+ *      wrong actor.
+ *
+ * Returns `undefined` when no actor matches — the caller MUST treat
+ * that as a hard error (no `defaultPrompt` fallback).
+ */
+function resolveRecipientActor(
+  toField: string,
+  actors: Array<{ actor_id: string; name?: string; [key: string]: unknown }>,
+): typeof actors[number] | undefined {
+  if (!toField) return undefined;
+  const raw = toField.trim();
+  const lower = raw.toLowerCase();
+  const localPart = lower.split("@")[0]; // "i.fontaine" or "isabelle_fontaine"
+
+  // Pass 1: strict matches
+  for (const a of actors) {
+    if (a.actor_id === raw) return a;
+    if (a.actor_id === localPart) return a;
+    const email = (a as any).email;
+    if (typeof email === "string" && email.toLowerCase() === lower) return a;
+    if (a.name && a.name.toLowerCase() === lower) return a;
+  }
+
+  // Pass 2: tolerant match on local-part tokens.
+  const tokens = localPart.split(/[._-]+/).filter(Boolean);
+  if (tokens.length < 2) return undefined;
+  const longTokens = tokens.filter((t) => t.length > 2);
+  const shortTokens = tokens.filter((t) => t.length <= 2);
+  if (longTokens.length === 0) return undefined;
+
+  for (const a of actors) {
+    const name = (a.name || "").toLowerCase();
+    if (!name) continue;
+    // Every long token must appear in the name (e.g. "fontaine" must be in "dr. isabelle fontaine").
+    const allLongMatch = longTokens.every((t) => name.includes(t));
+    if (!allLongMatch) continue;
+    // If there's a short token (initial like "i"), it must match the first
+    // letter of one of the name words — otherwise "j.delacroix" could match
+    // any actor whose name contains "delacroix".
+    if (shortTokens.length > 0) {
+      const nameWords = name.split(/\s+/).filter(Boolean);
+      const initialOk = shortTokens.every((s) =>
+        nameWords.some((w) => w.startsWith(s)),
+      );
+      if (!initialOk) continue;
+    }
+    return a;
+  }
+
+  return undefined;
+}
+
 function handleColdEmailReply(
   ctx: ModuleContext,
   extra: MailModuleContext,
@@ -387,20 +454,54 @@ function handleColdEmailReply(
   const toField = (mailDraft.to || "").trim();
   if (!toField) return { actions, earlyReturn: false, didAdvance: false };
 
-  // Resolve actor ID: the "to" field might be the actor_id, an email address, or a display name
   const actors = extra.actors || [];
-  const toLower = toField.toLowerCase();
-  const targetActor = actors.find(
-    (a: any) =>
-      a.actor_id === toField ||
-      a.actor_id === toField.split("@")[0] ||
-      (a.email && a.email.toLowerCase() === toLower) ||
-      (a.name && a.name.toLowerCase() === toLower)
-  );
-  const actorId = targetActor?.actor_id || toField;
+  const targetActor = resolveRecipientActor(toField, actors);
+
+  // ── Strict routing guard (Bug C fix) ──
+  // If the recipient cannot be resolved into a known scenario actor,
+  // we MUST NOT fall back to `defaultPrompt` (which is the first AI actor
+  // of phase 0 — typically the cofounder Alexandre). Doing so used to
+  // cause "Alexandre answers the mail addressed to a KOL" bugs.
+  //
+  // Instead: drop a system inbox mail telling the player the address is
+  // unknown, and don't dispatch the AI reply effect at all. No NPC pretends
+  // to be the recipient. No silent Alex fallback.
+  if (!targetActor) {
+    const phaseId = (extra.runtimeView as any)?.phaseId || "";
+    actions.push({ type: "set_compose", show: false });
+    actions.push({
+      type: "add_inbox_mail",
+      mail: {
+        from: "system",
+        subject: "Adresse inconnue — mail non distribué",
+        body: `Votre mail à « ${toField} » n'a pas pu être distribué : ce destinataire n'est pas identifié dans vos contacts. Vérifiez l'adresse et réessayez. Aucune réponse ne sera générée pour cet envoi.`,
+        phaseId,
+      },
+    });
+    return { actions, earlyReturn: true, didAdvance: false };
+  }
+
+  const actorId = targetActor.actor_id;
 
   // Find the actor's prompt file
-  const activePrompt = extra.activePromptMap[actorId] || extra.defaultPrompt;
+  // ── Strict: no defaultPrompt fallback in prospection mode ──
+  // If the resolved KOL has no loaded prompt, that is a scenario data
+  // error — we'd rather generate nothing than have Alex impersonate a KOL.
+  const activePrompt = extra.activePromptMap[actorId];
+  if (!activePrompt) {
+    const phaseId = (extra.runtimeView as any)?.phaseId || "";
+    actions.push({ type: "set_compose", show: false });
+    actions.push({
+      type: "add_inbox_mail",
+      mail: {
+        from: "system",
+        subject: "Mail non distribué — destinataire indisponible",
+        body: `Le destinataire « ${(targetActor as any).name || actorId} » est temporairement injoignable. Réessayez plus tard.`,
+        phaseId,
+      },
+    });
+    return { actions, earlyReturn: true, didAdvance: false };
+  }
 
   // ── C1: forward score-based advancement config to the API ──────
   // When the current phase declares `advancement: { mode: "prospection_evaluation", … }`

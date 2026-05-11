@@ -317,13 +317,13 @@ MODE AUTONOMY:
     finalRoleplayPrompt += "\n\n" + CONVERSATION_CONTRACT;
 
     // ── C2 + Bug 1bis: anti-spam & "1 KOL = 1 chance" ──────────────
-    // Two distinct guards, both addressed via the same prompt extension:
-    //  - isHighSimilarity → the player resent a near-duplicate of a
-    //    previous mail to this recipient. Don't reset the discovery loop.
-    //  - previouslyReplied → this NPC has ALREADY answered (positively or
-    //    not) earlier in the phase. He is not a stateless chatbot — his
-    //    position is set; further mails do not re-open the discovery.
-    if (isHighSimilarity || previouslyReplied) {
+    // In prospection mode we use the strict state machine below (which
+    // injects its own DÉCISION DÉTERMINISTE block) — skip the soft
+    // relationship hint here so the two systems don't compete and let
+    // the LLM mix incompatible directives.
+    // For non-prospection chat (Alex, etc.) we still inject the soft
+    // relationship hint when it applies.
+    if (evalMode !== "prospection" && (isHighSimilarity || previouslyReplied)) {
       const lines: string[] = [];
       if (previouslyReplied) {
         lines.push(
@@ -420,6 +420,204 @@ Return STRICT JSON only:
       .filter(m => m.role === "assistant")
       .slice(-3)
       .map(m => m.content.trim().toLowerCase());
+
+    // ════════════════════════════════════════════════════════════════
+    // KOL PROSPECTION — STRICT STATE MACHINE
+    // ════════════════════════════════════════════════════════════════
+    // For cold-email replies (S5 Phase 1 and any future scenario opting in
+    // via phase.advancement.mode === "prospection_evaluation") we need a
+    // deterministic, exclusive 3-state decision:
+    //
+    //   FIRST_CONTACT_SUCCESS — first reply, score passes the gate.
+    //                            → NPC writes "I forward to our DSI", phase advances.
+    //   ALREADY_REPLIED       — NPC has already replied OR mail is a near-duplicate.
+    //                            → NPC restates his position in 1 line, no new transmission.
+    //   NOT_INTERESTED        — first reply, score fails.
+    //                            → silence radio OR short refusal, no transmission.
+    //
+    // The state is computed BEFORE the roleplay call so we can inject a
+    // hard "DÉCISION DÉTERMINISTE" directive into the system prompt,
+    // making the generated text strictly consistent with the engine's
+    // decision. A safety net at the end strips any rogue "transmets/DSI"
+    // mention if the LLM still drifts.
+    //
+    // Done sequentially (eval → decide → roleplay) instead of the legacy
+    // parallel scheme to remove the text/decision desync class of bug.
+    if (evalMode === "prospection" && advancementConfig) {
+      // ── Step 1: evaluation (skipped when state is already known) ──
+      const isShortCircuit = previouslyReplied || isHighSimilarity;
+      let matchedCriteriaProsp: string[] = [];
+
+      if (!isShortCircuit) {
+        const evalResp = await client.responses.create({
+          model: "gpt-4.1-mini",
+          input: evaluationPrompt,
+        });
+        let evalParsed: { matched_criteria?: string[] } = {};
+        try {
+          evalParsed = JSON.parse(evalResp.output_text?.trim() || "{}");
+        } catch {
+          evalParsed = { matched_criteria: [] };
+        }
+        matchedCriteriaProsp = Array.isArray(evalParsed.matched_criteria)
+          ? evalParsed.matched_criteria
+          : [];
+      }
+
+      // ── Step 2: compute score from matched criteria + decide state ──
+      const pointsByCriterion = new Map<string, number>();
+      if (Array.isArray(criteria)) {
+        for (const c of criteria as any[]) {
+          if (c && typeof c.criterion_id === "string") {
+            const pts = typeof c.points === "number" ? c.points : 0;
+            pointsByCriterion.set(c.criterion_id, pts);
+          }
+        }
+      }
+      let computedScoreProsp = 0;
+      for (const cid of matchedCriteriaProsp) {
+        computedScoreProsp += pointsByCriterion.get(cid) ?? 0;
+      }
+      const requiredProsp = advancementConfig.required_criteria || [];
+      const matchedSetProsp = new Set(matchedCriteriaProsp);
+      const missingRequiredProsp = requiredProsp.filter((cid) => !matchedSetProsp.has(cid));
+
+      type KolState = "FIRST_CONTACT_SUCCESS" | "ALREADY_REPLIED" | "NOT_INTERESTED";
+      let kolState: KolState;
+      if (previouslyReplied || isHighSimilarity) {
+        kolState = "ALREADY_REPLIED";
+      } else {
+        const passes =
+          computedScoreProsp >= advancementConfig.min_score &&
+          missingRequiredProsp.length === 0;
+        kolState = passes ? "FIRST_CONTACT_SUCCESS" : "NOT_INTERESTED";
+      }
+      const interestedProsp = kolState === "FIRST_CONTACT_SUCCESS";
+
+      // ── Step 3: build the hard DECISION block injected into the prompt ──
+      let decisionBlock: string;
+      switch (kolState) {
+        case "FIRST_CONTACT_SUCCESS":
+          decisionBlock = `=== DÉCISION DÉTERMINISTE (OBLIGATOIRE — PRIORITÉ ABSOLUE) ===
+Tu décides d'accepter ce premier contact. Le sujet t'intéresse cliniquement.
+
+TU DOIS écrire un message court (2-3 lignes max) qui :
+- reconnaît brièvement l'intérêt clinique
+- annonce explicitement que tu transmets à votre DSI Éric Moreau
+- reste dans ton ton naturel (tutoiement/vouvoiement selon ton profil)
+
+EXEMPLE DE STRUCTURE (à adapter à ta voix, NE PAS copier mot à mot) :
+« <intérêt en 1 phrase>. Je transmets à notre DSI, Éric Moreau, qui te recontactera. »
+
+INTERDICTIONS :
+- ne pose AUCUNE question de découverte (stack, démo, RDV, chiffres détaillés)
+- n'évalue PAS les aspects techniques / SI / sécurité / RGPD / pricing
+- ne demande PAS d'information complémentaire
+- ne propose PAS de RDV direct
+=== FIN DÉCISION ===`;
+          break;
+        case "ALREADY_REPLIED":
+          decisionBlock = `=== DÉCISION DÉTERMINISTE (OBLIGATOIRE — PRIORITÉ ABSOLUE) ===
+Tu as DÉJÀ répondu à ${playerName} dans cet échange (ou il vient de te renvoyer un message quasi identique). Ta position est déjà prise et ne change pas.
+
+TU DOIS écrire UNE seule phrase courte qui rappelle que tu as déjà répondu. Reste poli mais ferme.
+
+EXEMPLE (à adapter à ta voix) :
+« Je vous ai déjà répondu, ma position n'a pas changé. »
+
+INTERDICTIONS ABSOLUES — tu n'as PAS le droit d'écrire :
+- "je transmets", "transmettre", "transmission"
+- "DSI", "Éric Moreau"
+- "démo", "rendez-vous", "RDV"
+- "intéressant", "ça m'intéresse", "je suis ouvert"
+- aucune question de découverte ("c'est quoi votre stack", "quel est votre périmètre", etc.)
+- aucune nouvelle évaluation de la proposition
+=== FIN DÉCISION ===`;
+          break;
+        case "NOT_INTERESTED":
+          decisionBlock = `=== DÉCISION DÉTERMINISTE (OBLIGATOIRE — PRIORITÉ ABSOLUE) ===
+Le mail de ${playerName} ne te convainc pas. Tu ne donnes pas suite.
+
+TU DOIS choisir UNE de ces deux options :
+(A) Silence radio. Output EXACTEMENT cette chaîne : [PAS DE RÉPONSE]
+(B) Refus court et poli en 1 phrase max, sans expliquer en détail.
+
+INTERDICTIONS ABSOLUES — tu n'as PAS le droit d'écrire :
+- "je transmets", "transmettre", "transmission"
+- "DSI", "Éric Moreau"
+- "démo", "rendez-vous", "RDV"
+- "intéressant", "ça m'intéresse", "je suis ouvert"
+- aucune question de découverte
+- aucun encouragement à recontacter
+=== FIN DÉCISION ===`;
+          break;
+      }
+
+      // ── Step 4: roleplay call with the strict directive injected ──
+      const stateAwareSystemPrompt = `${finalRoleplayPrompt}\n\n${decisionBlock}`;
+      const propspChatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: stateAwareSystemPrompt },
+      ];
+      if (Array.isArray(recentConversation) && recentConversation.length > 0) {
+        for (const msg of recentConversation) {
+          const m = msg as any;
+          const role = m.role === "user" ? "user" as const : "assistant" as const;
+          propspChatMessages.push({ role, content: sanitize(m.content || "") });
+        }
+      }
+      propspChatMessages.push({ role: "user", content: message });
+
+      const rpResp = await client.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: propspChatMessages,
+        max_tokens: 300,
+        // Lower temperature in prospection mode — we want the LLM to follow
+        // the deterministic decision, not be creative around it.
+        temperature: 0.4,
+      });
+      let prospReply =
+        sanitize(rpResp.choices?.[0]?.message?.content || "").trim() ||
+        (kolState === "NOT_INTERESTED"
+          ? "[PAS DE RÉPONSE]"
+          : `Bien reçu, ${playerName}.`);
+
+      // ── Step 5: SAFETY NET — strip any mention of transmission/DSI when
+      // the state isn't success. Even with a hard directive, the LLM can
+      // occasionally drift; this guarantees text/decision consistency.
+      if (kolState !== "FIRST_CONTACT_SUCCESS") {
+        const forbidden = /(transmets|transmettre|transmission|notre dsi|la dsi|éric moreau|eric moreau|ça m'intéresse|cela m'intéresse|sujet (m')?intéresse|démo|rendez-vous|rdv|on en parle)/i;
+        if (forbidden.test(prospReply)) {
+          prospReply =
+            kolState === "ALREADY_REPLIED"
+              ? `Je vous ai déjà répondu, ma position n'a pas changé.`
+              : `Pas pour nous, merci.`;
+        }
+      }
+
+      // ── Step 6: structured response — single source of truth ──
+      // `prospection_evaluation.interested` is derived from `kolState`
+      // so the engine flag-setting and the generated text are guaranteed
+      // to be in sync.
+      return Response.json({
+        reply: prospReply,
+        // Legacy fields — kept for compatibility with applyEvaluation.
+        // No flags_to_set: in prospection mode the only flags worth setting
+        // are the reserved kol_interested / chosen_kol_id, and those are
+        // routed via the dedicated `prospection_evaluation` block.
+        matched_criteria: matchedCriteriaProsp,
+        score_delta: computedScoreProsp,
+        flags_to_set: {},
+        prospection_evaluation: {
+          score: computedScoreProsp,
+          interested: interestedProsp,
+          actorId: targetActorId || "",
+          reasons: [],
+          similarity_to_previous: similarityToPrevious,
+          missing_required_criteria: missingRequiredProsp,
+          state: kolState,
+        },
+      });
+    }
 
     // ── PARALLEL AI calls: roleplay + evaluation run simultaneously ──
     const [roleplayResponse, evalResponse] = await Promise.all([
@@ -524,70 +722,14 @@ Si le joueur a répondu à ta question, ACCEPTE sa réponse et enchaîne.`,
         ? Math.max(evaluation.score_delta, matchedCriteria.length)
         : matchedCriteria.length;
 
-    // ── C1: structured prospection evaluation ──────────────────────
-    // Computed deterministically from `matchedCriteria` + `criteria.points`
-    // so the phase advances on the *quality of the player's email*, not
-    // on whether the LLM happens to use a positive keyword in its reply.
-    let prospectionEvaluation:
-      | {
-          score: number;
-          interested: boolean;
-          actorId: string;
-          reasons: string[];
-          similarity_to_previous: number;
-          missing_required_criteria: string[];
-        }
-      | undefined;
-
-    if (evalMode === "prospection" && advancementConfig) {
-      // Sum points from the scenario criteria definition.
-      // `criteria` is whatever the frontend forwarded (PhaseDefinition.scoring.criteria).
-      const pointsByCriterion = new Map<string, number>();
-      if (Array.isArray(criteria)) {
-        for (const c of criteria as any[]) {
-          if (c && typeof c.criterion_id === "string") {
-            const pts = typeof c.points === "number" ? c.points : 0;
-            pointsByCriterion.set(c.criterion_id, pts);
-          }
-        }
-      }
-
-      const matchedSet = new Set(matchedCriteria);
-      let computedScore = 0;
-      for (const cid of matchedCriteria) {
-        computedScore += pointsByCriterion.get(cid) ?? 0;
-      }
-
-      const required = advancementConfig.required_criteria || [];
-      const missingRequired = required.filter((cid) => !matchedSet.has(cid));
-
-      const interested =
-        !isHighSimilarity &&
-        !previouslyReplied &&
-        computedScore >= advancementConfig.min_score &&
-        missingRequired.length === 0;
-
-      prospectionEvaluation = {
-        score: computedScore,
-        interested,
-        actorId: targetActorId || "",
-        // V1: reasons left empty — derived later from missing_required_criteria
-        // by the frontend when surfacing feedback to the player. Kept in the
-        // contract for forward compatibility.
-        reasons: [],
-        similarity_to_previous: similarityToPrevious,
-        missing_required_criteria: missingRequired,
-      };
-    }
-
+    // NOTE: prospection mode returns early via the strict state machine
+    // above. This legacy path only runs for non-prospection chat (Alex,
+    // generic NPCs, …) and never produces prospection_evaluation.
     return Response.json({
       reply,
       matched_criteria: matchedCriteria,
       score_delta: scoreDelta,
       flags_to_set: flagsToSet,
-      ...(prospectionEvaluation
-        ? { prospection_evaluation: prospectionEvaluation }
-        : {}),
     });
   } catch (error: any) {
     console.error("Erreur chat route:", error);

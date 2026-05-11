@@ -2285,6 +2285,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
         type ThreadMsg = { role: "user" | "assistant"; content: string; ts: number };
         const threadMsgs: ThreadMsg[] = [];
+        // The mail we are about to send is ALREADY in session.sentMails by the
+        // time this effect runs (handleSendMail mutates the session before
+        // dispatching mail_inbox_reply). We must NOT include it in the thread
+        // history — otherwise the LLM sees the same body twice (in
+        // recentConversation AND in the current user message) and concludes
+        // it has already replied. That's the "Maxime says 'I already
+        // replied' on the very first contact" bug.
+        const currentMailBody = (effect.mailBody || "").trim();
 
         // Player's previous outbound mails to this recipient in this phase.
         for (const m of (sessionForLookup.sentMails || [])) {
@@ -2295,6 +2303,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             toLower === targetActorIdForThread.toLowerCase() ||
             toLower.split("@")[0] === targetActorIdForThread.toLowerCase();
           if (!matches) continue;
+          // Skip the current mail (we add it as the "current message" below,
+          // not as past history).
+          if ((m.body || "").trim() === currentMailBody) continue;
           threadMsgs.push({ role: "user", content: m.body || "", ts: m.sentAt || 0 });
         }
         // NPC's previous inbound replies in this phase.
