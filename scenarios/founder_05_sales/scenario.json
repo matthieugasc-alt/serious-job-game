@@ -429,6 +429,13 @@
       "chat_visible_actors": [
         "alexandre_morel"
       ],
+      "chat_context_enrichment": {
+        "alexandre_morel": [
+          "sent_mails",
+          "kol_profiles",
+          "phase_state"
+        ]
+      },
       "entry_events": [
         {
           "event_id": "alex_push",
@@ -487,25 +494,16 @@
           "kol_interested"
         ]
       },
-      "success_rules": {
-        "npc_keywords": [
-          "intéressant",
-          "intéressé",
-          "transmettre",
-          "transmets",
-          "notre dsi",
-          "la dsi",
-          "démo",
-          "en discuter",
-          "en parler",
-          "évaluation",
-          "on en parle",
-          "je transmets",
-          "je fais remonter"
+      "advancement": {
+        "mode": "prospection_evaluation",
+        "min_score": 8,
+        "required_criteria": [
+          "personalized_email",
+          "value_proposition_clear",
+          "call_to_action"
         ],
-        "set_flags": {
-          "kol_interested": true
-        }
+        "set_flag": "kol_interested",
+        "set_actor_flag": "chosen_kol_id"
       },
       "on_complete": {
         "set_flags": {

@@ -24,6 +24,7 @@ import type {
   InboxMailAction,
 } from "./types";
 import { EMPTY_RESULT } from "./types";
+import { jaccardSimilarity } from "@/app/lib/mailSimilarity";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -401,6 +402,34 @@ function handleColdEmailReply(
   // Find the actor's prompt file
   const activePrompt = extra.activePromptMap[actorId] || extra.defaultPrompt;
 
+  // ── C1: forward score-based advancement config to the API ──────
+  // When the current phase declares `advancement: { mode: "prospection_evaluation", … }`
+  // (see app/lib/types.ts PhaseDefinition.advancement), we hand it to the chat
+  // route along with the scoring criteria so the API can compute a deterministic
+  // `prospection_evaluation` block. The frontend reads that block to decide
+  // whether to advance — instead of scanning the NPC reply for keywords.
+  const phase = ctx.phase as any;
+  const advancementConfig = phase?.advancement;
+  const scoringCriteria = phase?.scoring?.criteria;
+  const evalMode =
+    advancementConfig?.mode === "prospection_evaluation" ? "prospection" : undefined;
+
+  // ── C2: similarity vs previously-sent mails to the same recipient ──
+  // Computed by mailSimilarity helper (Jaccard on normalised tokens).
+  // Used by the API both to force `interested = false` above threshold AND
+  // to instruct the NPC to acknowledge the repetition explicitly.
+  const sentMails = ((ctx.session as any)?.sentMails ?? []) as Array<{
+    to?: string;
+    body?: string;
+    phaseId?: string;
+  }>;
+  const similarity = computeColdEmailSimilarity(
+    mailDraft.body || "",
+    actorId,
+    targetActor,
+    sentMails,
+  );
+
   actions.push({ type: "set_compose", show: false });
   actions.push({
     type: "async_effect",
@@ -416,10 +445,63 @@ function handleColdEmailReply(
       narrative: (ctx.scenario as any).narrative,
       runtimeView: extra.runtimeView,
       roleplayPrompt: activePrompt,
+      // ── C1 payload extensions ──
+      eval_mode: evalMode,
+      advancement_config: advancementConfig,
+      target_actor_id: actorId,
+      criteria: Array.isArray(scoringCriteria) ? scoringCriteria : [],
+      // ── C2 payload extension ──
+      similarity_to_previous: similarity,
     },
   });
 
   return { actions, earlyReturn: true, didAdvance: false };
+}
+
+/**
+ * Compute the maximum Jaccard similarity between the new cold-email body
+ * and previous mails the player sent to the same recipient (in any phase).
+ *
+ * Returns 0 when no previous mail to the same recipient exists.
+ * The actual tokenisation/Jaccard logic lives in app/lib/mailSimilarity.ts
+ * so it stays pure and unit-testable; this wrapper resolves the recipient.
+ */
+function computeColdEmailSimilarity(
+  newBody: string,
+  actorId: string,
+  targetActor: any,
+  sentMails: Array<{ to?: string; body?: string }>,
+): number {
+  if (!newBody.trim() || sentMails.length === 0) return 0;
+
+  // Match a sent mail to the same recipient. The "to" field may be an
+  // actor_id, an email or a name — normalise like handleColdEmailReply.
+  const aliases = new Set<string>();
+  if (actorId) aliases.add(actorId.toLowerCase());
+  if (targetActor?.actor_id) aliases.add(String(targetActor.actor_id).toLowerCase());
+  if (targetActor?.name) aliases.add(String(targetActor.name).toLowerCase());
+  if (targetActor?.email) aliases.add(String(targetActor.email).toLowerCase());
+
+  const previousBodies = sentMails
+    .filter((m) => {
+      const to = (m.to || "").trim().toLowerCase();
+      if (!to) return false;
+      if (aliases.has(to)) return true;
+      // tolerate the local part of an email being passed as actor_id
+      const localPart = to.split("@")[0];
+      return aliases.has(localPart);
+    })
+    .map((m) => m.body || "")
+    .filter((b) => b.trim().length > 0);
+
+  if (previousBodies.length === 0) return 0;
+
+  let max = 0;
+  for (const prev of previousBodies) {
+    const sim = jaccardSimilarity(newBody, prev);
+    if (sim > max) max = sim;
+  }
+  return max;
 }
 
 // ── BRANCH 3c: dsi_response auto-reply ─────────────────────────

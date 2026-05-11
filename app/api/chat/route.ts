@@ -120,6 +120,55 @@ Respond ONLY with your character's dialogue in plain text. 2 sentences max.
 `);
 }
 
+/**
+ * Render chat-context blocks (built by app/lib/chatContextEnrichment.ts)
+ * as a plain-text operational context section. Each block is a key →
+ * value pair where value is either a string (already formatted) or an
+ * array of objects/strings to enumerate.
+ *
+ * Returns "" when nothing meaningful to render.
+ */
+function renderChatContextBlocks(blocks: Record<string, any>): string {
+  const sections: string[] = [];
+
+  if (typeof blocks.phase_state === "object" && blocks.phase_state !== null) {
+    const ps = blocks.phase_state as Record<string, any>;
+    const lines: string[] = [];
+    if (ps.phase_id) lines.push(`Phase courante : ${ps.phase_id}`);
+    if (ps.phase_title) lines.push(`Intitulé : ${ps.phase_title}`);
+    if (typeof ps.mails_sent_count === "number")
+      lines.push(`Mails envoyés dans cette phase : ${ps.mails_sent_count}`);
+    if (typeof ps.mails_with_response === "number")
+      lines.push(`Réponses reçues : ${ps.mails_with_response}`);
+    if (lines.length > 0) sections.push(`[ÉTAT DE LA PHASE]\n${lines.join("\n")}`);
+  }
+
+  if (Array.isArray(blocks.sent_mails) && blocks.sent_mails.length > 0) {
+    const lines = blocks.sent_mails.map((m: any, i: number) => {
+      const to = sanitize(String(m.to_name || m.to || "?"));
+      const subject = sanitize(String(m.subject || "(sans objet)"));
+      const status = sanitize(String(m.response_status || "en attente"));
+      const body = sanitize(String(m.body || "")).slice(0, 800);
+      const responseSummary = m.response_summary
+        ? `\n  Réponse reçue : « ${sanitize(String(m.response_summary)).slice(0, 400)} »`
+        : "";
+      return `--- Mail ${i + 1} → ${to} ---\nObjet : ${subject}\nStatut : ${status}${responseSummary}\nCorps envoyé :\n${body}`;
+    });
+    sections.push(`[MAILS ENVOYÉS]\n${lines.join("\n\n")}`);
+  }
+
+  if (Array.isArray(blocks.kol_profiles) && blocks.kol_profiles.length > 0) {
+    const lines = blocks.kol_profiles.map((p: any) => {
+      const name = sanitize(String(p.name || p.actor_id || "?"));
+      const summary = sanitize(String(p.summary || "")).slice(0, 600);
+      return `--- ${name} ---\n${summary}`;
+    });
+    sections.push(`[PROFILS KOL EN PORTEFEUILLE]\n${lines.join("\n\n")}`);
+  }
+
+  return sections.join("\n\n");
+}
+
 /** Format conversation history as readable dialogue */
 function formatConversation(
   recentConversation: any[],
@@ -175,6 +224,24 @@ export async function POST(req: Request) {
     const recentConversation = input.recentConversation;
     const criteria = input.criteria;
     const playerMessages = input.playerMessages;
+
+    // ── Optional structured eval / context inputs (C1, C2, C3) ──
+    const evalMode = input.eval_mode;
+    const advancementConfig = input.advancement_config;
+    const targetActorId = input.target_actor_id;
+    const similarityToPrevious =
+      typeof input.similarity_to_previous === "number"
+        ? Math.max(0, Math.min(1, input.similarity_to_previous))
+        : 0;
+    const previouslyReplied = input.previously_replied === true;
+    const chatContext = input.chat_context;
+    // Threshold above which a near-duplicate email forces `interested = false`
+    // and the NPC explicitly mentions the repetition.
+    // Lowered from 0.7 to 0.5 after observing that light reformulations
+    // (synonyms swap, sentence reordering) easily slipped through 0.7 and
+    // re-opened a fresh discovery loop with the KOL.
+    const SIMILARITY_REJECT_THRESHOLD = 0.5;
+    const isHighSimilarity = similarityToPrevious >= SIMILARITY_REJECT_THRESHOLD;
 
     // Build mode-specific guidance
     const modeGuidance =
@@ -248,6 +315,40 @@ MODE AUTONOMY:
     // the contract enforces identity stability, role boundaries, continuity,
     // and single-intent messages for ALL characters in ALL scenarios.
     finalRoleplayPrompt += "\n\n" + CONVERSATION_CONTRACT;
+
+    // ── C2 + Bug 1bis: anti-spam & "1 KOL = 1 chance" ──────────────
+    // Two distinct guards, both addressed via the same prompt extension:
+    //  - isHighSimilarity → the player resent a near-duplicate of a
+    //    previous mail to this recipient. Don't reset the discovery loop.
+    //  - previouslyReplied → this NPC has ALREADY answered (positively or
+    //    not) earlier in the phase. He is not a stateless chatbot — his
+    //    position is set; further mails do not re-open the discovery.
+    if (isHighSimilarity || previouslyReplied) {
+      const lines: string[] = [];
+      if (previouslyReplied) {
+        lines.push(
+          `Tu as déjà répondu à ${playerName} dans cet échange. Tu connais déjà sa proposition. Tu n'es pas un chatbot — tu ne reposes PAS de questions de découverte ("c'est quoi votre stack", "vous faites quoi exactement", etc.) à chaque mail. Ta position est déjà prise. Si quelque chose de réellement nouveau et substantiel apparaît dans ce mail, tu peux ajuster ; sinon tu rappelles ta position courte et tu coupes court.`,
+        );
+      }
+      if (isHighSimilarity) {
+        lines.push(
+          `Le contenu de ce mail est très proche d'un message déjà reçu de ${playerName}. Mentionne-le clairement et reste sur ta position précédente : "Je vous ai déjà répondu, ma position n'a pas changé." Bref, poli, ferme.`,
+        );
+      }
+      finalRoleplayPrompt += `\n\n=== SITUATION RELATIONNELLE (OBLIGATOIRE) ===\n${lines.join("\n\n")}\n=== FIN SITUATION ===`;
+    }
+
+    // ── C3: chat context enrichment (cofounder/colleague awareness) ──
+    // When the scenario opts in via phase.chat_context_enrichment for this
+    // contact, the helper builds blocks (sent_mails, kol_profiles, …) and
+    // we inject them as a clearly-delimited operational context so the
+    // character can reason from real game state — without becoming omniscient.
+    if (chatContext && typeof chatContext === "object") {
+      const blocks = renderChatContextBlocks(chatContext);
+      if (blocks) {
+        finalRoleplayPrompt += `\n\n=== CONTEXTE OPÉRATIONNEL (ce que tu sais réellement à ce moment) ===\n${blocks}\n=== FIN CONTEXTE ===\n\nN'invente PAS d'informations qui ne sont pas listées ci-dessus. Tu peux nuancer (« je crois que », « à mon avis », « sur ce type de profil ») et tu as le droit de te tromper, mais tu ne disposes que de ces éléments — pas d'un CRM magique.`;
+      }
+    }
 
     // Build evaluation prompt — PLAYER-ONLY scoring
     // CRITICAL: Only player messages are included. No NPC/AI responses.
@@ -398,9 +499,15 @@ Si le joueur a répondu à ta question, ACCEPTE sa réponse et enchaîne.`,
       };
     }
 
-    const matchedCriteria = Array.isArray(evaluation.matched_criteria)
-      ? evaluation.matched_criteria.slice(0, 3)
+    // In prospection eval mode we need ALL matched criteria (not just 3)
+    // because the score is computed from the criterion `points` sum.
+    const matchedCriteriaRaw = Array.isArray(evaluation.matched_criteria)
+      ? evaluation.matched_criteria
       : [];
+    const matchedCriteria =
+      evalMode === "prospection"
+        ? matchedCriteriaRaw
+        : matchedCriteriaRaw.slice(0, 3);
 
     const flagsToSet =
       evaluation.flags_to_set && typeof evaluation.flags_to_set === "object"
@@ -417,11 +524,70 @@ Si le joueur a répondu à ta question, ACCEPTE sa réponse et enchaîne.`,
         ? Math.max(evaluation.score_delta, matchedCriteria.length)
         : matchedCriteria.length;
 
+    // ── C1: structured prospection evaluation ──────────────────────
+    // Computed deterministically from `matchedCriteria` + `criteria.points`
+    // so the phase advances on the *quality of the player's email*, not
+    // on whether the LLM happens to use a positive keyword in its reply.
+    let prospectionEvaluation:
+      | {
+          score: number;
+          interested: boolean;
+          actorId: string;
+          reasons: string[];
+          similarity_to_previous: number;
+          missing_required_criteria: string[];
+        }
+      | undefined;
+
+    if (evalMode === "prospection" && advancementConfig) {
+      // Sum points from the scenario criteria definition.
+      // `criteria` is whatever the frontend forwarded (PhaseDefinition.scoring.criteria).
+      const pointsByCriterion = new Map<string, number>();
+      if (Array.isArray(criteria)) {
+        for (const c of criteria as any[]) {
+          if (c && typeof c.criterion_id === "string") {
+            const pts = typeof c.points === "number" ? c.points : 0;
+            pointsByCriterion.set(c.criterion_id, pts);
+          }
+        }
+      }
+
+      const matchedSet = new Set(matchedCriteria);
+      let computedScore = 0;
+      for (const cid of matchedCriteria) {
+        computedScore += pointsByCriterion.get(cid) ?? 0;
+      }
+
+      const required = advancementConfig.required_criteria || [];
+      const missingRequired = required.filter((cid) => !matchedSet.has(cid));
+
+      const interested =
+        !isHighSimilarity &&
+        !previouslyReplied &&
+        computedScore >= advancementConfig.min_score &&
+        missingRequired.length === 0;
+
+      prospectionEvaluation = {
+        score: computedScore,
+        interested,
+        actorId: targetActorId || "",
+        // V1: reasons left empty — derived later from missing_required_criteria
+        // by the frontend when surfacing feedback to the player. Kept in the
+        // contract for forward compatibility.
+        reasons: [],
+        similarity_to_previous: similarityToPrevious,
+        missing_required_criteria: missingRequired,
+      };
+    }
+
     return Response.json({
       reply,
       matched_criteria: matchedCriteria,
       score_delta: scoreDelta,
       flags_to_set: flagsToSet,
+      ...(prospectionEvaluation
+        ? { prospection_evaluation: prospectionEvaluation }
+        : {}),
     });
   } catch (error: any) {
     console.error("Erreur chat route:", error);

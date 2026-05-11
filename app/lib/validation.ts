@@ -87,6 +87,36 @@ export const chatSchema = z.object({
   recentConversation: z.array(z.unknown()).default([]),
   criteria: z.array(z.unknown()).default([]),
   playerMessages: z.array(z.string()).default([]),
+  // ── Optional: structured evaluation modes ──────────────────────
+  // When set, the API computes an additional `prospection_evaluation`
+  // block in the response (used for score-based phase advancement).
+  eval_mode: z.enum(["prospection"]).optional(),
+  // Phase advancement configuration (mirrors PhaseDefinition.advancement
+  // in app/lib/types.ts). Only consumed when eval_mode is set.
+  advancement_config: z
+    .object({
+      mode: z.enum(["prospection_evaluation"]),
+      min_score: z.number(),
+      required_criteria: z.array(z.string()),
+      set_flag: z.string(),
+      set_actor_flag: z.string().optional(),
+    })
+    .optional(),
+  // Actor id targeted by the player's action (e.g. cold email recipient).
+  // Echoed back in prospection_evaluation.actorId.
+  target_actor_id: trimmedString.optional(),
+  // 0..1 jaccard similarity vs previous mails to the same recipient.
+  // When >= SIMILARITY_REJECT_THRESHOLD the API forces interested = false
+  // and adapts the NPC reply.
+  similarity_to_previous: z.number().min(0).max(1).optional(),
+  // True when the targeted NPC has already replied at least once during
+  // the current phase. Encodes the "1 KOL = 1 chance" gameplay rule:
+  // once the NPC has taken a position, follow-ups cannot flip him to
+  // interested = true. Forwarded by page.tsx for cold-email retries.
+  previously_replied: z.boolean().optional(),
+  // Optional context blocks (sent_mails, kol_profiles, phase_state, …)
+  // injected into the system prompt. Provided by chatContextEnrichment helper.
+  chat_context: z.record(z.string(), z.unknown()).optional(),
 });
 
 // ─── Debrief Schema ───────────────────────────────────────────

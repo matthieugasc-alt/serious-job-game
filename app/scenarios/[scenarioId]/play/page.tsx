@@ -26,6 +26,7 @@ import {
 } from "@/app/lib/runtime";
 import type { ScenarioDefinition } from "@/app/lib/types";
 import { computeVisibleContacts } from "@/app/lib/contactVisibility";
+import { buildChatContext } from "@/app/lib/chatContextEnrichment";
 import {
   startVoiceCapture,
   detectVoiceCapabilities,
@@ -1871,6 +1872,18 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       // Pick the right prompt for the target actor
       const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
 
+      // ── C3: chat context enrichment (cofounder/colleague awareness) ──
+      // Pure declarative wiring: scenario.json opts in via
+      // `phase.chat_context_enrichment[targetActor] = [...keys]`. The helper
+      // computes the corresponding blocks (sent mails, KOL profiles, …) or
+      // returns null when nothing to inject. No scenario-specific code here.
+      const chatContext = buildChatContext({
+        scenario: scenario as any,
+        currentPhase: scenario.phases[session.currentPhaseIndex] as any,
+        session,
+        contactId: targetActor,
+      });
+
       const chatPayload = {
           playerName: displayPlayerName,
           message: text,
@@ -1884,6 +1897,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           recentConversation: recentConv,
           playerMessages: playerOnlyMessages,
           roleplayPrompt: activePrompt,
+          ...(chatContext ? { chat_context: chatContext } : {}),
       };
 
       // ── Robust fetch with auto-retry on 401/500/network errors ──
@@ -2259,6 +2273,50 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       case "mail_inbox_reply": {
         // NPC replies by mail (inbox) instead of chat — used for cold email KOL replies & DSI responses
         const mailSummary3 = effect.mailSummary;
+        // ── Bug 1 fix: build a real mail thread history for this NPC ──
+        // Without this, the NPC was treated as stateless — he would re-ask
+        // "what's your stack?" on every retry as if it were a brand new thread.
+        // We feed past sent_mails (player) and inbox replies (this NPC) into
+        // recentConversation so the API can give him real continuity.
+        const currentPhaseIdLive =
+          scenario?.phases?.[(sessionRef.current || next).currentPhaseIndex]?.phase_id ?? "";
+        const sessionForLookup = sessionRef.current || next;
+        const targetActorIdForThread = (effect as any).target_actor_id || effect.actorId;
+
+        type ThreadMsg = { role: "user" | "assistant"; content: string; ts: number };
+        const threadMsgs: ThreadMsg[] = [];
+
+        // Player's previous outbound mails to this recipient in this phase.
+        for (const m of (sessionForLookup.sentMails || [])) {
+          if (m.phaseId !== currentPhaseIdLive) continue;
+          // Resolve "to" to actor id like MailModule does.
+          const toLower = (m.to || "").trim().toLowerCase();
+          const matches =
+            toLower === targetActorIdForThread.toLowerCase() ||
+            toLower.split("@")[0] === targetActorIdForThread.toLowerCase();
+          if (!matches) continue;
+          threadMsgs.push({ role: "user", content: m.body || "", ts: m.sentAt || 0 });
+        }
+        // NPC's previous inbound replies in this phase.
+        for (const m of (sessionForLookup.inboxMails || [])) {
+          if (m.phaseId !== currentPhaseIdLive) continue;
+          if (m.from !== targetActorIdForThread) continue;
+          threadMsgs.push({
+            role: "assistant",
+            content: m.body || "",
+            ts: (m as any).receivedAt || 0,
+          });
+        }
+        threadMsgs.sort((a, b) => a.ts - b.ts);
+        const recentMailThread = threadMsgs.map(({ role, content }) => ({ role, content }));
+
+        // ── Bug 1bis: "1 KOL = 1 chance" — once this NPC has replied,
+        // a follow-up cannot magically flip him to interested. Computed
+        // from inboxMails so it survives across retries.
+        const previouslyReplied = (sessionForLookup.inboxMails || []).some(
+          (m: any) => m.phaseId === currentPhaseIdLive && m.from === targetActorIdForThread,
+        );
+
         (async () => {
           try {
             const res = await fetch("/api/chat", {
@@ -2271,12 +2329,27 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                 phaseObjective: (effect.runtimeView as any).phaseObjective,
                 phaseFocus: (effect.runtimeView as any).phaseFocus,
                 phasePrompt: (effect.runtimeView as any).phasePrompt,
-                criteria: (effect.runtimeView as any).criteria,
+                // The MailModule may forward more specific criteria (the phase's
+                // scoring criteria); fall back to runtimeView when absent.
+                criteria: (effect as any).criteria ?? (effect.runtimeView as any).criteria,
                 mode: (effect.runtimeView as any).adaptiveMode,
                 narrative: effect.narrative,
-                recentConversation: [],
+                recentConversation: recentMailThread,
                 playerMessages: [effect.mailBody],
                 roleplayPrompt: effect.roleplayPrompt,
+                // ── C1 score-based progression (see app/lib/types.ts:advancement) ──
+                // When the phase declares advancement.mode === "prospection_evaluation",
+                // MailModule forwards eval_mode + advancement_config so the API can
+                // return a structured `prospection_evaluation` block. Frontend reads
+                // `interested` from that block to decide flags/advance, instead of
+                // scanning the NPC reply for keywords.
+                eval_mode: (effect as any).eval_mode,
+                advancement_config: (effect as any).advancement_config,
+                target_actor_id: (effect as any).target_actor_id,
+                // ── C2 anti-spam: similarity vs previous mails to same recipient ──
+                similarity_to_previous: (effect as any).similarity_to_previous,
+                // ── Bug 1bis: KOL has already taken a position, lock it ──
+                previously_replied: previouslyReplied,
               }),
             });
             if (res.ok) {
@@ -2301,18 +2374,50 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   body: data.reply,
                   phaseId: scenario!.phases[final2.currentPhaseIndex]?.phase_id || "",
                 });
-                // Success keywords check (e.g., KOL interested, DSI approved)
-                const sf = checkNpcSuccessKeywords(final2, data.reply);
-                if (sf) {
-                  for (const [k, v] of Object.entries(sf)) {
-                    if (v === true) final2.flags[k] = true;
+
+                // ── C1: score-based vs legacy keyword path ──
+                // Two mutually exclusive paths for setting completion flags:
+                //  (A) New: prospection_evaluation.interested decides — used by
+                //      phases that opted in via advancement.mode in scenario.json.
+                //  (B) Legacy: NPC keyword scan — preserved for every other phase
+                //      and scenario so we don't regress behaviour.
+                // The two paths must NOT both fire on the same reply (would
+                // re-introduce the keyword-trigger bug).
+                const prospEval = data.prospection_evaluation as
+                  | { interested?: boolean; actorId?: string }
+                  | undefined;
+
+                if (prospEval) {
+                  // (A) score-based path
+                  if (prospEval.interested === true) {
+                    const cfg = (effect as any).advancement_config as
+                      | { set_flag?: string; set_actor_flag?: string }
+                      | undefined;
+                    if (cfg?.set_flag) {
+                      final2.flags[cfg.set_flag] = true;
+                    }
+                    if (cfg?.set_actor_flag && effect.actorId) {
+                      final2.flags[cfg.set_actor_flag] = effect.actorId;
+                    }
                   }
-                  // If kol_interested was just set, also store which KOL was chosen
-                  if (sf.kol_interested && effect.actorId) {
-                    final2.flags.chosen_kol_id = effect.actorId;
+                  // intentionally skip checkNpcSuccessKeywords for this phase
+                } else {
+                  // (B) legacy keyword path
+                  const sf = checkNpcSuccessKeywords(final2, data.reply);
+                  if (sf) {
+                    for (const [k, v] of Object.entries(sf)) {
+                      if (v === true) final2.flags[k] = true;
+                    }
+                    // If kol_interested was just set, also store which KOL was chosen
+                    if (sf.kol_interested && effect.actorId) {
+                      final2.flags.chosen_kol_id = effect.actorId;
+                    }
                   }
                 }
-                // Failure keywords check (e.g., DSI refuses → loop back)
+
+                // Failure keywords check (e.g., DSI refuses → loop back) —
+                // applies to BOTH paths: failure rules are independent of the
+                // success-detection mechanism.
                 if (checkNpcFailureKeywords(final2, data.reply)) {
                   handlePhaseFailure(final2);
                 }

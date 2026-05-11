@@ -457,18 +457,20 @@ export function applyEvaluation(
   session.scores[phaseId] = previousPhaseScore + scoreDelta;
   session.totalScore += scoreDelta;
 
-  // Build set of flags reserved for mail_config (cannot be set by chat evaluation)
-  const mailReservedFlags = getMailReservedFlags(session);
+  // Build set of flags reserved for deterministic pipelines (mail send +
+  // score-based prospection advancement). Chat evaluation must NEVER set
+  // these — they have their own dedicated entry points.
+  const reservedFlags = getReservedFlags(session);
 
   for (const [key, value] of Object.entries(flagsToSet)) {
     if (value === true) {
-      if (mailReservedFlags.has(key)) continue; // blocked: only mail send can set this
+      if (reservedFlags.has(key)) continue; // blocked: dedicated pipeline only
       session.flags[key] = true;
     }
   }
 
   for (const criterionId of matchedCriteria) {
-    if (mailReservedFlags.has(criterionId)) continue; // blocked: only mail send can set this
+    if (reservedFlags.has(criterionId)) continue; // blocked: dedicated pipeline only
     session.flags[criterionId] = true;
   }
 
@@ -556,10 +558,26 @@ export function handlePhaseFailure(session: SessionState): boolean {
 }
 
 /**
- * Returns the set of flag names that are reserved for mail_config.on_send_flags
- * across ALL phases. These flags can only be set by handleSendMail, never by chat evaluation.
+ * Returns the set of flag names that are RESERVED — they can only be set
+ * by their dedicated deterministic mechanism, never as a side-effect of
+ * a chat-evaluation `flags_to_set` or `matched_criteria` line.
+ *
+ * Two sources of reservation, both walked across ALL phases:
+ *
+ *  1. `phase.mail_config.on_send_flags` keys
+ *     → reserved for the mail-send pipeline (handleSendMail).
+ *
+ *  2. `phase.advancement.set_flag` and `phase.advancement.set_actor_flag`
+ *     → reserved for the score-based prospection pipeline (the "interested"
+ *     boolean computed in /api/chat in prospection mode).
+ *     This closes the bug where parler à Alexandre pouvait faire avancer
+ *     la phase parce que l'évaluateur IA renvoyait arbitrairement
+ *     `kol_interested: true` dans `flags_to_set`.
+ *
+ * Backward-compat alias `getMailReservedFlags` is preserved so existing
+ * imports keep working (the new name better reflects the broader scope).
  */
-function getMailReservedFlags(session: SessionState): Set<string> {
+function getReservedFlags(session: SessionState): Set<string> {
   const reserved = new Set<string>();
   const phases = session.scenario?.phases || [];
   for (const phase of phases) {
@@ -569,9 +587,22 @@ function getMailReservedFlags(session: SessionState): Set<string> {
         reserved.add(key);
       }
     }
+    const advancement = (phase as any)?.advancement;
+    if (advancement && typeof advancement === "object") {
+      if (typeof advancement.set_flag === "string") {
+        reserved.add(advancement.set_flag);
+      }
+      if (typeof advancement.set_actor_flag === "string") {
+        reserved.add(advancement.set_actor_flag);
+      }
+    }
   }
   return reserved;
 }
+
+// Backward-compat alias — same function, broader semantics. Kept so any
+// other call site importing the old name keeps working without churn.
+const getMailReservedFlags = getReservedFlags;
 
 export function updateAdaptiveMode(session: SessionState) {
   const phaseId = getCurrentPhaseId(session);

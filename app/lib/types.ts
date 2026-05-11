@@ -392,6 +392,56 @@ export type PhaseDefinition = {
    */
   chat_visible_actors?: string[];
 
+  /**
+   * Score-based phase advancement, decoupled from NPC-keyword matching.
+   *
+   * When set, the API performs a structured evaluation of the player's
+   * action (e.g. cold email body) and returns an `interested` boolean
+   * computed from `min_score` AND `required_criteria` (all must match).
+   * The frontend wires this into the phase-completion flags instead of
+   * scanning the NPC reply for keywords.
+   *
+   * Modes:
+   *  - "prospection_evaluation" — evaluates a cold email and returns
+   *    whether the targeted KOL is interested. Sets the phase's
+   *    completion flag (`set_flag`, e.g. "kol_interested") and
+   *    optionally writes the chosen actor id into the session
+   *    (`set_actor_flag`, e.g. "chosen_kol_id").
+   *
+   * Ignored when omitted — legacy keyword path remains active.
+   */
+  advancement?: {
+    mode: "prospection_evaluation";
+    /** Minimum total score (sum of matched criterion points) required for `interested = true`. */
+    min_score: number;
+    /** All listed criterion_ids must be matched, otherwise `interested = false` regardless of score. */
+    required_criteria: string[];
+    /** Flag to set when interested = true (e.g. "kol_interested"). */
+    set_flag: string;
+    /** Optional flag to populate with the targeted actor id (e.g. "chosen_kol_id"). */
+    set_actor_flag?: string;
+  };
+
+  /**
+   * Per-contact context enrichment for chat.
+   *
+   * When the player sends a chat message to one of the listed actors,
+   * the corresponding context blocks are computed and injected into the
+   * `/api/chat` payload. This lets a cofounder/colleague respond with
+   * full awareness of what the player has actually been doing in the
+   * phase (mails sent, KOL profiles in scope, …) without giving them
+   * magical omniscience.
+   *
+   * Available block keys:
+   *  - "sent_mails"   — phase mails sent by the player + response status
+   *  - "kol_profiles" — content of the scenario's KOL list document
+   *  - "phase_state"  — current phase id + ai_actors + counts
+   *
+   * The mechanism is opt-in per phase; nothing is injected unless the
+   * scenario declares it here.
+   */
+  chat_context_enrichment?: Record<string, string[]>;
+
   /** Optional player input configuration */
   player_input?: {
     type: string;
