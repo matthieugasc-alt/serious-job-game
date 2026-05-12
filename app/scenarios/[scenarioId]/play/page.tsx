@@ -2035,7 +2035,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       // ── Failure loop-back: NPC refusal triggers return to previous phase ──
       if (checkNpcFailureKeywords(final, data.reply)) {
         const handled = handlePhaseFailure(final);
-        if (handled) {
+        if (handled.applied) {
           resolveDynamicActors(final);
           resolveEstablishmentPlaceholders(final);
           // Reset phase start time for the new phase
@@ -2524,150 +2524,53 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       }
                     }
                   } else if (isHardRejectState && cfg?.failure_phase) {
-                    // ── LOG #1 — confirm the HARD_REJECT branch is reached at all ──
+                    // ── HARD_REJECT — single deterministic rollback path ──
+                    // The full rollback logic now lives in runtime.handlePhaseFailure
+                    // (which dispatches to applyAdvancementFailure under the
+                    // hood because the phase declares `advancement.failure_phase`).
+                    // We only do React-state side effects here — they can't
+                    // live in runtime.ts.
                     // eslint-disable-next-line no-console
                     console.log("[S5_HARD_REJECT_ENTER]", {
                       beforePhaseIndex: final2.currentPhaseIndex,
-                      beforePhaseId: scenario!.phases[final2.currentPhaseIndex]?.phase_id,
-                      currentPhaseId: scenario!.phases[final2.currentPhaseIndex]?.phase_id,
-                      selectedContact,
-                      selectedMailId,
-                      showCompose,
-                      currentMailDraft:
-                        final2.mailDrafts[
-                          scenario!.phases[final2.currentPhaseIndex]?.phase_id || ""
-                        ],
+                      beforePhaseId:
+                        scenario!.phases[final2.currentPhaseIndex]?.phase_id,
                       flagsBefore: { ...final2.flags },
-                      target_failure_phase: cfg.failure_phase,
                       advancement_config_seen: cfg,
                     });
 
-                    // ── Deterministic phase regression + burned KOL ──
-                    // We don't go through handlePhaseFailure() because that
-                    // reads `phase.failure_rules` (legacy keyword path).
-                    // Everything below is driven by advancement.failure_*
-                    // declared in scenario.json.
-                    //
-                    // Design rules for this rollback (per user spec):
-                    //  - real regression: currentPhaseIndex → failure_phase
-                    //  - the offending KOL is permanently burned
-                    //  - NO replay of phase 1 entry events (intro Alex push) —
-                    //    it's a resumed prospection, not a new scenario
-                    //  - mailDraft of the target phase is wiped to its defaults
-                    //  - the open Eric mail / DSI compose / DSI contact are
-                    //    visually dismissed so the UI doesn't look "stuck on
-                    //    phase 2"
+                    const result = handlePhaseFailure(final2);
 
-                    // 1. Capture & burn the KOL BEFORE we wipe chosen_kol_id.
-                    //    We store burned IDs as an explicit string[] on flags
-                    //    so it's a single source of truth (cleaner than one
-                    //    boolean flag per actor).
-                    const burnedKolId = final2.flags?.chosen_kol_id as
-                      | string
-                      | false
-                      | undefined;
-                    if (typeof burnedKolId === "string" && burnedKolId.length > 0) {
-                      const existing = Array.isArray(
-                        (final2.flags as any).burned_kol_ids,
-                      )
-                        ? [...((final2.flags as any).burned_kol_ids as string[])]
-                        : [];
-                      if (!existing.includes(burnedKolId)) {
-                        existing.push(burnedKolId);
-                      }
-                      (final2.flags as any).burned_kol_ids = existing;
-                    }
-                    const burnedKolActor = actors.find(
-                      (a: any) => a.actor_id === burnedKolId,
-                    );
-                    const burnedKolName = burnedKolActor?.name || burnedKolId;
-
-                    // 2. Reset declared flags.
-                    const resetFlags = cfg.failure_reset_flags || [];
-                    for (const f of resetFlags) {
-                      final2.flags[f] = false;
-                    }
-
-                    // 3. Navigate to the failure phase.
-                    const idx = scenario!.phases.findIndex(
-                      (p: any) => p.phase_id === cfg.failure_phase,
-                    );
-                    if (idx >= 0) {
-                      final2.currentPhaseIndex = idx;
-                      if (cfg.failure_message) {
-                        addSystemMessage(final2, cfg.failure_message);
-                      }
-
-                      // 4. Wipe the target phase mailDraft so the compose
-                      //    doesn't carry Éric / DSI subject / DSI body over
-                      //    after the rollback. We rebuild it from the phase's
-                      //    declared mail_config.defaults (or to empty when
-                      //    none are defined).
-                      const targetPhase = scenario!.phases[idx] as any;
-                      const draftDefaults = targetPhase?.mail_config?.defaults || {};
-                      const targetPhaseId =
-                        targetPhase?.phase_id || cfg.failure_phase;
-                      final2.mailDrafts[targetPhaseId] = {
-                        to: draftDefaults.to || "",
-                        cc: draftDefaults.cc || "",
-                        subject: draftDefaults.subject || "",
-                        body: "",
-                        attachments: [],
-                      };
-
-                      // 5. We DO NOT call injectPhaseEntryEvents nor
-                      //    dispatchEnterPhase on the failure target — the
-                      //    player should resume prospection without replaying
-                      //    Alex's opening push or any module enter_phase.
-                      resolveDynamicActors(final2);
-                      resolveEstablishmentPlaceholders(final2);
-
-                      // 6. Contextual cofounder message — Alex points at the
-                      //    burned KOL explicitly so the player knows why
-                      //    that contact is gone for good.
-                      if (typeof burnedKolId === "string" && burnedKolId.length > 0) {
-                        addAIMessage(
-                          final2,
-                          `${burnedKolName} est grillé — pas la peine d'y revenir, le DSI ne réouvrira pas. Vise un autre KOL dans la liste.`,
-                          "alexandre_morel",
-                        );
-                      }
-                    }
-
-                    // ── LOG #2 — state of next session BEFORE setters ──
                     // eslint-disable-next-line no-console
                     console.log("[S5_HARD_REJECT_NEXT_SESSION]", {
+                      result_applied: result.applied,
+                      result_source: result.source,
+                      result_newPhaseId: result.newPhaseId,
+                      result_burnedActorId: result.burnedActorId,
                       nextPhaseIndex: final2.currentPhaseIndex,
                       nextPhaseId:
                         scenario!.phases[final2.currentPhaseIndex]?.phase_id,
                       flagsAfter: { ...final2.flags },
-                      mailDraftPhase1:
-                        final2.mailDrafts["phase_1_prospection"],
+                      mailDraftPhase1: final2.mailDrafts["phase_1_prospection"],
                       burned_kol_ids: (final2.flags as any).burned_kol_ids,
                     });
 
-                    // 7. Visually dismiss the DSI screen residue: close the
-                    //    open Éric mail, hide the compose form, and re-point
-                    //    the chat panel to Alex (the only visible contact in
-                    //    phase 1). These are React useStates so we call them
-                    //    out of band; setSession below propagates the model
-                    //    change.
-                    setSelectedMailId(null);
-                    setShowCompose(false);
-                    setSelectedContact("alexandre_morel");
+                    if (result.applied) {
+                      // React-only side effects: dismiss DSI screen residue.
+                      setSelectedMailId(null);
+                      setShowCompose(false);
+                      setSelectedContact("alexandre_morel");
 
-                    // ── LOG #3 — confirm React setters were called ──
-                    // eslint-disable-next-line no-console
-                    console.log("[S5_HARD_REJECT_AFTER_SETTERS]", {
-                      intendedPhaseIndex: 0,
-                      intendedPhaseId: "phase_1_prospection",
-                      intendedSelectedContact: "alexandre_morel",
-                      intendedSelectedMailId: null,
-                      intendedShowCompose: false,
-                      // Note: setSession(final2) is called at the very end of
-                      // the case, after this log. The state changes are async;
-                      // log #4 (render) will show whether they actually applied.
-                    });
+                      // eslint-disable-next-line no-console
+                      console.log("[S5_HARD_REJECT_AFTER_SETTERS]", {
+                        intendedPhaseIndex: final2.currentPhaseIndex,
+                        intendedPhaseId:
+                          scenario!.phases[final2.currentPhaseIndex]?.phase_id,
+                        intendedSelectedContact: "alexandre_morel",
+                        intendedSelectedMailId: null,
+                        intendedShowCompose: false,
+                      });
+                    }
                   }
                   // NEEDS_CLARIFICATION / NOT_INTERESTED / ALREADY_REPLIED
                   // → no flag change, no advance — just show the NPC reply
@@ -2716,9 +2619,34 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
                 // Failure keywords check (e.g., DSI refuses → loop back) —
                 // applies to BOTH paths: failure rules are independent of the
-                // success-detection mechanism.
+                // success-detection mechanism. Important: handlePhaseFailure
+                // now dispatches to the advancement-driven rollback when the
+                // phase declares `advancement.failure_phase`, so if the new
+                // HARD_REJECT branch above didn't fire (e.g. because
+                // `data.phase_evaluation` was missing for any reason), this
+                // safety net catches it and gives the SAME full rollback
+                // semantics (burn KOL, wipe draft, system message, …). We
+                // also drive the React-only side effects here.
                 if (checkNpcFailureKeywords(final2, data.reply)) {
-                  handlePhaseFailure(final2);
+                  // eslint-disable-next-line no-console
+                  console.log("[S5_FAILURE_KEYWORDS_TRIGGERED]", {
+                    reply_first_120: (data.reply || "").slice(0, 120),
+                    before_phase_index: final2.currentPhaseIndex,
+                  });
+                  const fkResult = handlePhaseFailure(final2);
+                  // eslint-disable-next-line no-console
+                  console.log("[S5_FAILURE_KEYWORDS_RESULT]", {
+                    applied: fkResult.applied,
+                    source: fkResult.source,
+                    newPhaseId: fkResult.newPhaseId,
+                    burnedActorId: fkResult.burnedActorId,
+                    after_phase_index: final2.currentPhaseIndex,
+                  });
+                  if (fkResult.applied) {
+                    setSelectedMailId(null);
+                    setShowCompose(false);
+                    setSelectedContact("alexandre_morel");
+                  }
                 }
               }
               setSession(final2);

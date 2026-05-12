@@ -507,13 +507,54 @@ export function checkNpcSuccessKeywords(session: SessionState, npcMessage: strin
 }
 
 /**
- * Handle phase failure: reset flags, navigate to failure phase, inject failure events.
- * Returns true if failure was handled, false if no failure_rules exist.
+ * Result of a phase failure / rollback. Lets callers know what just happened
+ * so they can run UI-only side effects (close mail, hide compose, repoint
+ * chat panel) — pure logic stays here.
  */
-export function handlePhaseFailure(session: SessionState): boolean {
+export interface PhaseFailureResult {
+  /** Was a regression actually applied? */
+  applied: boolean;
+  /** Which path executed: the new advancement-based one, or the legacy keyword one. */
+  source: "advancement" | "legacy" | "none";
+  /** Phase id we just moved INTO (the rollback target). */
+  newPhaseId?: string;
+  /** Actor id that was just marked "burned" (only on advancement path with chosen_*_id). */
+  burnedActorId?: string;
+}
+
+/**
+ * Single source of truth for phase rollback / regression.
+ *
+ * Two paths, evaluated in this order:
+ *
+ *  (1) "advancement" — the current phase declares `advancement.failure_phase`
+ *      (new score-based pipeline, S5 phase 2 onwards). This path is preferred
+ *      because it provides full semantics: KOL burn list, mail draft wipe,
+ *      contextualised cofounder message, no replay of entry events.
+ *
+ *  (2) "legacy" — the current phase declares `failure_rules.next_phase`
+ *      (old keyword pipeline). Kept for scenarios that haven't migrated.
+ *
+ * Returning a structured result lets the React caller dismiss the DSI UI
+ * residue (selectedMailId, showCompose, selectedContact) without having to
+ * duplicate the rollback decision logic.
+ */
+export function handlePhaseFailure(session: SessionState): PhaseFailureResult {
   const phase = getCurrentPhase(session);
+
+  // ── Path 1: advancement-driven rollback (preferred) ──
+  const advancement = (phase as any)?.advancement;
+  if (
+    advancement &&
+    typeof advancement.failure_phase === "string" &&
+    advancement.failure_phase.length > 0
+  ) {
+    return applyAdvancementFailure(session, advancement);
+  }
+
+  // ── Path 2: legacy failure_rules (kept for compat) ──
   const rules = (phase as any)?.failure_rules;
-  if (!rules?.next_phase) return false;
+  if (!rules?.next_phase) return { applied: false, source: "none" };
 
   // Reset specified flags
   if (Array.isArray(rules.reset_flags)) {
@@ -524,7 +565,7 @@ export function handlePhaseFailure(session: SessionState): boolean {
 
   // Navigate to failure phase
   const idx = getPhaseIndexById(session.scenario, rules.next_phase);
-  if (idx === -1) return false;
+  if (idx === -1) return { applied: false, source: "none" };
 
   session.currentPhaseIndex = idx;
   addSystemMessage(session, rules.message || "Retour à la phase précédente.");
@@ -554,7 +595,103 @@ export function handlePhaseFailure(session: SessionState): boolean {
     injectPhaseEntryEvents(session);
   }
 
-  return true;
+  return { applied: true, source: "legacy", newPhaseId: rules.next_phase };
+}
+
+/**
+ * Apply a deterministic rollback driven by `phase.advancement.failure_*` fields.
+ *
+ * Semantics:
+ *  - The current phase's chosen actor (chosen_kol_id / chosen_cto_id) is
+ *    pushed into `flags.burned_kol_ids` so it can never be re-prospected.
+ *  - All flags listed in `failure_reset_flags` are wiped to `false`.
+ *  - Current phase index moves to `failure_phase`.
+ *  - The mail draft of the failure phase is reset to its `mail_config.defaults`
+ *    (or to empty when no defaults exist) — kills "Éric still in `to:` after
+ *    rollback" bug class.
+ *  - A system message (`failure_message`) is appended.
+ *  - A contextualised cofounder message names the burned actor.
+ *  - We do NOT replay phase entry_events on the target — it's a resumed
+ *    prospection, not a fresh scenario start.
+ */
+function applyAdvancementFailure(
+  session: SessionState,
+  advancement: any,
+): PhaseFailureResult {
+  // 1. Capture & burn the active KOL (or CTO) BEFORE we reset chosen_*_id.
+  const sessionFlags = session.flags as Record<string, unknown>;
+  const burnedId =
+    typeof sessionFlags.chosen_kol_id === "string" && sessionFlags.chosen_kol_id
+      ? (sessionFlags.chosen_kol_id as string)
+      : typeof sessionFlags.chosen_cto_id === "string" && sessionFlags.chosen_cto_id
+        ? (sessionFlags.chosen_cto_id as string)
+        : "";
+  if (burnedId) {
+    const existing = Array.isArray((session.flags as any).burned_kol_ids)
+      ? [...((session.flags as any).burned_kol_ids as string[])]
+      : [];
+    if (!existing.includes(burnedId)) existing.push(burnedId);
+    (session.flags as any).burned_kol_ids = existing;
+  }
+
+  // 2. Reset declared flags.
+  const resetFlags: string[] = Array.isArray(advancement.failure_reset_flags)
+    ? advancement.failure_reset_flags
+    : [];
+  for (const f of resetFlags) {
+    session.flags[f] = false;
+  }
+
+  // 3. Navigate to the failure phase.
+  const idx = getPhaseIndexById(session.scenario, advancement.failure_phase);
+  if (idx === -1) {
+    return { applied: false, source: "none" };
+  }
+  session.currentPhaseIndex = idx;
+
+  // 4. System message.
+  if (typeof advancement.failure_message === "string" && advancement.failure_message) {
+    addSystemMessage(session, advancement.failure_message);
+  }
+
+  // 5. Wipe the mail draft of the target phase so a stale "to: eric_moreau"
+  //    doesn't survive the rollback into phase 1.
+  const targetPhase = session.scenario?.phases?.[idx] as any;
+  const draftDefaults = targetPhase?.mail_config?.defaults || {};
+  const targetPhaseId = targetPhase?.phase_id || advancement.failure_phase;
+  session.mailDrafts[targetPhaseId] = {
+    to: draftDefaults.to || "",
+    cc: draftDefaults.cc || "",
+    subject: draftDefaults.subject || "",
+    body: "",
+    attachments: [],
+  };
+
+  // 6. Contextualised cofounder line — references the burned actor by name.
+  if (burnedId) {
+    const burnedActor = (session.scenario?.actors || []).find(
+      (a: any) => a.actor_id === burnedId,
+    );
+    const burnedName = burnedActor?.name || burnedId;
+    addAIMessage(
+      session,
+      `${burnedName} est grillé — pas la peine d'y revenir, le DSI ne réouvrira pas. Vise un autre KOL dans la liste.`,
+      "alexandre_morel",
+    );
+  }
+
+  pushAction(session, {
+    type: "phase_entered",
+    phaseId: advancement.failure_phase,
+    timestamp: Date.now(),
+  });
+
+  return {
+    applied: true,
+    source: "advancement",
+    newPhaseId: advancement.failure_phase,
+    burnedActorId: burnedId || undefined,
+  };
 }
 
 /**
