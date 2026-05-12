@@ -501,6 +501,59 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     showCompose,
   ]);
 
+  // ── HARD_REJECT runtime guard ────────────────────────────────────────
+  // Last-resort consistency check: if the session is in an "impossible"
+  // state — current phase declares an advancement.failure_phase AND the
+  // active actor (chosen_kol_id) is already burned — we force the rollback.
+  // This makes the bug "phase 2 stuck even after rollback was supposed to
+  // fire" structurally impossible regardless of any earlier race. The
+  // guard is a no-op in nominal cases so it doesn't disturb normal play.
+  useEffect(() => {
+    if (!session || !scenario) return;
+    const cp = scenario.phases[session.currentPhaseIndex];
+    if (!cp) return;
+    const advancement = (cp as any).advancement;
+    if (!advancement?.failure_phase) return;
+    const chosenKolNow = (session.flags as any)?.chosen_kol_id;
+    const burned = Array.isArray((session.flags as any)?.burned_kol_ids)
+      ? ((session.flags as any).burned_kol_ids as string[])
+      : [];
+    if (
+      typeof chosenKolNow === "string" &&
+      chosenKolNow.length > 0 &&
+      burned.includes(chosenKolNow)
+    ) {
+      // Inconsistent state — the chosen actor is already burned but we're
+      // still in a phase that requires it. This can only happen if a
+      // previous rollback wrote half-state. Re-run handlePhaseFailure.
+      if (process.env.NODE_ENV !== "production") {
+        // eslint-disable-next-line no-console
+        console.warn("[S5_GUARD_INCONSISTENT_STATE]", {
+          currentPhaseIndex: session.currentPhaseIndex,
+          currentPhaseId: cp.phase_id,
+          chosenKolNow,
+          burned,
+        });
+      }
+      const repaired = cloneSession(session);
+      const result = handlePhaseFailure(repaired);
+      if (result.applied) {
+        setSelectedMailId(null);
+        setShowCompose(false);
+        setSelectedContact("alexandre_morel");
+        setSession(repaired);
+      }
+    }
+    // We deliberately depend on a stringified summary of the flags so the
+    // effect doesn't fire on every flag mutation — only when the burned
+    // list or chosen actor change.
+  }, [
+    session?.currentPhaseIndex,
+    (session?.flags as any)?.chosen_kol_id,
+    JSON.stringify((session?.flags as any)?.burned_kol_ids || []),
+    scenario,
+  ]);
+
   const allDocuments = filterDocumentsByPhase(
     scenario?.phases || [],
     allDocumentsRaw,
