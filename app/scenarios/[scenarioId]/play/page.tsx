@@ -2480,16 +2480,37 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       }
                     }
                   } else if (isHardRejectState && cfg?.failure_phase) {
-                    // ── Deterministic phase regression ──
+                    // ── Deterministic phase regression + burned KOL ──
                     // We don't go through handlePhaseFailure() because that
                     // reads `phase.failure_rules` (legacy keyword path).
                     // The reset values come from `advancement.failure_*`
                     // declared in scenario.json — no implicit dependency
                     // on the legacy block.
+
+                    // 1. Capture the KOL that just got us rejected BEFORE
+                    //    we wipe chosen_kol_id, then mark it permanently
+                    //    "burned" so the player can't re-cold-email it.
+                    //    The burned_<actor_id> flag survives the reset
+                    //    because it is NOT in failure_reset_flags.
+                    const burnedKolId = final2.flags?.chosen_kol_id as
+                      | string
+                      | false
+                      | undefined;
+                    if (typeof burnedKolId === "string" && burnedKolId.length > 0) {
+                      final2.flags[`burned_${burnedKolId}`] = true;
+                    }
+                    const burnedKolActor = actors.find(
+                      (a: any) => a.actor_id === burnedKolId,
+                    );
+                    const burnedKolName = burnedKolActor?.name || burnedKolId;
+
+                    // 2. Reset declared flags.
                     const resetFlags = cfg.failure_reset_flags || [];
                     for (const f of resetFlags) {
                       final2.flags[f] = false;
                     }
+
+                    // 3. Navigate to the failure phase and replay its entry.
                     const idx = scenario!.phases.findIndex(
                       (p: any) => p.phase_id === cfg.failure_phase,
                     );
@@ -2498,11 +2519,37 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       if (cfg.failure_message) {
                         addSystemMessage(final2, cfg.failure_message);
                       }
-                      // Replay phase entry pipeline on the rollback target.
                       resolveDynamicActors(final2);
                       resolveEstablishmentPlaceholders(final2);
                       injectPhaseEntryEvents(final2);
                       dispatchEnterPhase(final2);
+
+                      // 4. Contextual cofounder message — Alex points at the
+                      //    burned KOL explicitly so the player knows why
+                      //    that contact is gone for good.
+                      if (typeof burnedKolId === "string" && burnedKolId.length > 0) {
+                        addAIMessage(
+                          final2,
+                          `${burnedKolName} est grillée — pas la peine d'y revenir, le DSI ne réouvrira pas. Il faut prospecter quelqu'un d'autre dans la liste.`,
+                          "alexandre_morel",
+                        );
+                      }
+                    }
+
+                    // 5. Dev-only confirmation of the rollback so we can
+                    //    diagnose mismatches between "Eric texted HARD_REJECT"
+                    //    and "phase did not roll back" without guessing.
+                    if (process.env.NODE_ENV !== "production") {
+                      // eslint-disable-next-line no-console
+                      console.log("[dsi_hard_reject_rollback]", {
+                        burned_kol_id: burnedKolId,
+                        target_phase: cfg.failure_phase,
+                        target_phase_index: idx,
+                        reset_flags: resetFlags,
+                        post_rollback_phase_index: final2.currentPhaseIndex,
+                        post_rollback_flags_kol_interested: final2.flags.kol_interested,
+                        post_rollback_flags_chosen_kol_id: final2.flags.chosen_kol_id,
+                      });
                     }
                   }
                   // NEEDS_CLARIFICATION / NOT_INTERESTED / ALREADY_REPLIED

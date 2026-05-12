@@ -107,6 +107,7 @@ export function buildChatContext(
           actors,
           phaseAiActors,
           phaseChatVisibleActors,
+          sessionFlags: (session as any)?.flags ?? {},
         });
         if (block.length > 0) blocks.kol_profiles = block;
         break;
@@ -236,8 +237,9 @@ function buildKolProfilesBlock(args: {
   actors: ActorDefinition[];
   phaseAiActors: string[];
   phaseChatVisibleActors: string[];
+  sessionFlags: Record<string, unknown>;
 }): KolProfileEntry[] {
-  const { actors, phaseAiActors, phaseChatVisibleActors } = args;
+  const { actors, phaseAiActors, phaseChatVisibleActors, sessionFlags } = args;
   const visibleSet = new Set(phaseChatVisibleActors);
 
   const result: KolProfileEntry[] = [];
@@ -251,8 +253,17 @@ function buildKolProfilesBlock(args: {
     const personality = (actor as any).personality || "";
     const email = (actor as any).email || "";
     const preview = (actor as any).contact_preview || "";
+    const isBurned = sessionFlags[`burned_${aid}`] === true;
 
     const summaryParts: string[] = [];
+    if (isBurned) {
+      // Surface burned status FIRST so the cofounder can't miss it when
+      // reasoning. The downstream prompt (alexandre_morel.md) is taught
+      // to explicitly tell the player that a burned KOL is gone for good.
+      summaryParts.push(
+        `STATUT : GRILLÉ — déjà passé en évaluation DSI et fail. Le joueur ne peut plus le re-prospecter.`,
+      );
+    }
     if (role) summaryParts.push(`Rôle : ${role}`);
     if (personality) summaryParts.push(`Personnalité : ${personality}`);
     if (preview) summaryParts.push(`Aperçu : ${preview}`);

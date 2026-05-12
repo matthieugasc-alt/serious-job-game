@@ -483,6 +483,29 @@ function handleColdEmailReply(
 
   const actorId = targetActor.actor_id;
 
+  // ── Burned KOL guard ──
+  // When a DSI_HARD_REJECT regression fires (phase 2), the engine marks
+  // the offending KOL as permanently burned via `flags["burned_<actor_id>"]`.
+  // That contact cannot be re-cold-emailed for the rest of the run —
+  // narratively the DSI won't reconsider, and the player must find another
+  // prospect. Whitelist this check BEFORE the prospect-eligibility check
+  // so we give a more specific error.
+  const sessionFlags = ((ctx.session as any)?.flags ?? {}) as Record<string, unknown>;
+  if (sessionFlags[`burned_${actorId}`] === true) {
+    const phaseId = (extra.runtimeView as any)?.phaseId || "";
+    actions.push({ type: "set_compose", show: false });
+    actions.push({
+      type: "add_inbox_mail",
+      mail: {
+        from: "system",
+        subject: "Mail non distribué — contact grillé",
+        body: `« ${(targetActor as any).name || actorId} » a déjà été en évaluation chez son DSI et le dossier a été clos défavorablement. Tu ne peux pas le re-prospecter — vise un autre KOL dans la liste.`,
+        phaseId,
+      },
+    });
+    return { actions, earlyReturn: true, didAdvance: false };
+  }
+
   // ── Cold email whitelist (Bug C fix) ──
   // A cold email is a *prospection* mail. It can only target an AI actor of
   // the current phase WHO IS NOT already a visible contact in the left panel.
