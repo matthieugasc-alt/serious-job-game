@@ -484,14 +484,15 @@ function handleColdEmailReply(
   const actorId = targetActor.actor_id;
 
   // ── Burned KOL guard ──
-  // When a DSI_HARD_REJECT regression fires (phase 2), the engine marks
-  // the offending KOL as permanently burned via `flags["burned_<actor_id>"]`.
-  // That contact cannot be re-cold-emailed for the rest of the run —
-  // narratively the DSI won't reconsider, and the player must find another
-  // prospect. Whitelist this check BEFORE the prospect-eligibility check
-  // so we give a more specific error.
+  // When a DSI_HARD_REJECT regression fires (phase 2), the engine pushes
+  // the offending KOL into `flags.burned_kol_ids` (string[]). That contact
+  // cannot be re-cold-emailed for the rest of the run — narratively the
+  // DSI won't reconsider, and the player must find another prospect.
   const sessionFlags = ((ctx.session as any)?.flags ?? {}) as Record<string, unknown>;
-  if (sessionFlags[`burned_${actorId}`] === true) {
+  const burnedList = Array.isArray(sessionFlags.burned_kol_ids)
+    ? (sessionFlags.burned_kol_ids as string[])
+    : [];
+  if (burnedList.includes(actorId)) {
     const phaseId = (extra.runtimeView as any)?.phaseId || "";
     actions.push({ type: "set_compose", show: false });
     actions.push({

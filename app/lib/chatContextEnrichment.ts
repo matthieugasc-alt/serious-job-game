@@ -241,6 +241,12 @@ function buildKolProfilesBlock(args: {
 }): KolProfileEntry[] {
   const { actors, phaseAiActors, phaseChatVisibleActors, sessionFlags } = args;
   const visibleSet = new Set(phaseChatVisibleActors);
+  // Single source of truth for burned KOL state — see page.tsx HARD_REJECT path.
+  const burnedSet = new Set<string>(
+    Array.isArray(sessionFlags.burned_kol_ids)
+      ? (sessionFlags.burned_kol_ids as string[])
+      : [],
+  );
 
   const result: KolProfileEntry[] = [];
   for (const aid of phaseAiActors) {
@@ -253,7 +259,7 @@ function buildKolProfilesBlock(args: {
     const personality = (actor as any).personality || "";
     const email = (actor as any).email || "";
     const preview = (actor as any).contact_preview || "";
-    const isBurned = sessionFlags[`burned_${aid}`] === true;
+    const isBurned = burnedSet.has(aid);
 
     const summaryParts: string[] = [];
     if (isBurned) {
