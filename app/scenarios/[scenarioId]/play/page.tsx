@@ -472,6 +472,35 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
   const allDocumentsRaw = scenario?.resources?.documents || [];
   const currentPhaseId = scenario?.phases?.[session?.currentPhaseIndex]?.phase_id ?? null;
+  // ── LOG #4 — fired on every render that touches the phase, the
+  // selectedContact, the selectedMailId or the showCompose. Lets us see
+  // whether the new session actually propagates to the rendered output
+  // after a HARD_REJECT — or whether something else snaps it back.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    if (!session || !scenario) return;
+    const cp = scenario.phases[session.currentPhaseIndex];
+    // eslint-disable-next-line no-console
+    console.log("[S5_RENDER_PHASE]", {
+      currentPhaseIndex: session.currentPhaseIndex,
+      currentPhaseId: cp?.phase_id,
+      phaseTitle: cp?.title,
+      selectedContact,
+      selectedMailId,
+      showCompose,
+      currentMailDraft: session.mailDrafts?.[cp?.phase_id || ""],
+      flags_kol_interested: session.flags?.kol_interested,
+      flags_chosen_kol_id: session.flags?.chosen_kol_id,
+      flags_burned_kol_ids: (session.flags as any)?.burned_kol_ids,
+    });
+  }, [
+    session?.currentPhaseIndex,
+    selectedContact,
+    selectedMailId,
+    showCompose,
+  ]);
+
   const allDocuments = filterDocumentsByPhase(
     scenario?.phases || [],
     allDocumentsRaw,
@@ -2371,6 +2400,21 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
               const replyText = (data.reply || "").trim();
               const isSilence = replyText === "[PAS DE RÉPONSE]" || replyText.includes("[PAS DE RÉPONSE]");
 
+              // ── LOG #0a — runs unconditionally on every mail_inbox_reply.
+              //    Proves the code is loaded and the case is reached.
+              // eslint-disable-next-line no-console
+              console.log("[S5_MAIL_INBOX_REPLY_RECEIVED]", {
+                effect_actorId: effect.actorId,
+                effect_eval_mode: (effect as any).eval_mode,
+                has_advancement_config: !!(effect as any).advancement_config,
+                advancement_config: (effect as any).advancement_config,
+                api_returned_phase_evaluation: !!data.phase_evaluation,
+                api_returned_phase_evaluation_state: data.phase_evaluation?.state,
+                api_returned_prospection_evaluation: !!data.prospection_evaluation,
+                api_returned_reply_first_120: replyText.slice(0, 120),
+                isSilence,
+              });
+
               const final2 = cloneSession(sessionRef.current || next);
               // Record player's sent mail in conversation history
               addPlayerMessage(final2, effect.playerMessageSummary, effect.actorId);
@@ -2480,6 +2524,24 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       }
                     }
                   } else if (isHardRejectState && cfg?.failure_phase) {
+                    // ── LOG #1 — confirm the HARD_REJECT branch is reached at all ──
+                    // eslint-disable-next-line no-console
+                    console.log("[S5_HARD_REJECT_ENTER]", {
+                      beforePhaseIndex: final2.currentPhaseIndex,
+                      beforePhaseId: scenario!.phases[final2.currentPhaseIndex]?.phase_id,
+                      currentPhaseId: scenario!.phases[final2.currentPhaseIndex]?.phase_id,
+                      selectedContact,
+                      selectedMailId,
+                      showCompose,
+                      currentMailDraft:
+                        final2.mailDrafts[
+                          scenario!.phases[final2.currentPhaseIndex]?.phase_id || ""
+                        ],
+                      flagsBefore: { ...final2.flags },
+                      target_failure_phase: cfg.failure_phase,
+                      advancement_config_seen: cfg,
+                    });
+
                     // ── Deterministic phase regression + burned KOL ──
                     // We don't go through handlePhaseFailure() because that
                     // reads `phase.failure_rules` (legacy keyword path).
@@ -2572,6 +2634,18 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       }
                     }
 
+                    // ── LOG #2 — state of next session BEFORE setters ──
+                    // eslint-disable-next-line no-console
+                    console.log("[S5_HARD_REJECT_NEXT_SESSION]", {
+                      nextPhaseIndex: final2.currentPhaseIndex,
+                      nextPhaseId:
+                        scenario!.phases[final2.currentPhaseIndex]?.phase_id,
+                      flagsAfter: { ...final2.flags },
+                      mailDraftPhase1:
+                        final2.mailDrafts["phase_1_prospection"],
+                      burned_kol_ids: (final2.flags as any).burned_kol_ids,
+                    });
+
                     // 7. Visually dismiss the DSI screen residue: close the
                     //    open Éric mail, hide the compose form, and re-point
                     //    the chat panel to Alex (the only visible contact in
@@ -2582,23 +2656,18 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     setShowCompose(false);
                     setSelectedContact("alexandre_morel");
 
-                    // 8. Dev-only confirmation of the rollback so we can
-                    //    diagnose mismatches between "Eric texted HARD_REJECT"
-                    //    and "phase did not roll back" without guessing.
-                    if (process.env.NODE_ENV !== "production") {
-                      // eslint-disable-next-line no-console
-                      console.log("[dsi_hard_reject_rollback]", {
-                        burned_kol_id: burnedKolId,
-                        burned_kol_ids_after: (final2.flags as any).burned_kol_ids,
-                        target_phase: cfg.failure_phase,
-                        target_phase_index: idx,
-                        reset_flags: resetFlags,
-                        post_rollback_phase_index: final2.currentPhaseIndex,
-                        post_rollback_flags_kol_interested: final2.flags.kol_interested,
-                        post_rollback_flags_chosen_kol_id: final2.flags.chosen_kol_id,
-                        post_rollback_mail_draft: final2.mailDrafts[cfg.failure_phase],
-                      });
-                    }
+                    // ── LOG #3 — confirm React setters were called ──
+                    // eslint-disable-next-line no-console
+                    console.log("[S5_HARD_REJECT_AFTER_SETTERS]", {
+                      intendedPhaseIndex: 0,
+                      intendedPhaseId: "phase_1_prospection",
+                      intendedSelectedContact: "alexandre_morel",
+                      intendedSelectedMailId: null,
+                      intendedShowCompose: false,
+                      // Note: setSession(final2) is called at the very end of
+                      // the case, after this log. The state changes are async;
+                      // log #4 (render) will show whether they actually applied.
+                    });
                   }
                   // NEEDS_CLARIFICATION / NOT_INTERESTED / ALREADY_REPLIED
                   // → no flag change, no advance — just show the NPC reply
