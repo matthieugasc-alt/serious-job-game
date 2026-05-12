@@ -88,18 +88,23 @@ export const chatSchema = z.object({
   criteria: z.array(z.unknown()).default([]),
   playerMessages: z.array(z.string()).default([]),
   // ── Optional: structured evaluation modes ──────────────────────
-  // When set, the API computes an additional `prospection_evaluation`
+  // When set, the API computes an additional `phase_evaluation`
   // block in the response (used for score-based phase advancement).
-  eval_mode: z.enum(["prospection"]).optional(),
+  // "prospection" also emits `prospection_evaluation` for legacy compat.
+  eval_mode: z.enum(["prospection", "dsi_validation"]).optional(),
   // Phase advancement configuration (mirrors PhaseDefinition.advancement
   // in app/lib/types.ts). Only consumed when eval_mode is set.
   advancement_config: z
     .object({
-      mode: z.enum(["prospection_evaluation"]),
+      mode: z.enum(["prospection_evaluation", "dsi_validation"]),
       min_score: z.number(),
       required_criteria: z.array(z.string()),
       set_flag: z.string(),
       set_actor_flag: z.string().optional(),
+      hard_reject_criteria: z.array(z.string()).optional(),
+      failure_phase: z.string().optional(),
+      failure_reset_flags: z.array(z.string()).optional(),
+      failure_message: z.string().optional(),
     })
     .optional(),
   // Actor id targeted by the player's action (e.g. cold email recipient).

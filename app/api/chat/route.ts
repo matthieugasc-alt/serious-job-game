@@ -356,18 +356,92 @@ MODE AUTONOMY:
       ? playerMessages.map((m: string, i: number) => `[Player msg ${i + 1}]: ${sanitize(m)}`).join("\n")
       : `[Player msg]: ${message}`;
 
-    // ── EVALUATION PROMPT — two variants ─────────────────────────
+    // ── EVALUATION PROMPT — three variants ──────────────────────
     // Default: "STRICT evaluator" used for in-phase chat scoring across
     // most scenarios. Designed to be hard to game with hand-waving.
     //
-    // Prospection variant (eval_mode === "prospection"): a cold email
-    // is judged like a senior commercial peer would judge it — exigent
-    // but realistic. A mail can pass without containing a peer-reviewed
-    // publication citation or a full ROI table, as long as it shows
-    // genuine understanding of the prospect and a concrete proposition.
-    // Generic corporate copy still gets rejected.
+    // Prospection variant (eval_mode === "prospection"): cold email
+    // judged like a senior commercial peer — exigent but realistic.
+    //
+    // DSI variant (eval_mode === "dsi_validation"): the player's reply
+    // to a Director of IT in a hospital. Realistic IT/security/RGPD
+    // judgement, with an explicit detection of dishonesty on SIH
+    // interoperability — that's a hard reject.
     const evaluationPrompt = sanitize(
-      evalMode === "prospection"
+      evalMode === "dsi_validation"
+        ? `Tu évalues la réponse d'un commercial à une DSI hospitalière qui demande des garanties techniques avant de valider un déploiement.
+
+POSTURE :
+Tu juges comme un DSI hospitalier réaliste. Tu attends des réponses concrètes mais tu n'exiges pas un dossier de 50 pages : la phase d'évaluation porte sur les fondamentaux (HDS, RGPD, interopérabilité, pricing).
+- tu acceptes un niveau de détail "pro" sans exiger d'exhaustivité
+- tu détectes activement les mensonges sur l'interopérabilité (claim "intégration SIH déjà réalisée" alors que ce n'est pas le cas = piège)
+- tu ne crédites pas un joueur qui élude un point ou qui répond à côté
+
+=== RÈGLES ABSOLUES ===
+Tu analyses UNIQUEMENT le mail du JOUEUR ci-dessous.
+Tu n'as PAS accès aux réponses des personnages.
+Tu ne crédites pas le joueur pour des choses qu'il n'a pas écrites.
+=== FIN RÈGLES ===
+
+PHASE : ${phaseTitle}
+OBJECTIF : ${phaseObjective}${phaseFocus ? `\nFOCUS PHASE : ${phaseFocus}` : ""}
+
+CRITÈRES À ÉVALUER (issus du scénario) :
+${sanitize(JSON.stringify(criteria, null, 2))}
+
+=== GUIDE D'INTERPRÉTATION DES CRITÈRES ===
+
+▸ "hds_answered" — VALIDE si le mail explique de façon plausible :
+  • un hébergement HDS (Hébergeur de Données de Santé) certifié
+  • la localisation des données en France (ou en Europe)
+  • au moins une mesure de sécurité concrète (chiffrement, MFA, sauvegardes, ISO 27001, tests d'intrusion)
+  Pas besoin de citer un numéro de certification précis ni un PCA détaillé. Une réponse cohérente et factuelle suffit.
+  NON VALIDE si le joueur élude le sujet, dit "c'est sécurisé" sans détail, ou ne mentionne pas HDS / hébergement.
+
+▸ "rgpd_answered" — VALIDE si le mail explique :
+  • le rôle au sens du RGPD (sous-traitant, responsable de traitement, etc.)
+  • le type de données traitées (idéalement : non-identifiantes / pseudonymisées / agrégées au niveau bloc)
+  • la disponibilité d'un DPA (Data Processing Agreement) ou la conformité RGPD
+  NON VALIDE si le joueur dit juste "on est RGPD-compliant" sans préciser le rôle, les données et le contrat.
+
+▸ "interop_honest" — VALIDE si le joueur dit honnêtement que :
+  • une API REST est disponible / le produit est interopérable au sens large
+  • MAIS l'intégration SIH spécifique (DxCare, Easily, etc.) n'est PAS encore réalisée
+  • et qu'un devis / module complémentaire / livraison séparée est nécessaire pour la connecter
+  Pour matcher ce critère, l'honnêteté sur l'absence d'intégration SIH "out of the box" doit être explicite.
+
+▸ "interop_lied" — VALIDE (= PIÈGE DÉCLENCHÉ) si le joueur prétend que :
+  • l'intégration SIH (DxCare / Easily / HL7 FHIR) est déjà réalisée / fonctionnelle / live
+  • OU que l'outil "s'intègre directement" sans mentionner le module complémentaire
+  Ce critère SE DÉCLENCHE SUR DÉCLARATION MENSONGÈRE. Si le joueur reste vague sur l'interop ou dit clairement "pas encore", NE PAS matcher ce critère (matcher plutôt interop_honest ou aucun des deux).
+  ⚠️ Critère à points négatifs — matched_criteria doit le contenir si la phrase mensongère est explicite.
+
+▸ "pricing_reasonable" — VALIDE si le joueur propose un pricing :
+  • dans une fourchette plausible pour un premier client hospitalier (200-500 € par salle/mois)
+  • ou avec une logique de tarification cohérente (set-up + abonnement)
+  NON VALIDE si le prix est manifestement absurde (10 €/an ou 10 000 €/mois).
+
+▸ "pricing_negotiated" — VALIDE si le joueur propose explicitement :
+  • une remise (5-10 %), une offre de lancement, ou un geste commercial sur le tarif
+  Optionnel — n'est pas required.
+
+=== INSTRUCTION ===
+Pour chaque critère ci-dessus, regarde le mail du joueur et coche-le si le mail le démontre selon le guide. Sois exigeant mais réaliste — décide comme un DSI senior, pas comme un correcteur scolaire.
+
+Note IMPORTANTE sur le piège interop : si la phrase du joueur affirme positivement que l'intégration SIH est déjà faite ET que cette affirmation est claire (pas une simple imprécision), matcher "interop_lied". Sinon ne PAS matcher ce critère, même si l'interop n'est pas bien traitée — dans ce cas, NE matcher NI interop_honest NI interop_lied.
+
+=== MAIL DU JOUEUR ===
+${playerMsgBlock}
+=== FIN MAIL ===
+
+Retourne UNIQUEMENT du JSON strict, sans commentaire ni markdown :
+{
+  "matched_criteria": ["hds_answered", "rgpd_answered", "interop_honest"],
+  "score_delta": 11,
+  "flags_to_set": {}
+}
+`
+        : evalMode === "prospection"
         ? `Tu évalues un cold email de prospection commerciale dans une simulation sérieuse.
 
 POSTURE :
@@ -699,10 +773,11 @@ INTERDICTIONS ABSOLUES :
         // Legacy fields — kept for compatibility with applyEvaluation.
         // No flags_to_set: in prospection mode the only flags worth setting
         // are the reserved kol_interested / chosen_kol_id, and those are
-        // routed via the dedicated `prospection_evaluation` block.
+        // routed via the dedicated phase_evaluation block.
         matched_criteria: matchedCriteriaProsp,
         score_delta: computedScoreProsp,
         flags_to_set: {},
+        // Legacy alias — phase 1 frontend reads this name.
         prospection_evaluation: {
           score: computedScoreProsp,
           interested: interestedProsp,
@@ -711,6 +786,256 @@ INTERDICTIONS ABSOLUES :
           similarity_to_previous: similarityToPrevious,
           missing_required_criteria: missingRequiredProsp,
           state: kolState,
+        },
+        // Generic name — same data, used by the unified frontend handler.
+        phase_evaluation: {
+          mode: "prospection_evaluation",
+          state: kolState,
+          score: computedScoreProsp,
+          actorId: targetActorId || "",
+          matched_criteria: matchedCriteriaProsp,
+          missing_required_criteria: missingRequiredProsp,
+          hard_reject_reasons: [] as string[],
+          similarity_to_previous: similarityToPrevious,
+        },
+      });
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    // DSI VALIDATION — STRICT STATE MACHINE (S5 Phase 2)
+    // ════════════════════════════════════════════════════════════════
+    // Three exclusive outcomes for the DSI's reply to the player's mail:
+    //
+    //   DSI_APPROVED              — score ≥ min, all required matched,
+    //                               no hard_reject criterion matched.
+    //                               → Éric: "avis favorable, je transmets".
+    //                               → Engine: set dsi_approved + advance phase 3.
+    //
+    //   DSI_NEEDS_CLARIFICATION   — partial answer, some required missing
+    //                               but no hard_reject.
+    //                               → Éric: lists what's missing, asks again.
+    //                               → Engine: phase stays.
+    //
+    //   DSI_HARD_REJECT           — clear lie on interop OR catastrophic
+    //                               reply (empty/insults/0 criteria).
+    //                               → Éric: interrupts the process.
+    //                               → Engine: navigate to failure_phase
+    //                                          and reset failure_reset_flags.
+    //
+    // The state is decided BEFORE the roleplay call and injected as a
+    // hard directive — same architecture as the prospection state machine.
+    if (evalMode === "dsi_validation" && advancementConfig) {
+      // ── Step 1: evaluation ──
+      const evalResp = await client.responses.create({
+        model: "gpt-4.1-mini",
+        input: evaluationPrompt,
+      });
+      let evalParsed: { matched_criteria?: string[] } = {};
+      try {
+        evalParsed = JSON.parse(evalResp.output_text?.trim() || "{}");
+      } catch {
+        evalParsed = { matched_criteria: [] };
+      }
+      const matchedDsi = Array.isArray(evalParsed.matched_criteria)
+        ? evalParsed.matched_criteria
+        : [];
+
+      // ── Step 2: compute score + decide state ──
+      const pointsByCriterionDsi = new Map<string, number>();
+      if (Array.isArray(criteria)) {
+        for (const c of criteria as any[]) {
+          if (c && typeof c.criterion_id === "string") {
+            const pts = typeof c.points === "number" ? c.points : 0;
+            pointsByCriterionDsi.set(c.criterion_id, pts);
+          }
+        }
+      }
+      let computedScoreDsi = 0;
+      for (const cid of matchedDsi) {
+        computedScoreDsi += pointsByCriterionDsi.get(cid) ?? 0;
+      }
+      const requiredDsi = advancementConfig.required_criteria || [];
+      const matchedSetDsi = new Set(matchedDsi);
+      const missingRequiredDsi = requiredDsi.filter((cid) => !matchedSetDsi.has(cid));
+
+      const hardRejectCriteria = advancementConfig.hard_reject_criteria || [];
+      const triggeredHardReject = hardRejectCriteria.filter((cid) => matchedSetDsi.has(cid));
+
+      const hardRejectReasons: string[] = [];
+      for (const cid of triggeredHardReject) {
+        hardRejectReasons.push(`hard_reject_criterion:${cid}`);
+      }
+
+      // Catastrophic-reply detection — 100% deterministic, no LLM judgement:
+      //   * very short body AND no criterion matched → empty/insulting/off-topic
+      //   * also flag obvious insults via a small blacklist
+      const lastPlayerMsg = playerMessages.length > 0
+        ? playerMessages[playerMessages.length - 1]
+        : message;
+      const playerBodyLen = (lastPlayerMsg || "").trim().length;
+      if (matchedDsi.length === 0 && playerBodyLen < 80) {
+        hardRejectReasons.push("empty_or_off_topic_response");
+      }
+      // Minimal FR/EN insult blacklist — extend if needed. Word-boundary
+      // matching so "penis" matches but "openid" doesn't.
+      const INSULT_REGEX = /\b(pénis|penis|merde|connard|connasse|salope|fuck|shit|enculé|encule|bite|couille|putain)\b/i;
+      if (INSULT_REGEX.test(lastPlayerMsg || "")) {
+        hardRejectReasons.push("insult_detected");
+      }
+
+      type DsiState = "DSI_APPROVED" | "DSI_NEEDS_CLARIFICATION" | "DSI_HARD_REJECT";
+      let dsiState: DsiState;
+      if (hardRejectReasons.length > 0) {
+        dsiState = "DSI_HARD_REJECT";
+      } else if (
+        computedScoreDsi >= advancementConfig.min_score &&
+        missingRequiredDsi.length === 0
+      ) {
+        dsiState = "DSI_APPROVED";
+      } else {
+        dsiState = "DSI_NEEDS_CLARIFICATION";
+      }
+
+      // ── Step 3: build the hard DECISION block injected into the prompt ──
+      let dsiDecisionBlock: string;
+      switch (dsiState) {
+        case "DSI_APPROVED":
+          dsiDecisionBlock = `=== DÉCISION DÉTERMINISTE (OBLIGATOIRE — PRIORITÉ ABSOLUE) ===
+Le dossier est complet et honnête. Tu donnes ton AVIS FAVORABLE et tu transmets à la direction.
+
+TU DOIS écrire un message court (3-5 lignes max) qui :
+- reconnaît que les points HDS / RGPD / interopérabilité sont traités correctement
+- annonce explicitement un AVIS FAVORABLE
+- annonce que tu transmets le dossier à la direction pour la suite
+- reste sobre, professionnel, sans flatterie
+
+EXEMPLE DE STRUCTURE (à adapter à ta voix, NE PAS copier mot à mot) :
+« Vos réponses sur l'hébergement, le RGPD et l'interopérabilité sont conformes à nos attentes. Je donne un avis favorable et je transmets le dossier à notre direction pour la suite du processus. »
+
+INTERDICTIONS :
+- ne demande PAS d'information complémentaire
+- ne soulève PAS de nouvelle objection
+- ne mentionne PAS de doute
+=== FIN DÉCISION ===`;
+          break;
+        case "DSI_NEEDS_CLARIFICATION":
+          dsiDecisionBlock = `=== DÉCISION DÉTERMINISTE (OBLIGATOIRE — PRIORITÉ ABSOLUE) ===
+La réponse est partielle. Tu n'as PAS l'ensemble des éléments nécessaires pour valider — il manque ${
+            missingRequiredDsi.length > 0
+              ? `: ${missingRequiredDsi.join(", ")}`
+              : "des précisions sur certains points"
+          }. Tu demandes au joueur de compléter, sans valider et sans rejeter.
+
+TU DOIS écrire un message court (3-5 lignes max) qui :
+- accuse réception
+- liste explicitement les points qui restent à traiter
+- demande une réponse complémentaire
+- reste sec, professionnel, neutre
+
+EXEMPLE DE STRUCTURE :
+« J'ai bien reçu votre réponse. Avant de pouvoir transmettre un avis, j'ai besoin de précisions sur les points suivants : [liste]. Merci d'y répondre point par point. »
+
+INTERDICTIONS :
+- ne donne PAS d'avis favorable ni défavorable
+- n'écris PAS "je transmets le dossier" (équivoque avec APPROVED)
+- n'écris PAS "processus interrompu" (équivoque avec HARD_REJECT)
+- ne propose PAS de RDV / démo
+=== FIN DÉCISION ===`;
+          break;
+        case "DSI_HARD_REJECT":
+          dsiDecisionBlock = `=== DÉCISION DÉTERMINISTE (OBLIGATOIRE — PRIORITÉ ABSOLUE) ===
+La réponse est inacceptable. ${
+            hardRejectReasons.includes("hard_reject_criterion:interop_lied")
+              ? "Le joueur a clairement menti sur l'état d'avancement de l'intégration SIH — un mensonge sur l'interopérabilité dans un dossier DSI est rédhibitoire."
+              : hardRejectReasons.includes("insult_detected")
+              ? "Le contenu de la réponse est offensant et inacceptable dans un échange professionnel."
+              : "Le contenu de la réponse ne répond à aucun des points soulevés (réponse vide, hors-sujet ou non sérieuse)."
+          }
+
+Tu INTERROMPS le processus d'évaluation. Le dossier est refusé.
+
+TU DOIS écrire un message TRÈS court (1-3 lignes max) qui :
+- exprime ton refus de poursuivre
+- indique clairement que le processus est interrompu
+- reste froidement professionnel, pas insultant en retour
+
+EXEMPLE DE STRUCTURE :
+« Cette réponse n'est pas acceptable dans un cadre d'évaluation DSI. Le processus est interrompu de notre côté. »
+
+INTERDICTIONS :
+- ne donne AUCUNE chance de rattrapage
+- ne dis pas "je vais reconsidérer"
+- ne propose pas d'envoyer un nouveau mail
+=== FIN DÉCISION ===`;
+          break;
+      }
+
+      // ── Step 4: roleplay call with the strict directive injected ──
+      const dsiSystemPrompt = `${finalRoleplayPrompt}\n\n${dsiDecisionBlock}`;
+      const dsiChatMessages: Array<{ role: "system" | "user" | "assistant"; content: string }> = [
+        { role: "system", content: dsiSystemPrompt },
+      ];
+      if (Array.isArray(recentConversation) && recentConversation.length > 0) {
+        for (const msg of recentConversation) {
+          const m = msg as any;
+          const role = m.role === "user" ? "user" as const : "assistant" as const;
+          dsiChatMessages.push({ role, content: sanitize(m.content || "") });
+        }
+      }
+      dsiChatMessages.push({ role: "user", content: message });
+
+      const dsiRpResp = await client.chat.completions.create({
+        model: "gpt-4.1-mini",
+        messages: dsiChatMessages,
+        max_tokens: 300,
+        temperature: 0.4, // low: enforce the deterministic decision
+      });
+      let dsiReply =
+        sanitize(dsiRpResp.choices?.[0]?.message?.content || "").trim() ||
+        (dsiState === "DSI_HARD_REJECT"
+          ? "Cette réponse n'est pas acceptable. Le processus est interrompu."
+          : dsiState === "DSI_NEEDS_CLARIFICATION"
+          ? "Merci de bien vouloir compléter votre réponse sur les points manquants."
+          : "Avis favorable. Je transmets le dossier à la direction.");
+
+      // ── Step 5: safety net — enforce text-vs-state coherence ──
+      const APPROVED_PHRASES = /(avis favorable|je transmets|valider le dossier|feu vert|validation technique)/i;
+      const HARD_REJECT_PHRASES = /(processus (est )?interrompu|inacceptable|n'est pas acceptable|ne peux pas valider|avis défavorable)/i;
+      if (dsiState !== "DSI_APPROVED" && APPROVED_PHRASES.test(dsiReply)) {
+        dsiReply =
+          dsiState === "DSI_HARD_REJECT"
+            ? "Cette réponse n'est pas acceptable dans un cadre d'évaluation DSI. Le processus est interrompu."
+            : `J'ai bien reçu votre réponse. Avant de pouvoir transmettre un avis, j'ai besoin de précisions sur les points suivants : ${
+                missingRequiredDsi.length > 0
+                  ? missingRequiredDsi.join(", ")
+                  : "les éléments incomplets"
+              }. Merci d'y répondre point par point.`;
+      }
+      if (dsiState !== "DSI_HARD_REJECT" && HARD_REJECT_PHRASES.test(dsiReply)) {
+        dsiReply =
+          dsiState === "DSI_APPROVED"
+            ? "Avis favorable. Vos réponses sur l'hébergement, le RGPD et l'interopérabilité sont conformes. Je transmets le dossier à notre direction."
+            : `J'ai bien reçu votre réponse, mais elle reste incomplète. Merci de préciser : ${
+                missingRequiredDsi.length > 0
+                  ? missingRequiredDsi.join(", ")
+                  : "les points manquants"
+              }.`;
+      }
+
+      // ── Step 6: structured response ──
+      return Response.json({
+        reply: dsiReply,
+        matched_criteria: matchedDsi,
+        score_delta: computedScoreDsi,
+        flags_to_set: {},
+        phase_evaluation: {
+          mode: "dsi_validation",
+          state: dsiState,
+          score: computedScoreDsi,
+          actorId: targetActorId || "",
+          matched_criteria: matchedDsi,
+          missing_required_criteria: missingRequiredDsi,
+          hard_reject_reasons: hardRejectReasons,
         },
       });
     }

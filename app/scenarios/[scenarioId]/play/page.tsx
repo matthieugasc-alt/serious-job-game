@@ -25,6 +25,7 @@ import {
   handlePhaseFailure,
   isCurrentPhaseValidatedByRules,
   unlockCurrentPhase,
+  addSystemMessage,
 } from "@/app/lib/runtime";
 import type { ScenarioDefinition } from "@/app/lib/types";
 import { computeVisibleContacts } from "@/app/lib/contactVisibility";
@@ -2388,14 +2389,31 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                   phaseId: scenario!.phases[final2.currentPhaseIndex]?.phase_id || "",
                 });
 
-                // ── C1: score-based vs legacy keyword path ──
-                // Two mutually exclusive paths for setting completion flags:
-                //  (A) New: prospection_evaluation.interested decides — used by
-                //      phases that opted in via advancement.mode in scenario.json.
-                //  (B) Legacy: NPC keyword scan — preserved for every other phase
-                //      and scenario so we don't regress behaviour.
-                // The two paths must NOT both fire on the same reply (would
-                // re-introduce the keyword-trigger bug).
+                // ── Generic phase_evaluation vs legacy keyword path ──
+                // (A) Score-based deterministic path. Activated by any phase
+                //     that declares `advancement.mode` in scenario.json. The
+                //     API returns `phase_evaluation = { mode, state, ... }`.
+                //     We dispatch on state per mode. Legacy keyword scan
+                //     (checkNpcSuccessKeywords / checkNpcFailureKeywords)
+                //     is intentionally SKIPPED so the two paths can't fire
+                //     together — that was the root cause of the chat-with-
+                //     Alex-advances-the-phase bug.
+                // (B) Legacy keyword path. Preserved for every other phase
+                //     and scenario so we don't regress.
+                const phaseEval = data.phase_evaluation as
+                  | {
+                      mode?: string;
+                      state?: string;
+                      score?: number;
+                      actorId?: string;
+                      matched_criteria?: string[];
+                      missing_required_criteria?: string[];
+                      hard_reject_reasons?: string[];
+                      similarity_to_previous?: number;
+                    }
+                  | undefined;
+                // Legacy alias retained for phase-1 compat — phaseEval is the
+                // unified source of truth.
                 const prospEval = data.prospection_evaluation as
                   | {
                       score?: number;
@@ -2408,44 +2426,103 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     }
                   | undefined;
 
-                // ── Dev-only log: surface the structured eval so we can debug
-                // why a mail did or didn't pass without showing anything to
-                // the end-user. Stripped from production builds.
-                if (prospEval && process.env.NODE_ENV !== "production") {
+                // ── Dev-only log: structured eval surface for debugging.
+                if (phaseEval && process.env.NODE_ENV !== "production") {
                   // eslint-disable-next-line no-console
-                  console.log("[prospection]", {
+                  console.log(`[${phaseEval.mode || "phase_eval"}]`, {
                     to_actor_id: effect.actorId,
-                    state: prospEval.state,
-                    interested: prospEval.interested,
-                    score: prospEval.score,
-                    matched_criteria: data.matched_criteria || prospEval.matched_criteria,
-                    missing_required_criteria: prospEval.missing_required_criteria,
-                    similarity_to_previous: prospEval.similarity_to_previous,
+                    state: phaseEval.state,
+                    score: phaseEval.score,
+                    matched_criteria: phaseEval.matched_criteria,
+                    missing_required_criteria: phaseEval.missing_required_criteria,
+                    hard_reject_reasons: phaseEval.hard_reject_reasons,
+                    similarity_to_previous: phaseEval.similarity_to_previous,
                     previously_replied: previouslyReplied,
                   });
                 }
 
-                if (prospEval) {
-                  // (A) score-based path
+                if (phaseEval) {
+                  const cfg = (effect as any).advancement_config as
+                    | {
+                        set_flag?: string;
+                        set_actor_flag?: string;
+                        failure_phase?: string;
+                        failure_reset_flags?: string[];
+                        failure_message?: string;
+                      }
+                    | undefined;
+
+                  const state = phaseEval.state;
+                  // SUCCESS states across modes — both lead to "set flag + advance".
+                  const isSuccessState =
+                    state === "FIRST_CONTACT_SUCCESS" || state === "DSI_APPROVED";
+                  // HARD_REJECT states — regress to failure_phase + reset flags.
+                  const isHardRejectState = state === "DSI_HARD_REJECT";
+
+                  if (isSuccessState) {
+                    if (cfg?.set_flag) final2.flags[cfg.set_flag] = true;
+                    if (cfg?.set_actor_flag && effect.actorId) {
+                      final2.flags[cfg.set_actor_flag] = effect.actorId;
+                    }
+                    // Same advancement pipeline as the mail_send legacy path —
+                    // unlocking immediately so the UI moves to the next phase
+                    // on this very render (cf. fix #46).
+                    unlockCurrentPhase(final2);
+                    if (isCurrentPhaseValidatedByRules(final2)) {
+                      completeCurrentPhaseAndAdvance(final2);
+                      if (final2.isFinished) {
+                        notifyCheckpointClear();
+                      } else {
+                        resolveDynamicActors(final2);
+                        resolveEstablishmentPlaceholders(final2);
+                        injectPhaseEntryEvents(final2);
+                        dispatchEnterPhase(final2);
+                      }
+                    }
+                  } else if (isHardRejectState && cfg?.failure_phase) {
+                    // ── Deterministic phase regression ──
+                    // We don't go through handlePhaseFailure() because that
+                    // reads `phase.failure_rules` (legacy keyword path).
+                    // The reset values come from `advancement.failure_*`
+                    // declared in scenario.json — no implicit dependency
+                    // on the legacy block.
+                    const resetFlags = cfg.failure_reset_flags || [];
+                    for (const f of resetFlags) {
+                      final2.flags[f] = false;
+                    }
+                    const idx = scenario!.phases.findIndex(
+                      (p: any) => p.phase_id === cfg.failure_phase,
+                    );
+                    if (idx >= 0) {
+                      final2.currentPhaseIndex = idx;
+                      if (cfg.failure_message) {
+                        addSystemMessage(final2, cfg.failure_message);
+                      }
+                      // Replay phase entry pipeline on the rollback target.
+                      resolveDynamicActors(final2);
+                      resolveEstablishmentPlaceholders(final2);
+                      injectPhaseEntryEvents(final2);
+                      dispatchEnterPhase(final2);
+                    }
+                  }
+                  // NEEDS_CLARIFICATION / NOT_INTERESTED / ALREADY_REPLIED
+                  // → no flag change, no advance — just show the NPC reply
+                  // (already added to inbox above). The phase stays put.
+
+                  // intentionally skip checkNpcSuccessKeywords / checkNpcFailureKeywords
+                  // for any phase that opted in to phase_evaluation.
+                } else if (prospEval) {
+                  // Backward-compat: a stale phase 1 response that only
+                  // emits prospection_evaluation (no phase_evaluation) —
+                  // honour it for safety. New code should rely on phaseEval.
                   if (prospEval.interested === true) {
                     const cfg = (effect as any).advancement_config as
                       | { set_flag?: string; set_actor_flag?: string }
                       | undefined;
-                    if (cfg?.set_flag) {
-                      final2.flags[cfg.set_flag] = true;
-                    }
+                    if (cfg?.set_flag) final2.flags[cfg.set_flag] = true;
                     if (cfg?.set_actor_flag && effect.actorId) {
                       final2.flags[cfg.set_actor_flag] = effect.actorId;
                     }
-                    // ── Phase advancement NOW — same shape as the mail_send
-                    // legacy path (page.tsx:~2797). applyEvaluation above ran
-                    // BEFORE the flag was set so its internal check returned
-                    // false; we must re-check + complete + replay the phase
-                    // entry pipeline here. Otherwise the phase stays locked
-                    // until the next unrelated event, forcing the player to
-                    // "send another mail to advance" — the exact UX bug seen
-                    // in production (the second mail then triggers the
-                    // ALREADY_REPLIED safety net, looking like a regression).
                     unlockCurrentPhase(final2);
                     if (isCurrentPhaseValidatedByRules(final2)) {
                       completeCurrentPhaseAndAdvance(final2);
@@ -2459,7 +2536,6 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       }
                     }
                   }
-                  // intentionally skip checkNpcSuccessKeywords for this phase
                 } else {
                   // (B) legacy keyword path
                   const sf = checkNpcSuccessKeywords(final2, data.reply);

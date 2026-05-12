@@ -396,30 +396,49 @@ export type PhaseDefinition = {
    * Score-based phase advancement, decoupled from NPC-keyword matching.
    *
    * When set, the API performs a structured evaluation of the player's
-   * action (e.g. cold email body) and returns an `interested` boolean
-   * computed from `min_score` AND `required_criteria` (all must match).
-   * The frontend wires this into the phase-completion flags instead of
-   * scanning the NPC reply for keywords.
+   * action (mail body) and returns a `state` (and `interested` for the
+   * prospection mode) computed deterministically from `min_score`,
+   * `required_criteria`, and `hard_reject_criteria`. The frontend wires
+   * this into the phase-completion flags or the failure path, instead
+   * of scanning the NPC reply for keywords.
    *
    * Modes:
-   *  - "prospection_evaluation" — evaluates a cold email and returns
-   *    whether the targeted KOL is interested. Sets the phase's
-   *    completion flag (`set_flag`, e.g. "kol_interested") and
-   *    optionally writes the chosen actor id into the session
-   *    (`set_actor_flag`, e.g. "chosen_kol_id").
+   *  - "prospection_evaluation" — cold email evaluation (S5 phase 1).
+   *    Two states: FIRST_CONTACT_SUCCESS / ALREADY_REPLIED / NOT_INTERESTED.
+   *    Returns `prospection_evaluation` (legacy name) and also
+   *    `phase_evaluation` (generic).
+   *
+   *  - "dsi_validation" — DSI objection answers (S5 phase 2).
+   *    Three states: DSI_APPROVED / DSI_NEEDS_CLARIFICATION / DSI_HARD_REJECT.
+   *    HARD_REJECT triggers a regression to `failure_phase` with
+   *    `failure_reset_flags`. Returns `phase_evaluation`.
    *
    * Ignored when omitted — legacy keyword path remains active.
+   * When set, legacy `success_rules` / `failure_rules` are bypassed at
+   * runtime (but kept in scenario.json as documentation / fallback).
    */
   advancement?: {
-    mode: "prospection_evaluation";
-    /** Minimum total score (sum of matched criterion points) required for `interested = true`. */
+    mode: "prospection_evaluation" | "dsi_validation";
+    /** Minimum total score (sum of matched criterion points) required for success state. */
     min_score: number;
-    /** All listed criterion_ids must be matched, otherwise `interested = false` regardless of score. */
+    /** All listed criterion_ids must be matched, otherwise success state cannot fire. */
     required_criteria: string[];
-    /** Flag to set when interested = true (e.g. "kol_interested"). */
+    /** Flag to set on success state (e.g. "kol_interested", "dsi_approved"). */
     set_flag: string;
     /** Optional flag to populate with the targeted actor id (e.g. "chosen_kol_id"). */
     set_actor_flag?: string;
+    /**
+     * Criteria whose match forces a HARD_REJECT outcome — used by
+     * dsi_validation to e.g. trigger an immediate fail on a clearly
+     * dishonest answer (sets_flag: "lied_about_interop").
+     */
+    hard_reject_criteria?: string[];
+    /** Phase to navigate to on HARD_REJECT (e.g. "phase_1_prospection"). */
+    failure_phase?: string;
+    /** Flags to reset before navigating on HARD_REJECT. */
+    failure_reset_flags?: string[];
+    /** System message shown on HARD_REJECT. */
+    failure_message?: string;
   };
 
   /**

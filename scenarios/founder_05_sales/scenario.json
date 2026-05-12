@@ -617,6 +617,28 @@
           "dsi_approved"
         ]
       },
+      "advancement": {
+        "mode": "dsi_validation",
+        "min_score": 8,
+        "required_criteria": [
+          "hds_answered",
+          "rgpd_answered"
+        ],
+        "hard_reject_criteria": [
+          "interop_lied"
+        ],
+        "set_flag": "dsi_approved",
+        "failure_phase": "phase_1_prospection",
+        "failure_reset_flags": [
+          "kol_interested",
+          "chosen_kol_id",
+          "cold_emails_sent",
+          "dsi_contacted",
+          "dsi_objections_answered",
+          "pricing_negotiated"
+        ],
+        "failure_message": "Le DSI a refusé la solution. Vous devez prospecter un autre KOL."
+      },
       "on_complete": {
         "set_flags": {
           "dsi_approved": true,
@@ -624,6 +646,7 @@
         }
       },
       "success_rules": {
+        "_legacy_note": "Bloc legacy conservé en documentation. Inerte au runtime tant que advancement.mode est défini.",
         "npc_keywords": [
           "avis favorable",
           "valider le dossier",
@@ -638,6 +661,7 @@
       "auto_advance": true,
       "next_phase": "phase_3_implementation",
       "failure_rules": {
+        "_legacy_note": "Bloc legacy conservé en documentation. Inerte au runtime tant que advancement.mode est défini — la régression DSI_HARD_REJECT passe par advancement.failure_phase + advancement.failure_reset_flags.",
         "npc_keywords": [
           "avis défavorable",
           "processus est interrompu",

@@ -666,7 +666,34 @@ function handleDsiResponseReply(
   if (!mailDraft) return { actions, earlyReturn: false, didAdvance: false };
 
   const actorId = "eric_moreau";
-  const activePrompt = extra.activePromptMap[actorId] || extra.defaultPrompt;
+  const activePrompt = extra.activePromptMap[actorId];
+
+  // ── Strict routing: no fallback to defaultPrompt for the DSI either ──
+  if (!activePrompt) {
+    const phaseId = (extra.runtimeView as any)?.phaseId || "";
+    actions.push({ type: "set_compose", show: false });
+    actions.push({
+      type: "add_inbox_mail",
+      mail: {
+        from: "system",
+        subject: "Mail non distribué — destinataire indisponible",
+        body: `Le destinataire « ${actorId} » est temporairement injoignable. Réessayez plus tard.`,
+        phaseId,
+      },
+    });
+    return { actions, earlyReturn: true, didAdvance: false };
+  }
+
+  // ── C2: forward score-based dsi_validation config to the API ──────
+  // When the phase declares advancement.mode === "dsi_validation", the
+  // API runs a deterministic state machine (DSI_APPROVED / NEEDS_CLARIFICATION
+  // / HARD_REJECT) and returns `phase_evaluation`. The frontend wires that
+  // into the phase progression + the regression path on HARD_REJECT.
+  const phase = ctx.phase as any;
+  const advancementConfig = phase?.advancement;
+  const scoringCriteria = phase?.scoring?.criteria;
+  const evalMode =
+    advancementConfig?.mode === "dsi_validation" ? "dsi_validation" : undefined;
 
   actions.push({ type: "set_compose", show: false });
   actions.push({
@@ -683,6 +710,11 @@ function handleDsiResponseReply(
       narrative: (ctx.scenario as any).narrative,
       runtimeView: extra.runtimeView,
       roleplayPrompt: activePrompt,
+      // ── C2 payload extensions ──
+      eval_mode: evalMode,
+      advancement_config: advancementConfig,
+      target_actor_id: actorId,
+      criteria: Array.isArray(scoringCriteria) ? scoringCriteria : [],
     },
   });
 
