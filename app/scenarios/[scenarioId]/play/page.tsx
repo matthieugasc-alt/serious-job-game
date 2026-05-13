@@ -287,7 +287,26 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
   // ── State ──
   const [scenario, setScenario] = useState<ScenarioDefinition | null>(null);
-  const [session, setSession] = useState<any>(null);
+  const [session, setSessionRaw] = useState<any>(null);
+  // ⚠ TEMPORARY DEBUG WRAPPER — logs every setSession call with the resulting
+  // currentPhaseIndex + a stack trace, so we can identify which caller is
+  // bouncing the phase from 0 back to 1 after a HARD_REJECT rollback.
+  // To remove once the bug is identified.
+  const setSession = (next: any) => {
+    try {
+      const newIdx = next?.currentPhaseIndex;
+      // eslint-disable-next-line no-console
+      console.log("[S5_SET_SESSION]", {
+        newPhaseIndex: newIdx,
+        burned_kol_ids: next?.flags?.burned_kol_ids,
+        chosen_kol_id: next?.flags?.chosen_kol_id,
+        kol_interested: next?.flags?.kol_interested,
+        // small stack trace — first 6 frames after the wrapper
+        stack: new Error().stack?.split("\n").slice(2, 8).join(" | "),
+      });
+    } catch {}
+    setSessionRaw(next);
+  };
   const [mainView, setMainView] = useState<MainView>("chat");
   const [playerInput, setPlayerInput] = useState("");
   const [isSending, setIsSending] = useState(false);
