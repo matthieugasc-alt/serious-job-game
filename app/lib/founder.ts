@@ -502,3 +502,39 @@ export function clearCheckpoint(campaign: FounderCampaign): void {
   campaign.checkpoint = null;
   saveCampaign(campaign);
 }
+
+/**
+ * Roll the checkpoint BACK to an earlier phase (HARD_REJECT in S5).
+ *
+ * Symmetric counterpart of advanceCheckpoint: when the engine regresses the
+ * player from phase N to phase N-1 (e.g. DSI hard-rejects the prospect and
+ * we send the player back to phase_1_prospection), we MUST update the
+ * persisted checkpoint too — otherwise the next "Reprendre" rebuilds a
+ * session at the old phase N and silently re-creates the inconsistent
+ * state the rollback was meant to clear.
+ *
+ * Semantics:
+ *  - Sets `checkpoint.phaseIndex = targetPhaseIndex`.
+ *  - Removes any phases from `completedPhases` that come AT OR AFTER the
+ *    target phase id (they are no longer "done").
+ *  - Updates `savedAt`.
+ *
+ * The targetPhaseId is required so we can prune `completedPhases`
+ * deterministically without depending on the caller knowing the full
+ * phase order.
+ */
+export function rollbackCheckpoint(
+  campaign: FounderCampaign,
+  targetPhaseId: string,
+  targetPhaseIndex: number,
+): void {
+  if (!campaign.checkpoint) return;
+  campaign.checkpoint.phaseIndex = targetPhaseIndex;
+  // Drop the target phase (it has to be re-completed) and anything after it.
+  const idx = campaign.checkpoint.completedPhases.indexOf(targetPhaseId);
+  if (idx !== -1) {
+    campaign.checkpoint.completedPhases = campaign.checkpoint.completedPhases.slice(0, idx);
+  }
+  campaign.checkpoint.savedAt = new Date().toISOString();
+  saveCampaign(campaign);
+}

@@ -525,12 +525,22 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   ]);
 
   // ── HARD_REJECT runtime guard ────────────────────────────────────────
-  // Last-resort consistency check: if the session is in an "impossible"
-  // state — current phase declares an advancement.failure_phase AND the
-  // active actor (chosen_kol_id) is already burned — we force the rollback.
-  // This makes the bug "phase 2 stuck even after rollback was supposed to
-  // fire" structurally impossible regardless of any earlier race. The
-  // guard is a no-op in nominal cases so it doesn't disturb normal play.
+  // Last-resort consistency check on phases that declare an
+  // `advancement.failure_phase`. We detect TWO impossibility classes:
+  //
+  //  (A) "Burnt actor still active" — chosen_kol_id is also in
+  //      burned_kol_ids. Means a previous rollback wrote half-state.
+  //
+  //  (B) "Phase entered without prerequisite" — we're in a phase that
+  //      requires a chosen actor, but none is set AND the phase has
+  //      already been entered (we have at least one inbox mail or
+  //      action history for this phase). This is the symptom we get
+  //      when the server checkpoint is at phase N but the local session
+  //      is rebuilt from defaults — leaving chosen_kol_id undefined.
+  //
+  // In either case we re-run handlePhaseFailure to push the player back
+  // to a coherent state. The guard is a no-op in nominal cases so it
+  // doesn't disturb normal play.
   useEffect(() => {
     if (!session || !scenario) return;
     const cp = scenario.phases[session.currentPhaseIndex];
@@ -541,22 +551,32 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     const burned = Array.isArray((session.flags as any)?.burned_kol_ids)
       ? ((session.flags as any).burned_kol_ids as string[])
       : [];
-    if (
+    const chosenIsBurned =
       typeof chosenKolNow === "string" &&
       chosenKolNow.length > 0 &&
-      burned.includes(chosenKolNow)
-    ) {
-      // Inconsistent state — the chosen actor is already burned but we're
-      // still in a phase that requires it. This can only happen if a
-      // previous rollback wrote half-state. Re-run handlePhaseFailure.
-      //
+      burned.includes(chosenKolNow);
+
+    // (B) prerequisite missing — only a problem if this isn't the very
+    // first render (the regular advance pipeline sets chosen_kol_id
+    // before bumping phase, but the guard runs slightly later in some
+    // races; we wait until we observe the phase has been "lived in").
+    const hasPhaseActivity =
+      (session.inboxMails || []).some((m: any) => m.phaseId === cp.phase_id) ||
+      (session.sentMails || []).some((m: any) => m.phaseId === cp.phase_id);
+    const missingChosen =
+      (typeof chosenKolNow !== "string" || chosenKolNow.length === 0) &&
+      hasPhaseActivity;
+
+    if (chosenIsBurned || missingChosen) {
       // ⚠ Log enabled in production too, see [S5_RENDER_PHASE] comment.
       // eslint-disable-next-line no-console
       console.warn("[S5_GUARD_INCONSISTENT_STATE]", {
+        reason: chosenIsBurned ? "chosen_is_burned" : "missing_chosen_with_activity",
         currentPhaseIndex: session.currentPhaseIndex,
         currentPhaseId: cp.phase_id,
         chosenKolNow,
         burned,
+        hasPhaseActivity,
       });
       const repaired = cloneSession(session);
       const result = handlePhaseFailure(repaired);
@@ -565,6 +585,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         setShowCompose(false);
         setSelectedContact("alexandre_morel");
         setSession(repaired);
+        if (result.newPhaseId) {
+          notifyCheckpointRollback(
+            result.newPhaseId,
+            repaired.currentPhaseIndex,
+          );
+        }
       }
     }
     // We deliberately depend on a stringified summary of the flags so the
@@ -574,6 +600,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     session?.currentPhaseIndex,
     (session?.flags as any)?.chosen_kol_id,
     JSON.stringify((session?.flags as any)?.burned_kol_ids || []),
+    session?.inboxMails?.length,
+    session?.sentMails?.length,
     scenario,
   ]);
 
@@ -765,6 +793,27 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       headers: apiHeaders(),
       body: JSON.stringify({ scenarioId, action: "clear" }),
     }).catch((e) => console.warn("[founder] checkpoint clear failed:", e));
+  }
+
+  // ── Founder checkpoint: notify server on HARD_REJECT rollback ──
+  // Symmetric counterpart of notifyCheckpointAdvance. Without this, the
+  // engine rolls back the React session to phase_1_prospection but the
+  // server checkpoint still says "you're in phase 2", so the next time
+  // the player clicks "Reprendre" the session is rebuilt at phase 2
+  // with no KOL state — exactly the inconsistent state HARD_REJECT was
+  // supposed to clear.
+  function notifyCheckpointRollback(targetPhaseId: string, targetPhaseIndex: number) {
+    if (!isFounderScenario) return;
+    fetch("/api/founder/checkpoint", {
+      method: "POST",
+      headers: apiHeaders(),
+      body: JSON.stringify({
+        scenarioId,
+        action: "rollback",
+        targetPhaseId,
+        targetPhaseIndex,
+      }),
+    }).catch((e) => console.warn("[founder] checkpoint rollback failed:", e));
   }
 
   // ── Debrief hook (extracted from page.tsx — zero logic change) ──
@@ -2637,6 +2686,15 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                       setShowCompose(false);
                       setSelectedContact("alexandre_morel");
 
+                      // CRITICAL — also roll the persisted checkpoint back.
+                      // Without this, "Reprendre" rebuilds a phase-2 session.
+                      if (result.newPhaseId) {
+                        notifyCheckpointRollback(
+                          result.newPhaseId,
+                          final2.currentPhaseIndex,
+                        );
+                      }
+
                       // eslint-disable-next-line no-console
                       console.log("[S5_HARD_REJECT_AFTER_SETTERS]", {
                         intendedPhaseIndex: final2.currentPhaseIndex,
@@ -2645,6 +2703,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                         intendedSelectedContact: "alexandre_morel",
                         intendedSelectedMailId: null,
                         intendedShowCompose: false,
+                        checkpointRolledBack: result.newPhaseId,
                       });
                     }
                   }
@@ -2722,6 +2781,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
                     setSelectedMailId(null);
                     setShowCompose(false);
                     setSelectedContact("alexandre_morel");
+                    if (fkResult.newPhaseId) {
+                      notifyCheckpointRollback(
+                        fkResult.newPhaseId,
+                        final2.currentPhaseIndex,
+                      );
+                    }
                   }
                 }
               }

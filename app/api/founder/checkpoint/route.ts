@@ -5,6 +5,7 @@ import {
   handleScenarioEntry,
   advanceCheckpoint,
   clearCheckpoint,
+  rollbackCheckpoint,
   ABANDON_PENALTY,
   SCENARIO_0_ID,
 } from '@/app/lib/founder';
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
   const body = await req.json();
-  const { scenarioId, action, phaseIndex, completedPhaseId } = body;
+  const { scenarioId, action, phaseIndex, completedPhaseId, targetPhaseId, targetPhaseIndex } = body;
 
   if (!scenarioId || !action) {
     return NextResponse.json({ error: 'scenarioId and action required' }, { status: 400 });
@@ -82,6 +83,25 @@ export async function POST(req: NextRequest) {
 
     case 'clear': {
       clearCheckpoint(campaign);
+      return NextResponse.json({ ok: true });
+    }
+
+    case 'rollback': {
+      // Symmetric counterpart of "advance" — used by HARD_REJECT paths
+      // (S5 phase 2 → phase 1) so the persisted checkpoint follows the
+      // engine rollback. Without this, "Reprendre" rebuilds a session
+      // at the post-rollback phase but with all KOL state wiped, putting
+      // the player in an inconsistent state.
+      if (scenarioId === SCENARIO_0_ID) {
+        return NextResponse.json({ ok: true });
+      }
+      if (typeof targetPhaseIndex !== 'number' || !targetPhaseId) {
+        return NextResponse.json(
+          { error: 'targetPhaseIndex (number) and targetPhaseId required for rollback' },
+          { status: 400 }
+        );
+      }
+      rollbackCheckpoint(campaign, targetPhaseId, targetPhaseIndex);
       return NextResponse.json({ ok: true });
     }
 
