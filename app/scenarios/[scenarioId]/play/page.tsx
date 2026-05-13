@@ -293,19 +293,61 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // bouncing the phase from 0 back to 1 after a HARD_REJECT rollback.
   // To remove once the bug is identified.
   const setSession = (next: any) => {
+    // ── Defensive validator ────────────────────────────────────────
+    // Reject any setSession that would bump the phase index FORWARD
+    // into a phase whose prerequisites aren't met. This makes the
+    // "HARD_REJECT bounce" bug structurally impossible: any stale
+    // closure trying to revive a previous phase-2 state after we
+    // rolled back to phase-1 is silently dropped, and the culprit
+    // is logged with a full stack trace so we can pin down the
+    // offending call site.
+    const validate = (candidate: any, prev: any) => {
+      if (!candidate || !prev) return candidate;
+      const newIdx = candidate.currentPhaseIndex;
+      const oldIdx = prev.currentPhaseIndex;
+      if (typeof newIdx !== "number" || typeof oldIdx !== "number") return candidate;
+      if (newIdx <= oldIdx) return candidate; // never reject rollbacks / no-ops
+      const newPhase = candidate.scenario?.phases?.[newIdx];
+      const advancement = (newPhase as any)?.advancement;
+      // Only guard phases that declare a deterministic prerequisite
+      // (advancement.failure_phase + needs chosen_kol_id).
+      if (!advancement?.failure_phase) return candidate;
+      const chosen = (candidate.flags as any)?.chosen_kol_id;
+      if (typeof chosen === "string" && chosen.length > 0) return candidate;
+      // eslint-disable-next-line no-console
+      console.warn("[S5_SETSESSION_REJECT_BUMP]", {
+        attempted_cpi: newIdx,
+        prev_cpi: oldIdx,
+        new_phase_id: (newPhase as any)?.phase_id,
+        chosen_kol_id: chosen,
+        stack: new Error().stack,
+      });
+      // Return the candidate but FORCE its currentPhaseIndex back to prev's
+      // value. We preserve the rest of the mutations (e.g. flushDueTimedEvents
+      // additions) so we don't drop legitimate side-effects.
+      return { ...candidate, currentPhaseIndex: oldIdx };
+    };
     try {
-      const newIdx = next?.currentPhaseIndex;
+      const isFunc = typeof next === "function";
+      const stack = new Error().stack?.split("\n").slice(2, 8).join(" | ");
       // eslint-disable-next-line no-console
       console.log("[S5_SET_SESSION]", {
-        newPhaseIndex: newIdx,
-        burned_kol_ids: next?.flags?.burned_kol_ids,
-        chosen_kol_id: next?.flags?.chosen_kol_id,
-        kol_interested: next?.flags?.kol_interested,
-        // small stack trace — first 6 frames after the wrapper
-        stack: new Error().stack?.split("\n").slice(2, 8).join(" | "),
+        form: isFunc ? "callback" : "value",
+        newPhaseIndex: isFunc ? undefined : next?.currentPhaseIndex,
+        burned_kol_ids: isFunc ? undefined : next?.flags?.burned_kol_ids,
+        chosen_kol_id: isFunc ? undefined : next?.flags?.chosen_kol_id,
+        kol_interested: isFunc ? undefined : next?.flags?.kol_interested,
+        stack,
       });
     } catch {}
-    setSessionRaw(next);
+    if (typeof next === "function") {
+      setSessionRaw((prev: any) => {
+        const candidate = next(prev);
+        return validate(candidate, prev);
+      });
+    } else {
+      setSessionRaw((prev: any) => validate(next, prev));
+    }
   };
   const [mainView, setMainView] = useState<MainView>("chat");
   const [playerInput, setPlayerInput] = useState("");
@@ -524,6 +566,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     showCompose,
   ]);
 
+  // ── HARD_REJECT runtime guard cooldown ref ──────────────────────────
+  const guardCooldownRef = useRef<number>(0);
+
   // ── HARD_REJECT runtime guard ────────────────────────────────────────
   // Last-resort consistency check on phases that declare an
   // `advancement.failure_phase`. We detect TWO impossibility classes:
@@ -568,6 +613,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       hasPhaseActivity;
 
     if (chosenIsBurned || missingChosen) {
+      // Cooldown — defensive validator should already prevent the bounce,
+      // but in case it doesn't (e.g. validator was bypassed), cap the
+      // guard at one fire per 2s so we don't melt the render thread.
+      const nowGuard = Date.now();
+      if (nowGuard < guardCooldownRef.current) return;
+      guardCooldownRef.current = nowGuard + 2000;
       // ⚠ Log enabled in production too, see [S5_RENDER_PHASE] comment.
       // eslint-disable-next-line no-console
       console.warn("[S5_GUARD_INCONSISTENT_STATE]", {
