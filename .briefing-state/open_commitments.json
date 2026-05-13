@@ -1,0 +1,101 @@
+{
+  "version": 2,
+  "updated_at": "2026-05-13T06:17:57.111449+00:00",
+  "commitments": [
+    {
+      "id": "cmt_2026-05-11_relancer-stand-software",
+      "title": "Relancer Stand Software",
+      "owner": "Matthieu",
+      "created_at": "2026-05-13T06:17:07.497939+00:00",
+      "source": {
+        "type": "granola",
+        "meeting_title": "Point DO Innov",
+        "meeting_date": "2026-05-11"
+      },
+      "context": "Devait être fait le matin du 11 mai. David Vincent en backup.",
+      "due_at": "2026-05-12",
+      "things3_uuid": null,
+      "things3_url": null,
+      "status": "open",
+      "resolved_at": null,
+      "resolved_via": null,
+      "age_days": 2
+    },
+    {
+      "id": "cmt_2026-05-11_contacter-jenny-sur-services-d-interoperabilite",
+      "title": "Contacter Jenny sur services d interopérabilité",
+      "owner": "Matthieu",
+      "created_at": "2026-05-13T06:17:07.516038+00:00",
+      "source": {
+        "type": "granola",
+        "meeting_title": "Matthieu x Anaïs (IRIS)",
+        "meeting_date": "2026-05-11"
+      },
+      "context": "Suite échange Anaïs Monlong (IRIS). Anaïs doit fournir intros Aupia/Canada/Allemagne en retour.",
+      "due_at": "2026-05-15",
+      "things3_uuid": null,
+      "things3_url": null,
+      "status": "open",
+      "resolved_at": null,
+      "resolved_via": null,
+      "age_days": 2
+    },
+    {
+      "id": "cmt_2026-05-11_gerer-situation-paul-millon-sante-expo",
+      "title": "Gérer situation Paul Millon — Santé Expo",
+      "owner": "Matthieu",
+      "created_at": "2026-05-13T06:17:07.532112+00:00",
+      "source": {
+        "type": "granola",
+        "meeting_title": "Réunion >1MARR 2 ans",
+        "meeting_date": "2026-05-11"
+      },
+      "context": "Risque qu il présente l équipe aux DG à la place de Matthieu (NDA).",
+      "due_at": "2026-05-22",
+      "things3_uuid": null,
+      "things3_url": null,
+      "status": "open",
+      "resolved_at": null,
+      "resolved_via": null,
+      "age_days": 2
+    },
+    {
+      "id": "cmt_2026-05-11_point-hugo-re-trier-les-15-hopitaux-en-attente",
+      "title": "Point Hugo : re-trier les 15 hôpitaux en attente",
+      "owner": "Matthieu",
+      "created_at": "2026-05-13T06:17:07.547690+00:00",
+      "source": {
+        "type": "granola",
+        "meeting_title": "Point DO Innov",
+        "meeting_date": "2026-05-11"
+      },
+      "context": "Perpignan, Versailles, Draguignan, etc. Post-visio sans réponse.",
+      "due_at": "2026-05-15",
+      "things3_uuid": null,
+      "things3_url": null,
+      "status": "open",
+      "resolved_at": null,
+      "resolved_via": null,
+      "age_days": 2
+    },
+    {
+      "id": "cmt_2026-05-12_forward-erreur-adresse-bangkok-a-clemence",
+      "title": "Forward erreur adresse Bangkok à Clémence",
+      "owner": "Matthieu",
+      "created_at": "2026-05-13T06:17:07.563295+00:00",
+      "source": {
+        "type": "granola",
+        "meeting_title": "Docs valorisation → Christophe",
+        "meeting_date": "2026-05-12"
+      },
+      "context": "Document capital increase signé par Christophe avec adresse erronée. Filing 15 mai.",
+      "due_at": "2026-05-13",
+      "things3_uuid": null,
+      "things3_url": null,
+      "status": "open",
+      "resolved_at": null,
+      "resolved_via": null,
+      "age_days": 1
+    }
+  ]
+}

@@ -476,9 +476,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // selectedContact, the selectedMailId or the showCompose. Lets us see
   // whether the new session actually propagates to the rendered output
   // after a HARD_REJECT — or whether something else snaps it back.
+  //
+  // ⚠ TEMPORARILY enabled in production for HARD_REJECT diagnosis. The
+  // earlier `process.env.NODE_ENV === "production" return;` guard caused
+  // Turbopack to dead-code-eliminate this log in prod builds, leaving us
+  // blind to the actual phase / UI state in the deployed bundle.
   // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (process.env.NODE_ENV === "production") return;
     if (!session || !scenario) return;
     const cp = scenario.phases[session.currentPhaseIndex];
     // eslint-disable-next-line no-console
@@ -526,15 +530,15 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
       // Inconsistent state — the chosen actor is already burned but we're
       // still in a phase that requires it. This can only happen if a
       // previous rollback wrote half-state. Re-run handlePhaseFailure.
-      if (process.env.NODE_ENV !== "production") {
-        // eslint-disable-next-line no-console
-        console.warn("[S5_GUARD_INCONSISTENT_STATE]", {
-          currentPhaseIndex: session.currentPhaseIndex,
-          currentPhaseId: cp.phase_id,
-          chosenKolNow,
-          burned,
-        });
-      }
+      //
+      // ⚠ Log enabled in production too, see [S5_RENDER_PHASE] comment.
+      // eslint-disable-next-line no-console
+      console.warn("[S5_GUARD_INCONSISTENT_STATE]", {
+        currentPhaseIndex: session.currentPhaseIndex,
+        currentPhaseId: cp.phase_id,
+        chosenKolNow,
+        burned,
+      });
       const repaired = cloneSession(session);
       const result = handlePhaseFailure(repaired);
       if (result.applied) {
