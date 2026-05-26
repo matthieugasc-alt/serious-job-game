@@ -325,21 +325,46 @@ export default function ScenarioSelectionPage() {
       const fAccess = localStorage.getItem("founder_access");
       if (role) setUserRole(role);
       if (token) setUserToken(token);
+      // Optimistic initial render from cache so the homepage doesn't flash empty.
       if (fAccess === "true" || role === "super_admin" || role === "admin") setFounderAccess(true);
       if (name && name !== "undefined" && name.trim() !== "") {
         setUserName(name);
-      } else if (token) {
-        // Token exists but name is missing — fetch it from the server instead of logging out
+      }
+      // CRITICAL — always refresh from server when we have a token, even if we
+      // already have the name in cache. Without this, a user whose admin just
+      // toggled their founderAccess flag (or whose role just changed) would
+      // never see the updated state until they explicitly log out and back in.
+      // Bug reproduced with user "Elodie": admin granted founder access,
+      // but the homepage tile stayed hidden because the cached founder_access
+      // localStorage flag was never refreshed.
+      if (token) {
         fetch("/api/auth/session", {
           headers: { Authorization: `Bearer ${token}` },
         })
-          .then((r) => r.ok ? r.json() : null)
+          .then((r) => (r.ok ? r.json() : null))
           .then((data) => {
-            if (data?.user?.name) {
+            if (!data?.user) return;
+            // Name
+            if (data.user.name) {
               setUserName(data.user.name);
               localStorage.setItem("user_name", data.user.name);
-              if (data.user.role) localStorage.setItem("user_role", data.user.role);
-              if (data.user.founderAccess) localStorage.setItem("founder_access", "true");
+            }
+            // Role
+            if (data.user.role) {
+              setUserRole(data.user.role);
+              localStorage.setItem("user_role", data.user.role);
+            }
+            // Founder access — must sync BOTH React state AND localStorage,
+            // AND handle revocation (admin can flip the flag back to false).
+            const grant =
+              data.user.founderAccess === true ||
+              data.user.role === "super_admin" ||
+              data.user.role === "admin";
+            setFounderAccess(grant);
+            if (grant) {
+              localStorage.setItem("founder_access", "true");
+            } else {
+              localStorage.removeItem("founder_access");
             }
           })
           .catch(() => {});
