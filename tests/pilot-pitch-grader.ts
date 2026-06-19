@@ -317,6 +317,282 @@ recul pendant la durée du test. Quelques semaines à voir tout ce
 que ça donne avec vous. Et on en discute.`,
     expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "ACCEPT" },
   },
+
+  // ── Persona-driven variants ──────────────────────────────────────
+  {
+    id: "T29_debutant_naive",
+    label: "Débutant naïf — enthousiaste, peu de structure",
+    body: `Bonjour ! Je m'appelle Matthieu et j'ai créé une super
+application pour les hôpitaux. C'est trop cool, je pense que ça
+peut vraiment vous aider. Est-ce qu'on peut se voir pour en
+discuter ?`,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "ACCEPT" },
+  },
+  {
+    id: "T30_ingenieur_aride",
+    label: "Ingénieur — tech-only, zéro contexte clinique",
+    body: `Bonjour, notre stack est composée de Next.js + PostgreSQL,
+hébergée sur OVH HDS, conforme RGPD. Architecture event-driven,
+API REST avec OpenAPI 3, SSO via SAML. Cordialement.`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T31_business_school",
+    label: "Business-school — buzzwords, peu de fond",
+    body: `Bonjour Docteur, nous proposons une solution disruptive et
+scalable, leveraging notre proposition de valeur unique pour
+optimiser votre time-to-market et booster vos KPIs critiques.
+Cordialement, Matthieu (MBA HEC).`,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "ACCEPT" },
+  },
+  {
+    id: "T32_juridique_lourd",
+    label: "Juridique-lourd — full conformité, pas de valeur",
+    body: `Madame, Monsieur,
+
+Nous attirons votre attention sur la solution Orisio, conforme au
+RGPD, hébergée chez un certifié HDS, avec chiffrement AES-256 et
+souveraineté des données patient (anonymisation systématique).
+
+Bien cordialement.`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T33_chu_specifique",
+    label: "Mail spécifiquement adapté au CHU (Pellegrin)",
+    body: `Bonjour Docteur Lemaire,
+
+Faisant suite à notre échange aux JFR, je vous propose un test
+pilote gratuit de 8 semaines, sur le service de chirurgie
+orthopédique. Notre solution est hébergée HDS, conforme RGPD,
+et permet d'optimiser l'occupation des créneaux de bloc.
+
+Bien cordialement,
+Matthieu Gasc`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T34_sm_specifique",
+    label: "Mail spécifiquement adapté à Saint-Martin (Ramsay)",
+    body: `Bonjour M. Castex,
+
+Suite à la recommandation de votre directeur médical, je vous
+propose un test pilote gratuit pour fluidifier la coordination
+de votre bloc orthopédie. Pilote 8 semaines, hébergé HDS,
+conforme RGPD.
+
+Cordialement, Matthieu Gasc`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T35_mismatch_tofield",
+    label: "Mail à la Clinique mais on mentionne CHU dans le body",
+    body: `Bonjour Dr Renaud-Picard,
+
+Le CHU de Bordeaux nous a refusés mais nous aimerions vous
+proposer le même pilote : 8 semaines gratuites, HDS, planning
+bloc opératoire optimisé.
+
+Bien cordialement.`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T36_one_sentence_polite",
+    label: "Une phrase polie complète — au-dessus du seuil clinique",
+    body: `Bonjour Docteur, je sollicite votre établissement pour un
+test pilote gratuit, 8 semaines, hébergement HDS. Cordialement.`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T37_emoji_only",
+    label: "Émojis sans texte — game over Clinique",
+    body: `🚀✨💊🏥👨‍⚕️📊`,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "GAME_OVER" },
+  },
+  {
+    id: "T38_50_chars_exactly",
+    label: "Pile 50 caractères — Clinique passe (limite)",
+    body: `bonjour je propose un test pilote a votre etabl`,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "ACCEPT" },
+  },
+  {
+    id: "T39_49_chars",
+    label: "Pile 49 caractères — Clinique game over (limite)",
+    body: `bonjour je propose un test pilote a votre etab`,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "GAME_OVER" },
+  },
+  {
+    id: "T40_lots_of_whitespace",
+    label: "Espaces et retours à la ligne — counts on trim",
+    body: `
+
+   Bonjour
+
+
+    Cordialement   `,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "GAME_OVER" },
+  },
+  {
+    id: "T41_only_value_words",
+    label: "Que des keywords value, sans phrase",
+    body: `planning bloc opératoire annulation créneau optimiser
+gestion occupation rotation fluidifier coordination salles`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T42_html_tags_in_body",
+    label: "HTML brut dans le body — keywords matchent quand même",
+    body: `<p>Bonjour Docteur,</p>
+<p>Notre solution Orisio (HDS, RGPD) propose un pilote gratuit
+8 semaines pour optimiser le planning bloc opératoire.</p>
+<p>Cordialement, Matthieu</p>`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T43_signature_riche",
+    label: "Signature riche, contenu pauvre",
+    body: `Bonjour Docteur.
+
+Cordialement,
+Matthieu Gasc
+CEO Orisio · Bordeaux
++33 6 12 34 56 78
+matthieu@orisio.fr`,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "ACCEPT" },
+  },
+  {
+    id: "T44_3_paragraphes_perfect",
+    label: "3 paragraphes professionnels — passe partout",
+    body: `Bonjour Docteur Lemaire,
+
+Suite à votre intervention aux JCO sur la gestion des blocs
+opératoires en oncologie, je me permets de vous proposer un
+test pilote GRATUIT de notre solution Orisio.
+
+Orisio optimise l'occupation des blocs, réduit les annulations
+et fluidifie la coordination. Hébergement HDS certifié, RGPD,
+chiffrement AES-256. Pilote 8 semaines, sans engagement.
+
+Bien cordialement,
+Matthieu Gasc — Orisio`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T45_question_only",
+    label: "Que des questions — pas de pitch",
+    body: `Bonjour Docteur, est-ce que vous seriez intéressé par une
+discussion sur l'optimisation de vos process ? Cordialement.`,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "ACCEPT" },
+  },
+  {
+    id: "T46_chu_personnalise_min",
+    label: "Pitch personnalisé CHU mais minimal",
+    body: `Cher Docteur Lemaire, le CHU de Bordeaux Pellegrin est notre
+priorité. Pilote gratuit 8 semaines, HDS, RGPD. Optimisation
+planning bloc opératoire. Cordialement.`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T47_alex_referal",
+    label: "Référence à Alexandre — leverage du réseau",
+    body: `Bonjour Dr Renaud-Picard,
+
+Alexandre Morel m'a recommandé de vous contacter. Nous
+proposons un test pilote gratuit (8 semaines) pour fluidifier
+la coordination de votre bloc.
+
+Bien cordialement,
+Matthieu`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T48_repeat_keyword",
+    label: "Spam keyword × 10 — passe le scoring",
+    body: `gratuit gratuit gratuit gratuit gratuit gratuit gratuit
+gratuit gratuit gratuit gratuit gratuit gratuit gratuit gratuit
+gratuit gratuit gratuit gratuit gratuit gratuit gratuit gratuit`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T49_caps_aggressive",
+    label: "Tout en majuscules — keywords detected (case-insensitive)",
+    body: `BONJOUR DOCTEUR, NOUS PROPOSONS UN PILOTE GRATUIT DE
+8 SEMAINES POUR OPTIMISER LE PLANNING DU BLOC OPÉRATOIRE.
+HÉBERGEMENT HDS. CORDIALEMENT.`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T50_passive_aggressive",
+    label: "Passif-agressif — pas d'insulte, accept clinique",
+    body: `Bonjour, j'imagine que vous êtes très occupé pour répondre
+mais bon, je tente quand même. On vous propose un truc, voilà.
+Cordialement.`,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "ACCEPT" },
+  },
+  {
+    id: "T51_polite_data_short",
+    label: "Poli + data, court — limite Clinique passe",
+    body: `Bonjour Docteur, notre solution est HDS et RGPD compliant.
+Cordialement, Matthieu Gasc.`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T52_buzzword_no_health",
+    label: "Buzzword tech sans angle santé — passe clinique uniquement",
+    body: `Bonjour, nous sommes une scale-up disruptive qui leverage
+l'IA générative pour booster la productivité de vos équipes.
+Cordialement.`,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "ACCEPT" },
+  },
+  {
+    id: "T53_pricing_negotiation_attempt",
+    label: "Tente de négocier prix avant pilote",
+    body: `Bonjour, on facture 1800€/salle/an mais on peut faire un
+geste pour vous : 1200€/salle/an + pilote gratuit 8 semaines.
+HDS, RGPD. Cordialement.`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T54_super_long_garbage",
+    label: "Très long mais charabia — pas de keywords",
+    body: `Bonjour à vous chère personne. Je vous écris ce mail
+parce que. Voilà voilà voilà voilà voilà voilà voilà voilà voilà
+voilà voilà voilà voilà voilà voilà voilà voilà voilà voilà voilà
+voilà voilà voilà voilà voilà voilà voilà voilà voilà voilà voilà.
+Au revoir.`,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "ACCEPT" },
+  },
+  {
+    id: "T55_emoji_with_text",
+    label: "Émojis + texte court professionnel",
+    body: `Bonjour Docteur 👨‍⚕️, je vous propose un test pilote gratuit
+🚀 de 8 semaines pour optimiser votre planning bloc. HDS
+compliant ✅. Cordialement 🙏`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "ACCEPT" },
+  },
+  {
+    id: "T56_typos_lourds",
+    label: "Mail plein de fautes — keywords matchent quand même",
+    body: `Bonjr Doctuer, je vous proppose un test piloite gratuite
+de 8 semanes pour le planning du bloc opperatoire. HDS et
+RGPDD. Cordailmnt.`,
+    expected: { chu: "PIVOT_TO_CLINIQUE", saint_martin: "PIVOT_TO_CLINIQUE", clinique: "ACCEPT" },
+  },
+  {
+    id: "T57_insult_with_accent",
+    label: "Insulte accentuée 'pénis' — game over",
+    body: `Bonjour Docteur, j'avais envie de vous dire pénis. Pilote
+gratuit 8 semaines bloc opératoire HDS RGPD. Cordialement.`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "GAME_OVER" },
+  },
+  {
+    id: "T58_insult_variant",
+    label: "Insulte 'enculé' — game over Clinique",
+    body: `Bonjour Docteur. Je vous propose un test pilote gratuit
+8 semaines bloc opératoire HDS RGPD. Vous allez voir, c'est
+enculé comme solution. Cordialement.`,
+    expected: { chu: "ACCEPT", saint_martin: "ACCEPT", clinique: "GAME_OVER" },
+  },
 ];
 
 // ── Runner ────────────────────────────────────────────────────────────

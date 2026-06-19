@@ -71,10 +71,33 @@ export const KEYWORDS = {
   ],
 };
 
-// Insult / nonsense regex used by the "broken mail" detector for the
-// Clinique branch. Match is case-insensitive and accent-tolerant.
-export const INSULT_REGEX =
-  /\b(p[éeè]nis|merde|putain|connard|salope|nique|encul[eé]|nul à chier|caca|pipi|fuck|shit|bordel)\b/i;
+// Insult / nonsense list used by the "broken mail" detector for the
+// Clinique branch. We can't use \b word boundaries because they don't
+// play well with accented chars (e.g. \benculé\b fails because é is a
+// non-word char in JS regex). Instead we frame each token between
+// non-letter delimiters using a custom Unicode-aware boundary.
+export const INSULT_WORDS = [
+  "pénis", "penis", "pèny", "penys",
+  "merde", "merdique",
+  "putain",
+  "connard", "connasse",
+  "salope",
+  "nique", "niquer",
+  "enculé", "enculée", "encule",
+  "nul à chier",
+  "caca", "pipi",
+  "fuck", "shit",
+  "bordel",
+];
+// Build a single regex: (^|[non-letter])(word)([non-letter]|$)
+// Letter set = ASCII + common French accents. Case-insensitive.
+const _wordChars = "a-zA-Z0-9_éèêëàâäîïôöûüçÉÈÊËÀÂÄÎÏÔÖÛÜÇ";
+export const INSULT_REGEX = new RegExp(
+  `(^|[^${_wordChars}])(${INSULT_WORDS
+    .map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("|")})([^${_wordChars}]|$)`,
+  "i",
+);
 
 const PASS_THRESHOLD = 3;
 const CLINIQUE_MIN_LENGTH = 50;

@@ -9,13 +9,13 @@ Clinique : auto-pass sauf mail < 50 caractères, insulte, ou single word.
 
 | Métrique | Valeur |
 |---|---|
-| Mails testés | 28 |
-| CHU accept | 16/28 (57%) |
-| Saint-Martin accept | 16/28 (57%) |
-| Clinique accept | 21/28 (75%) |
-| Clinique GAME_OVER | 7/28 (25%) |
-| Pivot CHU/SM → Clinique | 12/28 (43%) |
-| Mismatches expected vs réel | 10 |
+| Mails testés | 58 |
+| CHU accept | 34/58 (59%) |
+| Saint-Martin accept | 34/58 (59%) |
+| Clinique accept | 45/58 (78%) |
+| Clinique GAME_OVER | 13/58 (22%) |
+| Pivot CHU/SM → Clinique | 24/58 (41%) |
+| Mismatches expected vs réel | 15 |
 
 ## Détail par mail
 
@@ -49,6 +49,36 @@ Clinique : auto-pass sauf mail < 50 caractères, insulte, ou single word.
 | T26_threshold_exact | Pile au seuil — gratuité + value (2+2=4 → pass) | 5 | ACCEPT | ACCEPT | ACCEPT |
 | T27_just_under | Juste sous le seuil — value seule + length (2+1=3 → pass) | 3 | ACCEPT | ACCEPT | ACCEPT |
 | T28_two_low_categories | Duration + length sans value — score 2 | 2 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | ACCEPT |
+| T29_debutant_naive | Débutant naïf — enthousiaste, peu de structure | 1 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | ACCEPT |
+| T30_ingenieur_aride | Ingénieur — tech-only, zéro contexte clinique | 4 | ACCEPT | ACCEPT | ACCEPT |
+| T31_business_school | Business-school — buzzwords, peu de fond | 2 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | ACCEPT |
+| T32_juridique_lourd | Juridique-lourd — full conformité, pas de valeur | 4 | ACCEPT | ACCEPT | ACCEPT |
+| T33_chu_specifique | Mail spécifiquement adapté au CHU (Pellegrin) | 9 | ACCEPT | ACCEPT | ACCEPT |
+| T34_sm_specifique | Mail spécifiquement adapté à Saint-Martin (Ramsay) | 9 | ACCEPT | ACCEPT | ACCEPT |
+| T35_mismatch_tofield | Mail à la Clinique mais on mentionne CHU dans le body | 9 | ACCEPT | ACCEPT | ACCEPT |
+| T36_one_sentence_polite | Une phrase polie complète — au-dessus du seuil clinique | 6 | ACCEPT | ACCEPT | ACCEPT |
+| T37_emoji_only | Émojis sans texte — game over Clinique | 0 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | GAME_OVER |
+| T38_50_chars_exactly | Pile 50 caractères — Clinique passe (limite) | 1 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | GAME_OVER |
+| T39_49_chars | Pile 49 caractères — Clinique game over (limite) | 1 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | GAME_OVER |
+| T40_lots_of_whitespace | Espaces et retours à la ligne — counts on trim | 1 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | GAME_OVER |
+| T41_only_value_words | Que des keywords value, sans phrase | 2 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | ACCEPT |
+| T42_html_tags_in_body | HTML brut dans le body — keywords matchent quand même | 9 | ACCEPT | ACCEPT | ACCEPT |
+| T43_signature_riche | Signature riche, contenu pauvre | 1 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | ACCEPT |
+| T44_3_paragraphes_perfect | 3 paragraphes professionnels — passe partout | 9 | ACCEPT | ACCEPT | ACCEPT |
+| T45_question_only | Que des questions — pas de pitch | 1 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | ACCEPT |
+| T46_chu_personnalise_min | Pitch personnalisé CHU mais minimal | 9 | ACCEPT | ACCEPT | ACCEPT |
+| T47_alex_referal | Référence à Alexandre — leverage du réseau | 7 | ACCEPT | ACCEPT | ACCEPT |
+| T48_repeat_keyword | Spam keyword × 10 — passe le scoring | 3 | ACCEPT | ACCEPT | ACCEPT |
+| T49_caps_aggressive | Tout en majuscules — keywords detected (case-insensitive) | 8 | ACCEPT | ACCEPT | ACCEPT |
+| T50_passive_aggressive | Passif-agressif — pas d'insulte, accept clinique | 1 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | ACCEPT |
+| T51_polite_data_short | Poli + data, court — limite Clinique passe | 3 | ACCEPT | ACCEPT | ACCEPT |
+| T52_buzzword_no_health | Buzzword tech sans angle santé — passe clinique uniquement | 1 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | ACCEPT |
+| T53_pricing_negotiation_attempt | Tente de négocier prix avant pilote | 6 | ACCEPT | ACCEPT | ACCEPT |
+| T54_super_long_garbage | Très long mais charabia — pas de keywords | 1 | PIVOT_TO_CLINIQUE | PIVOT_TO_CLINIQUE | ACCEPT |
+| T55_emoji_with_text | Émojis + texte court professionnel | 8 | ACCEPT | ACCEPT | ACCEPT |
+| T56_typos_lourds | Mail plein de fautes — keywords matchent quand même | 7 | ACCEPT | ACCEPT | ACCEPT |
+| T57_insult_with_accent | Insulte accentuée 'pénis' — game over | 8 | ACCEPT | ACCEPT | GAME_OVER |
+| T58_insult_variant | Insulte 'enculé' — game over Clinique | 9 | ACCEPT | ACCEPT | GAME_OVER |
 
 ## Décomposition score (CHU)
 
@@ -84,6 +114,36 @@ Catégories (max entre parenthèses) : gratuit (2), valueProp (2), data (2), dur
 | T26_threshold_exact | 2 | 2 | 0 | 0 | 0 | 1 | **5** |
 | T27_just_under | 0 | 2 | 0 | 0 | 1 | 0 | **3** |
 | T28_two_low_categories | 0 | 0 | 0 | 1 | 1 | 0 | **2** |
+| T29_debutant_naive | 0 | 0 | 0 | 0 | 1 | 0 | **1** |
+| T30_ingenieur_aride | 0 | 0 | 2 | 0 | 1 | 1 | **4** |
+| T31_business_school | 0 | 0 | 0 | 0 | 1 | 1 | **2** |
+| T32_juridique_lourd | 0 | 0 | 2 | 0 | 1 | 1 | **4** |
+| T33_chu_specifique | 2 | 2 | 2 | 1 | 1 | 1 | **9** |
+| T34_sm_specifique | 2 | 2 | 2 | 1 | 1 | 1 | **9** |
+| T35_mismatch_tofield | 2 | 2 | 2 | 1 | 1 | 1 | **9** |
+| T36_one_sentence_polite | 2 | 0 | 2 | 1 | 0 | 1 | **6** |
+| T37_emoji_only | 0 | 0 | 0 | 0 | 0 | 0 | **0** |
+| T38_50_chars_exactly | 0 | 0 | 0 | 1 | 0 | 0 | **1** |
+| T39_49_chars | 0 | 0 | 0 | 1 | 0 | 0 | **1** |
+| T40_lots_of_whitespace | 0 | 0 | 0 | 0 | 0 | 1 | **1** |
+| T41_only_value_words | 0 | 2 | 0 | 0 | 0 | 0 | **2** |
+| T42_html_tags_in_body | 2 | 2 | 2 | 1 | 1 | 1 | **9** |
+| T43_signature_riche | 0 | 0 | 0 | 0 | 0 | 1 | **1** |
+| T44_3_paragraphes_perfect | 2 | 2 | 2 | 1 | 1 | 1 | **9** |
+| T45_question_only | 0 | 0 | 0 | 0 | 0 | 1 | **1** |
+| T46_chu_personnalise_min | 2 | 2 | 2 | 1 | 1 | 1 | **9** |
+| T47_alex_referal | 2 | 2 | 0 | 1 | 1 | 1 | **7** |
+| T48_repeat_keyword | 2 | 0 | 0 | 0 | 1 | 0 | **3** |
+| T49_caps_aggressive | 2 | 2 | 2 | 1 | 0 | 1 | **8** |
+| T50_passive_aggressive | 0 | 0 | 0 | 0 | 0 | 1 | **1** |
+| T51_polite_data_short | 0 | 0 | 2 | 0 | 0 | 1 | **3** |
+| T52_buzzword_no_health | 0 | 0 | 0 | 0 | 0 | 1 | **1** |
+| T53_pricing_negotiation_attempt | 2 | 0 | 2 | 1 | 0 | 1 | **6** |
+| T54_super_long_garbage | 0 | 0 | 0 | 0 | 1 | 0 | **1** |
+| T55_emoji_with_text | 2 | 2 | 2 | 1 | 0 | 1 | **8** |
+| T56_typos_lourds | 2 | 2 | 2 | 1 | 0 | 0 | **7** |
+| T57_insult_with_accent | 2 | 2 | 2 | 1 | 0 | 1 | **8** |
+| T58_insult_variant | 2 | 2 | 2 | 1 | 1 | 1 | **9** |
 
 ## Reasoning détail
 
@@ -431,6 +491,343 @@ Catégories (max entre parenthèses) : gratuit (2), valueProp (2), data (2), dur
 - **CHU** : PIVOT_TO_CLINIQUE — score 2/9 < 3 → CHU refuse, Alex pivote sur Clinique
 - **Saint-Martin** : PIVOT_TO_CLINIQUE — score 2/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
 - **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T29_debutant_naive — Débutant naïf — enthousiaste, peu de structure
+
+> Bonjour ! Je m'appelle Matthieu et j'ai créé une super
+> application pour les hôpitaux. C'est trop cool, je pense que ça
+> peut vraiment vous aider. Est-ce qu'on peut se voir pour en
+> discuter ?
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T30_ingenieur_aride — Ingénieur — tech-only, zéro contexte clinique
+
+> Bonjour, notre stack est composée de Next.js + PostgreSQL,
+> hébergée sur OVH HDS, conforme RGPD. Architecture event-driven,
+> API REST avec OpenAPI 3, SSO via SAML. Cordialement.
+
+- **CHU** : ACCEPT — score 4/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 4/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T31_business_school — Business-school — buzzwords, peu de fond
+
+> Bonjour Docteur, nous proposons une solution disruptive et
+> scalable, leveraging notre proposition de valeur unique pour
+> optimiser votre time-to-market et booster vos KPIs critiques.
+> Cordialement, Matthieu (MBA HEC).
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 2/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 2/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T32_juridique_lourd — Juridique-lourd — full conformité, pas de valeur
+
+> Madame, Monsieur,
+> 
+> Nous attirons votre attention sur la solution Orisio, conforme au
+> RGPD, hébergée chez un certifié HDS, avec chiffrement AES-256 et
+> souveraineté des données patient (anonymisation systématique).
+> 
+> Bien cordialement.
+
+- **CHU** : ACCEPT — score 4/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 4/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T33_chu_specifique — Mail spécifiquement adapté au CHU (Pellegrin)
+
+> Bonjour Docteur Lemaire,
+> 
+> Faisant suite à notre échange aux JFR, je vous propose un test
+> pilote gratuit de 8 semaines, sur le service de chirurgie
+> orthopédique. Notre solution est hébergée HDS, conforme RGPD,
+> et permet d'optimiser l'occupation des créneaux de bloc.
+> 
+> Bien cordialement,
+> Matthieu Gasc
+
+- **CHU** : ACCEPT — score 9/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 9/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T34_sm_specifique — Mail spécifiquement adapté à Saint-Martin (Ramsay)
+
+> Bonjour M. Castex,
+> 
+> Suite à la recommandation de votre directeur médical, je vous
+> propose un test pilote gratuit pour fluidifier la coordination
+> de votre bloc orthopédie. Pilote 8 semaines, hébergé HDS,
+> conforme RGPD.
+> 
+> Cordialement, Matthieu Gasc
+
+- **CHU** : ACCEPT — score 9/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 9/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T35_mismatch_tofield — Mail à la Clinique mais on mentionne CHU dans le body
+
+> Bonjour Dr Renaud-Picard,
+> 
+> Le CHU de Bordeaux nous a refusés mais nous aimerions vous
+> proposer le même pilote : 8 semaines gratuites, HDS, planning
+> bloc opératoire optimisé.
+> 
+> Bien cordialement.
+
+- **CHU** : ACCEPT — score 9/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 9/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T36_one_sentence_polite — Une phrase polie complète — au-dessus du seuil clinique
+
+> Bonjour Docteur, je sollicite votre établissement pour un
+> test pilote gratuit, 8 semaines, hébergement HDS. Cordialement.
+
+- **CHU** : ACCEPT — score 6/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 6/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T37_emoji_only — Émojis sans texte — game over Clinique
+
+> 🚀✨💊🏥👨‍⚕️📊
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 0/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 0/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : GAME_OVER — mail trop court (14<50) → clinique refuse
+
+### T38_50_chars_exactly — Pile 50 caractères — Clinique passe (limite)
+
+> bonjour je propose un test pilote a votre etabl
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : GAME_OVER — mail trop court (47<50) → clinique refuse
+- ⚠ Mismatches: clinique: expected ACCEPT, got GAME_OVER
+
+### T39_49_chars — Pile 49 caractères — Clinique game over (limite)
+
+> bonjour je propose un test pilote a votre etab
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : GAME_OVER — mail trop court (46<50) → clinique refuse
+
+### T40_lots_of_whitespace — Espaces et retours à la ligne — counts on trim
+
+> 
+> 
+>    Bonjour
+> 
+> 
+>     Cordialement   
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : GAME_OVER — mail trop court (26<50) → clinique refuse
+
+### T41_only_value_words — Que des keywords value, sans phrase
+
+> planning bloc opératoire annulation créneau optimiser
+> gestion occupation rotation fluidifier coordination salles
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 2/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 2/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+- ⚠ Mismatches: chu: expected ACCEPT, got PIVOT_TO_CLINIQUE, saint_martin: expected ACCEPT, got PIVOT_TO_CLINIQUE
+
+### T42_html_tags_in_body — HTML brut dans le body — keywords matchent quand même
+
+> <p>Bonjour Docteur,</p>
+> <p>Notre solution Orisio (HDS, RGPD) propose un pilote gratuit
+> 8 semaines pour optimiser le planning bloc opératoire.</p>
+> <p>Cordialement, Matthieu</p>
+
+- **CHU** : ACCEPT — score 9/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 9/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T43_signature_riche — Signature riche, contenu pauvre
+
+> Bonjour Docteur.
+> 
+> Cordialement,
+> Matthieu Gasc
+> CEO Orisio · Bordeaux
+> +33 6 12 34 56 78
+> matthieu@orisio.fr
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T44_3_paragraphes_perfect — 3 paragraphes professionnels — passe partout
+
+> Bonjour Docteur Lemaire,
+> 
+> Suite à votre intervention aux JCO sur la gestion des blocs
+> opératoires en oncologie, je me permets de vous proposer un
+> test pilote GRATUIT de notre solution Orisio.
+> 
+> Orisio optimise l'occupation des blocs, réduit les annulations
+> et fluidifie la coordination. Hébergement HDS certifié, RGPD,
+> chiffrement AES-256. Pilote 8 semaines, sans engagement.
+> 
+> Bien cordialement,
+> Matthieu Gasc — Orisio
+
+- **CHU** : ACCEPT — score 9/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 9/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T45_question_only — Que des questions — pas de pitch
+
+> Bonjour Docteur, est-ce que vous seriez intéressé par une
+> discussion sur l'optimisation de vos process ? Cordialement.
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T46_chu_personnalise_min — Pitch personnalisé CHU mais minimal
+
+> Cher Docteur Lemaire, le CHU de Bordeaux Pellegrin est notre
+> priorité. Pilote gratuit 8 semaines, HDS, RGPD. Optimisation
+> planning bloc opératoire. Cordialement.
+
+- **CHU** : ACCEPT — score 9/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 9/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T47_alex_referal — Référence à Alexandre — leverage du réseau
+
+> Bonjour Dr Renaud-Picard,
+> 
+> Alexandre Morel m'a recommandé de vous contacter. Nous
+> proposons un test pilote gratuit (8 semaines) pour fluidifier
+> la coordination de votre bloc.
+> 
+> Bien cordialement,
+> Matthieu
+
+- **CHU** : ACCEPT — score 7/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 7/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T48_repeat_keyword — Spam keyword × 10 — passe le scoring
+
+> gratuit gratuit gratuit gratuit gratuit gratuit gratuit
+> gratuit gratuit gratuit gratuit gratuit gratuit gratuit gratuit
+> gratuit gratuit gratuit gratuit gratuit gratuit gratuit gratuit
+
+- **CHU** : ACCEPT — score 3/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 3/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T49_caps_aggressive — Tout en majuscules — keywords detected (case-insensitive)
+
+> BONJOUR DOCTEUR, NOUS PROPOSONS UN PILOTE GRATUIT DE
+> 8 SEMAINES POUR OPTIMISER LE PLANNING DU BLOC OPÉRATOIRE.
+> HÉBERGEMENT HDS. CORDIALEMENT.
+
+- **CHU** : ACCEPT — score 8/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 8/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T50_passive_aggressive — Passif-agressif — pas d'insulte, accept clinique
+
+> Bonjour, j'imagine que vous êtes très occupé pour répondre
+> mais bon, je tente quand même. On vous propose un truc, voilà.
+> Cordialement.
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T51_polite_data_short — Poli + data, court — limite Clinique passe
+
+> Bonjour Docteur, notre solution est HDS et RGPD compliant.
+> Cordialement, Matthieu Gasc.
+
+- **CHU** : ACCEPT — score 3/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 3/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T52_buzzword_no_health — Buzzword tech sans angle santé — passe clinique uniquement
+
+> Bonjour, nous sommes une scale-up disruptive qui leverage
+> l'IA générative pour booster la productivité de vos équipes.
+> Cordialement.
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T53_pricing_negotiation_attempt — Tente de négocier prix avant pilote
+
+> Bonjour, on facture 1800€/salle/an mais on peut faire un
+> geste pour vous : 1200€/salle/an + pilote gratuit 8 semaines.
+> HDS, RGPD. Cordialement.
+
+- **CHU** : ACCEPT — score 6/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 6/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T54_super_long_garbage — Très long mais charabia — pas de keywords
+
+> Bonjour à vous chère personne. Je vous écris ce mail
+> parce que. Voilà voilà voilà voilà voilà voilà voilà voilà voilà
+> voilà voilà voilà voilà voilà voilà voilà voilà voilà voilà voilà
+> voilà voilà voilà voilà voilà voilà voilà voilà voilà voilà voilà.
+> Au revoir.
+
+- **CHU** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → CHU refuse, Alex pivote sur Clinique
+- **Saint-Martin** : PIVOT_TO_CLINIQUE — score 1/9 < 3 → SAINT_MARTIN refuse, Alex pivote sur Clinique
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T55_emoji_with_text — Émojis + texte court professionnel
+
+> Bonjour Docteur 👨‍⚕️, je vous propose un test pilote gratuit
+> 🚀 de 8 semaines pour optimiser votre planning bloc. HDS
+> compliant ✅. Cordialement 🙏
+
+- **CHU** : ACCEPT — score 8/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 8/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+
+### T56_typos_lourds — Mail plein de fautes — keywords matchent quand même
+
+> Bonjr Doctuer, je vous proppose un test piloite gratuite
+> de 8 semanes pour le planning du bloc opperatoire. HDS et
+> RGPDD. Cordailmnt.
+
+- **CHU** : ACCEPT — score 7/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 7/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : ACCEPT — clinique = filet de sécurité, mail non cassé → accepté direct
+- ⚠ Mismatches: chu: expected PIVOT_TO_CLINIQUE, got ACCEPT, saint_martin: expected PIVOT_TO_CLINIQUE, got ACCEPT
+
+### T57_insult_with_accent — Insulte accentuée 'pénis' — game over
+
+> Bonjour Docteur, j'avais envie de vous dire pénis. Pilote
+> gratuit 8 semaines bloc opératoire HDS RGPD. Cordialement.
+
+- **CHU** : ACCEPT — score 8/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 8/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : GAME_OVER — insulte/grossièreté détectée → clinique refuse
+
+### T58_insult_variant — Insulte 'enculé' — game over Clinique
+
+> Bonjour Docteur. Je vous propose un test pilote gratuit
+> 8 semaines bloc opératoire HDS RGPD. Vous allez voir, c'est
+> enculé comme solution. Cordialement.
+
+- **CHU** : ACCEPT — score 9/9 ≥ 3 → CHU accepte
+- **Saint-Martin** : ACCEPT — score 9/9 ≥ 3 → SAINT_MARTIN accepte
+- **Clinique** : GAME_OVER — insulte/grossièreté détectée → clinique refuse
 
 ## Keywords utilisés
 
