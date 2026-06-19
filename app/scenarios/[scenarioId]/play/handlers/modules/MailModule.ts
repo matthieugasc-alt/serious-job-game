@@ -815,12 +815,50 @@ function handlePilotPitchMail(
   const bodyLower = pitchMailBody.toLowerCase();
   const toField = (extra.currentMailDraft?.to || "").toLowerCase();
 
-  // Detect establishment from "to" email address (primary detection)
+  // Detect target establishment from "to" email address (primary detection).
+  let targetKey: "chose_chu" | "chose_saint_martin" | "chose_clinique" | null = null;
   if (toField.includes("chu-bordeaux") || toField.includes("lemaire")) {
-    actions.push({ type: "set_flags", flags: { chose_chu: true, chose_saint_martin: false, chose_clinique: false } });
+    targetKey = "chose_chu";
   } else if (toField.includes("saintmartin") || toField.includes("hp-saintmartin") || toField.includes("castex")) {
-    actions.push({ type: "set_flags", flags: { chose_saint_martin: true, chose_chu: false, chose_clinique: false } });
+    targetKey = "chose_saint_martin";
   } else if (toField.includes("saint-augustin") || toField.includes("renaud-picard")) {
+    targetKey = "chose_clinique";
+  }
+
+  // ── Burned-establishment guard ────────────────────────────────────
+  // Once an establishment has rejected our pitch, the player cannot
+  // re-prospect it. Same UX as the S5 burned KOL guard : surface a
+  // system mail and leave the session state untouched. Without this,
+  // the player could spam the same dead-end establishment forever.
+  const burnedNow: string[] = Array.isArray(flags.burned_establishments)
+    ? (flags.burned_establishments as string[])
+    : [];
+  if (targetKey && burnedNow.includes(targetKey)) {
+    const labels: Record<string, string> = {
+      chose_chu: "le CHU de Bordeaux",
+      chose_saint_martin: "Saint-Martin",
+      chose_clinique: "la Clinique Saint-Augustin",
+    };
+    const phaseIdForBurn = (phase as any).phase_id || "";
+    actions.push({ type: "set_compose", show: false });
+    actions.push({
+      type: "add_inbox_mail",
+      mail: {
+        from: "system",
+        subject: "Mail non distribué — établissement grillé",
+        body: `« ${labels[targetKey]} » a déjà refusé votre pitch. Vous ne pouvez pas les re-prospecter. Choisissez un autre établissement parmi ceux qui restent.`,
+        phaseId: phaseIdForBurn,
+      },
+    });
+    return { actions, earlyReturn: true, didAdvance: false };
+  }
+
+  // Apply the establishment selection flags now that we know it's not burned.
+  if (targetKey === "chose_chu") {
+    actions.push({ type: "set_flags", flags: { chose_chu: true, chose_saint_martin: false, chose_clinique: false } });
+  } else if (targetKey === "chose_saint_martin") {
+    actions.push({ type: "set_flags", flags: { chose_saint_martin: true, chose_chu: false, chose_clinique: false } });
+  } else if (targetKey === "chose_clinique") {
     actions.push({ type: "set_flags", flags: { chose_clinique: true, chose_chu: false, chose_saint_martin: false } });
   }
   // If no email match, Phase 1 flags remain as fallback
@@ -888,76 +926,94 @@ function handlePilotPitchMail(
     return { actions, earlyReturn: true, didAdvance: false };
   }
 
-  // ── PITCH REJECTED → fallback mechanism ──
-  actions.push({ type: "set_flags", flags: { pitch_rejected: true } });
+  // ── PITCH REJECTED → block advancement, burn establishment, ask user to retry ──
+  // Bug fix : avant, le code pivotait automatiquement vers Clinique Saint-Augustin
+  // (pitch_accepted=true + complete_advance_phase) ce qui forçait le joueur en
+  // phase contrat sans qu'il ait validé le choix. Le user veut au contraire que
+  // le pitch refusé reste BLOQUANT : on garde le joueur en phase pitch_mail,
+  // on marque l'établissement refusé comme "burned", et Alexandre l'invite à
+  // re-prospecter parmi les établissements restants.
   actions.push({ type: "set_compose", show: false });
 
-  if (!choseClinique) {
-    // CHU or Saint-Martin refused → Alexandre intervenes, switches to clinique
-    const rejectionActor = resolveContactActor(choseCHU, choseSM);
-    const etablissement = choseCHU ? "le CHU" : "Saint-Martin";
-    const currentPhaseId = (phase as any).phase_id || "";
+  const burnedAfter: string[] = Array.isArray(flags.burned_establishments)
+    ? [...(flags.burned_establishments as string[])]
+    : [];
+  // Identify the establishment we just tried so we can burn it.
+  const justTried = choseCHU ? "chose_chu" : choseSM ? "chose_saint_martin" : "chose_clinique";
+  if (!burnedAfter.includes(justTried)) burnedAfter.push(justTried);
 
-    actions.push({
-      type: "delayed_actions",
-      delayMs: 1500,
-      actions: [
-        {
-          type: "add_inbox_mail",
-          mail: {
-            from: rejectionActor,
-            subject: "Re: Orisio — Proposition de test pilote gratuit",
-            body: `Votre proposition ne nous paraît pas suffisamment aboutie en l'état. Nous vous invitons à revenir vers nous ultérieurement avec un dossier plus complet.`,
-            phaseId: currentPhaseId,
-          },
-        },
-        { type: "play_sound" },
-        {
-          type: "delayed_actions",
-          delayMs: 2000,
-          actions: [
-            {
-              type: "add_ai_message",
-              actor: "alexandre_morel",
-              content: `Aïe… ${etablissement} a refusé. Bon écoute, on se rabat sur ma clinique. C'est du tout cuit — je connais tout le monde là-bas, je les appelle et c'est réglé en 24h. C'est pas prestigieux mais au moins on avance.`,
-            },
-            {
-              type: "set_flags",
-              flags: {
-                switched_to_clinique: true,
-                chose_chu: false,
-                chose_saint_martin: false,
-                chose_clinique: true,
-                pitch_accepted: true,
-              },
-            },
-            { type: "complete_advance_phase" },
-            buildContractEvent("contact_clinique", { id: "contrat_clinique", label: "Convention de test — Clinique Saint-Augustin" }),
-            { type: "set_view", view: "chat" },
-            { type: "set_contact", actorId: "alexandre_morel" },
-          ],
-        },
-      ],
-    });
+  // Compute remaining options for Alexandre's contextual message.
+  const allOptions: Array<{ key: string; label: string }> = [
+    { key: "chose_chu", label: "le CHU de Bordeaux" },
+    { key: "chose_saint_martin", label: "Saint-Martin" },
+    { key: "chose_clinique", label: "ma clinique Saint-Augustin" },
+  ];
+  const remaining = allOptions.filter((o) => !burnedAfter.includes(o.key));
+  const justTriedLabel = allOptions.find((o) => o.key === justTried)?.label || "cet établissement";
+
+  // Always reset the chosen_* flags so the player can pick again. Burn list
+  // persists separately. pitch_accepted stays FALSE so the phase doesn't
+  // advance.
+  actions.push({
+    type: "set_flags",
+    flags: {
+      pitch_rejected: true,
+      chose_chu: false,
+      chose_saint_martin: false,
+      chose_clinique: false,
+      burned_establishments: burnedAfter as any,
+    },
+  });
+
+  // Wipe the pitch mail draft so a fresh attempt starts blank.
+  const currentPhaseId = (phase as any).phase_id || "";
+  const rejectionActor = resolveContactActor(choseCHU, choseSM);
+
+  // Build the contextual Alexandre message — list remaining options OR
+  // surface the game-over state if all 3 are burned.
+  let alexMessage: string;
+  if (remaining.length === 0) {
+    // All three establishments refused — game over for the pilot.
+    alexMessage =
+      `Putain… on a tout brûlé. ${justTriedLabel} a refusé aussi, et c'était le dernier établissement de la liste. On va devoir tout reprendre à zéro, il faut retravailler ton pitch en profondeur avant de re-prospecter qui que ce soit.`;
+  } else if (remaining.length === 1) {
+    alexMessage =
+      `Aïe… ${justTriedLabel} a refusé. Il ne nous reste plus que ${remaining[0].label}. Reprends le pitch et fais-le tourner — cette fois soigne le contenu, on n'aura pas de troisième chance.`;
   } else {
-    // Already chose clinique → Alexandre smooths things over
-    actions.push({
-      type: "delayed_actions",
-      delayMs: 1500,
-      actions: [
-        {
-          type: "add_ai_message",
-          actor: "alexandre_morel",
-          content: `T'as envoyé quoi comme mail ?! C'est MA clinique, c'est MA réputation ! Laisse, je vais appeler Renaud-Picard directement et arranger le coup. Mais la prochaine fois, fais-moi relire avant d'envoyer n'importe quoi.`,
-        },
-        { type: "set_flags", flags: { pitch_accepted: true } },
-        { type: "complete_advance_phase" },
-        buildContractEvent("contact_clinique", { id: "contrat_clinique", label: "Convention de test — Clinique Saint-Augustin" }),
-        { type: "set_view", view: "chat" },
-        { type: "set_contact", actorId: "alexandre_morel" },
-      ],
-    });
+    const lastTwo = remaining.map((r) => r.label).join(" ou ");
+    alexMessage =
+      `Aïe… ${justTriedLabel} a refusé. Bon, on n'y revient pas — ils sont grillés. Il te reste ${lastTwo}. Soigne mieux ton pitch cette fois (gratuité, durée 8 semaines, valeur sur l'occupation des blocs, HDS) et renvoie un mail.`;
   }
+
+  actions.push({
+    type: "delayed_actions",
+    delayMs: 1500,
+    actions: [
+      {
+        type: "add_inbox_mail",
+        mail: {
+          from: rejectionActor,
+          subject: "Re: Orisio — Proposition de test pilote gratuit",
+          body: `Votre proposition ne nous paraît pas suffisamment aboutie en l'état. Nous vous invitons à revenir vers nous ultérieurement avec un dossier plus complet.`,
+          phaseId: currentPhaseId,
+        },
+      },
+      { type: "play_sound" },
+      {
+        type: "delayed_actions",
+        delayMs: 2000,
+        actions: [
+          {
+            type: "add_ai_message",
+            actor: "alexandre_morel",
+            content: alexMessage,
+          },
+          { type: "set_view", view: "chat" },
+          { type: "set_contact", actorId: "alexandre_morel" },
+        ],
+      },
+    ],
+  });
 
   return { actions, earlyReturn: true, didAdvance: false };
 }
