@@ -1,11 +1,9 @@
 {
   "version": "1.1",
-
   "constants": {
     "burnRateMonthly": 250,
     "burnStartsAfterScenario": 0
   },
-
   "initialState": {
     "treasury": 15000,
     "ownership": 70,
@@ -17,7 +15,6 @@
     "marketValidation": 10,
     "elapsedMonths": 0
   },
-
   "pitch": {
     "problem": {
       "headline": "Les blocs operatoires francais perdent 2 heures par jour en desorganisation.",
@@ -62,7 +59,6 @@
       "payroll": "-"
     }
   },
-
   "scenarios": {
     "founder_00_cto": {
       "order": 0,
@@ -86,7 +82,9 @@
             "marketValidation": 0,
             "elapsedMonths": 0
           },
-          "setsFlags": { "hasAdvisoryBoard": false },
+          "setsFlags": {
+            "hasAdvisoryBoard": false
+          },
           "microDebrief": {
             "decision": "Tu as lu le pacte ligne par ligne, repere l'absence de clause d'exclusivite et impose sa correction.",
             "impact": "Quand le CTO a ete pris en flagrant delit de double emploi, tu avais les armes juridiques. Bad leaver active, equity recuperee.",
@@ -111,7 +109,9 @@
             "marketValidation": 0,
             "elapsedMonths": 0
           },
-          "setsFlags": { "hasAdvisoryBoard": false },
+          "setsFlags": {
+            "hasAdvisoryBoard": false
+          },
           "microDebrief": {
             "decision": "Tu n'as pas repere l'absence de clause d'exclusivite mais tu as su negocier la sortie du CTO.",
             "impact": "1 000 € de frais de sortie et du temps perdu. Le pacte est une lecon couteuse.",
@@ -136,7 +136,9 @@
             "marketValidation": 0,
             "elapsedMonths": 0
           },
-          "setsFlags": { "hasAdvisoryBoard": false },
+          "setsFlags": {
+            "hasAdvisoryBoard": false
+          },
           "microDebrief": {
             "decision": "Tu as signe le pacte sans reperer le piege de l'article 6. Le CTO est parti avec 2 500 €.",
             "impact": "Ta tresorerie passe de 15 000 € a 12 500 €. Chaque euro perdu ici, c'est du budget MVP en moins.",
@@ -147,7 +149,6 @@
         }
       }
     },
-
     "founder_01_incubator": {
       "order": 1,
       "title": "Entree en incubateur",
@@ -170,7 +171,9 @@
             "marketValidation": 10,
             "elapsedMonths": 1
           },
-          "setsFlags": { "hasAdvisoryBoard": true },
+          "setsFlags": {
+            "hasAdvisoryBoard": true
+          },
           "microDebrief": {
             "decision": "Pitch solide, one-pager clair, reponses credibles aux questions du jury.",
             "impact": "Tu integres Technowest. Mentorat, locaux, reseau sante. Et surtout : un advisory board avec Claire Dumont, Thomas Vidal et Dr. Morin.",
@@ -195,7 +198,9 @@
             "marketValidation": 0,
             "elapsedMonths": 1
           },
-          "setsFlags": { "hasAdvisoryBoard": false },
+          "setsFlags": {
+            "hasAdvisoryBoard": false
+          },
           "microDebrief": {
             "decision": "Le pitch ou les reponses n'ont pas totalement convaincu le jury.",
             "impact": "Liste d'attente. Pas de mentorat, pas de reseau, pas d'advisory board. Tu avances seul.",
@@ -220,7 +225,9 @@
             "marketValidation": 0,
             "elapsedMonths": 1
           },
-          "setsFlags": { "hasAdvisoryBoard": false },
+          "setsFlags": {
+            "hasAdvisoryBoard": false
+          },
           "microDebrief": {
             "decision": "Le pitch manquait de clarte, le marche n'etait pas assez defini, ou les reponses n'etaient pas a la hauteur.",
             "impact": "Pas d'incubateur, pas de reseau, pas d'advisory board. Tu avances seul.",
@@ -231,7 +238,6 @@
         }
       }
     },
-
     "founder_02_mvp": {
       "order": 2,
       "title": "Construire le MVP",
@@ -315,7 +321,6 @@
         }
       }
     },
-
     "founder_03_clinical": {
       "order": 3,
       "title": "Test clinique",
@@ -421,10 +426,34 @@
             "risk": "Si la PI est cedee, les investisseurs fuiront. Si l'interessement est signe, ton business model est ampute de 5% a vie sur le public.",
             "advice": "La prochaine fois, privilegie un etablissement ou tu peux signer en 2 semaines. Le prestige ne paie pas les factures."
           }
+        },
+        "total_failure": {
+          "outcomeId": "pilot_total_failure",
+          "label": "Pilote impossible — toutes cartouches grillées",
+          "summary": "Tu as raté tes pitchs au CHU/Saint-Martin, Alexandre t'a rabattu sur sa clinique, et tu as encore raté. Plus aucun établissement disponible. Lourde perte de temps et de cash, le scénario est échoué.",
+          "signal": "critical",
+          "deltas": {
+            "treasury": -2000,
+            "ownership": 0,
+            "mrr": 0,
+            "payroll": 0,
+            "productQuality": 0,
+            "techDebt": 0,
+            "investorConfidence": -25,
+            "marketValidation": -10,
+            "elapsedMonths": 3
+          },
+          "setsFlags": {},
+          "microDebrief": {
+            "decision": "Tu as enchaîné les pitchs sans soigner le contenu et tu as fini par griller tous les établissements de la liste, y compris la clinique d'Alexandre.",
+            "impact": "3 mois perdus, 2000 € de burn, la confiance des investisseurs prend un coup et la réputation dans le milieu hospitalier bordelais est entamée.",
+            "strength": "Aucune.",
+            "risk": "Sans pilote, pas de référence commerciale. La prochaine étape va être très difficile.",
+            "advice": "La prochaine fois : rédige UN mail soigné AVANT d'envoyer. Mention de la gratuité, de la durée (8 semaines), de la valeur (occupation des blocs), et conformité HDS/RGPD. Politesse et structure obligatoires, surtout sur la clinique d'Alex qui est notre filet de sécurité."
+          }
         }
       }
     },
-
     "founder_04_v1": {
       "order": 4,
       "title": "Passage en V1",
@@ -533,7 +562,6 @@
         }
       }
     },
-
     "founder_05_sales": {
       "order": 5,
       "title": "Gerer une vente complexe",
@@ -668,6 +696,5 @@
       }
     }
   },
-
   "boardReviews": []
 }

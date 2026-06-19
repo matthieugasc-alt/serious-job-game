@@ -476,6 +476,18 @@
   ],
   "endings": [
     {
+      "ending_id": "total_failure",
+      "label": "Game over — pilote impossible",
+      "priority": 10,
+      "content": "Tu as grillé tous tes établissements. Le CHU/Saint-Martin t'a recalé, Alexandre t'a rabattu sur sa clinique, et tu as réussi à griller la clinique aussi avec un mail inacceptable. Plus aucun établissement à prospecter. Tu vas devoir tout reprendre — du temps perdu, du cash en moins, et une réputation entamée dans le milieu hospitalier bordelais.",
+      "conditions": {
+        "core_flags": [
+          "pilot_total_failure"
+        ],
+        "min_core_flags": 1
+      }
+    },
+    {
       "ending_id": "switched_success",
       "label": "Pilote par défaut — échec initial puis clinique",
       "priority": 4,

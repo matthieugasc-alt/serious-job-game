@@ -815,81 +815,66 @@ function handlePilotPitchMail(
   const bodyLower = pitchMailBody.toLowerCase();
   const toField = (extra.currentMailDraft?.to || "").toLowerCase();
 
-  // Detect target establishment from "to" email address (primary detection).
-  let targetKey: "chose_chu" | "chose_saint_martin" | "chose_clinique" | null = null;
-  if (toField.includes("chu-bordeaux") || toField.includes("lemaire")) {
-    targetKey = "chose_chu";
-  } else if (toField.includes("saintmartin") || toField.includes("hp-saintmartin") || toField.includes("castex")) {
-    targetKey = "chose_saint_martin";
-  } else if (toField.includes("saint-augustin") || toField.includes("renaud-picard")) {
-    targetKey = "chose_clinique";
-  }
-
-  // ── Burned-establishment guard ────────────────────────────────────
-  // Once an establishment has rejected our pitch, the player cannot
-  // re-prospect it. Same UX as the S5 burned KOL guard : surface a
-  // system mail and leave the session state untouched. Without this,
-  // the player could spam the same dead-end establishment forever.
-  const burnedNow: string[] = Array.isArray(flags.burned_establishments)
-    ? (flags.burned_establishments as string[])
-    : [];
-  if (targetKey && burnedNow.includes(targetKey)) {
-    const labels: Record<string, string> = {
-      chose_chu: "le CHU de Bordeaux",
-      chose_saint_martin: "Saint-Martin",
-      chose_clinique: "la Clinique Saint-Augustin",
-    };
-    const phaseIdForBurn = (phase as any).phase_id || "";
-    actions.push({ type: "set_compose", show: false });
-    actions.push({
-      type: "add_inbox_mail",
-      mail: {
-        from: "system",
-        subject: "Mail non distribué — établissement grillé",
-        body: `« ${labels[targetKey]} » a déjà refusé votre pitch. Vous ne pouvez pas les re-prospecter. Choisissez un autre établissement parmi ceux qui restent.`,
-        phaseId: phaseIdForBurn,
-      },
-    });
-    return { actions, earlyReturn: true, didAdvance: false };
-  }
-
-  // Apply the establishment selection flags now that we know it's not burned.
-  if (targetKey === "chose_chu") {
-    actions.push({ type: "set_flags", flags: { chose_chu: true, chose_saint_martin: false, chose_clinique: false } });
-  } else if (targetKey === "chose_saint_martin") {
-    actions.push({ type: "set_flags", flags: { chose_saint_martin: true, chose_chu: false, chose_clinique: false } });
-  } else if (targetKey === "chose_clinique") {
-    actions.push({ type: "set_flags", flags: { chose_clinique: true, chose_chu: false, chose_saint_martin: false } });
-  }
-  // If no email match, Phase 1 flags remain as fallback
-
-  // Evaluate pitch quality based on concrete criteria
-  let pitchScore = 0;
-  const gratuitKeywords = ["gratuit", "sans engagement", "offert", "sans frais", "aucun coût", "0 €", "0€"];
-  if (gratuitKeywords.some(k => bodyLower.includes(k))) pitchScore += 2;
-  const valuePropKeywords = ["planning", "bloc", "opératoire", "annulation", "créneau", "optimis", "gestion"];
-  if (valuePropKeywords.filter(k => bodyLower.includes(k)).length >= 2) pitchScore += 2;
-  const dataKeywords = ["données", "hds", "hébergement", "certifié", "patient", "sécurité", "rgpd", "confidentiel"];
-  if (dataKeywords.some(k => bodyLower.includes(k))) pitchScore += 2;
-  const durationKeywords = ["8 semaines", "deux mois", "2 mois", "semaines", "durée"];
-  if (durationKeywords.some(k => bodyLower.includes(k))) pitchScore += 1;
-  // Professional tone: at least 3 sentences, not too short
-  if (pitchMailBody.length > 150) pitchScore += 1;
-
-  const pitchIsGood = pitchScore >= 4;
-
-  // Determine establishment from toField (flags may not be applied yet)
+  // ── Establishment detection ──────────────────────────────────────
+  // Detect target establishment from "to" email address. Apply selection
+  // flags right away so downstream code can read them consistently.
   let choseCHU = !!flags.chose_chu;
   let choseSM = !!flags.chose_saint_martin;
   let choseClinique = !!flags.chose_clinique;
-  // Override with toField detection if matched
   if (toField.includes("chu-bordeaux") || toField.includes("lemaire")) {
     choseCHU = true; choseSM = false; choseClinique = false;
+    actions.push({ type: "set_flags", flags: { chose_chu: true, chose_saint_martin: false, chose_clinique: false } });
   } else if (toField.includes("saintmartin") || toField.includes("hp-saintmartin") || toField.includes("castex")) {
     choseSM = true; choseCHU = false; choseClinique = false;
+    actions.push({ type: "set_flags", flags: { chose_saint_martin: true, chose_chu: false, chose_clinique: false } });
   } else if (toField.includes("saint-augustin") || toField.includes("renaud-picard")) {
     choseClinique = true; choseCHU = false; choseSM = false;
+    actions.push({ type: "set_flags", flags: { chose_clinique: true, chose_chu: false, chose_saint_martin: false } });
   }
+
+  // ── Pitch scoring ────────────────────────────────────────────────
+  // Two-tier policy explicitly demanded by the user:
+  //
+  //  • Clinique Saint-Augustin (Alex's home turf — direct OR via pivot):
+  //    auto-accept UNLESS the mail is "really broken". Broken = empty,
+  //    super short (< 50 chars), or contains insults / nonsense. Anything
+  //    minimally professional passes, even if it doesn't tick the HDS /
+  //    pricing / duration boxes. "Je connais tout le monde là-bas, je
+  //    les appelle et c'est réglé en 24h." — Alex.
+  //
+  //  • CHU de Bordeaux / Hôpital Saint-Martin (prestigious, picky):
+  //    keyword-score gated. Bar is reasonable (≥3 of 9 max). When a good
+  //    mail still scores too low, the pivot to Clinique kicks in (Alex
+  //    saves the deal). The scoring includes plenty of synonyms so a
+  //    well-written pitch on pilot/MVP/value/HDS reliably scores ≥ 3.
+  let pitchScore = 0;
+  const gratuitKw = ["gratuit", "sans engagement", "offert", "sans frais", "aucun coût", "0 €", "0€", "à nos frais", "pas de coût"];
+  if (gratuitKw.some(k => bodyLower.includes(k))) pitchScore += 2;
+  const valuePropKw = ["planning", "bloc", "opératoire", "annulation", "créneau", "optimis", "gestion", "occupation", "rotation", "fluidifier", "coordination", "salles"];
+  if (valuePropKw.filter(k => bodyLower.includes(k)).length >= 2) pitchScore += 2;
+  const dataKw = ["données", "hds", "hébergement", "certifié", "patient", "sécurité", "rgpd", "confidentiel", "souveraineté", "anonymis", "chiffrement"];
+  if (dataKw.some(k => bodyLower.includes(k))) pitchScore += 2;
+  const durationKw = ["8 semaines", "deux mois", "2 mois", "semaines", "durée", "pilote", "test", "poc", "essai", "expérimentation", "mvp"];
+  if (durationKw.some(k => bodyLower.includes(k))) pitchScore += 1;
+  if (pitchMailBody.length > 150) pitchScore += 1;
+  const greetingKw = ["bonjour", "madame", "monsieur", "docteur", "cher", "chère"];
+  const signoffKw = ["cordialement", "bien à vous", "respectueusement", "salutations", "à disposition"];
+  if (greetingKw.some(k => bodyLower.includes(k)) && signoffKw.some(k => bodyLower.includes(k))) pitchScore += 1;
+
+  // ── "Really broken" detector — used only for the Clinique branch.
+  // A broken mail = empty, ultra-short, or full of insults / known
+  // nonsense markers. We're deliberately lenient: anything resembling a
+  // real attempt at a mail clears this filter.
+  const insultRegex = /\b(p[éeè]nis|merde|putain|connard|salope|nique|enculé|nul à chier|caca|pipi|fuck|shit)\b/i;
+  const cliniqueBroken =
+    pitchMailBody.trim().length < 50
+    || insultRegex.test(pitchMailBody)
+    || /^[a-zA-Z]{1,15}$/.test(pitchMailBody.trim()); // single short word
+
+  // Clinique = auto-pass unless broken. CHU / Saint-Martin = score ≥ 3.
+  const pitchIsGood = choseClinique
+    ? !cliniqueBroken
+    : pitchScore >= 3;
 
   const resolveContactActor = (chu: boolean, sm: boolean) =>
     chu ? "contact_chu" : sm ? "contact_saint_martin" : "contact_clinique";
@@ -908,9 +893,9 @@ function handlePilotPitchMail(
     },
   });
 
+  // ── PITCH ACCEPTED → advance to Phase 3 ──
   if (pitchIsGood) {
-    // ── PITCH ACCEPTED → advance to Phase 3 ──
-    actions.push({ type: "set_flags", flags: { pitch_accepted: true } });
+    actions.push({ type: "set_flags", flags: { pitch_accepted: true, pitch_mail_sent: true } });
     actions.push({ type: "complete_advance_phase" });
 
     const choiceKey = choseCHU ? "chose_chu" : choseSM ? "chose_saint_martin" : "chose_clinique";
@@ -926,65 +911,83 @@ function handlePilotPitchMail(
     return { actions, earlyReturn: true, didAdvance: false };
   }
 
-  // ── PITCH REJECTED → block advancement, burn establishment, ask user to retry ──
-  // Bug fix : avant, le code pivotait automatiquement vers Clinique Saint-Augustin
-  // (pitch_accepted=true + complete_advance_phase) ce qui forçait le joueur en
-  // phase contrat sans qu'il ait validé le choix. Le user veut au contraire que
-  // le pitch refusé reste BLOQUANT : on garde le joueur en phase pitch_mail,
-  // on marque l'établissement refusé comme "burned", et Alexandre l'invite à
-  // re-prospecter parmi les établissements restants.
+  // ── PITCH REJECTED ─────────────────────────────────────────────────
+  // Three cases:
+  //  (A) Clinique refused → GAME OVER. Player must re-attempt the whole
+  //      scenario from scratch. We flip `pilot_total_failure: true` so the
+  //      scenario picks the dedicated `total_failure` ending (defined in
+  //      scenarios/founder_03_clinical/scenario.json + outcomes in
+  //      data/founder_rules.json). finish_scenario closes the run.
+  //  (B) CHU or Saint-Martin refused → Alexandre forcibly pivots to his
+  //      clinique Saint-Augustin. pitch_accepted is set, phase advances,
+  //      the contract event for Saint-Augustin is scheduled. The
+  //      switched_to_clinique flag stays = penalty in the debrief
+  //      ending `switched_success` (already defined).
+  //
+  // The score is intentionally NOT the gating mechanism for (A) vs (B) —
+  // it's the *target* of the pitch. A bad mail on the Clinique with no
+  // greeting / no value prop = total game over. Even a mediocre mail on
+  // the CHU = pivot to Clinique (not game over).
+  actions.push({ type: "set_flags", flags: { pitch_rejected: true } });
   actions.push({ type: "set_compose", show: false });
 
-  const burnedAfter: string[] = Array.isArray(flags.burned_establishments)
-    ? [...(flags.burned_establishments as string[])]
-    : [];
-  // Identify the establishment we just tried so we can burn it.
-  const justTried = choseCHU ? "chose_chu" : choseSM ? "chose_saint_martin" : "chose_clinique";
-  if (!burnedAfter.includes(justTried)) burnedAfter.push(justTried);
-
-  // Compute remaining options for Alexandre's contextual message.
-  const allOptions: Array<{ key: string; label: string }> = [
-    { key: "chose_chu", label: "le CHU de Bordeaux" },
-    { key: "chose_saint_martin", label: "Saint-Martin" },
-    { key: "chose_clinique", label: "ma clinique Saint-Augustin" },
-  ];
-  const remaining = allOptions.filter((o) => !burnedAfter.includes(o.key));
-  const justTriedLabel = allOptions.find((o) => o.key === justTried)?.label || "cet établissement";
-
-  // Always reset the chosen_* flags so the player can pick again. Burn list
-  // persists separately. pitch_accepted stays FALSE so the phase doesn't
-  // advance.
-  actions.push({
-    type: "set_flags",
-    flags: {
-      pitch_rejected: true,
-      chose_chu: false,
-      chose_saint_martin: false,
-      chose_clinique: false,
-      burned_establishments: burnedAfter as any,
-    },
-  });
-
-  // Wipe the pitch mail draft so a fresh attempt starts blank.
   const currentPhaseId = (phase as any).phase_id || "";
   const rejectionActor = resolveContactActor(choseCHU, choseSM);
 
-  // Build the contextual Alexandre message — list remaining options OR
-  // surface the game-over state if all 3 are burned.
-  let alexMessage: string;
-  if (remaining.length === 0) {
-    // All three establishments refused — game over for the pilot.
-    alexMessage =
-      `Putain… on a tout brûlé. ${justTriedLabel} a refusé aussi, et c'était le dernier établissement de la liste. On va devoir tout reprendre à zéro, il faut retravailler ton pitch en profondeur avant de re-prospecter qui que ce soit.`;
-  } else if (remaining.length === 1) {
-    alexMessage =
-      `Aïe… ${justTriedLabel} a refusé. Il ne nous reste plus que ${remaining[0].label}. Reprends le pitch et fais-le tourner — cette fois soigne le contenu, on n'aura pas de troisième chance.`;
-  } else {
-    const lastTwo = remaining.map((r) => r.label).join(" ou ");
-    alexMessage =
-      `Aïe… ${justTriedLabel} a refusé. Bon, on n'y revient pas — ils sont grillés. Il te reste ${lastTwo}. Soigne mieux ton pitch cette fois (gratuité, durée 8 semaines, valeur sur l'occupation des blocs, HDS) et renvoie un mail.`;
+  if (choseClinique) {
+    // ── (A) GAME OVER ──
+    // UX note : we keep the player on the mail view. They receive the
+    // rejection in their inbox, can read it, and Alexandre's reaction
+    // lands silently in the chat panel. We DON'T auto-switch view/contact
+    // — let the player digest the bad news on their own pace before
+    // finish_scenario fires the debrief screen.
+    actions.push({
+      type: "set_flags",
+      flags: {
+        pilot_total_failure: true,
+        chose_chu: false,
+        chose_saint_martin: false,
+        chose_clinique: false,
+      },
+    });
+    actions.push({
+      type: "delayed_actions",
+      delayMs: 1500,
+      actions: [
+        {
+          type: "add_inbox_mail",
+          mail: {
+            from: rejectionActor,
+            subject: "Re: Orisio — Proposition de test pilote gratuit",
+            body: `Bonjour,\n\nMerci pour votre proposition. Cela dit, en l'état le contenu de votre mail ne nous permet pas d'engager un test pilote. Nous vous invitons à revenir vers nous quand votre dossier sera plus abouti.\n\nCordialement,\nDr. Claire Renaud-Picard`,
+            phaseId: currentPhaseId,
+          },
+        },
+        { type: "play_sound" },
+        {
+          type: "delayed_actions",
+          delayMs: 2000,
+          actions: [
+            {
+              type: "add_ai_message",
+              actor: "alexandre_morel",
+              content: `J'y crois pas. Tu viens de griller ma clinique. MA CLINIQUE. C'était notre dernière option et tu l'as flinguée. On a plus d'établissement à prospecter, le scénario s'arrête là. Va falloir tout reprendre — on va perdre du temps et du cash, j'espère que tu as compris la leçon : à la fin on n'a pas trois fois la même chance.`,
+            },
+            { type: "finish_scenario" },
+          ],
+        },
+      ],
+    });
+    return { actions, earlyReturn: true, didAdvance: false };
   }
 
+  // ── (B) CHU or Saint-Martin refused → forced pivot to Clinique ──
+  // UX note : the player stays on the mail view. The rejection mail
+  // lands in the inbox (with sound), then Alexandre's "on se rabat sur
+  // ma clinique" message lands silently in the chat panel. We don't
+  // hijack the view — the player can read the rejection in peace and
+  // switch to chat themselves if they want to see Alex's reaction.
+  const etablissement = choseCHU ? "le CHU de Bordeaux" : "Saint-Martin";
   actions.push({
     type: "delayed_actions",
     delayMs: 1500,
@@ -1006,10 +1009,21 @@ function handlePilotPitchMail(
           {
             type: "add_ai_message",
             actor: "alexandre_morel",
-            content: alexMessage,
+            content: `Aïe… ${etablissement} a refusé. Bon écoute, on se rabat sur ma clinique. C'est du tout cuit — je connais tout le monde là-bas, je les appelle et c'est réglé en 24h. C'est pas prestigieux mais au moins on avance.`,
           },
-          { type: "set_view", view: "chat" },
-          { type: "set_contact", actorId: "alexandre_morel" },
+          {
+            type: "set_flags",
+            flags: {
+              switched_to_clinique: true,
+              chose_chu: false,
+              chose_saint_martin: false,
+              chose_clinique: true,
+              pitch_accepted: true,
+              pitch_mail_sent: true,
+            },
+          },
+          { type: "complete_advance_phase" },
+          buildContractEvent("contact_clinique", { id: "contrat_clinique", label: "Convention de test — Clinique Saint-Augustin" }),
         ],
       },
     ],
