@@ -25,6 +25,7 @@ import type {
 } from "./types";
 import { EMPTY_RESULT } from "./types";
 import { jaccardSimilarity } from "@/app/lib/mailSimilarity";
+import { scorePilotPitch } from "@/app/lib/pilotPitchScoring";
 
 // ── Types ───────────────────────────────────────────────────────
 
@@ -812,7 +813,6 @@ function handlePilotPitchMail(
 ): MailBranchResult {
   const actions: ModuleAction[] = [];
   const pitchMailBody = extra.currentMailDraft?.body || "";
-  const bodyLower = pitchMailBody.toLowerCase();
   const toField = (extra.currentMailDraft?.to || "").toLowerCase();
 
   // ── Establishment detection ──────────────────────────────────────
@@ -833,48 +833,11 @@ function handlePilotPitchMail(
   }
 
   // ── Pitch scoring ────────────────────────────────────────────────
-  // Two-tier policy explicitly demanded by the user:
-  //
-  //  • Clinique Saint-Augustin (Alex's home turf — direct OR via pivot):
-  //    auto-accept UNLESS the mail is "really broken". Broken = empty,
-  //    super short (< 50 chars), or contains insults / nonsense. Anything
-  //    minimally professional passes, even if it doesn't tick the HDS /
-  //    pricing / duration boxes. "Je connais tout le monde là-bas, je
-  //    les appelle et c'est réglé en 24h." — Alex.
-  //
-  //  • CHU de Bordeaux / Hôpital Saint-Martin (prestigious, picky):
-  //    keyword-score gated. Bar is reasonable (≥3 of 9 max). When a good
-  //    mail still scores too low, the pivot to Clinique kicks in (Alex
-  //    saves the deal). The scoring includes plenty of synonyms so a
-  //    well-written pitch on pilot/MVP/value/HDS reliably scores ≥ 3.
-  let pitchScore = 0;
-  const gratuitKw = ["gratuit", "sans engagement", "offert", "sans frais", "aucun coût", "0 €", "0€", "à nos frais", "pas de coût"];
-  if (gratuitKw.some(k => bodyLower.includes(k))) pitchScore += 2;
-  const valuePropKw = ["planning", "bloc", "opératoire", "annulation", "créneau", "optimis", "gestion", "occupation", "rotation", "fluidifier", "coordination", "salles"];
-  if (valuePropKw.filter(k => bodyLower.includes(k)).length >= 2) pitchScore += 2;
-  const dataKw = ["données", "hds", "hébergement", "certifié", "patient", "sécurité", "rgpd", "confidentiel", "souveraineté", "anonymis", "chiffrement"];
-  if (dataKw.some(k => bodyLower.includes(k))) pitchScore += 2;
-  const durationKw = ["8 semaines", "deux mois", "2 mois", "semaines", "durée", "pilote", "test", "poc", "essai", "expérimentation", "mvp"];
-  if (durationKw.some(k => bodyLower.includes(k))) pitchScore += 1;
-  if (pitchMailBody.length > 150) pitchScore += 1;
-  const greetingKw = ["bonjour", "madame", "monsieur", "docteur", "cher", "chère"];
-  const signoffKw = ["cordialement", "bien à vous", "respectueusement", "salutations", "à disposition"];
-  if (greetingKw.some(k => bodyLower.includes(k)) && signoffKw.some(k => bodyLower.includes(k))) pitchScore += 1;
-
-  // ── "Really broken" detector — used only for the Clinique branch.
-  // A broken mail = empty, ultra-short, or full of insults / known
-  // nonsense markers. We're deliberately lenient: anything resembling a
-  // real attempt at a mail clears this filter.
-  const insultRegex = /\b(p[éeè]nis|merde|putain|connard|salope|nique|enculé|nul à chier|caca|pipi|fuck|shit)\b/i;
-  const cliniqueBroken =
-    pitchMailBody.trim().length < 50
-    || insultRegex.test(pitchMailBody)
-    || /^[a-zA-Z]{1,15}$/.test(pitchMailBody.trim()); // single short word
-
-  // Clinique = auto-pass unless broken. CHU / Saint-Martin = score ≥ 3.
-  const pitchIsGood = choseClinique
-    ? !cliniqueBroken
-    : pitchScore >= 3;
+  // Delegated to the pure module app/lib/pilotPitchScoring.ts so the same
+  // logic can be replayed by the offline grader (tests/pilot-pitch-grader).
+  const pitchTarget = choseClinique ? "clinique" : choseSM ? "saint_martin" : "chu";
+  const verdict = scorePilotPitch(pitchMailBody, pitchTarget);
+  const pitchIsGood = verdict.isGood;
 
   const resolveContactActor = (chu: boolean, sm: boolean) =>
     chu ? "contact_chu" : sm ? "contact_saint_martin" : "contact_clinique";
