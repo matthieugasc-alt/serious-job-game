@@ -72,6 +72,9 @@ import { useOnePagerEditor } from "./hooks/useOnePagerEditor";
 import { useTTS } from "./hooks/useTTS";
 import { buildClinicalArticles } from "./lib/clinicalContractTemplates";
 import { fetchChatWithRetry } from "./lib/fetchChatWithRetry";
+import { getActorInfo as getActorInfoImpl } from "./lib/getActorInfo";
+import { useMailSendValidation } from "./hooks/useMailSendValidation";
+import { useNewItemNotifications } from "./hooks/useNewItemNotifications";
 import { checkCompletionRules } from "./lib/checkCompletionRules";
 import {
   resolveDynamicActors as resolveDynamicActorsImpl,
@@ -412,8 +415,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const aiPromptsMapRef = useRef<Record<string, string>>({});
   const chatEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const prevMailCountRef = useRef(-1);
-  const prevChatCountRef = useRef(-1);
+  // prevMailCountRef + prevChatCountRef moved into hooks/useNewItemNotifications.
 
   // ── Runtime view ──
   const view = useMemo(
@@ -845,30 +847,13 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     }
   }, [selectedContact, conversation.length]);
 
-  const canActuallySendMail = (() => {
-    if (!canComposeMail || !session || !scenario) return false;
-    const d = currentMailDraft;
-    if (!d.to.trim() || !d.subject.trim() || !d.body.trim()) return false;
-    const phase = scenario.phases[session.currentPhaseIndex];
-    if (phase?.mail_config?.require_attachments && (!d.attachments || d.attachments.length === 0)) return false;
-    // Minimum body length when mail advances phase (prevents accidental/empty sends)
-    if (phase?.mail_config?.send_advances_phase && d.body.trim().length < 20) return false;
-    return true;
-  })();
-  // Human-readable reason why send is disabled (for tooltip / UX)
-  const mailSendBlockReason = (() => {
-    if (!canComposeMail || !session || !scenario) return "";
-    const d = currentMailDraft;
-    if (!d.to.trim()) return "Destinataire requis";
-    if (!d.subject.trim()) return "Objet requis";
-    if (!d.body.trim()) return "Contenu du mail requis";
-    const phase = scenario.phases[session.currentPhaseIndex];
-    if (phase?.mail_config?.require_attachments && (!d.attachments || d.attachments.length === 0))
-      return "Pièce jointe requise";
-    if (phase?.mail_config?.send_advances_phase && d.body.trim().length < 20)
-      return "Le contenu du mail est trop court (20 caractères minimum)";
-    return "";
-  })();
+  // Mail send validation extracted to hooks/useMailSendValidation.
+  const { canActuallySendMail, mailSendBlockReason } = useMailSendValidation({
+    canComposeMail,
+    session,
+    scenario,
+    currentMailDraft,
+  });
 
   // Page-level wrapper that also fires the notification sound.
   function addToast(text: string, icon: string, type: "chat" | "mail") {
@@ -876,50 +861,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     playNotificationSound();
   }
 
-  // ── Track new mails for unread badge + notification ──
-  useEffect(() => {
-    // First render: initialize without notifying
-    if (prevMailCountRef.current === -1) {
-      prevMailCountRef.current = inboxMails.length;
-      return;
-    }
-    if (inboxMails.length > prevMailCountRef.current) {
-      const newCount = inboxMails.length - prevMailCountRef.current;
-      setUnreadMails((u) => u + newCount);
-      // Show toast for each new mail
-      const newMails = inboxMails.slice(-newCount);
-      for (const mail of newMails) {
-        const senderInfo = getActorInfo(mail.from);
-        addToast(`${senderInfo.name} : ${mail.subject}`, "📧", "mail");
-      }
-    }
-    prevMailCountRef.current = inboxMails.length;
-  }, [inboxMails.length]);
-
-  // ── Track new chat messages for notification ──
-  useEffect(() => {
-    const nonPlayerMsgs = conversation.filter((m: any) => m.role !== "player" && m.role !== "system");
-    // First render: initialize without notifying
-    if (prevChatCountRef.current === -1) {
-      prevChatCountRef.current = nonPlayerMsgs.length;
-      return;
-    }
-    if (nonPlayerMsgs.length > prevChatCountRef.current) {
-      const newCount = nonPlayerMsgs.length - prevChatCountRef.current;
-      const newMsgs = nonPlayerMsgs.slice(-newCount);
-      for (const msg of newMsgs) {
-        const actorInfo = getActorInfo(msg.actor || "npc");
-        const typeBadge: Record<string, string> = { phone_call: "📞", whatsapp_message: "📱", sms: "📱", visio: "📹", interruption: "⚡" };
-        const icon = typeBadge[msg.type || ""] || "💬";
-        const preview = msg.content.length > 60 ? msg.content.slice(0, 57) + "..." : msg.content;
-        // Only notify if not on chat tab
-        if (mainView !== "chat") {
-          addToast(`${actorInfo.name} : ${preview}`, icon, "chat");
-        }
-      }
-    }
-    prevChatCountRef.current = nonPlayerMsgs.length;
-  }, [conversation.length]);
+  // ── New mails + new chat messages notifications — extracted ──
+  useNewItemNotifications({
+    inboxMails, conversation, mainView,
+    getActorInfo, addToast, setUnreadMails,
+  });
 
   // Clear unread when viewing mail
   useEffect(() => {
@@ -1337,30 +1283,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
             roleplayPrompt: activePrompt,
         };
 
-        let voiceData: any = null;
-        for (let attempt = 0; attempt <= 2; attempt++) {
-          try {
-            if (attempt > 0) {
-              const freshToken = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-              if (freshToken) authTokenRef.current = freshToken;
-              await new Promise(r => setTimeout(r, 800 * attempt));
-            }
-            const res = await fetch("/api/chat", {
-              method: "POST",
-              headers: apiHeaders(),
-              body: JSON.stringify(voicePayload),
-            });
-            if (res.status === 401 && attempt < 2) continue;
-            if (res.status >= 500 && attempt < 2) continue;
-            if (res.status === 429 && attempt < 2) {
-              await new Promise(r => setTimeout(r, 3000));
-              continue;
-            }
-            if (!res.ok) break;
-            voiceData = await res.json();
-            break;
-          } catch { if (attempt >= 2) break; }
-        }
+        // Reuse the same 401/429/5xx/network retry logic as sendMessage.
+        const { data: voiceData } = await fetchChatWithRetry(voicePayload, {
+          apiHeaders,
+          authTokenRef,
+        });
 
         if (voiceData) {
           playNotificationSound();
@@ -1481,10 +1408,8 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // Generate an NPC message without a player message (for triggering child questions)
   async function generateNPCMessage(actorId: string, trigger: string): Promise<string> {
     const activePrompt = aiPromptsMapRef.current[actorId] || aiPromptRef.current;
-    const res = await fetch("/api/chat", {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify({
+    const { data } = await fetchChatWithRetry(
+      {
         message: trigger,
         playerName: displayPlayerName,
         phaseTitle: view?.phaseTitle || "",
@@ -1500,14 +1425,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         playerMessages: conversation.filter((m: any) => m.role === "player").slice(-6).map((m: any) => m.content),
         roleplayPrompt: activePrompt,
         mode: view?.adaptiveMode || "autonomy",
-      }),
-    });
-    if (!res.ok) {
-      console.error(`Erreur NPC chat (${res.status})`);
-      return "";
-    }
-    const data = await res.json();
-    return data.reply || "";
+      },
+      { apiHeaders, authTokenRef },
+    );
+    return data?.reply || "";
   }
 
   // ════════════════════════════════════════════════════════════════════
@@ -2106,15 +2027,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // ════════════════════════════════════════════════════════════════════
 
   function getActorInfo(actorId: string) {
-    // Resolve "chosen_cto" to actual CTO actor
-    const resolved = actorId === "chosen_cto" && chosenCtoId ? chosenCtoId : actorId;
-    const a = actors.find((x: any) => x.actor_id === resolved);
-    return {
-      name: a?.name || resolved,
-      color: a?.avatar?.color || "#666",
-      initials: a?.avatar?.initials || getInitials(a?.name || resolved),
-      status: (a as any)?.contact_status || "offline",
-    };
+    return getActorInfoImpl(actorId, actors, chosenCtoId);
   }
 
   // ════════════════════════════════════════════════════════════════════
