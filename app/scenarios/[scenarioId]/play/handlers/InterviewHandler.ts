@@ -19,6 +19,12 @@
 // ══════════════════════════════════════════════════════════════════
 
 import type { InterviewPhaseHandler, ManualStartConfig } from "./types";
+import {
+  buildEntryEventKey,
+  hasInjectedKey,
+  markInjectedKey,
+  resolveEventId,
+} from "../lib/phaseEventTracker";
 
 export const InterviewHandler: InterviewPhaseHandler = {
   type: "interview",
@@ -91,16 +97,19 @@ export const InterviewHandler: InterviewPhaseHandler = {
 
     const phId = phase.phase_id || `phase_${next.currentPhaseIndex}`;
     for (const ev of phase.entry_events) {
-      const evKey = `${phId}__${ev.event_id}`;
-      if (next.injectedPhaseEntryEvents.includes(evKey)) continue;
+      // Idempotency via the shared phaseEventTracker — same key format as
+      // runtime.injectPhaseEntryEvents so the two producers cooperate.
+      const eventId = resolveEventId(ev as any, phId);
+      const evKey = buildEntryEventKey(phId, eventId);
+      if (hasInjectedKey(next.injectedPhaseEntryEvents, evKey)) continue;
+      markInjectedKey(next.injectedPhaseEntryEvents, evKey);
       // Schedule as timed event (candidate hello, etc.)
-      next.injectedPhaseEntryEvents.push(evKey);
       next.pendingTimedEvents.push({
         fireAt: new Date(Date.now() + (ev.delay_ms || 0)).toISOString(),
         actor: ev.actor,
         content: ev.content,
         channel: ev.channel || "chat",
-        eventId: ev.event_id,
+        eventId,
         attachments: ev.attachments,
       });
     }
@@ -121,11 +130,12 @@ export const InterviewHandler: InterviewPhaseHandler = {
 
     const phId = phase.phase_id || `phase_${session.currentPhaseIndex}`;
     for (const ev of phase.entry_events) {
-      const evKey = `${phId}__${ev.event_id}`;
-      if (session.injectedPhaseEntryEvents.includes(evKey)) continue;
+      const eventId = resolveEventId(ev as any, phId);
+      const evKey = buildEntryEventKey(phId, eventId);
+      if (hasInjectedKey(session.injectedPhaseEntryEvents, evKey)) continue;
       if (ev.delay_ms === 0) {
         // Inject immediately (briefing actor's transition message)
-        session.injectedPhaseEntryEvents.push(evKey);
+        markInjectedKey(session.injectedPhaseEntryEvents, evKey);
         addAIMessage(session, ev.content, ev.actor);
         if (ev.attachments) {
           const lastMsg = session.chatMessages[session.chatMessages.length - 1];

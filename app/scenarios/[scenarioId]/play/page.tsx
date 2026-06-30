@@ -39,6 +39,7 @@ import {
   type VoiceCaptureErrorCategory,
 } from "@/app/lib/voiceCapture";
 import { useDebrief } from "./hooks/useDebrief";
+import { useScenarioInit } from "./hooks/useScenarioInit";
 import DocumentsView from "./DocumentsView";
 import MailView from "./MailView";
 import DebriefView from "./DebriefView";
@@ -48,6 +49,27 @@ import { usePhaseTimer } from "./hooks/usePhaseTimer";
 import { resolvePhaseHandler, InterviewHandler, ContractHandler, resolveModules, dispatch, buildModuleContext } from "./handlers";
 import type { ModuleAction, ContractModuleContext } from "./handlers";
 import type { MailModuleExtra } from "./handlers";
+import { applyModuleActions as applyModuleActionsImpl, type ApplyModuleActionsDeps } from "./handlers/applyModuleActions";
+import { executeMailAsyncEffect as executeMailAsyncEffectImpl, type ExecuteMailAsyncEffectDeps } from "./handlers/executeMailAsyncEffect";
+import { cloneSession, playNotificationSound, fmtTime, getInitials, STATUS_COLORS } from "./lib/playerUtils";
+import { parseOutlineText, outlineToText, mkOutlineId, type OutlineItem } from "./lib/outlineParser";
+import { ESTABLISHMENT_MAP, resolveEstablishment, resolveMailPlaceholders } from "./lib/establishmentMap";
+import { Avatar, TypingDots, StatusDot } from "./components/Avatars";
+import { ToastContainer } from "./components/ToastContainer";
+import { ResumeBanner, SaveInfo } from "./components/ResumeBanner";
+import { PlayerHeader } from "./components/PlayerHeader";
+import { DebugPanel } from "./components/DebugPanel";
+import { InlineDocModal } from "./components/InlineDocModal";
+import { BriefingOverlay } from "./components/BriefingOverlay";
+import { useToasts } from "./hooks/useToasts";
+import { useFounderCheckpoint } from "./hooks/useFounderCheckpoint";
+import { useOnePagerEditor } from "./hooks/useOnePagerEditor";
+import { useOutlineNotes } from "./hooks/useOutlineNotes";
+import { useExceptionsContract } from "./hooks/useExceptionsContract";
+import { useClinicalContract } from "./hooks/useClinicalContract";
+import { useDevisNegotiation } from "./hooks/useDevisNegotiation";
+import { useNovadevContract } from "./hooks/useNovadevContract";
+import { usePacteContract } from "./hooks/usePacteContract";
 import {
   fireSessionStarted,
   firePhaseStarted,
@@ -80,185 +102,7 @@ import {
 
 type MainView = "chat" | "mail" | "docs" | "context" | "notes";
 
-/* ═══ Establishment mapping (reused across scenarios 3 & 4) ═══ */
-const ESTABLISHMENT_MAP: Record<string, { name: string; email: string; label: string }> = {
-  chose_chu: { name: "Dr. Pierre Lemaire", email: "p.lemaire@chu-bordeaux.fr", label: "le CHU de Bordeaux" },
-  chose_saint_martin: { name: "Laurent Castex", email: "l.castex@hp-saintmartin.fr", label: "l'Hôpital Saint-Martin" },
-  chose_clinique: { name: "Dr. Claire Renaud-Picard", email: "c.renaud-picard@clinique-saint-augustin.fr", label: "la Clinique Saint-Augustin" },
-};
-function resolveEstablishment(flags: Record<string, any>): { name: string; email: string; label: string } {
-  const key = flags.chose_chu ? "chose_chu" : flags.chose_saint_martin ? "chose_saint_martin" : "chose_clinique";
-  return ESTABLISHMENT_MAP[key];
-}
-
-/** Replace {{establishment_email}} and {{establishment_name}} placeholders in mail_config defaults */
-function resolveMailPlaceholders(mailConfig: any, flags: Record<string, any>) {
-  if (!mailConfig?.defaults) return;
-  const est = resolveEstablishment(flags);
-  if (mailConfig.defaults.to?.includes("{{establishment_email}}")) {
-    mailConfig.defaults.to = est.email;
-  }
-  if (mailConfig.defaults.subject?.includes("{{establishment_name}}")) {
-    mailConfig.defaults.subject = mailConfig.defaults.subject.replace("{{establishment_name}}", est.label);
-  }
-  // Also resolve in entry_events content if needed
-}
-
-/* ═══ Mind Map / Outline types ═══ */
-type OutlineItem = { id: string; text: string; depth: number };
-let _outlineIdCounter = 0;
-function mkOutlineId() { return `ol_${++_outlineIdCounter}_${Date.now()}`; }
-
-/** Parse raw textarea text into structured outline items.
- *  Recognises indentation via: leading spaces/tabs, bullet chars (•◦▪▸‣·-*), numbered prefixes.
- *  Each 2 spaces or 1 tab = 1 depth level. */
-function parseOutlineText(raw: string): OutlineItem[] {
-  if (!raw.trim()) return [];
-  const lines = raw.split("\n");
-  const items: OutlineItem[] = [];
-  for (const line of lines) {
-    if (!line.trim()) continue;
-    // Count leading whitespace to determine depth
-    const leadMatch = line.match(/^([\t ]*)/);
-    const leadStr = leadMatch ? leadMatch[1] : "";
-    // Each tab = 1 level, each 2 spaces = 1 level
-    const tabCount = (leadStr.match(/\t/g) || []).length;
-    const spaceCount = (leadStr.replace(/\t/g, "").length);
-    let depth = tabCount + Math.floor(spaceCount / 2);
-    // Strip leading bullet/number prefixes from the text
-    let text = line.slice(leadStr.length);
-    text = text.replace(/^(?:[•◦▪▫▸‣·\-\*]|\d+[.)]\s?)\s*/, "").trim();
-    if (!text) continue;
-    depth = Math.min(depth, 5);
-    items.push({ id: mkOutlineId(), text, depth });
-  }
-  return items;
-}
-
-function outlineToText(items: OutlineItem[]): string {
-  const bullets = ["•", "  ◦", "    ▪", "      ▸", "        ‣", "          ·"];
-  return items
-    .filter((i) => i.text.trim())
-    .map((i) => {
-      const prefix = bullets[Math.min(i.depth, bullets.length - 1)];
-      return `${prefix} ${i.text.trim()}`;
-    })
-    .join("\n");
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  available: "#44b553",
-  busy: "#e94b3c",
-  away: "#f5a623",
-  offline: "#999",
-};
-
-function cloneSession(prev: any) {
-  return {
-    ...prev,
-    chatMessages: [...prev.chatMessages],
-    inboxMails: [...prev.inboxMails],
-    sentMails: [...prev.sentMails],
-    actionLog: [...prev.actionLog],
-    scores: { ...prev.scores },
-    flags: { ...prev.flags },
-    completedPhases: [...prev.completedPhases],
-    unlockedPhases: [...prev.unlockedPhases],
-    triggeredInterruptions: [...prev.triggeredInterruptions],
-    injectedPhaseEntryEvents: [...prev.injectedPhaseEntryEvents],
-    pendingTimedEvents: prev.pendingTimedEvents.map((e: any) => ({ ...e })),
-    mailDrafts: JSON.parse(JSON.stringify(prev.mailDrafts || {})),
-  };
-}
-
-function playNotificationSound() {
-  if (typeof window === "undefined") return;
-  try {
-    const Ctx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!Ctx) return;
-    const ctx = new Ctx();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "sine";
-    osc.frequency.setValueAtTime(880, ctx.currentTime);
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.08, ctx.currentTime + 0.01);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.18);
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.18);
-    osc.onended = () => ctx.close().catch(() => {});
-  } catch {}
-}
-
-function fmtTime(iso: string | null) {
-  if (!iso) return "--:--";
-  return new Date(iso).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
-}
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0][0].toUpperCase();
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
-}
-
-// ════════════════════════════════════════════════════════════════════
-// SUB-COMPONENTS
-// ════════════════════════════════════════════════════════════════════
-
-function TypingDots() {
-  return (
-    <span style={{ display: "inline-flex", gap: 3, marginLeft: 6 }}>
-      {[0, 1, 2].map((i) => (
-        <span
-          key={i}
-          style={{
-            width: 5, height: 5, borderRadius: "50%", background: "#888",
-            animation: "dotPulse 1.4s infinite", animationDelay: `${i * 0.2}s`,
-          }}
-        />
-      ))}
-      <style>{`@keyframes dotPulse{0%,80%,100%{opacity:.3}40%{opacity:1}}`}</style>
-    </span>
-  );
-}
-
-/** Small colored circle for contact status */
-function StatusDot({ status }: { status: string }) {
-  return (
-    <span
-      style={{
-        width: 10, height: 10, borderRadius: "50%",
-        background: STATUS_COLORS[status] || STATUS_COLORS.offline,
-        border: "2px solid #fff",
-        position: "absolute", bottom: -1, right: -1,
-        boxShadow: "0 0 0 1px #e0e0e0",
-      }}
-    />
-  );
-}
-
-/** Avatar circle */
-function Avatar({ initials, color, size = 36, status }: {
-  initials: string; color: string; size?: number; status?: string;
-}) {
-  return (
-    <div style={{ position: "relative", width: size, height: size, flexShrink: 0 }}>
-      <div
-        style={{
-          width: size, height: size, borderRadius: "50%", background: color,
-          color: "#fff", display: "flex", alignItems: "center", justifyContent: "center",
-          fontWeight: 700, fontSize: size > 32 ? 13 : 11, userSelect: "none",
-        }}
-      >
-        {initials}
-      </div>
-      {status && <StatusDot status={status} />}
-    </div>
-  );
-}
+// Helpers + visual atoms extracted to ./lib/* and ./components/Avatars.
 
 // ════════════════════════════════════════════════════════════════════
 // MAIN PAGE COMPONENT
@@ -361,80 +205,111 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   const [selectedContact, setSelectedContact] = useState<string | null>(null);
   const [showBriefingOverlay, setShowBriefingOverlay] = useState(false);
   const [unreadMails, setUnreadMails] = useState(0);
-  const [toasts, setToasts] = useState<Array<{ id: string; text: string; icon: string; type: "chat" | "mail" }>>([]);
-  const [pacteSigned, setPacteSigned] = useState(false);
-  const [inlineDocContent, setInlineDocContent] = useState<{ title: string; content: string } | null>(null);
-  const [showSignatureView, setShowSignatureView] = useState(false);
-  const [pacteArticles, setPacteArticles] = useState<ContractClause[]>([]);
-  const [amendmentInput, setAmendmentInput] = useState("");
-  const [pacteThread, setPacteThread] = useState<ContractThreadMessage[]>([]);
-  const [pacteThreadLoading, setPacteThreadLoading] = useState(false);
+  // Toast queue extracted to hooks/useToasts. The hook exposes the
+  // queue + push/dismiss; we wrap push in addToast() below so the
+  // notification sound stays bundled with the visual notification.
+  const { toasts, addToast: pushToast, dismissToast } = useToasts();
+  // S0 pacte d'associés state extracted to hooks/usePacteContract.
+  const _pacteHook = usePacteContract();
+  const pacteSigned = _pacteHook.pacteSigned;
+  const setPacteSigned = _pacteHook.setPacteSigned;
+  const inlineDocContent = _pacteHook.inlineDocContent;
+  const setInlineDocContent = _pacteHook.setInlineDocContent;
+  const showSignatureView = _pacteHook.showSignatureView;
+  const setShowSignatureView = _pacteHook.setShowSignatureView;
+  const pacteArticles = _pacteHook.pacteArticles;
+  const setPacteArticles = _pacteHook.setPacteArticles;
+  const amendmentInput = _pacteHook.amendmentInput;
+  const setAmendmentInput = _pacteHook.setAmendmentInput;
+  const pacteThread = _pacteHook.pacteThread;
+  const setPacteThread = _pacteHook.setPacteThread;
+  const pacteThreadLoading = _pacteHook.pacteThreadLoading;
+  const setPacteThreadLoading = _pacteHook.setPacteThreadLoading;
   // ── Mind Map / Outline tool (scenario 4+) ──
-  const [outlineRawText, setOutlineRawText] = useState("");
-  const outlineItems = useMemo(() => parseOutlineText(outlineRawText), [outlineRawText]);
+  // Outline / mindmap notes state extracted to hooks/useOutlineNotes.
+  const _outlineHook = useOutlineNotes();
+  const outlineRawText = _outlineHook.outlineRawText;
+  const setOutlineRawText = _outlineHook.setOutlineRawText;
+  const outlineItems = _outlineHook.outlineItems;
   const hasMindmapTool = scenario?.meta?.tags?.includes("priorisation") || scenarioId === "founder_04_v1" || (scenario?.meta as any)?.notes_tool === true;
-  const [outlineCopiedFeedback, setOutlineCopiedFeedback] = useState("");
-  const [mindmapView, setMindmapView] = useState<"split" | "editor" | "map">("split");
+  const outlineCopiedFeedback = _outlineHook.outlineCopiedFeedback;
+  const setOutlineCopiedFeedback = _outlineHook.setOutlineCopiedFeedback;
+  const mindmapView = _outlineHook.mindmapView;
+  const setMindmapView = _outlineHook.setMindmapView;
   // ── Devis NovaDev negotiation (scenario 4, phase 3) ──
-  const [showDevisNego, setShowDevisNego] = useState(false);
-  const [devisSigned, setDevisSigned] = useState(false);
-  const [devisNegoMessages, setDevisNegoMessages] = useState<Array<{ role: "player" | "npc"; content: string }>>([]);
-  const [devisNegoInput, setDevisNegoInput] = useState("");
-  const [devisNegoLoading, setDevisNegoLoading] = useState(false);
-  const [devisFeatures, setDevisFeatures] = useState<Record<string, boolean>>({
-    bug_fix: true,
-    notifications: true,
-    dashboard: true,
-    materiel: true,
-    api_si: true,
-  });
-  const [devisLocked, setDevisLocked] = useState(false); // Lock checkboxes after first message
-  const [dealTerms, setDealTerms] = useState<{
-    interessement: { pct: number; cap: number | null; duration: number } | null;
-    bsa: number | null;
-    discount: number;
-  }>({ interessement: null, bsa: null, discount: 0 });
-  const [prevDealTerms, setPrevDealTerms] = useState<{
-    interessement: { pct: number; cap: number | null; duration: number } | null;
-    bsa: number | null;
-    discount: number;
-  } | null>(null);
-  const devisNegoChatRef = useRef<HTMLDivElement>(null);
+  // S2 devis negotiation state extracted to hooks/useDevisNegotiation.
+  const _devisHook = useDevisNegotiation();
+  const showDevisNego = _devisHook.showDevisNego;
+  const setShowDevisNego = _devisHook.setShowDevisNego;
+  const devisSigned = _devisHook.devisSigned;
+  const setDevisSigned = _devisHook.setDevisSigned;
+  const devisNegoMessages = _devisHook.devisNegoMessages;
+  const setDevisNegoMessages = _devisHook.setDevisNegoMessages;
+  const devisNegoInput = _devisHook.devisNegoInput;
+  const setDevisNegoInput = _devisHook.setDevisNegoInput;
+  const devisNegoLoading = _devisHook.devisNegoLoading;
+  const setDevisNegoLoading = _devisHook.setDevisNegoLoading;
+  const devisFeatures = _devisHook.devisFeatures;
+  const setDevisFeatures = _devisHook.setDevisFeatures;
+  const devisLocked = _devisHook.devisLocked;
+  const setDevisLocked = _devisHook.setDevisLocked;
+  const dealTerms = _devisHook.dealTerms;
+  const setDealTerms = _devisHook.setDealTerms;
+  const prevDealTerms = _devisHook.prevDealTerms;
+  const setPrevDealTerms = _devisHook.setPrevDealTerms;
+  const devisNegoChatRef = _devisHook.devisNegoChatRef;
   // ── Contract signature (scenario 2+) ──
-  const [showContractSignature, setShowContractSignature] = useState(false);
-  const [contractSigned, setContractSigned] = useState(false);
-  const [contractVars, setContractVars] = useState<{
-    price: string;
-    features: string[];
-    equity: string | null;
-    rawMailBody: string;
-  }>({ price: "", features: [], equity: null, rawMailBody: "" });
-  const [novadevArticles, setNovadevArticles] = useState<ContractClause[]>([]);
-  const [novadevThread, setNovadevThread] = useState<ContractThreadMessage[]>([]);
-  const [novadevThreadLoading, setNovadevThreadLoading] = useState(false);
-  const [novadevNegInput, setNovadevNegInput] = useState("");
+  // S2 NovaDev contract state extracted to hooks/useNovadevContract.
+  const _novadevHook = useNovadevContract();
+  const showContractSignature = _novadevHook.showContractSignature;
+  const setShowContractSignature = _novadevHook.setShowContractSignature;
+  const contractSigned = _novadevHook.contractSigned;
+  const setContractSigned = _novadevHook.setContractSigned;
+  const contractVars = _novadevHook.contractVars;
+  const setContractVars = _novadevHook.setContractVars;
+  const novadevArticles = _novadevHook.novadevArticles;
+  const setNovadevArticles = _novadevHook.setNovadevArticles;
+  const novadevThread = _novadevHook.novadevThread;
+  const setNovadevThread = _novadevHook.setNovadevThread;
+  const novadevThreadLoading = _novadevHook.novadevThreadLoading;
+  const setNovadevThreadLoading = _novadevHook.setNovadevThreadLoading;
+  const novadevNegInput = _novadevHook.novadevNegInput;
+  const setNovadevNegInput = _novadevHook.setNovadevNegInput;
   // ── Bon de commande exceptions (scenario 5) ──
-  const [showExceptionsOverlay, setShowExceptionsOverlay] = useState(false);
-  const [exceptionsArticles, setExceptionsArticles] = useState<ContractClause[]>([]);
-  const [exceptionsThread, setExceptionsThread] = useState<ContractThreadMessage[]>([]);
-  const [exceptionsThreadLoading, setExceptionsThreadLoading] = useState(false);
-  const [exceptionsNegInput, setExceptionsNegInput] = useState("");
-  const [exceptionsSigned, setExceptionsSigned] = useState(false);
+  // S5 exceptions CGV state extracted to hooks/useExceptionsContract.
+  const {
+    showExceptionsOverlay, setShowExceptionsOverlay,
+    exceptionsArticles, setExceptionsArticles,
+    exceptionsThread, setExceptionsThread,
+    exceptionsThreadLoading, setExceptionsThreadLoading,
+    exceptionsNegInput, setExceptionsNegInput,
+    exceptionsSigned, setExceptionsSigned,
+  } = useExceptionsContract();
   // ── Clinical contract signature (scenario 3) ──
-  const [showClinicalContract, setShowClinicalContract] = useState(false);
-  const [clinicalContractSigned, setClinicalContractSigned] = useState(false);
-  const [clinicalContractArticles, setClinicalContractArticles] = useState<Array<{
-    id: string; title: string; content: string; modifiedContent: string | null;
-    toxic: boolean; moderate: boolean;
-  }>>([]);
-  const [clinicalNegThread, setClinicalNegThread] = useState<Array<{ role: "player" | "juriste"; content: string }>>([]);
-  const [clinicalNegLoading, setClinicalNegLoading] = useState(false);
-  const [clinicalNegInput, setClinicalNegInput] = useState("");
-  const [clinicalContractRefused, setClinicalContractRefused] = useState(false);
+  // S3 clinical contract state extracted to hooks/useClinicalContract.
+  const _clinicalHook = useClinicalContract();
+  const showClinicalContract = _clinicalHook.showClinicalContract;
+  const setShowClinicalContract = _clinicalHook.setShowClinicalContract;
+  const clinicalContractSigned = _clinicalHook.clinicalContractSigned;
+  const setClinicalContractSigned = _clinicalHook.setClinicalContractSigned;
+  const clinicalContractArticles = _clinicalHook.clinicalContractArticles;
+  const setClinicalContractArticles = _clinicalHook.setClinicalContractArticles;
+  const clinicalNegThread = _clinicalHook.clinicalNegThread;
+  const setClinicalNegThread = _clinicalHook.setClinicalNegThread;
+  const clinicalNegLoading = _clinicalHook.clinicalNegLoading;
+  const setClinicalNegLoading = _clinicalHook.setClinicalNegLoading;
+  const clinicalNegInput = _clinicalHook.clinicalNegInput;
+  const setClinicalNegInput = _clinicalHook.setClinicalNegInput;
+  const clinicalContractRefused = _clinicalHook.clinicalContractRefused;
+  const setClinicalContractRefused = _clinicalHook.setClinicalContractRefused;
+  // (former clinical inline useStates removed — see _clinicalHook above)
   // ── One-pager editor (scenario 1+) ──
-  const [showOnePagerEditor, setShowOnePagerEditor] = useState(false);
-  const [onePagerEdited, setOnePagerEdited] = useState(false);
-  const [onePagerSubmitted, setOnePagerSubmitted] = useState(false);
+  // S1 one-pager editor state extracted to hooks/useOnePagerEditor.
+  const {
+    showOnePagerEditor, setShowOnePagerEditor,
+    onePagerEdited, setOnePagerEdited,
+    onePagerSubmitted, setOnePagerSubmitted,
+  } = useOnePagerEditor();
   const onePagerContentRef = useRef<HTMLDivElement>(null);
   const [showContactPicker, setShowContactPicker] = useState<"to" | "cc" | null>(null);
   const [interviewStarted, setInterviewStarted] = useState(false);
@@ -1073,12 +948,10 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     return "";
   })();
 
-  // ── Toast helper ──
+  // Page-level wrapper that also fires the notification sound.
   function addToast(text: string, icon: string, type: "chat" | "mail") {
-    const id = `toast_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`;
-    setToasts((prev) => [...prev, { id, text, icon, type }]);
+    pushToast(text, icon, type);
     playNotificationSound();
-    setTimeout(() => setToasts((prev) => prev.filter((t) => t.id !== id)), 4000);
   }
 
   // ── Track new mails for unread badge + notification ──
@@ -1137,223 +1010,25 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // INITIALIZATION
   // ════════════════════════════════════════════════════════════════════
 
-  useEffect(() => {
-    async function init() {
-      try {
-        // ── Auth guard: un compte est requis pour jouer ──
-        const token = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-        if (!token) {
-          router.push("/login?redirect=" + encodeURIComponent(window.location.pathname));
-          return;
-        }
-
-        // Validate the token is still valid server-side BEFORE starting the game.
-        // This prevents the "dead chat" bug where a player has a stale token in
-        // localStorage (from a previous session) and every API call fails silently.
-        try {
-          const authCheck = await fetch("/api/auth/session", {
-            headers: { Authorization: `Bearer ${token}` },
-          });
-          if (!authCheck.ok) {
-            // Token is expired or invalid — force re-login
-            localStorage.removeItem("auth_token");
-            localStorage.removeItem("user_name");
-            localStorage.removeItem("user_role");
-            router.push("/login?redirect=" + encodeURIComponent(window.location.pathname));
-            return;
-          }
-        } catch {
-          // Network error — continue anyway, the retry logic in sendMessage will handle it
-        }
-
-        // Refresh the auth ref in case it was stale
-        authTokenRef.current = token;
-
-        const res = await fetch(`/api/scenarios/${scenarioId}`);
-        if (!res.ok) throw new Error("Impossible de charger le scénario");
-        const data: ScenarioDefinition = await res.json();
-
-        // ── Founder lock guard (classic mode) ──
-        // If this is a Founder scenario, verify the player either:
-        // (a) has an active Founder campaign (playing in Founder mode), OR
-        // (b) has already completed it in Founder mode (playing classic replay)
-        const isFounderMeta = ((data.meta as any)?.job_family || "") === "founder";
-        let activeCampaign: any = null;
-        if (isFounderMeta) {
-          try {
-            const fRes = await fetch("/api/founder/campaigns", {
-              headers: { Authorization: `Bearer ${token}` },
-            });
-            if (fRes.ok) {
-              const fData = await fRes.json();
-              const campaigns = fData.campaigns || (fData.campaign ? [fData.campaign] : []);
-              activeCampaign = campaigns.find((c: any) => c.status !== "completed");
-              const hasActiveCampaign = !!activeCampaign;
-              const hasCompletedScenario = campaigns.some((c: any) =>
-                (c.completedScenarios || []).some((cs: any) => cs.scenarioId === scenarioId)
-              );
-              // Persist campaign ID for debrief redirects
-              if (activeCampaign?.id) {
-                localStorage.setItem("founder_campaign_id", activeCampaign.id);
-              }
-              // If no active campaign AND scenario not completed → blocked
-              if (!hasActiveCampaign && !hasCompletedScenario) {
-                router.replace("/?locked=founder");
-                return;
-              }
-            }
-          } catch {
-            // Non-blocking: allow play if check fails
-          }
-        }
-
-        setScenario(data);
-
-        const s = initializeSession(data);
-
-        // ── Scenario 4: Import establishment choice from Scenario 3 outcome ──
-        if (scenarioId?.startsWith("founder_04") && activeCampaign) {
-          const s3Completion = (activeCampaign.completedScenarios || []).find(
-            (cs: any) => cs.scenarioId === "founder_03_clinical"
-          );
-          if (s3Completion?.outcomeId) {
-            // Infer establishment from scenario 3 outcome
-            if (s3Completion.outcomeId === "pilot_toxic") {
-              s.flags.chose_chu = true; s.flags.chose_saint_martin = false; s.flags.chose_clinique = false;
-            } else if (s3Completion.outcomeId === "pilot_slow") {
-              s.flags.chose_saint_martin = true; s.flags.chose_chu = false; s.flags.chose_clinique = false;
-            } else {
-              // pilot_clean or pilot_switched → clinique
-              s.flags.chose_clinique = true; s.flags.chose_chu = false; s.flags.chose_saint_martin = false;
-            }
-          }
-        }
-
-        const p1 = data.phases[0];
-        if (p1?.mail_config?.defaults) {
-          updateMailDraft(s, p1.phase_id, {
-            to: "",
-            cc: "",
-            subject: p1.mail_config.defaults.subject || "",
-            body: "",
-            attachments: [],
-          });
-        }
-
-        // ── Founder anti-rollback: check for resume ──
-        if (scenarioId.startsWith("founder_") && !checkpointDoneRef.current) {
-          checkpointDoneRef.current = true;
-          try {
-            const cpRes = await fetch("/api/founder/checkpoint", {
-              method: "POST",
-              headers: apiHeaders(),
-              body: JSON.stringify({ scenarioId, action: "enter" }),
-            });
-            if (cpRes.ok) {
-              const cpData = await cpRes.json();
-
-              // Scenario 0 abandon → campaign deleted, redirect to intro
-              if (cpData.resetCampaign) {
-                router.replace("/founder/intro");
-                return;
-              }
-
-              if (cpData.isResume && cpData.resumePhaseIndex > 0) {
-                // Fast-forward: mark earlier phases as completed and jump to resume phase
-                for (let i = 0; i < cpData.resumePhaseIndex; i++) {
-                  const ph = data.phases[i];
-                  const phId = ph?.phase_id || (ph as any)?.id;
-                  if (phId && !s.completedPhases.includes(phId)) {
-                    s.completedPhases.push(phId);
-                  }
-                }
-                s.currentPhaseIndex = cpData.resumePhaseIndex;
-                injectPhaseEntryEvents(s);
-                // Set up mail draft for resume phase
-                const resumePhase = data.phases[cpData.resumePhaseIndex];
-                if (resumePhase?.mail_config?.defaults) {
-                  updateMailDraft(s, resumePhase.phase_id, {
-                    to: "",
-                    cc: "",
-                    subject: resumePhase.mail_config.defaults.subject || "",
-                    body: "",
-                    attachments: [],
-                  });
-                }
-              }
-              if (cpData.penaltyApplied) {
-                setResumeBanner({
-                  penaltyMonths: cpData.penaltyMonths,
-                  phaseIndex: cpData.resumePhaseIndex,
-                });
-              }
-            }
-          } catch (e) {
-            console.warn("[founder] checkpoint check failed:", e);
-          }
-        }
-
-        // ── Inject entry_events for the active phase (critical for phase 0!) ──
-        const activePhaseData = data.phases[s.currentPhaseIndex || 0];
-        if (InterviewHandler.matches(activePhaseData)) {
-          // Interview phase: only inject intro events (delay_ms=0)
-          injectIntroEventsOnly(s);
-          setInterviewStarted(false);
-        } else {
-          injectPhaseEntryEvents(s);
-        }
-
-        setSession(s);
-        setLoading(false);
-
-        // ── Passive logging: session_started + initial phase_started ──
-        try {
-          const t = authTokenRef.current || "";
-          const gSid = gameSessionIdRef.current;
-          const pName = (typeof window !== "undefined" ? localStorage.getItem("user_name") : null) || "";
-          const campId = activeCampaign?.id || null;
-          fireSessionStarted(t, gSid, scenarioId as string, pName, !!isFounderMeta, campId);
-          const p0 = data.phases[s.currentPhaseIndex || 0];
-          firePhaseStarted(t, gSid, scenarioId as string, p0?.phase_id || "phase_0", s.currentPhaseIndex || 0, p0?.title || "", (p0 as any)?.modules || []);
-        } catch { /* never break the game */ }
-
-        // Auto-select the first AI actor of the active phase
-        // For interview phases, select the briefing actor (not the candidate)
-        const initBriefing = InterviewHandler.getBriefingActor(activePhaseData);
-        const activePhaseActor = initBriefing || activePhaseData?.ai_actors?.[0];
-        if (activePhaseActor) setSelectedContact(activePhaseActor);
-
-        // Load ALL AI actor prompts
-        const aiActors = data.actors.filter((a: any) => a.controlled_by === "ai" && a.prompt_file);
-        const promptMap: Record<string, string> = {};
-        await Promise.all(
-          aiActors.map(async (actor: any) => {
-            try {
-              const pr = await fetch(`/api/scenarios/${scenarioId}/prompts/${actor.actor_id}`);
-              if (pr.ok) {
-                const pd = await pr.json();
-                promptMap[actor.actor_id] = pd.prompt || "";
-              }
-            } catch {}
-          })
-        );
-        aiPromptsMapRef.current = promptMap;
-        // Set initial prompt to first phase's primary AI actor
-        const firstPhaseActor = data.phases[0]?.ai_actors?.[0];
-        if (firstPhaseActor && promptMap[firstPhaseActor]) {
-          aiPromptRef.current = promptMap[firstPhaseActor];
-        } else {
-          // Fallback: first AI actor found
-          const firstAI = aiActors[0];
-          if (firstAI) aiPromptRef.current = promptMap[firstAI.actor_id] || "";
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Erreur inconnue");
-        setLoading(false);
-      }
-    }
-    init();
-  }, [scenarioId]);
+  // Scenario boot sequence — extracted to hooks/useScenarioInit.ts.
+  useScenarioInit({
+    scenarioId: scenarioId as string,
+    router,
+    authTokenRef,
+    gameSessionIdRef,
+    aiPromptsMapRef,
+    aiPromptRef,
+    checkpointDoneRef,
+    setScenario,
+    setSession,
+    setLoading,
+    setError,
+    setSelectedContact,
+    setInterviewStarted,
+    setResumeBanner,
+    apiHeaders,
+    injectIntroEventsOnly,
+  });
 
   // ── Phase timer effects (extracted to usePhaseTimer — zero logic change) ──
   usePhaseTimer({
@@ -2275,693 +1950,52 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // by MailModule, InterviewModule, ContractModule, etc.
   // ══════════════════════════════════════════════════════════════════
   function applyModuleActions(actions: ModuleAction[], next: any) {
-    for (const action of actions) {
-      switch (action.type) {
-        case "set_flags":
-          Object.assign(next.flags, action.flags);
-          break;
-        case "add_ai_message":
-          addAIMessage(next, action.content, action.actor);
-          break;
-        case "set_contact":
-          setSelectedContact(action.actorId);
-          break;
-        case "set_view":
-          setMainView(action.view as MainView);
-          break;
-        case "set_compose":
-          setShowCompose(action.show);
-          break;
-        case "play_sound":
-          playNotificationSound();
-          break;
-        case "set_contract_vars":
-          setContractVars(action.vars as any);
-          break;
-        case "add_inbox_mail": {
-          const mail = { ...action.mail };
-          // Resolve __next_phase__ placeholder
-          if (mail.phaseId === "__next_phase__") {
-            const newPhase = scenario!.phases[next.currentPhaseIndex];
-            mail.phaseId = newPhase?.phase_id || mail.phaseId;
-          }
-          addInboxMail(next, mail);
-          break;
-        }
-        case "complete_advance_phase": {
-          const prevPhaseIdx = next.currentPhaseIndex;
-          const prevPhase = scenario!.phases[prevPhaseIdx];
-          completeCurrentPhaseAndAdvance(next);
-          // ── Passive logging: phase_completed ──
-          try {
-            const t = authTokenRef.current || "", gSid = gameSessionIdRef.current, sId = scenarioId as string;
-            const dur = phaseStartRealTimeRef.current ? Date.now() - phaseStartRealTimeRef.current : 0;
-            firePhaseCompleted(t, gSid, sId, prevPhase?.phase_id || "", prevPhaseIdx, next.score || 0, dur);
-          } catch { /* never break */ }
-          // If we just finished the scenario (last phase), skip phase-entry work
-          // and clear checkpoint immediately to avoid race with redirect.
-          if (next.isFinished) {
-            // ── Passive logging: scenario_completed ──
-            try {
-              const t = authTokenRef.current || "", gSid = gameSessionIdRef.current, sId = scenarioId as string;
-              const totalDur = Date.now() - sessionStartTimeRef.current;
-              fireScenarioCompleted(t, gSid, sId, next.ending || "unknown", next.score || 0, next.completedPhases || [], totalDur);
-            } catch { /* never break */ }
-            notifyCheckpointClear();
-            break;
-          }
-          // ── Passive logging: phase_started (new phase) ──
-          try {
-            const t = authTokenRef.current || "", gSid = gameSessionIdRef.current, sId = scenarioId as string;
-            const np = scenario!.phases[next.currentPhaseIndex];
-            firePhaseStarted(t, gSid, sId, np?.phase_id || "", next.currentPhaseIndex, np?.title || "", (np as any)?.modules || []);
-          } catch { /* never break */ }
-          resolveDynamicActors(next);
-          resolveEstablishmentPlaceholders(next);
-          injectPhaseEntryEvents(next);
-          dispatchEnterPhase(next); // Module system: run enter_phase on new phase
-          const newPhase = scenario!.phases[next.currentPhaseIndex];
-          if (newPhase?.mail_config?.defaults) {
-            updateMailDraft(next, newPhase.phase_id, {
-              to: "",
-              cc: "",
-              subject: newPhase.mail_config.defaults.subject || "",
-              body: "", attachments: [],
-            });
-          }
-          break;
-        }
-        case "schedule_timed_event": {
-          const ev = { ...action.event } as any;
-          // Resolve __next_phase__ placeholders
-          if (ev.phaseId === "__next_phase__") {
-            const newPhase = scenario!.phases[next.currentPhaseIndex];
-            ev.phaseId = newPhase?.phase_id || ev.phaseId;
-          }
-          if (typeof ev.id === "string" && ev.id.startsWith("__next_phase__::")) {
-            const newPhase = scenario!.phases[next.currentPhaseIndex];
-            ev.id = ev.id.replace("__next_phase__", newPhase?.phase_id || "unknown");
-          }
-          next.pendingTimedEvents.push(ev);
-          break;
-        }
-        case "delayed_actions":
-          setTimeout(() => {
-            const delayed = cloneSession(next);
-            applyModuleActions(action.actions, delayed);
-            setSession(delayed);
-          }, action.delayMs);
-          break;
-        case "async_effect":
-          executeMailAsyncEffect(action.effect as any, next);
-          break;
-        case "advance_phase":
-          completeCurrentPhaseAndAdvance(next);
-          break;
-        case "finish_scenario":
-          finishScenario(next);
-          // ── Passive logging: scenario_completed ──
-          try {
-            const t = authTokenRef.current || "", gSid = gameSessionIdRef.current, sId = scenarioId as string;
-            const totalDur = Date.now() - sessionStartTimeRef.current;
-            fireScenarioCompleted(t, gSid, sId, next.ending || "unknown", next.score || 0, next.completedPhases || [], totalDur);
-          } catch { /* never break */ }
-          notifyCheckpointClear(); // Clear checkpoint immediately to avoid race with redirect
-          break;
-        // ── New actions for InterviewModule / ContractModule ──
-        case "mark_unavailable":
-          // Store unavailability as a session flag for downstream consumers
-          next.flags[`unavailable_${action.actorId}`] = true;
-          break;
-        case "open_contract":
-          // Signal to open the contract overlay for the given type.
-          // Stored as a flag — the JSX reads it to show the overlay.
-          next.flags[`pending_contract_open`] = action.contractType;
-          break;
-        case "set_mail_draft": {
-          const phase = scenario!.phases[next.currentPhaseIndex];
-          const phaseId = phase?.phase_id || "unknown";
-          updateMailDraft(next, phaseId, {
-            to: action.draft.to,
-            cc: action.draft.cc,
-            subject: action.draft.subject,
-            body: action.draft.body,
-            attachments: action.draft.attachments,
-          });
-          break;
-        }
-        case "send_mail": {
-          // Trigger the full mail send flow: record the mail in session
-          // and set the flag so downstream logic knows mail was sent.
-          // The draft should already be set via a preceding set_mail_draft action.
-          sendCurrentPhaseMail(next, action.kind);
-          next.flags[`mail_sent_${action.kind}`] = true;
-          break;
-        }
-        case "inject_events":
-          // Add timed events directly to the pending queue
-          for (const ev of action.events) {
-            next.pendingTimedEvents.push(ev);
-          }
-          break;
-        default:
-          break;
-      }
-    }
+    if (!scenario) return;
+    const deps: ApplyModuleActionsDeps = {
+      scenario,
+      scenarioId: scenarioId as string,
+      cloneSession,
+      setSession,
+      setSelectedContact,
+      setMainView,
+      setShowCompose,
+      setContractVars,
+      playNotificationSound,
+      resolveDynamicActors,
+      resolveEstablishmentPlaceholders,
+      dispatchEnterPhase,
+      notifyCheckpointClear,
+      executeMailAsyncEffect,
+      authTokenRef,
+      gameSessionIdRef,
+      phaseStartRealTimeRef,
+      sessionStartTimeRef,
+    };
+    applyModuleActionsImpl(actions, next, deps);
   }
 
   // ── Execute async effects described by MailModule ──
+  // Implementation extracted to handlers/executeMailAsyncEffect.ts.
   function executeMailAsyncEffect(effect: any, next: any) {
-    switch (effect.kind) {
-      case "mail_auto_reply": {
-        // Scope proposal auto-reply from Thomas
-        const mailSummary = effect.mailSummary;
-        (async () => {
-          try {
-            const res = await fetch("/api/chat", {
-              method: "POST",
-              headers: apiHeaders(),
-              body: JSON.stringify({
-                playerName: effect.displayPlayerName,
-                message: mailSummary,
-                phaseTitle: (effect.runtimeView as any).phaseTitle,
-                phaseObjective: (effect.runtimeView as any).phaseObjective,
-                phaseFocus: (effect.runtimeView as any).phaseFocus,
-                phasePrompt: (effect.runtimeView as any).phasePrompt,
-                criteria: (effect.runtimeView as any).criteria,
-                mode: (effect.runtimeView as any).adaptiveMode,
-                narrative: effect.narrative,
-                recentConversation: [],
-                playerMessages: [effect.mailBody],
-                roleplayPrompt: effect.roleplayPrompt,
-              }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              playNotificationSound();
-              const final2 = cloneSession(sessionRef.current || next);
-              addPlayerMessage(final2, effect.playerMessageSummary, effect.actorId);
-              addAIMessage(final2, data.reply, effect.actorId);
-              applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-              // ── Success keywords: NPC positive response sets flags (e.g., KOL interested) ──
-              const sf = checkNpcSuccessKeywords(final2, data.reply);
-              if (sf) {
-                for (const [k, v] of Object.entries(sf)) {
-                  if (v === true) final2.flags[k] = true;
-                }
-              }
-              setSession(final2);
-            }
-          } catch (err) {
-            console.error("Error in mail_auto_reply async effect:", err);
-          }
-        })();
-        break;
-      }
-      case "mail_inbox_reply": {
-        // NPC replies by mail (inbox) instead of chat — used for cold email KOL replies & DSI responses
-        const mailSummary3 = effect.mailSummary;
-        // ── Bug 1 fix: build a real mail thread history for this NPC ──
-        // Without this, the NPC was treated as stateless — he would re-ask
-        // "what's your stack?" on every retry as if it were a brand new thread.
-        // We feed past sent_mails (player) and inbox replies (this NPC) into
-        // recentConversation so the API can give him real continuity.
-        const currentPhaseIdLive =
-          scenario?.phases?.[(sessionRef.current || next).currentPhaseIndex]?.phase_id ?? "";
-        const sessionForLookup = sessionRef.current || next;
-        const targetActorIdForThread = (effect as any).target_actor_id || effect.actorId;
-
-        type ThreadMsg = { role: "user" | "assistant"; content: string; ts: number };
-        const threadMsgs: ThreadMsg[] = [];
-        // The mail we are about to send is ALREADY in session.sentMails by the
-        // time this effect runs (handleSendMail mutates the session before
-        // dispatching mail_inbox_reply). We must NOT include it in the thread
-        // history — otherwise the LLM sees the same body twice (in
-        // recentConversation AND in the current user message) and concludes
-        // it has already replied. That's the "Maxime says 'I already
-        // replied' on the very first contact" bug.
-        const currentMailBody = (effect.mailBody || "").trim();
-
-        // Player's previous outbound mails to this recipient in this phase.
-        for (const m of (sessionForLookup.sentMails || [])) {
-          if (m.phaseId !== currentPhaseIdLive) continue;
-          // Resolve "to" to actor id like MailModule does.
-          const toLower = (m.to || "").trim().toLowerCase();
-          const matches =
-            toLower === targetActorIdForThread.toLowerCase() ||
-            toLower.split("@")[0] === targetActorIdForThread.toLowerCase();
-          if (!matches) continue;
-          // Skip the current mail (we add it as the "current message" below,
-          // not as past history).
-          if ((m.body || "").trim() === currentMailBody) continue;
-          threadMsgs.push({ role: "user", content: m.body || "", ts: m.sentAt || 0 });
-        }
-        // NPC's previous inbound replies in this phase.
-        for (const m of (sessionForLookup.inboxMails || [])) {
-          if (m.phaseId !== currentPhaseIdLive) continue;
-          if (m.from !== targetActorIdForThread) continue;
-          threadMsgs.push({
-            role: "assistant",
-            content: m.body || "",
-            ts: (m as any).receivedAt || 0,
-          });
-        }
-        threadMsgs.sort((a, b) => a.ts - b.ts);
-        const recentMailThread = threadMsgs.map(({ role, content }) => ({ role, content }));
-
-        // ── Bug 1bis: "1 KOL = 1 chance" — once this NPC has replied,
-        // a follow-up cannot magically flip him to interested. Computed
-        // from inboxMails so it survives across retries.
-        const previouslyReplied = (sessionForLookup.inboxMails || []).some(
-          (m: any) => m.phaseId === currentPhaseIdLive && m.from === targetActorIdForThread,
-        );
-
-        (async () => {
-          try {
-            const res = await fetch("/api/chat", {
-              method: "POST",
-              headers: apiHeaders(),
-              body: JSON.stringify({
-                playerName: effect.displayPlayerName,
-                message: mailSummary3,
-                phaseTitle: (effect.runtimeView as any).phaseTitle,
-                phaseObjective: (effect.runtimeView as any).phaseObjective,
-                phaseFocus: (effect.runtimeView as any).phaseFocus,
-                phasePrompt: (effect.runtimeView as any).phasePrompt,
-                // The MailModule may forward more specific criteria (the phase's
-                // scoring criteria); fall back to runtimeView when absent.
-                criteria: (effect as any).criteria ?? (effect.runtimeView as any).criteria,
-                mode: (effect.runtimeView as any).adaptiveMode,
-                narrative: effect.narrative,
-                recentConversation: recentMailThread,
-                playerMessages: [effect.mailBody],
-                roleplayPrompt: effect.roleplayPrompt,
-                // ── C1 score-based progression (see app/lib/types.ts:advancement) ──
-                // When the phase declares advancement.mode === "prospection_evaluation",
-                // MailModule forwards eval_mode + advancement_config so the API can
-                // return a structured `prospection_evaluation` block. Frontend reads
-                // `interested` from that block to decide flags/advance, instead of
-                // scanning the NPC reply for keywords.
-                eval_mode: (effect as any).eval_mode,
-                advancement_config: (effect as any).advancement_config,
-                target_actor_id: (effect as any).target_actor_id,
-                // ── C2 anti-spam: similarity vs previous mails to same recipient ──
-                similarity_to_previous: (effect as any).similarity_to_previous,
-                // ── Bug 1bis: KOL has already taken a position, lock it ──
-                previously_replied: previouslyReplied,
-              }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              const replyText = (data.reply || "").trim();
-              const isSilence = replyText === "[PAS DE RÉPONSE]" || replyText.includes("[PAS DE RÉPONSE]");
-
-              // ── LOG #0a — runs unconditionally on every mail_inbox_reply.
-              //    Proves the code is loaded and the case is reached.
-              // eslint-disable-next-line no-console
-              console.log("[S5_MAIL_INBOX_REPLY_RECEIVED]", {
-                effect_actorId: effect.actorId,
-                effect_eval_mode: (effect as any).eval_mode,
-                has_advancement_config: !!(effect as any).advancement_config,
-                advancement_config: (effect as any).advancement_config,
-                api_returned_phase_evaluation: !!data.phase_evaluation,
-                api_returned_phase_evaluation_state: data.phase_evaluation?.state,
-                api_returned_prospection_evaluation: !!data.prospection_evaluation,
-                api_returned_reply_first_120: replyText.slice(0, 120),
-                isSilence,
-              });
-
-              const final2 = cloneSession(sessionRef.current || next);
-              // Record player's sent mail in conversation history
-              addPlayerMessage(final2, effect.playerMessageSummary, effect.actorId);
-
-              if (isSilence) {
-                // KOL decided not to respond — silence radio, no inbox mail, no chat message, no notification
-                // Nothing to do — the player simply doesn't receive a reply
-              } else {
-                // Normal response — deliver as inbox mail ONLY (not in chat)
-                playNotificationSound();
-                applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-                addInboxMail(final2, {
-                  from: effect.actorId,
-                  subject: effect.replySubject || "RE: " + (effect.originalSubject || ""),
-                  body: data.reply,
-                  phaseId: scenario!.phases[final2.currentPhaseIndex]?.phase_id || "",
-                });
-
-                // ── Generic phase_evaluation vs legacy keyword path ──
-                // (A) Score-based deterministic path. Activated by any phase
-                //     that declares `advancement.mode` in scenario.json. The
-                //     API returns `phase_evaluation = { mode, state, ... }`.
-                //     We dispatch on state per mode. Legacy keyword scan
-                //     (checkNpcSuccessKeywords / checkNpcFailureKeywords)
-                //     is intentionally SKIPPED so the two paths can't fire
-                //     together — that was the root cause of the chat-with-
-                //     Alex-advances-the-phase bug.
-                // (B) Legacy keyword path. Preserved for every other phase
-                //     and scenario so we don't regress.
-                const phaseEval = data.phase_evaluation as
-                  | {
-                      mode?: string;
-                      state?: string;
-                      score?: number;
-                      actorId?: string;
-                      matched_criteria?: string[];
-                      missing_required_criteria?: string[];
-                      hard_reject_reasons?: string[];
-                      similarity_to_previous?: number;
-                    }
-                  | undefined;
-                // Legacy alias retained for phase-1 compat — phaseEval is the
-                // unified source of truth.
-                const prospEval = data.prospection_evaluation as
-                  | {
-                      score?: number;
-                      interested?: boolean;
-                      actorId?: string;
-                      matched_criteria?: string[];
-                      missing_required_criteria?: string[];
-                      similarity_to_previous?: number;
-                      state?: string;
-                    }
-                  | undefined;
-
-                // ── Dev-only log: structured eval surface for debugging.
-                if (phaseEval && process.env.NODE_ENV !== "production") {
-                  // eslint-disable-next-line no-console
-                  console.log(`[${phaseEval.mode || "phase_eval"}]`, {
-                    to_actor_id: effect.actorId,
-                    state: phaseEval.state,
-                    score: phaseEval.score,
-                    matched_criteria: phaseEval.matched_criteria,
-                    missing_required_criteria: phaseEval.missing_required_criteria,
-                    hard_reject_reasons: phaseEval.hard_reject_reasons,
-                    similarity_to_previous: phaseEval.similarity_to_previous,
-                    previously_replied: previouslyReplied,
-                  });
-                }
-
-                if (phaseEval) {
-                  const cfg = (effect as any).advancement_config as
-                    | {
-                        set_flag?: string;
-                        set_actor_flag?: string;
-                        failure_phase?: string;
-                        failure_reset_flags?: string[];
-                        failure_message?: string;
-                      }
-                    | undefined;
-
-                  const state = phaseEval.state;
-                  // SUCCESS states across modes — both lead to "set flag + advance".
-                  const isSuccessState =
-                    state === "FIRST_CONTACT_SUCCESS" || state === "DSI_APPROVED";
-                  // HARD_REJECT states — regress to failure_phase + reset flags.
-                  const isHardRejectState = state === "DSI_HARD_REJECT";
-
-                  if (isSuccessState) {
-                    if (cfg?.set_flag) final2.flags[cfg.set_flag] = true;
-                    if (cfg?.set_actor_flag && effect.actorId) {
-                      final2.flags[cfg.set_actor_flag] = effect.actorId;
-                    }
-                    // Same advancement pipeline as the mail_send legacy path —
-                    // unlocking immediately so the UI moves to the next phase
-                    // on this very render (cf. fix #46).
-                    unlockCurrentPhase(final2);
-                    if (isCurrentPhaseValidatedByRules(final2)) {
-                      completeCurrentPhaseAndAdvance(final2);
-                      if (final2.isFinished) {
-                        notifyCheckpointClear();
-                      } else {
-                        resolveDynamicActors(final2);
-                        resolveEstablishmentPlaceholders(final2);
-                        injectPhaseEntryEvents(final2);
-                        dispatchEnterPhase(final2);
-                      }
-                    }
-                  } else if (isHardRejectState && cfg?.failure_phase) {
-                    // ── HARD_REJECT — single deterministic rollback path ──
-                    // The full rollback logic now lives in runtime.handlePhaseFailure
-                    // (which dispatches to applyAdvancementFailure under the
-                    // hood because the phase declares `advancement.failure_phase`).
-                    // We only do React-state side effects here — they can't
-                    // live in runtime.ts.
-                    // eslint-disable-next-line no-console
-                    console.log("[S5_HARD_REJECT_ENTER]", {
-                      beforePhaseIndex: final2.currentPhaseIndex,
-                      beforePhaseId:
-                        scenario!.phases[final2.currentPhaseIndex]?.phase_id,
-                      flagsBefore: { ...final2.flags },
-                      advancement_config_seen: cfg,
-                    });
-
-                    const result = handlePhaseFailure(final2);
-
-                    // eslint-disable-next-line no-console
-                    console.log("[S5_HARD_REJECT_NEXT_SESSION]", {
-                      result_applied: result.applied,
-                      result_source: result.source,
-                      result_newPhaseId: result.newPhaseId,
-                      result_burnedActorId: result.burnedActorId,
-                      nextPhaseIndex: final2.currentPhaseIndex,
-                      nextPhaseId:
-                        scenario!.phases[final2.currentPhaseIndex]?.phase_id,
-                      flagsAfter: { ...final2.flags },
-                      mailDraftPhase1: final2.mailDrafts["phase_1_prospection"],
-                      burned_kol_ids: (final2.flags as any).burned_kol_ids,
-                    });
-
-                    if (result.applied) {
-                      // React-only side effects: dismiss DSI screen residue.
-                      setSelectedMailId(null);
-                      setShowCompose(false);
-                      setSelectedContact("alexandre_morel");
-
-                      // CRITICAL — also roll the persisted checkpoint back.
-                      // Without this, "Reprendre" rebuilds a phase-2 session.
-                      if (result.newPhaseId) {
-                        notifyCheckpointRollback(
-                          result.newPhaseId,
-                          final2.currentPhaseIndex,
-                        );
-                      }
-
-                      // eslint-disable-next-line no-console
-                      console.log("[S5_HARD_REJECT_AFTER_SETTERS]", {
-                        intendedPhaseIndex: final2.currentPhaseIndex,
-                        intendedPhaseId:
-                          scenario!.phases[final2.currentPhaseIndex]?.phase_id,
-                        intendedSelectedContact: "alexandre_morel",
-                        intendedSelectedMailId: null,
-                        intendedShowCompose: false,
-                        checkpointRolledBack: result.newPhaseId,
-                      });
-                    }
-                  }
-                  // NEEDS_CLARIFICATION / NOT_INTERESTED / ALREADY_REPLIED
-                  // → no flag change, no advance — just show the NPC reply
-                  // (already added to inbox above). The phase stays put.
-
-                  // intentionally skip checkNpcSuccessKeywords / checkNpcFailureKeywords
-                  // for any phase that opted in to phase_evaluation.
-                } else if (prospEval) {
-                  // Backward-compat: a stale phase 1 response that only
-                  // emits prospection_evaluation (no phase_evaluation) —
-                  // honour it for safety. New code should rely on phaseEval.
-                  if (prospEval.interested === true) {
-                    const cfg = (effect as any).advancement_config as
-                      | { set_flag?: string; set_actor_flag?: string }
-                      | undefined;
-                    if (cfg?.set_flag) final2.flags[cfg.set_flag] = true;
-                    if (cfg?.set_actor_flag && effect.actorId) {
-                      final2.flags[cfg.set_actor_flag] = effect.actorId;
-                    }
-                    unlockCurrentPhase(final2);
-                    if (isCurrentPhaseValidatedByRules(final2)) {
-                      completeCurrentPhaseAndAdvance(final2);
-                      if (final2.isFinished) {
-                        notifyCheckpointClear();
-                      } else {
-                        resolveDynamicActors(final2);
-                        resolveEstablishmentPlaceholders(final2);
-                        injectPhaseEntryEvents(final2);
-                        dispatchEnterPhase(final2);
-                      }
-                    }
-                  }
-                } else {
-                  // (B) legacy keyword path
-                  const sf = checkNpcSuccessKeywords(final2, data.reply);
-                  if (sf) {
-                    for (const [k, v] of Object.entries(sf)) {
-                      if (v === true) final2.flags[k] = true;
-                    }
-                    // If kol_interested was just set, also store which KOL was chosen
-                    if (sf.kol_interested && effect.actorId) {
-                      final2.flags.chosen_kol_id = effect.actorId;
-                    }
-                  }
-                }
-
-                // Failure keywords check (e.g., DSI refuses → loop back) —
-                // applies to BOTH paths: failure rules are independent of the
-                // success-detection mechanism. Important: handlePhaseFailure
-                // now dispatches to the advancement-driven rollback when the
-                // phase declares `advancement.failure_phase`, so if the new
-                // HARD_REJECT branch above didn't fire (e.g. because
-                // `data.phase_evaluation` was missing for any reason), this
-                // safety net catches it and gives the SAME full rollback
-                // semantics (burn KOL, wipe draft, system message, …). We
-                // also drive the React-only side effects here.
-                if (checkNpcFailureKeywords(final2, data.reply)) {
-                  // eslint-disable-next-line no-console
-                  console.log("[S5_FAILURE_KEYWORDS_TRIGGERED]", {
-                    reply_first_120: (data.reply || "").slice(0, 120),
-                    before_phase_index: final2.currentPhaseIndex,
-                  });
-                  const fkResult = handlePhaseFailure(final2);
-                  // eslint-disable-next-line no-console
-                  console.log("[S5_FAILURE_KEYWORDS_RESULT]", {
-                    applied: fkResult.applied,
-                    source: fkResult.source,
-                    newPhaseId: fkResult.newPhaseId,
-                    burnedActorId: fkResult.burnedActorId,
-                    after_phase_index: final2.currentPhaseIndex,
-                  });
-                  if (fkResult.applied) {
-                    setSelectedMailId(null);
-                    setShowCompose(false);
-                    setSelectedContact("alexandre_morel");
-                    if (fkResult.newPhaseId) {
-                      notifyCheckpointRollback(
-                        fkResult.newPhaseId,
-                        final2.currentPhaseIndex,
-                      );
-                    }
-                  }
-                }
-              }
-              setSession(final2);
-            }
-          } catch (err) {
-            console.error("Error in mail_inbox_reply async effect:", err);
-          }
-        })();
-        break;
-      }
-      case "negotiation_chat_reply": {
-        // Thomas chat response to negotiation mail
-        (async () => {
-          try {
-            const res = await fetch("/api/chat", {
-              method: "POST",
-              headers: apiHeaders(),
-              body: JSON.stringify({
-                playerName: effect.displayPlayerName,
-                message: effect.mailSummary,
-                phaseTitle: (effect.runtimeView as any).phaseTitle,
-                phaseObjective: (effect.runtimeView as any).phaseObjective,
-                phaseFocus: (effect.runtimeView as any).phaseFocus,
-                phasePrompt: (effect.runtimeView as any).phasePrompt,
-                criteria: (effect.runtimeView as any).criteria,
-                mode: (effect.runtimeView as any).adaptiveMode,
-                narrative: effect.narrative,
-                recentConversation: effect.recentConversation,
-                playerMessages: effect.playerMessages,
-                roleplayPrompt: effect.roleplayPrompt,
-              }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              playNotificationSound();
-              const final2 = cloneSession(next);
-              addPlayerMessage(final2, effect.playerMessageSummary, effect.actorId);
-              addAIMessage(final2, data.reply, effect.actorId);
-              applyEvaluation(final2, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
-              setSession(final2);
-            }
-          } catch (err) {
-            console.error("Error in negotiation_chat_reply async effect:", err);
-          }
-        })();
-        break;
-      }
-      case "fourviere_dynamic_mail": {
-        // Generate dynamic Claire mail via API
-        const nextPhase = scenario!.phases[next.currentPhaseIndex];
-        const dynConfig = (nextPhase as any)?.dynamic_entry_mail;
-        const p4Id = nextPhase?.phase_id || "phase_4";
-        const truncatedAnalyse = effect.analyseBody;
-        (async () => {
-          try {
-            const prompt = `Tu es Claire Beaumont, directrice d'ImmoLyon Patrimoine. Écris un mail interne COURT (max 12 lignes) à ton agent junior.
-
-L'agent t'a envoyé cette analyse du RDV Delvaux (85m² Fourvière) :
----
-${truncatedAnalyse}
----
-
-Ton mail doit :
-- Remercier brièvement
-- Résumer les travaux que Delvaux a faits suite aux recommandations (cuisine refaite si mentionnée, meubles retirés/remplacés si demandé, régime fiscal choisi, etc. — invente les détails cohérents)
-- Dire que quelques semaines ont passé, tout est prêt
-- Demander de rédiger une annonce Le Bon Coin (points forts : vue Saône, parquet chêne, cheminée, Fourvière)
-- Demander d'envoyer par mail pour validation
-
-Tutoie l'agent. Signe "Claire Beaumont — Directrice — ImmoLyon Patrimoine". Réponds UNIQUEMENT le corps du mail.`;
-
-            const res = await fetch("/api/chat", {
-              method: "POST",
-              headers: apiHeaders(),
-              body: JSON.stringify({
-                playerName: effect.displayPlayerName,
-                message: prompt,
-                phaseTitle: "Génération mail transition",
-                phaseObjective: "",
-                phaseFocus: "",
-                phasePrompt: "",
-                criteria: [],
-                mode: "default",
-                narrative: scenario!.narrative,
-                recentConversation: [],
-                playerMessages: [],
-                roleplayPrompt: prompt,
-                skipEvaluation: true,
-              }),
-            });
-            if (res.ok) {
-              const data = await res.json();
-              const mailBody = data.reply || "Bonjour,\n\nBon travail pour l'analyse. M. Delvaux a effectué les travaux nécessaires suite à tes recommandations. Il faut maintenant publier une annonce sur Le Bon Coin.\n\nRédige un texte attractif mais honnête. Mets en avant les vrais points forts : vue sur la Saône, parquet chêne massif, cheminée d'époque, quartier Fourvière.\n\nEnvoie-moi l'annonce par mail pour validation.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine";
-              const updated = cloneSession(next);
-              addInboxMail(updated, {
-                from: dynConfig?.actor || "claire_beaumont",
-                subject: dynConfig?.subject || "Annonce Le Bon Coin — Bien Delvaux Fourvière",
-                body: mailBody,
-                phaseId: p4Id,
-              });
-              setSession(updated);
-              setMainView("mail");
-              playNotificationSound();
-            }
-          } catch (err) {
-            // Fallback: inject a generic mail
-            console.error("Error generating dynamic Claire mail:", err);
-            const fallback = cloneSession(next);
-            addInboxMail(fallback, {
-              from: "claire_beaumont",
-              subject: "Annonce Le Bon Coin — Bien Delvaux Fourvière",
-              body: "Bonjour,\n\nBon travail pour l'analyse du rendez-vous Delvaux. M. Delvaux a effectué les travaux nécessaires suite à tes recommandations — le bien est maintenant prêt pour la location.\n\nIl faut publier rapidement une annonce sur Le Bon Coin. Rédige un texte attractif mais honnête. Mets en avant les vrais points forts : la vue sur la Saône, le parquet chêne massif, la cheminée d'époque, le quartier Fourvière.\n\nN'exagère pas et ne mens pas sur l'état du bien.\n\nEnvoie-moi l'annonce par mail pour validation.\n\nClaire Beaumont\nDirectrice — ImmoLyon Patrimoine",
-              phaseId: p4Id,
-            });
-            setSession(fallback);
-            setMainView("mail");
-          }
-        })();
-        break;
-      }
-      default:
-        console.warn("Unknown mail async effect kind:", effect.kind);
-    }
+    if (!scenario) return;
+    const deps: ExecuteMailAsyncEffectDeps = {
+      scenario,
+      sessionRef,
+      apiHeaders,
+      cloneSession,
+      setSession,
+      setSelectedMailId,
+      setShowCompose,
+      setSelectedContact,
+      setMainView,
+      playNotificationSound,
+      resolveDynamicActors,
+      resolveEstablishmentPlaceholders,
+      dispatchEnterPhase,
+      notifyCheckpointClear,
+      notifyCheckpointRollback,
+    };
+    executeMailAsyncEffectImpl(effect, next, deps);
   }
 
   // ══════════════════════════════════════════════════════════════════
@@ -3883,221 +2917,33 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#f3f2f1", overflow: "hidden" }}>
 
       {/* ═══════ TOAST NOTIFICATIONS ═══════ */}
-      {toasts.length > 0 && (
-        <div style={{ position: "fixed", top: 60, right: 20, zIndex: 9999, display: "flex", flexDirection: "column", gap: 8 }}>
-          {toasts.map((toast) => (
-            <div
-              key={toast.id}
-              onClick={() => {
-                setMainView(toast.type);
-                setToasts((prev) => prev.filter((t) => t.id !== toast.id));
-              }}
-              style={{
-                background: "#fff",
-                border: "1px solid #e0e0e0",
-                borderLeft: `4px solid ${toast.type === "mail" ? "#f5a623" : "#5b5fc7"}`,
-                borderRadius: 8,
-                padding: "10px 16px",
-                boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                minWidth: 280,
-                maxWidth: 360,
-                cursor: "pointer",
-                animation: "toastSlideIn 0.3s ease-out",
-              }}
-            >
-              <span style={{ fontSize: 20, flexShrink: 0 }}>{toast.icon}</span>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#333", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                  {toast.text}
-                </div>
-                <div style={{ fontSize: 10, color: "#999", marginTop: 2 }}>
-                  {toast.type === "mail" ? "Cliquez pour voir l'email" : "Cliquez pour voir le message"}
-                </div>
-              </div>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setToasts((prev) => prev.filter((t) => t.id !== toast.id));
-                }}
-                style={{ background: "none", border: "none", color: "#999", cursor: "pointer", fontSize: 16, padding: "0 4px", flexShrink: 0 }}
-              >
-                ×
-              </button>
-            </div>
-          ))}
-          <style>{`@keyframes toastSlideIn{from{opacity:0;transform:translateX(100px)}to{opacity:1;transform:translateX(0)}}`}</style>
-        </div>
-      )}
+      <ToastContainer
+        toasts={toasts}
+        onDismiss={dismissToast}
+        onActivate={(type) => setMainView(type)}
+      />
 
       {/* ═══════ FOUNDER RESUME PENALTY BANNER ═══════ */}
-      {resumeBanner && (
-        <div
-          style={{
-            background: "linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)",
-            border: "1px solid #f59e0b",
-            borderRadius: 0,
-            padding: "12px 20px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            flexShrink: 0,
-            zIndex: 100,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <span style={{ fontSize: 20 }}>⏱</span>
-            <div>
-              <div style={{ fontWeight: 700, fontSize: 13, color: "#92400e" }}>
-                Reprise après interruption
-              </div>
-              <div style={{ fontSize: 12, color: "#78350f", marginTop: 2 }}>
-                Vous reprenez au début de cette phase. Cette interruption vous a coûté{" "}
-                <strong>15 jours</strong> et <strong>125 €</strong> de charges.
-              </div>
-            </div>
-          </div>
-          <button
-            onClick={() => setResumeBanner(null)}
-            style={{
-              background: "rgba(146,64,14,0.1)",
-              border: "1px solid rgba(146,64,14,0.2)",
-              borderRadius: 6,
-              padding: "4px 12px",
-              color: "#92400e",
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              flexShrink: 0,
-            }}
-          >
-            Compris
-          </button>
-        </div>
-      )}
+      <ResumeBanner visible={!!resumeBanner} onDismiss={() => setResumeBanner(null)} />
 
       {/* ═══════ FOUNDER SAVE INFO (persistent) ═══════ */}
-      {isFounderScenario && !resumeBanner && !view.isFinished && (
-        <div
-          style={{
-            background: "#f0f0ff",
-            borderBottom: "1px solid rgba(91,95,199,0.15)",
-            padding: "6px 20px",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flexShrink: 0,
-            zIndex: 99,
-          }}
-        >
-          <span style={{ fontSize: 12, color: "#5b5fc7" }}>💾</span>
-          <span style={{ fontSize: 11, color: "#5b5fc7", fontWeight: 500 }}>
-            Votre progression est sauvegardée au début de chaque phase.
-          </span>
-        </div>
-      )}
+      <SaveInfo visible={isFounderScenario && !resumeBanner && !view.isFinished} />
 
       {/* ═══════ TOP BAR ═══════ */}
-      <header style={{ display: "flex", alignItems: "center", height: 48, background: "#292929", color: "#fff", padding: "0 16px", gap: 16, flexShrink: 0 }}>
-        {/* Home button */}
-        <button
-          onClick={() => router.push("/")}
-          title="Retour à l'accueil"
-          style={{ background: "none", border: "none", color: "#fff", cursor: "pointer", fontSize: 18, padding: "4px 8px", borderRadius: 4, display: "flex", alignItems: "center", gap: 6 }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-        </button>
-
-        <div style={{ height: 24, width: 1, background: "#555" }} />
-
-        {/* Title + phase */}
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <span style={{ fontSize: 14, fontWeight: 600, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", display: "block" }}>
-            {scenario.meta?.title || "Scénario"}
-          </span>
-        </div>
-
-        {/* Phase progression */}
-        <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
-          {phases.map((p: any, i: number) => {
-            const pid = p.phase_id || p.id;
-            const done = session.completedPhases.includes(pid);
-            const current = i === currentPhaseIndex;
-            return (
-              <div
-                key={pid}
-                title={p.title}
-                style={{
-                  width: current ? "auto" : 8, height: 8, borderRadius: current ? 10 : "50%",
-                  background: done ? "#44b553" : current ? "#5b5fc7" : "#555",
-                  padding: current ? "2px 10px" : 0,
-                  color: "#fff", fontSize: 11, fontWeight: 600,
-                  display: "flex", alignItems: "center", transition: "all .2s",
-                }}
-              >
-                {current ? p.title : ""}
-              </div>
-            );
-          })}
-        </div>
-
-        <div style={{ height: 24, width: 1, background: "#555" }} />
-
-        {/* Briefing button — opens overlay with context + documents */}
-        <button
-          onClick={() => setShowBriefingOverlay(true)}
-          title="Consulter le briefing et vos documents"
-          style={{
-            background: showBriefingOverlay ? "rgba(91,95,199,0.3)" : "none",
-            border: "1px solid rgba(255,255,255,0.2)", color: "#fff", cursor: "pointer",
-            fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 6,
-            display: "flex", alignItems: "center", gap: 5, transition: "all .15s",
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.background = "rgba(91,95,199,0.3)"}
-          onMouseLeave={(e) => e.currentTarget.style.background = showBriefingOverlay ? "rgba(91,95,199,0.3)" : "none"}
-        >
-          📁 Briefing
-        </button>
-
-        <div style={{ height: 24, width: 1, background: "#555" }} />
-
-        {/* Clock */}
-        <div style={{ fontSize: 16, fontWeight: 700, fontVariantNumeric: "tabular-nums", color: "#7b7fff", minWidth: 52, textAlign: "right" }}>
-          {simulatedTime}
-        </div>
-      </header>
+      <PlayerHeader
+        scenarioTitle={scenario.meta?.title || "Scénario"}
+        phases={phases}
+        completedPhases={session.completedPhases}
+        currentPhaseIndex={currentPhaseIndex}
+        simulatedTime={simulatedTime}
+        showBriefingOverlay={showBriefingOverlay}
+        onHome={() => router.push("/")}
+        onOpenBriefing={() => setShowBriefingOverlay(true)}
+      />
 
       {/* ═══════ BRIEFING OVERLAY ═══════ */}
       {/* ── Inline document content modal ── */}
-      {inlineDocContent && (
-        <div style={{
-          position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-          background: "rgba(0,0,0,0.5)", zIndex: 10000,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }} onClick={() => setInlineDocContent(null)}>
-          <div style={{
-            background: "#fff", borderRadius: 12, padding: 24,
-            maxWidth: 700, width: "90%", maxHeight: "80vh",
-            overflow: "auto", boxShadow: "0 20px 60px rgba(0,0,0,0.3)",
-          }} onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: 16, color: "#333" }}>{inlineDocContent.title}</h3>
-              <button onClick={() => setInlineDocContent(null)} style={{
-                background: "none", border: "none", fontSize: 20, cursor: "pointer", color: "#999",
-              }}>✕</button>
-            </div>
-            <pre style={{
-              whiteSpace: "pre-wrap", wordBreak: "break-word",
-              fontFamily: "'Segoe UI', system-ui, sans-serif", fontSize: 13,
-              lineHeight: 1.6, color: "#444", margin: 0,
-              background: "#fafafa", padding: 16, borderRadius: 8,
-            }}>{inlineDocContent.content}</pre>
-          </div>
-        </div>
-      )}
+      <InlineDocModal doc={inlineDocContent} onClose={() => setInlineDocContent(null)} />
       {/* ── Contract overlays (S0/S2/S4/S5) — rendered by ContractOverlayHost ── */}
       <ContractOverlayHost
         playerName={displayPlayerName}
@@ -4550,108 +3396,17 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
         );
       })()}
 
-      {showBriefingOverlay && (
-        <div
-          style={{
-            position: "fixed", inset: 0, zIndex: 10000,
-            background: "rgba(0,0,0,0.5)", display: "flex",
-            alignItems: "center", justifyContent: "center",
-            padding: 20,
-          }}
-          onClick={() => setShowBriefingOverlay(false)}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "#fff", borderRadius: 14, maxWidth: 900,
-              width: "100%", maxHeight: "85vh", overflow: "hidden",
-              boxShadow: "0 8px 40px rgba(0,0,0,0.25)",
-              display: "flex", flexDirection: "column",
-            }}
-          >
-            {/* Overlay header */}
-            <div style={{
-              padding: "16px 24px", background: "#292929", color: "#fff",
-              display: "flex", alignItems: "center", justifyContent: "space-between",
-              borderRadius: "14px 14px 0 0", flexShrink: 0,
-            }}>
-              <div>
-                <span style={{ fontSize: 11, fontWeight: 700, color: "#7b7fff", textTransform: "uppercase", letterSpacing: 1 }}>Briefing</span>
-                <h2 style={{ margin: "4px 0 0", fontSize: 20, fontWeight: 700 }}>{scenario.meta?.title}</h2>
-              </div>
-              <button
-                onClick={() => setShowBriefingOverlay(false)}
-                style={{ background: "none", border: "none", color: "#fff", fontSize: 24, cursor: "pointer", padding: "4px 8px" }}
-              >
-                ×
-              </button>
-            </div>
-
-            {/* Overlay body — scrollable */}
-            <div style={{ flex: 1, overflowY: "auto", padding: 24 }}>
-              {/* Narrative sections */}
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
-                {scenario.narrative?.context && (
-                  <div style={{ padding: 16, background: "#f8f9fc", borderRadius: 10, border: "1px solid #e2e4ea" }}>
-                    <h3 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "#1a3c6e" }}>Contexte</h3>
-                    <p style={{ margin: 0, fontSize: 13, color: "#444", lineHeight: 1.6 }}>{scenario.narrative.context}</p>
-                  </div>
-                )}
-                {scenario.narrative?.mission && (
-                  <div style={{ padding: 16, background: "#f8f9fc", borderRadius: 10, border: "1px solid #e2e4ea" }}>
-                    <h3 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "#1a3c6e" }}>Mission</h3>
-                    <p style={{ margin: 0, fontSize: 13, color: "#444", lineHeight: 1.6 }}>{scenario.narrative.mission}</p>
-                  </div>
-                )}
-              </div>
-              {scenario.narrative?.initial_situation && (
-                <div style={{ padding: 16, background: "#fffbeb", borderRadius: 10, border: "1px solid #fde68a", marginBottom: 24 }}>
-                  <h3 style={{ margin: "0 0 8px", fontSize: 14, fontWeight: 700, color: "#92400e" }}>Situation initiale</h3>
-                  <p style={{ margin: 0, fontSize: 13, color: "#78350f", lineHeight: 1.6 }}>{scenario.narrative.initial_situation}</p>
-                </div>
-              )}
-
-              {/* Documents */}
-              <h3 style={{ margin: "0 0 12px", fontSize: 16, fontWeight: 700, color: "#1a3c6e" }}>📁 Documents de travail</h3>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))", gap: 12 }}>
-                {allDocuments.map((doc: any) => {
-                  const hasImage = !!doc.image_path;
-                  const hasPDF = !!doc.file_path && doc.file_path.endsWith(".pdf");
-                  const docIcon = hasImage ? "🖼️" : hasPDF ? "📑" : "📄";
-                  return (
-                    <div
-                      key={doc.doc_id}
-                      onClick={() => { setSelectedDocId(doc.doc_id); setRightPanel("docs"); setShowBriefingOverlay(false); }}
-                      style={{
-                        padding: 14, borderRadius: 10, cursor: "pointer",
-                        background: "#fff", border: "1px solid #e2e4ea",
-                        transition: "all .15s", display: "flex", flexDirection: "column", gap: 8,
-                      }}
-                      onMouseEnter={(e) => { e.currentTarget.style.borderColor = "#5b5fc7"; e.currentTarget.style.boxShadow = "0 2px 8px rgba(91,95,199,0.12)"; }}
-                      onMouseLeave={(e) => { e.currentTarget.style.borderColor = "#e2e4ea"; e.currentTarget.style.boxShadow = "none"; }}
-                    >
-                      {hasImage && (
-                        <div style={{ height: 100, borderRadius: 6, overflow: "hidden", background: "#eee" }}>
-                          <img src={doc.image_path} alt={doc.label} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                        </div>
-                      )}
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333" }}>
-                        {docIcon} {doc.label}
-                      </div>
-                      <div style={{ display: "flex", gap: 6 }}>
-                        {hasPDF && (
-                          <span style={{ fontSize: 10, color: "#c2410c", background: "#fff7ed", padding: "1px 6px", borderRadius: 8, fontWeight: 600 }}>PDF</span>
-                        )}
-                        <span style={{ fontSize: 10, color: "#5b5fc7", fontWeight: 600 }}>Cliquer pour consulter →</span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+      <BriefingOverlay
+        visible={showBriefingOverlay}
+        scenario={scenario}
+        documents={allDocuments}
+        onClose={() => setShowBriefingOverlay(false)}
+        onSelectDoc={(docId) => {
+          setSelectedDocId(docId);
+          setRightPanel("docs");
+          setShowBriefingOverlay(false);
+        }}
+      />
 
       {/* ═══════ BODY ═══════ */}
       {currentInteractionMode === "presentation" ? (
@@ -5486,94 +4241,29 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
       )}
 
       {/* ═══════ DEBUG PANEL (only with ?debug=1) ═══════ */}
-      {debugMode && view && session && scenario && (() => {
-        const phase = scenario.phases[session.currentPhaseIndex];
-        const pid = phase?.phase_id || "?";
-        const rules = phase?.completion_rules || {};
-        const mc = phase?.mail_config;
-        const flagEntries = Object.entries(session.flags).filter(([, v]) => v);
-        return (
-          <div
-            style={{
-              position: "fixed", bottom: 12, left: 12, zIndex: 9999,
-              background: "rgba(15,15,30,0.95)", color: "#e0e0e0",
-              borderRadius: 10, border: "1px solid rgba(91,95,199,0.5)",
-              fontSize: 11, fontFamily: "monospace", maxWidth: 380,
-              boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
-              backdropFilter: "blur(8px)",
-            }}
-          >
-            {/* Header — always visible */}
-            <div
-              onClick={() => setDebugCollapsed(!debugCollapsed)}
-              style={{
-                padding: "6px 12px", cursor: "pointer", display: "flex",
-                justifyContent: "space-between", alignItems: "center",
-                borderBottom: debugCollapsed ? "none" : "1px solid rgba(255,255,255,0.1)",
-                userSelect: "none",
-              }}
-            >
-              <span style={{ fontWeight: 700, color: "#a5a8ff" }}>
-                DEBUG {pid}
-              </span>
-              <span style={{ color: "rgba(255,255,255,0.4)" }}>
-                {debugCollapsed ? "+" : "-"}
-              </span>
-            </div>
-            {/* Body */}
-            {!debugCollapsed && (
-              <div style={{ padding: "8px 12px", lineHeight: 1.7 }}>
-                <div><span style={{ color: "#888" }}>Phase:</span> <span style={{ color: "#fff", fontWeight: 600 }}>{pid}</span> <span style={{ color: "#888" }}>({phase?.title})</span></div>
-                <div><span style={{ color: "#888" }}>Focus:</span> <span style={{ color: phase?.phase_focus ? "#a5a8ff" : "#555" }}>{phase?.phase_focus ? phase.phase_focus.slice(0, 80) + (phase.phase_focus.length > 80 ? "..." : "") : "(aucun)"}</span></div>
-                <div><span style={{ color: "#888" }}>Score:</span> {session.scores[pid] || 0} | <span style={{ color: "#888" }}>canAdvance:</span> <span style={{ color: view.canAdvance ? "#22c55e" : "#ef4444", fontWeight: 600 }}>{view.canAdvance ? "OUI" : "NON"}</span></div>
-                <div><span style={{ color: "#888" }}>Rules:</span> {rules.min_score !== undefined ? `min_score=${rules.min_score}` : ""}{rules.any_flags ? `any_flags=[${rules.any_flags.join(", ")}]` : ""}{rules.all_flags ? `all_flags=[${rules.all_flags.join(", ")}]` : ""}{!rules.min_score && !rules.any_flags && !rules.all_flags ? "fallback (2 msgs)" : ""}</div>
-                {mc && <div><span style={{ color: "#888" }}>Mail:</span> send_advances={mc.send_advances_phase ? "true" : "false"} | flags={JSON.stringify(mc.on_send_flags)}</div>}
-                <div><span style={{ color: "#888" }}>Docs:</span> {allDocuments.length}/{allDocumentsRaw.length} visibles{allDocumentsRaw.length > allDocuments.length ? ` (${allDocumentsRaw.length - allDocuments.length} locked)` : ""}</div>
-                {flagEntries.length > 0 && (
-                  <div><span style={{ color: "#888" }}>Flags:</span> {flagEntries.map(([k]) => k).join(", ")}</div>
-                )}
-                {/* ── Skip to Phase buttons ── */}
-                <div style={{ marginTop: 6, borderTop: "1px solid rgba(255,255,255,0.1)", paddingTop: 6 }}>
-                  <div style={{ color: "#888", marginBottom: 4 }}>Jump to phase:</div>
-                  <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
-                    {scenario.phases.map((p: any, idx: number) => (
-                      <button
-                        key={p.phase_id}
-                        disabled={idx === session.currentPhaseIndex}
-                        onClick={() => {
-                          const updated = { ...session, currentPhaseIndex: idx };
-                          // Mark previous phases as completed in scores so completion checks pass
-                          for (let i = 0; i < idx; i++) {
-                            const prevPhase = scenario.phases[i];
-                            if (prevPhase && !updated.scores[prevPhase.phase_id]) {
-                              updated.scores[prevPhase.phase_id] = 100;
-                            }
-                          }
-                          // injectPhaseEntryEvents mutates in place and returns void
-                          injectPhaseEntryEvents(updated);
-                          dispatchEnterPhase(updated); // Module system
-                          setSession({ ...updated });
-                        }}
-                        style={{
-                          padding: "2px 8px", fontSize: 10, borderRadius: 4,
-                          border: idx === session.currentPhaseIndex ? "1px solid #a5a8ff" : "1px solid rgba(255,255,255,0.2)",
-                          background: idx === session.currentPhaseIndex ? "rgba(91,95,199,0.3)" : "rgba(255,255,255,0.05)",
-                          color: idx === session.currentPhaseIndex ? "#a5a8ff" : "#ccc",
-                          cursor: idx === session.currentPhaseIndex ? "default" : "pointer",
-                          opacity: idx === session.currentPhaseIndex ? 0.6 : 1,
-                        }}
-                      >
-                        P{idx + 1}: {p.phase_id.slice(0, 15)}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-                <div style={{ marginTop: 4, color: "#555", fontSize: 10 }}>?debug=1 | Ctrl+D toggle</div>
-              </div>
-            )}
-          </div>
-        );
-      })()}
+      <DebugPanel
+        debugMode={debugMode}
+        collapsed={debugCollapsed}
+        onToggleCollapsed={() => setDebugCollapsed(!debugCollapsed)}
+        scenario={scenario}
+        session={session}
+        view={view}
+        allDocumentsCount={allDocuments.length}
+        allDocumentsRawCount={allDocumentsRaw.length}
+        onJumpToPhase={(idx) => {
+          if (!session || !scenario) return;
+          const updated = { ...session, currentPhaseIndex: idx };
+          for (let i = 0; i < idx; i++) {
+            const prevPhase = scenario.phases[i];
+            if (prevPhase && !updated.scores[prevPhase.phase_id]) {
+              updated.scores[prevPhase.phase_id] = 100;
+            }
+          }
+          injectPhaseEntryEvents(updated);
+          dispatchEnterPhase(updated);
+          setSession({ ...updated });
+        }}
+      />
     </div>
   );
 }
