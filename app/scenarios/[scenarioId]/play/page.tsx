@@ -54,7 +54,7 @@ import { applyModuleActions as applyModuleActionsImpl, type ApplyModuleActionsDe
 import { executeMailAsyncEffect as executeMailAsyncEffectImpl, type ExecuteMailAsyncEffectDeps } from "./handlers/executeMailAsyncEffect";
 import { cloneSession, playNotificationSound, fmtTime, getInitials, STATUS_COLORS } from "./lib/playerUtils";
 import { parseOutlineText, outlineToText, mkOutlineId, type OutlineItem } from "./lib/outlineParser";
-import { ESTABLISHMENT_MAP, resolveEstablishment, resolveMailPlaceholders } from "./lib/establishmentMap";
+import { resolveEstablishment } from "./lib/establishmentMap";
 import { Avatar, TypingDots, StatusDot } from "./components/Avatars";
 import { ToastContainer } from "./components/ToastContainer";
 import { ResumeBanner, SaveInfo } from "./components/ResumeBanner";
@@ -69,6 +69,13 @@ import { useToasts } from "./hooks/useToasts";
 import { useFounderCheckpoint } from "./hooks/useFounderCheckpoint";
 import { useOnePagerEditor } from "./hooks/useOnePagerEditor";
 import { useTTS } from "./hooks/useTTS";
+import { buildClinicalArticles } from "./lib/clinicalContractTemplates";
+import { fetchChatWithRetry } from "./lib/fetchChatWithRetry";
+import { checkCompletionRules } from "./lib/checkCompletionRules";
+import {
+  resolveDynamicActors as resolveDynamicActorsImpl,
+  resolveEstablishmentPlaceholders as resolveEstablishmentPlaceholdersImpl,
+} from "./handlers/dynamicActorResolution";
 import { useOutlineNotes } from "./hooks/useOutlineNotes";
 import { useExceptionsContract } from "./hooks/useExceptionsContract";
 import { useClinicalContract } from "./hooks/useClinicalContract";
@@ -621,76 +628,14 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     resolveActorId: resolveActor,
   });
 
-  // Patch a session's scenario phase entry_events/ai_actors to replace "chosen_cto"/"chosen_kol" with the real actor.
-  // This is called before injectPhaseEntryEvents so that runtime.ts sees the resolved actor.
+  // resolveDynamicActors + resolveEstablishmentPlaceholders extracted to
+  // handlers/dynamicActorResolution. Thin wrappers below capture the
+  // current chosenCtoId/chosenKolId/actors so existing callers stay simple.
   function resolveDynamicActors(sess: any) {
-    if (!sess?.scenario?.phases) return;
-    for (const phase of sess.scenario.phases) {
-      // ── chosen_cto resolution (S0) ──
-      if (phase.dynamic_actor === "chosen_cto" && chosenCtoId) {
-        if (Array.isArray(phase.ai_actors)) {
-          phase.ai_actors = phase.ai_actors.map((a: string) => a === "chosen_cto" ? chosenCtoId : a);
-        }
-        if (Array.isArray(phase.entry_events)) {
-          for (const ev of phase.entry_events) {
-            if (ev.actor === "chosen_cto") ev.actor = chosenCtoId;
-          }
-        }
-        if (phase.mail_config?.defaults && !phase.mail_config.defaults.to) {
-          const ctoActor = actors.find((a: any) => a.actor_id === chosenCtoId);
-          if (ctoActor) {
-            phase.mail_config.defaults.to = ctoActor.name;
-          }
-        }
-        phase.dynamic_actor = "resolved";
-      }
-      // ── chosen_kol resolution (S5) ──
-      if (phase.dynamic_actor === "chosen_kol" && chosenKolId) {
-        if (Array.isArray(phase.ai_actors)) {
-          phase.ai_actors = phase.ai_actors.map((a: string) => a === "chosen_kol" ? chosenKolId : a);
-        }
-        if (Array.isArray(phase.entry_events)) {
-          for (const ev of phase.entry_events) {
-            if (ev.actor === "chosen_kol") ev.actor = chosenKolId;
-          }
-        }
-        // Auto-fill mail "to" with chosen KOL's email/name
-        if (phase.mail_config?.defaults && !phase.mail_config.defaults.to) {
-          const kolActor = actors.find((a: any) => a.actor_id === chosenKolId);
-          if (kolActor) {
-            phase.mail_config.defaults.to = (kolActor as any).email || kolActor.name;
-          }
-        }
-        // NOTE: do NOT mutate the chosen KOL's `visible_in_contacts` / `contact_status` here.
-        // Contact panel visibility is now handled declaratively by the scenario via
-        // `contact_visibility_mode: "explicit"` + per-phase `chat_visible_actors`.
-        // See app/lib/contactVisibility.ts and computeVisibleContacts(...).
-        phase.dynamic_actor = "resolved";
-      }
-    }
+    resolveDynamicActorsImpl(sess, { chosenCtoId, chosenKolId, actors });
   }
-
-  /** Resolve {{establishment_email}} placeholders in mail_config for scenario 4 */
   function resolveEstablishmentPlaceholders(sess: any) {
-    if (!sess?.scenario?.phases || !sess?.flags) return;
-    for (const phase of sess.scenario.phases) {
-      if (phase.dynamic_mail_to === "establishment" && phase.dynamic_mail_to !== "resolved") {
-        const est = resolveEstablishment(sess.flags);
-        // Resolve mail_config defaults
-        if (phase.mail_config?.defaults) {
-          resolveMailPlaceholders(phase.mail_config, sess.flags);
-        }
-        // Resolve entry_events content (replace establishment references)
-        if (Array.isArray(phase.entry_events)) {
-          for (const ev of phase.entry_events) {
-            if (typeof ev.content === "string" && ev.content.includes("{{establishment_label}}")) {
-              ev.content = ev.content.replace(/\{\{establishment_label\}\}/g, est.label);
-            }
-          }
-        }
-        phase.dynamic_mail_to = "resolved";
-      }
-    }
+    resolveEstablishmentPlaceholdersImpl(sess);
   }
 
   // ── Manual interview start: inject only the intro (delay_ms=0) events ──
@@ -1653,63 +1598,11 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
           ...(chatContext ? { chat_context: chatContext } : {}),
       };
 
-      // ── Robust fetch with auto-retry on 401/500/network errors ──
-      let data: any = null;
-      let lastError = "";
-      const MAX_RETRIES = 2;
-
-      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-        try {
-          // On retry after 401, refresh token from localStorage
-          if (attempt > 0) {
-            const freshToken = typeof window !== "undefined" ? localStorage.getItem("auth_token") : null;
-            if (freshToken) authTokenRef.current = freshToken;
-            // Small delay before retry to avoid hammering
-            await new Promise(r => setTimeout(r, 800 * attempt));
-          }
-
-          const res = await fetch("/api/chat", {
-            method: "POST",
-            headers: apiHeaders(),
-            body: JSON.stringify(chatPayload),
-          });
-
-          if (res.status === 401 && attempt < MAX_RETRIES) {
-            lastError = "Session expirée, nouvelle tentative...";
-            continue; // retry with fresh token
-          }
-
-          if (res.status === 429) {
-            // Rate limited — wait and retry once
-            if (attempt < MAX_RETRIES) {
-              const retryBody = await res.json().catch(() => ({}));
-              const waitMs = retryBody.retryAfterMs || 3000;
-              lastError = "Trop de requêtes, patientez...";
-              await new Promise(r => setTimeout(r, Math.min(waitMs, 5000)));
-              continue;
-            }
-            lastError = "Trop de requêtes. Veuillez patienter quelques instants.";
-            break;
-          }
-
-          if (res.status >= 500 && attempt < MAX_RETRIES) {
-            lastError = "Erreur serveur, nouvelle tentative...";
-            continue; // retry on server errors
-          }
-
-          if (!res.ok) {
-            const errBody = await res.json().catch(() => ({}));
-            lastError = errBody.message || errBody.error || `Erreur chat (${res.status})`;
-            break;
-          }
-
-          data = await res.json();
-          break; // success!
-        } catch (fetchErr: any) {
-          lastError = fetchErr.message || "Erreur réseau";
-          if (attempt < MAX_RETRIES) continue; // retry on network errors
-        }
-      }
+      // ── Robust fetch (auto-retry on 401/429/5xx/network) — extracted ──
+      const { data, error: fetchError } = await fetchChatWithRetry(chatPayload, {
+        apiHeaders,
+        authTokenRef,
+      });
 
       // If all retries failed, show error to the player in the chat
       if (!data) {
@@ -1718,7 +1611,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
         errFinal.chatMessages.push({
           role: "system",
           actor: "system",
-          content: `⚠️ Impossible d'obtenir une réponse. ${lastError || "Vérifiez votre connexion et réessayez."}`,
+          content: `⚠️ Impossible d'obtenir une réponse. ${fetchError || "Vérifiez votre connexion et réessayez."}`,
           type: "error",
           phaseId: curPhaseId,
           timestamp: Date.now(),
@@ -2033,40 +1926,12 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     // ══════════════════════════════════════════════════════════════════
 
     if (phase?.mail_config?.send_advances_phase) {
-      // ── Check completion rules BEFORE advancing ──
-      const rulesPass = (() => {
-        const rules = (phase as any).completion_rules;
-        if (!rules) return true;
-        if (Array.isArray(rules.required_npc_evidence) && rules.required_npc_evidence.length > 0) {
-          const phaseConv = (view?.conversation || []);
-          const npcText = phaseConv
-            .filter((m: any) => m.role === "npc")
-            .map((m: any) => (m.content || "").toLowerCase())
-            .join(" ");
-          const allMet = rules.required_npc_evidence.every((ev: any) => {
-            const matched = (ev.keywords || []).filter((kw: string) => npcText.includes(kw.toLowerCase()));
-            return matched.length >= (ev.min_matches || 1);
-          });
-          if (!allMet) return false;
-        }
-        if (Array.isArray(rules.required_player_evidence) && rules.required_player_evidence.length > 0) {
-          const phaseConv = (view?.conversation || []);
-          const playerText = phaseConv
-            .filter((m: any) => m.role === "player")
-            .map((m: any) => (m.content || "").toLowerCase())
-            .join(" ");
-          const allMet = rules.required_player_evidence.every((ev: any) => {
-            const matched = (ev.keywords || []).filter((kw: string) => playerText.includes(kw.toLowerCase()));
-            return matched.length >= (ev.min_matches || 1);
-          });
-          if (!allMet) return false;
-        }
-        if (rules.min_score !== undefined) {
-          const phaseScore = session.scores?.[phase.phase_id] || 0;
-          if (phaseScore < rules.min_score) return false;
-        }
-        return true;
-      })();
+      // ── Check completion rules BEFORE advancing — extracted to lib ──
+      const rulesPass = checkCompletionRules(
+        phase as any,
+        (view?.conversation || []) as any,
+        session.scores,
+      );
 
       if (rulesPass) {
         completeCurrentPhaseAndAdvance(next);
@@ -2445,44 +2310,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   }
 
   // ── Clinical contract: build articles per establishment ──
-  function buildClinicalArticles(type: "chu" | "sm" | "clinique") {
-    const art = (id: string, title: string, content: string, toxic = false, moderate = false) =>
-      ({ id, title, content, modifiedContent: null as string | null, toxic, moderate });
-    if (type === "chu") return [
-      art("article_1", "Article 1 — Objet", "Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans le service de chirurgie orthopédique du CHU, sur une durée de 8 semaines."),
-      art("article_2", "Article 2 — Gratuité", "Le test est réalisé à titre gracieux. Aucune facturation n'est émise pendant la période de test."),
-      art("article_3", "Article 3 — Données", "Orisio s'engage à héberger les données sur une infrastructure certifiée HDS. Aucune donnée patient nominative n'est traitée."),
-      art("article_4", "Article 4 — Durée et renouvellement", "8 semaines à compter de la mise en service. Renouvelable une fois par accord des parties."),
-      art("article_5", "Article 5 — Propriété intellectuelle", "Les développements, adaptations et améliorations réalisés pendant la période de test, y compris ceux réalisés sur les données et dans les locaux du CHU, sont la propriété conjointe du CHU et d'Orisio. Le CHU dispose d'une licence perpétuelle, gratuite et irrévocable sur le code source existant d'Orisio utilisé pendant le test.", true),
-      art("article_6", "Article 6 — Intéressement", "En contrepartie de l'accès à l'infrastructure du CHU, Orisio versera au CHU : 5% des revenus générés par les ventes d'Orisio aux établissements publics de santé pendant 3 ans ; 1% du post-money en cas de levée de fonds réalisée dans les 24 mois suivant le test.", true),
-      art("article_7", "Article 7 — Confidentialité", "Les parties s'engagent à maintenir la confidentialité des informations échangées."),
-      art("article_8", "Article 8 — Référence commerciale", "L'utilisation du nom du CHU de Bordeaux à des fins commerciales ou promotionnelles est interdite sans validation préalable du service communication du CHU.", false, true),
-      art("article_9", "Article 9 — Hébergement", "L'hébergement doit être certifié SecNumCloud (et pas uniquement HDS).", false, true),
-      art("article_10", "Article 10 — Conformité", "Orisio s'engage à respecter l'ensemble des réglementations applicables (RGPD, HDS, etc.)."),
-      art("article_11", "Article 11 — Résiliation", "Le CHU peut résilier la convention à tout moment, sans préavis et sans indemnité.", false, true),
-    ];
-    if (type === "sm") return [
-      art("article_1", "Article 1 — Objet", "Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans les blocs opératoires de l'Hôpital Saint-Martin, sur une durée de 8 semaines."),
-      art("article_2", "Article 2 — Gratuité", "Le test est réalisé à titre gracieux."),
-      art("article_3", "Article 3 — Propriété intellectuelle", "La propriété intellectuelle du logiciel Orisio reste la propriété exclusive d'Orisio SAS."),
-      art("article_4", "Article 4 — Données", "Hébergement certifié HDS. Aucune donnée patient nominative n'est traitée."),
-      art("article_5", "Article 5 — Durée", "8 semaines à compter de la mise en service."),
-      art("article_6", "Article 6 — Résiliation", "Préavis de 15 jours par l'une ou l'autre des parties."),
-      art("article_7", "Article 7 — Référence commerciale", "Référence anonymisée autorisée (« un hôpital privé de 8 salles »). Toute mention nommée requiert l'accord préalable de la direction de la communication du groupe.", false, true),
-      art("article_8", "Article 8 — Non-sollicitation", "Orisio s'engage à ne pas solliciter le personnel de l'établissement pendant le test et les 6 mois suivant la fin du test."),
-      art("article_9", "Article 9 — Validation groupe", "La signature définitive est soumise à la non-opposition du groupe Ramsay Santé. Délai indicatif : 15 jours ouvrés.", false, true),
-    ];
-    return [
-      art("article_1", "Article 1 — Objet", "Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans les blocs opératoires de la Clinique Saint-Augustin, sur une durée de 8 semaines."),
-      art("article_2", "Article 2 — Gratuité", "Le test est réalisé à titre gracieux. Aucune facturation n'est émise."),
-      art("article_3", "Article 3 — Propriété intellectuelle", "La propriété intellectuelle du logiciel Orisio reste la propriété exclusive d'Orisio SAS."),
-      art("article_4", "Article 4 — Données", "Hébergement certifié HDS. Aucune donnée patient nominative n'est traitée."),
-      art("article_5", "Article 5 — Durée", "8 semaines à compter de la mise en service, renouvelable par accord des parties."),
-      art("article_6", "Article 6 — Résiliation", "Préavis de 7 jours par l'une ou l'autre des parties."),
-      art("article_7", "Article 7 — Référence commerciale", "Orisio est autorisée à mentionner la Clinique Saint-Augustin comme établissement pilote."),
-      art("article_8", "Article 8 — Confidentialité", "Les parties s'engagent à maintenir la confidentialité des informations échangées."),
-    ];
-  }
+  // buildClinicalArticles extracted to lib/clinicalContractTemplates.
 
   // ── Clinical contract negotiation (scenario 3 Phase 3) ──
   async function sendClinicalNegotiationMessage() {
