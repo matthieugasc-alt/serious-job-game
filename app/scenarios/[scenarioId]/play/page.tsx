@@ -61,9 +61,13 @@ import { PlayerHeader } from "./components/PlayerHeader";
 import { DebugPanel } from "./components/DebugPanel";
 import { InlineDocModal } from "./components/InlineDocModal";
 import { BriefingOverlay } from "./components/BriefingOverlay";
+import { OnePagerEditor } from "./components/OnePagerEditor";
+import { RightPanel } from "./components/RightPanel";
+import { LeftSidebar } from "./components/LeftSidebar";
 import { useToasts } from "./hooks/useToasts";
 import { useFounderCheckpoint } from "./hooks/useFounderCheckpoint";
 import { useOnePagerEditor } from "./hooks/useOnePagerEditor";
+import { useTTS } from "./hooks/useTTS";
 import { useOutlineNotes } from "./hooks/useOutlineNotes";
 import { useExceptionsContract } from "./hooks/useExceptionsContract";
 import { useClinicalContract } from "./hooks/useClinicalContract";
@@ -339,8 +343,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   } | null>(null);
   // When true, we're awaiting backend transcription after a stop()
   const [voiceTranscribing, setVoiceTranscribing] = useState(false);
-  const [isSpeakingTTS, setIsSpeakingTTS] = useState(false);
-  const [speakingActorId, setSpeakingActorId] = useState<string | null>(null);
+  // TTS state extracted to hooks/useTTS (wired below, after apiHeaders).
   const spokenMsgIdsRef = useRef<Set<string>>(new Set());
   const [raisedHands, setRaisedHands] = useState<string[]>([]);
   const [qaWaiting, setQaWaiting] = useState(false);
@@ -378,6 +381,17 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     if (authTokenRef.current) h["Authorization"] = `Bearer ${authTokenRef.current}`;
     return h;
   }
+
+  // ── TTS (text-to-speech) — extracted to hooks/useTTS ──
+  const {
+    isSpeakingTTS,
+    speakingActorId,
+    speakTTS,
+    speakTTSFallback,
+    resolveVoice,
+    cancel: cancelTTS,
+    ttsAudioRef,
+  } = useTTS({ scenario, apiHeaders });
 
   // ── Refs for auto-send closures ──
   const sessionRef = useRef<any>(null);
@@ -697,50 +711,19 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     if (targetActor) setSelectedContact(targetActor);
   }
 
-  // ── Founder checkpoint: notify server on phase advance ──
-  function notifyCheckpointAdvance(completedPhaseId: string, newPhaseIndex: number) {
-    if (!isFounderScenario) return;
-    fetch("/api/founder/checkpoint", {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify({
-        scenarioId,
-        action: "advance",
-        completedPhaseId,
-        phaseIndex: newPhaseIndex,
-      }),
-    }).catch((e) => console.warn("[founder] checkpoint advance failed:", e));
-  }
-
-  function notifyCheckpointClear() {
-    if (!isFounderScenario) return;
-    fetch("/api/founder/checkpoint", {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify({ scenarioId, action: "clear" }),
-    }).catch((e) => console.warn("[founder] checkpoint clear failed:", e));
-  }
-
-  // ── Founder checkpoint: notify server on HARD_REJECT rollback ──
-  // Symmetric counterpart of notifyCheckpointAdvance. Without this, the
-  // engine rolls back the React session to phase_1_prospection but the
-  // server checkpoint still says "you're in phase 2", so the next time
-  // the player clicks "Reprendre" the session is rebuilt at phase 2
-  // with no KOL state — exactly the inconsistent state HARD_REJECT was
-  // supposed to clear.
-  function notifyCheckpointRollback(targetPhaseId: string, targetPhaseIndex: number) {
-    if (!isFounderScenario) return;
-    fetch("/api/founder/checkpoint", {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify({
-        scenarioId,
-        action: "rollback",
-        targetPhaseId,
-        targetPhaseIndex,
-      }),
-    }).catch((e) => console.warn("[founder] checkpoint rollback failed:", e));
-  }
+  // ── Founder checkpoint server sync (advance / clear / rollback) ──
+  // Extracted to hooks/useFounderCheckpoint. Each notifier is a no-op
+  // when isFounderScenario is false. The rollback notifier is what
+  // keeps server checkpoint in sync with React state after HARD_REJECT.
+  const {
+    notifyAdvance: notifyCheckpointAdvance,
+    notifyClear: notifyCheckpointClear,
+    notifyRollback: notifyCheckpointRollback,
+  } = useFounderCheckpoint({
+    scenarioId: scenarioId as string,
+    isFounderScenario,
+    apiHeaders,
+  });
 
   // ── Debrief hook (extracted from page.tsx — zero logic change) ──
   const { debriefData, debriefLoading, debriefError } = useDebrief({
@@ -754,15 +737,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     authTokenRef,
     onDebriefStart: () => {
       // Stop any TTS audio still playing from the last phase
-      if (ttsAudioRef.current) {
-        ttsAudioRef.current.pause();
-        ttsAudioRef.current = null;
-      }
-      if (typeof window !== "undefined" && window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-      setIsSpeakingTTS(false);
-      setSpeakingActorId(null);
+      cancelTTS();
       // Stop mic if still recording
       if (voiceSessionRef.current) {
         voiceSessionRef.current.cancel().catch(() => {});
@@ -1554,113 +1529,7 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     }
   }
 
-  // ── OpenAI TTS with per-actor voice mapping ──
-  const ttsAudioRef = useRef<HTMLAudioElement | null>(null);
-
-  /** Resolve the OpenAI TTS voice for a given actor.
-   *  1. Check actor's tts_voice field in scenario JSON
-   *  2. Fall back to a curated default per actor_id
-   *  3. Ultimate fallback: "nova"  */
-  function resolveVoice(actorId?: string): string {
-    // Check scenario actor definition first
-    if (actorId && scenario?.actors) {
-      const actor = (scenario.actors as any[]).find((a: any) => a.actor_id === actorId);
-      if (actor?.tts_voice) return actor.tts_voice;
-    }
-    // Curated defaults per actor for art_du_malentendu & others
-    const defaults: Record<string, string> = {
-      yuki_tanaka: "nova",       // warm, expressive female — fits Yuki
-      sophie_renard: "shimmer",  // calm, mature female
-      nathalie_morel: "coral",   // professional female
-      enfants_cmj: "fable",      // expressive, lighter — fits children
-      player: "echo",
-    };
-    if (actorId && defaults[actorId]) return defaults[actorId];
-    return "nova";
-  }
-
-  async function speakTTS(text: string, _lang: string, actorId?: string): Promise<void> {
-    if (typeof window === "undefined") return;
-
-    // Stop any currently playing TTS
-    if (ttsAudioRef.current) {
-      ttsAudioRef.current.pause();
-      ttsAudioRef.current = null;
-    }
-
-    if (actorId) setSpeakingActorId(actorId);
-    setIsSpeakingTTS(true);
-
-    try {
-      const voice = resolveVoice(actorId);
-      const res = await fetch("/api/tts", {
-        method: "POST",
-        headers: apiHeaders(),
-        body: JSON.stringify({ text, voice, speed: 1.15 }),
-      });
-
-      if (!res.ok) {
-        console.warn("TTS API error, falling back to Web Speech API");
-        await speakTTSFallback(text, _lang, actorId);
-        return;
-      }
-
-      const blob = await res.blob();
-      const url = URL.createObjectURL(blob);
-      const audio = new Audio(url);
-      ttsAudioRef.current = audio;
-
-      await new Promise<void>((resolve) => {
-        audio.onended = () => {
-          URL.revokeObjectURL(url);
-          setIsSpeakingTTS(false);
-          setSpeakingActorId(null);
-          ttsAudioRef.current = null;
-          resolve();
-        };
-        audio.onerror = () => {
-          URL.revokeObjectURL(url);
-          setIsSpeakingTTS(false);
-          setSpeakingActorId(null);
-          ttsAudioRef.current = null;
-          resolve();
-        };
-        audio.play().catch(() => {
-          setIsSpeakingTTS(false);
-          setSpeakingActorId(null);
-          ttsAudioRef.current = null;
-          resolve();
-        });
-      });
-    } catch (err) {
-      console.warn("TTS fetch failed, falling back to Web Speech API:", err);
-      await speakTTSFallback(text, _lang, actorId);
-    }
-  }
-
-  /** Fallback to browser Web Speech API if OpenAI TTS is unavailable */
-  function speakTTSFallback(text: string, lang: string, actorId?: string): Promise<void> {
-    return new Promise((resolve) => {
-      if (!window.speechSynthesis) { setIsSpeakingTTS(false); setSpeakingActorId(null); resolve(); return; }
-      speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      utterance.rate = 1.1;
-      utterance.pitch = 1.0;
-      const voices = speechSynthesis.getVoices();
-      const langPrefix = lang.split("-")[0];
-      const preferred = voices.find(v => v.lang.startsWith(langPrefix) && (v.name.includes("Google") || v.name.includes("Microsoft")))
-        || voices.find(v => v.lang.startsWith(langPrefix));
-      if (preferred) utterance.voice = preferred;
-
-      if (actorId) setSpeakingActorId(actorId);
-      setIsSpeakingTTS(true);
-
-      utterance.onend = () => { setIsSpeakingTTS(false); setSpeakingActorId(null); resolve(); };
-      utterance.onerror = () => { setIsSpeakingTTS(false); setSpeakingActorId(null); resolve(); };
-      speechSynthesis.speak(utterance);
-    });
-  }
+  // ── OpenAI TTS — extracted to hooks/useTTS (see declaration above) ──
 
   // Generate an NPC message without a player message (for triggering child questions)
   async function generateNPCMessage(actorId: string, trigger: string): Promise<string> {
@@ -3111,290 +2980,65 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
       })()}
 
       {/* ═══════ ONE-PAGER EDITOR OVERLAY (Scenario 1+) ═══════ */}
-      {showOnePagerEditor && (() => {
-        const onePagerDoc = scenario?.resources?.documents?.find((d: any) => d.doc_id === "one_pager_template");
-        const onePagerPdfPath = (onePagerDoc as any)?.file_path || "";
-        return (
-          <div style={{
-            position: "fixed", inset: 0, zIndex: 10001,
-            background: "rgba(0,0,0,0.7)", display: "flex",
-            alignItems: "center", justifyContent: "center", padding: 20,
-          }}>
-            <div style={{
-              background: "#fff", borderRadius: 16, maxWidth: 800, width: "100%",
-              maxHeight: "92vh", display: "flex", flexDirection: "column",
-              boxShadow: "0 24px 80px rgba(0,0,0,0.3)",
-            }}>
-              {/* Header bar */}
-              <div style={{
-                padding: "14px 24px", background: "linear-gradient(135deg, #1a1a2e, #16213e)",
-                borderRadius: "16px 16px 0 0",
-                display: "flex", justifyContent: "space-between", alignItems: "center",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                  <div style={{
-                    width: 32, height: 32, borderRadius: 8,
-                    background: "#5b5fc7", display: "flex", alignItems: "center",
-                    justifyContent: "center", fontSize: 16, fontWeight: 700, color: "#fff",
-                  }}>📝</div>
-                  <div>
-                    <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>
-                      One-Pager — Orisio
-                    </h2>
-                    <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                      Remplis chaque section puis soumets au jury
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowOnePagerEditor(false)}
-                  style={{
-                    background: "rgba(255,255,255,0.1)", border: "none", fontSize: 18,
-                    color: "#fff", cursor: "pointer", padding: "4px 10px", borderRadius: 6,
-                  }}
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* Progress indicator */}
-              <div style={{
-                padding: "8px 24px", background: "#f8f9fa", borderBottom: "1px solid #e8e8e8",
-                display: "flex", alignItems: "center", gap: 12, fontSize: 12,
-              }}>
-                <span style={{ color: "#16a34a", fontWeight: 700 }}>1. Remplir le document</span>
-                <span style={{ color: "#ccc" }}>→</span>
-                <span style={{ color: onePagerEdited ? "#16a34a" : "#666", fontWeight: onePagerEdited ? 700 : 500 }}>2. Relire</span>
-                <span style={{ color: "#ccc" }}>→</span>
-                <span style={{ color: onePagerSubmitted ? "#16a34a" : "#666", fontWeight: onePagerSubmitted ? 700 : 500 }}>3. Soumettre</span>
-              </div>
-
-              {/* Instruction banner */}
-              {!onePagerSubmitted && (
-                <div style={{
-                  padding: "10px 24px", background: "#eff6ff", borderBottom: "1px solid #bfdbfe",
-                  display: "flex", alignItems: "center", gap: 10, fontSize: 12,
-                }}>
-                  <span style={{ fontSize: 16 }}>✏️</span>
-                  <span style={{ color: "#1e40af", fontWeight: 600 }}>
-                    Cliquez sur le texte entre crochets pour le remplacer par vos informations.
-                  </span>
-                  {onePagerEdited && (
-                    <span style={{ marginLeft: "auto", color: "#16a34a", fontWeight: 700, fontSize: 11 }}>
-                      Modifié
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Editable one-pager content */}
-              <div
-                ref={onePagerContentRef}
-                contentEditable={!onePagerSubmitted}
-                suppressContentEditableWarning
-                onInput={() => { if (!onePagerEdited) setOnePagerEdited(true); }}
-                style={{
-                  flex: 1, overflow: "auto", background: "#fff", padding: "32px 40px",
-                  fontSize: 14, lineHeight: 1.8, color: "#1a1a2e",
-                  fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
-                  outline: "none",
-                  cursor: !onePagerSubmitted ? "text" : "default",
-                }}
-              >
-                {/* Title */}
-                <div style={{ textAlign: "center", marginBottom: 28 }}>
-                  <h1 style={{ fontSize: 24, fontWeight: 800, margin: "0 0 8px", color: "#1a1a2e", letterSpacing: -0.5 }}>
-                    <span style={{ color: "#9ca3af", fontStyle: "italic" }}>[NOM DE LA STARTUP]</span>
-                  </h1>
-                  <p style={{ fontSize: 14, color: "#9ca3af", fontStyle: "italic", margin: 0 }}>
-                    [Tagline — une phrase qui résume ce que vous faites]
-                  </p>
-                </div>
-                <hr style={{ border: "none", borderTop: "2px solid #5b5fc7", margin: "16px 0 24px", width: 60 }} />
-
-                {/* Problème */}
-                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Problème</h2>
-                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
-                  [Décrivez le problème que vous résolvez. Soyez concret : qui souffre, pourquoi, combien ça coûte. 3-4 phrases max.]
-                </p>
-
-                {/* Solution */}
-                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Solution</h2>
-                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
-                  [Décrivez votre produit/service. Ce qu&apos;il fait, comment il fonctionne, en quoi il est différent. Pas de jargon. 3-4 phrases max.]
-                </p>
-
-                {/* Marché */}
-                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Marché</h2>
-                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
-                  [Taille du marché cible. Nombre d&apos;établissements/utilisateurs potentiels. Segment initial visé. Chiffrez.]
-                </p>
-
-                {/* Modèle économique */}
-                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Modèle économique</h2>
-                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
-                  [Comment vous gagnez de l&apos;argent. Prix, récurrence, panier moyen. Soyez précis.]
-                </p>
-
-                {/* Traction */}
-                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Traction</h2>
-                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
-                  [Ce que vous avez déjà accompli. Entretiens, pilotes, lettres d&apos;intention, premiers revenus. Chiffres concrets uniquement.]
-                </p>
-
-                {/* Équipe */}
-                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Équipe</h2>
-                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
-                  [Qui vous êtes. Noms, rôles, pourquoi vous êtes les bonnes personnes pour ce projet. 2-3 lignes par personne.]
-                </p>
-
-                {/* Demande */}
-                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Demande</h2>
-                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
-                  [Ce que vous attendez de l&apos;incubateur. Soyez spécifique : mentorat, réseau, financement, locaux, introductions.]
-                </p>
-
-                {/* Contact */}
-                <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>Contact</h2>
-                <p style={{ color: "#9ca3af", fontStyle: "italic" }}>
-                  [Nom — email — téléphone]
-                </p>
-              </div>
-
-              {/* PDF link */}
-              {onePagerPdfPath && (
-                <div style={{ padding: "6px 24px", borderTop: "1px solid #e8e8e8", background: "#fafafa", textAlign: "center" }}>
-                  <a
-                    href={onePagerPdfPath.startsWith("/") ? onePagerPdfPath : `/api/download?file=${encodeURIComponent(onePagerPdfPath)}&scenarioId=${encodeURIComponent(scenarioId)}`}
-                    target="_blank" rel="noopener noreferrer"
-                    style={{
-                      fontSize: 11, padding: "4px 12px", borderRadius: 6,
-                      background: "#f0f0ff", color: "#5b5fc7", textDecoration: "none",
-                      border: "1px solid rgba(91,95,199,0.2)",
-                    }}
-                  >
-                    Voir aussi le template PDF original
-                  </a>
-                </div>
-              )}
-
-              {/* Submit area */}
-              <div style={{
-                padding: "16px 24px", borderTop: "2px solid #5b5fc7",
-                background: onePagerSubmitted ? "#f0fdf4" : "#f8f9fa",
-              }}>
-                {!onePagerSubmitted ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: "#333", marginBottom: 4 }}>
-                        {onePagerEdited
-                          ? "Votre one-pager est prêt à être soumis."
-                          : "Remplissez le document avant de soumettre."}
-                      </div>
-                      <div style={{ fontSize: 11, color: "#888" }}>
-                        Le one-pager sera envoyé au jury de Technowest.
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => {
-                        // 1. Mark as submitted
-                        setOnePagerSubmitted(true);
-                        // 2. Extract the one-pager text from the contentEditable div
-                        const onePagerText = onePagerContentRef.current?.innerText || "";
-                        // 3. Set flags and send mail
-                        if (session && scenario) {
-                          const next = cloneSession(session);
-                          next.flags.one_pager_submitted = true;
-                          // Fill the mail draft
-                          const phase = scenario.phases[next.currentPhaseIndex];
-                          const phaseId = phase?.phase_id;
-                          if (phaseId) {
-                            const defaults = (phase?.mail_config?.defaults || {}) as any;
-                            updateMailDraft(next, phaseId, {
-                              to: defaults.to || "jury@technowest.fr",
-                              cc: defaults.cc || "",
-                              subject: defaults.subject || "Candidature Orisio — One-pager",
-                              body: `Bonjour,\n\nVeuillez trouver ci-dessous le one-pager de notre startup Orisio.\n\n---\n\n${onePagerText}\n\n---\n\nCordialement,\n${displayPlayerName || "CEO"}\nOrisio`,
-                              attachments: [{ id: "one_pager_template", label: "One-Pager — Orisio" }],
-                            });
-                            // Send the mail
-                            const mailKind = phase?.mail_config?.kind || "one_pager_submission";
-                            sendCurrentPhaseMail(next, mailKind);
-                            // Advance phase
-                            if (phase?.mail_config?.send_advances_phase) {
-                              completeCurrentPhaseAndAdvance(next);
-                              resolveDynamicActors(next);
-      resolveEstablishmentPlaceholders(next);
-                              injectPhaseEntryEvents(next);
-                              dispatchEnterPhase(next); // Module system: run enter_phase on new phase
-                              const newPhase = scenario.phases[next.currentPhaseIndex];
-                              if (newPhase?.mail_config?.defaults) {
-                                updateMailDraft(next, newPhase.phase_id, {
-                                  to: "", cc: "",
-                                  subject: newPhase.mail_config.defaults.subject || "",
-                                  body: "", attachments: [],
-                                });
-                              }
-                              // Notify checkpoint for Founder mode
-                              if (isFounderScenario && phaseId) {
-                                notifyCheckpointAdvance(phaseId, next.currentPhaseIndex);
-                              }
-                            }
-                          }
-                          setSession(next);
-                        }
-                        // Close the editor
-                        setShowOnePagerEditor(false);
-                        playNotificationSound();
-                      }}
-                      disabled={!onePagerEdited}
-                      style={{
-                        padding: "12px 32px", flexShrink: 0,
-                        background: onePagerEdited
-                          ? "linear-gradient(135deg, #5b5fc7, #4a4eb3)"
-                          : "#ccc",
-                        border: onePagerEdited ? "2px solid rgba(91,95,199,0.4)" : "2px solid #ddd",
-                        borderRadius: 10,
-                        color: "#fff", fontSize: 15, fontWeight: 800,
-                        cursor: onePagerEdited ? "pointer" : "not-allowed",
-                        boxShadow: onePagerEdited ? "0 4px 16px rgba(91,95,199,0.3)" : "none",
-                        transition: "all 0.2s",
-                        opacity: onePagerEdited ? 1 : 0.5,
-                      }}
-                      onMouseEnter={(e) => { if (onePagerEdited) { e.currentTarget.style.transform = "scale(1.02)"; e.currentTarget.style.boxShadow = "0 6px 24px rgba(91,95,199,0.4)"; } }}
-                      onMouseLeave={(e) => { e.currentTarget.style.transform = "scale(1)"; e.currentTarget.style.boxShadow = onePagerEdited ? "0 4px 16px rgba(91,95,199,0.3)" : "none"; }}
-                    >
-                      📤 Soumettre le one-pager
-                    </button>
-                  </div>
-                ) : (
-                  <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "4px 0" }}>
-                    <span style={{ fontSize: 20 }}>✅</span>
-                    <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#16a34a" }}>
-                        One-pager soumis au jury
-                      </div>
-                      <div style={{ fontSize: 11, color: "#666" }}>
-                        Le jury va maintenant l&apos;examiner. Prépare ton pitch.
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setShowOnePagerEditor(false)}
-                      style={{
-                        marginLeft: "auto", padding: "8px 16px",
-                        background: "#5b5fc7", border: "none", borderRadius: 8,
-                        color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer",
-                      }}
-                    >
-                      Fermer
-                    </button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        );
-      })()}
+      <OnePagerEditor
+        visible={showOnePagerEditor}
+        edited={onePagerEdited}
+        submitted={onePagerSubmitted}
+        pdfPath={
+          (scenario?.resources?.documents?.find(
+            (d: any) => d.doc_id === "one_pager_template",
+          ) as any)?.file_path || ""
+        }
+        scenarioId={scenarioId as string}
+        onClose={() => setShowOnePagerEditor(false)}
+        onEditedFirst={() => setOnePagerEdited(true)}
+        onSubmit={(onePagerText) => {
+          // 1. Mark as submitted
+          setOnePagerSubmitted(true);
+          // 2. Set flags and send mail
+          if (session && scenario) {
+            const next = cloneSession(session);
+            next.flags.one_pager_submitted = true;
+            const phase = scenario.phases[next.currentPhaseIndex];
+            const phaseId = phase?.phase_id;
+            if (phaseId) {
+              const defaults = (phase?.mail_config?.defaults || {}) as any;
+              updateMailDraft(next, phaseId, {
+                to: defaults.to || "jury@technowest.fr",
+                cc: defaults.cc || "",
+                subject: defaults.subject || "Candidature Orisio — One-pager",
+                body: `Bonjour,\n\nVeuillez trouver ci-dessous le one-pager de notre startup Orisio.\n\n---\n\n${onePagerText}\n\n---\n\nCordialement,\n${displayPlayerName || "CEO"}\nOrisio`,
+                attachments: [{ id: "one_pager_template", label: "One-Pager — Orisio" }],
+              });
+              const mailKind = phase?.mail_config?.kind || "one_pager_submission";
+              sendCurrentPhaseMail(next, mailKind);
+              if (phase?.mail_config?.send_advances_phase) {
+                completeCurrentPhaseAndAdvance(next);
+                resolveDynamicActors(next);
+                resolveEstablishmentPlaceholders(next);
+                injectPhaseEntryEvents(next);
+                dispatchEnterPhase(next);
+                const newPhase = scenario.phases[next.currentPhaseIndex];
+                if (newPhase?.mail_config?.defaults) {
+                  updateMailDraft(next, newPhase.phase_id, {
+                    to: "",
+                    cc: "",
+                    subject: newPhase.mail_config.defaults.subject || "",
+                    body: "",
+                    attachments: [],
+                  });
+                }
+                if (isFounderScenario && phaseId) {
+                  notifyCheckpointAdvance(phaseId, next.currentPhaseIndex);
+                }
+              }
+            }
+            setSession(next);
+          }
+          setShowOnePagerEditor(false);
+          playNotificationSound();
+        }}
+      />
 
       <BriefingOverlay
         visible={showBriefingOverlay}
@@ -3923,137 +3567,26 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
         <div style={{ display: "flex", flex: 1, overflow: "hidden" }}>
 
         {/* ═══════ LEFT SIDEBAR — Nav + Contacts ═══════ */}
-        <aside style={{ width: 240, flexShrink: 0, background: "#fff", borderRight: "1px solid #e0e0e0", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-          {/* Navigation tabs */}
-          <nav style={{ display: "flex", borderBottom: "1px solid #e8e8e8", flexShrink: 0 }}>
-            {([
-              { key: "chat" as MainView, icon: "💬", label: "Chat", badge: 0 },
-              { key: "mail" as MainView, icon: "📧", label: "Email", badge: unreadMails },
-              ...(hasMindmapTool ? [{ key: "notes" as MainView, icon: "🗒️", label: "Notes", badge: 0 }] : []),
-            ]).map((tab) => {
-              const isLocked = tab.key === "mail" && mailLockedForNow;
-              return (
-              <button
-                key={tab.key}
-                onClick={() => setMainView(tab.key)}
-                style={{
-                  flex: 1, padding: "10px 4px", border: "none", cursor: "pointer",
-                  background: mainView === tab.key ? "#f0f0ff" : "#fff",
-                  borderBottom: mainView === tab.key ? "2px solid #5b5fc7" : "2px solid transparent",
-                  fontSize: 12, fontWeight: mainView === tab.key ? 700 : 500,
-                  color: isLocked ? "#bbb" : mainView === tab.key ? "#5b5fc7" : "#666",
-                  position: "relative",
-                  opacity: isLocked ? 0.7 : 1,
-                }}
-              >
-                {tab.icon} {tab.label}
-                {tab.badge ? (
-                  <span style={{ position: "absolute", top: 4, right: 8, background: "#e94b3c", color: "#fff", borderRadius: 10, fontSize: 10, fontWeight: 700, padding: "1px 5px", minWidth: 16, textAlign: "center" }}>
-                    {tab.badge}
-                  </span>
-                ) : null}
-              </button>
-              );
-            })}
-          </nav>
-
-          {/* Contacts section */}
-          <div style={{ padding: "12px", flex: 1, overflowY: "auto" }}>
-            <h3 style={{ margin: "0 0 10px", fontSize: 11, fontWeight: 700, color: "#999", textTransform: "uppercase", letterSpacing: "0.5px" }}>
-              Contacts
-            </h3>
-            <ul style={{ margin: 0, padding: 0, listStyle: "none" }}>
-              {visibleContacts.filter((a: any) => a.actor_id !== "player" && !a.mail_only).map((actor: any) => {
-                const resolvedId = resolveActor(actor.actor_id);
-                const isInPhase = currentPhaseAiActors.includes(resolvedId);
-                // busy_after_phase: lock actor after a specific phase completes
-                const busyAfterPhase = (actor as any).busy_after_phase;
-                const isBusyAfterPhase = busyAfterPhase && session && (() => {
-                  const phaseIdx = scenario?.phases?.findIndex((p: any) => p.phase_id === busyAfterPhase);
-                  return phaseIdx !== undefined && phaseIdx >= 0 && session.currentPhaseIndex > phaseIdx;
-                })();
-                const baseStatus = actor.contact_status || (actor.interaction_modes?.includes("unreachable") ? "offline" : "available");
-                const isAvailable = isInPhase && !isBusyAfterPhase;
-                const status = isAvailable ? baseStatus : "busy";
-                const color = actor.avatar?.color || "#666";
-                const ini = actor.avatar?.initials || getInitials(actor.name);
-                const isSelected = selectedContact === actor.actor_id;
-                const unread = contactUnreadCounts[actor.actor_id] || 0;
-                // Last message preview
-                const lastMsg = [...conversation].reverse().find((m: any) => m.actor === actor.actor_id && m.role === "npc");
-                const busyMsg = isBusyAfterPhase ? ((actor as any).busy_message || "Occupé") : "Occupé";
-                const preview = isAvailable
-                  ? (lastMsg ? (lastMsg.content.length > 40 ? lastMsg.content.slice(0, 40) + "..." : lastMsg.content) : (actor.contact_preview || ""))
-                  : busyMsg;
-                return (
-                  <li
-                    key={actor.actor_id}
-                    onClick={() => {
-                      // Don't open the chat panel for contacts that aren't active
-                      // in the current phase (avoids the "phantom KOL chat" bug).
-                      if (!isAvailable) return;
-                      setSelectedContact(actor.actor_id);
-                      setMainView("chat");
-                    }}
-                    style={{
-                      display: "flex", alignItems: "center", gap: 10,
-                      padding: "10px 8px", borderRadius: 8,
-                      marginBottom: 2, cursor: isAvailable ? "pointer" : "not-allowed",
-                      background: isSelected ? (isAvailable ? "#f0f0ff" : "#f5f5f5") : "transparent",
-                      borderLeft: isSelected ? (isAvailable ? "3px solid #5b5fc7" : "3px solid #ccc") : "3px solid transparent",
-                      opacity: isAvailable ? 1 : 0.55,
-                      transition: "all .1s",
-                    }}
-                    onMouseEnter={(e) => { if (!isSelected && isAvailable) e.currentTarget.style.background = "#f8f8fb"; }}
-                    onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = "transparent"; }}
-                  >
-                    <div style={{ position: "relative" }}>
-                      <Avatar initials={ini} color={color} size={36} status={status} />
-                      {unread > 0 && isAvailable && (
-                        <span style={{
-                          position: "absolute", top: -2, right: -4,
-                          background: "#e94b3c", color: "#fff", borderRadius: 10,
-                          fontSize: 10, fontWeight: 700, padding: "1px 5px", minWidth: 16, textAlign: "center",
-                        }}>
-                          {unread}
-                        </span>
-                      )}
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontSize: 13, fontWeight: isSelected && isAvailable ? 700 : 600, color: !isAvailable ? "#aaa" : (isSelected ? "#5b5fc7" : "#333"), whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {actor.name}
-                      </div>
-                      <div style={{ fontSize: 11, color: "#999", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-                        {preview}
-                      </div>
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-
-            {/* Phase objective — hidden if show_objective is false at scenario or phase level */}
-            {(() => {
-              const phase = scenario.phases[session.currentPhaseIndex];
-              const globalShow = (scenario.meta as any).show_objective !== false;
-              const phaseShow = (phase as any).show_objective;
-              // Phase-level overrides global: if phase defines it, use it; otherwise fall back to global
-              const shouldShow = phaseShow !== undefined ? phaseShow !== false : globalShow;
-              if (!shouldShow) return null;
-              return (
-                <div style={{ marginTop: 16, padding: "10px", background: "#f8f8ff", borderRadius: 8, borderLeft: "3px solid #5b5fc7" }}>
-                  <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase" }}>
-                    Objectif
-                  </h4>
-                  <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.4 }}>
-                    {phaseObjective}
-                  </p>
-                </div>
-              );
-            })()}
-          </div>
-        </aside>
+        <LeftSidebar
+          mainView={mainView}
+          onMainViewChange={(v) => setMainView(v as MainView)}
+          unreadMails={unreadMails}
+          hasMindmapTool={hasMindmapTool}
+          mailLockedForNow={mailLockedForNow}
+          visibleContacts={visibleContacts}
+          selectedContact={selectedContact}
+          onSelectContact={(actorId) => {
+            setSelectedContact(actorId);
+            setMainView("chat");
+          }}
+          resolveActor={resolveActor}
+          currentPhaseAiActors={currentPhaseAiActors}
+          conversation={conversation}
+          contactUnreadCounts={contactUnreadCounts}
+          session={session}
+          scenario={scenario}
+          phaseObjective={phaseObjective}
+        />
 
         {/* ═══════ CENTER — Main content ═══════ */}
         <main style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden", background: "#fff" }}>
@@ -4153,90 +3686,16 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
         </main>
 
         {/* ═══════ RIGHT PANEL ═══════ */}
-        <aside style={{ width: 280, flexShrink: 0, background: "#fafafa", borderLeft: "1px solid #e0e0e0", display: "flex", flexDirection: "column", overflow: "hidden" }}>
-
-          {/* Panel tabs */}
-          <div style={{ display: "flex", borderBottom: "1px solid #e8e8e8", flexShrink: 0 }}>
-            <button
-              onClick={() => setRightPanel("info")}
-              style={{
-                flex: 1, padding: "10px", border: "none", cursor: "pointer",
-                background: rightPanel === "info" ? "#fff" : "transparent",
-                borderBottom: rightPanel === "info" ? "2px solid #5b5fc7" : "2px solid transparent",
-                fontSize: 12, fontWeight: rightPanel === "info" ? 700 : 500,
-                color: rightPanel === "info" ? "#5b5fc7" : "#666",
-              }}
-            >
-              📋 Contexte
-            </button>
-            <button
-              onClick={() => setRightPanel("docs")}
-              style={{
-                flex: 1, padding: "10px", border: "none", cursor: "pointer",
-                background: rightPanel === "docs" ? "#fff" : "transparent",
-                borderBottom: rightPanel === "docs" ? "2px solid #5b5fc7" : "2px solid transparent",
-                fontSize: 12, fontWeight: rightPanel === "docs" ? 700 : 500,
-                color: rightPanel === "docs" ? "#5b5fc7" : "#666",
-              }}
-            >
-              📁 Documents ({allDocuments.length})
-            </button>
-          </div>
-
-          {/* Panel content */}
-          <div style={{ flex: 1, overflowY: "auto", padding: 14 }}>
-
-            {/* ── Context panel ── */}
-            {rightPanel === "info" && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                {/* Narrative sections */}
-                {scenario.narrative?.context && (
-                  <div>
-                    <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase" }}>Contexte</h4>
-                    <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.5 }}>{scenario.narrative.context}</p>
-                  </div>
-                )}
-                {scenario.narrative?.mission && (
-                  <div>
-                    <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase" }}>Mission</h4>
-                    <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.5 }}>{scenario.narrative.mission}</p>
-                  </div>
-                )}
-                {scenario.narrative?.initial_situation && (
-                  <div>
-                    <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase" }}>Situation initiale</h4>
-                    <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.5 }}>{scenario.narrative.initial_situation}</p>
-                  </div>
-                )}
-                {scenario.narrative?.trigger && (
-                  <div>
-                    <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#5b5fc7", textTransform: "uppercase" }}>Déclencheur</h4>
-                    <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.5 }}>{scenario.narrative.trigger}</p>
-                  </div>
-                )}
-                {scenario.narrative?.background_fact && (scenario.meta as any).show_background_fact !== false && (
-                  <div style={{ padding: 10, background: "#fff8e6", borderRadius: 6, border: "1px solid #f5d680" }}>
-                    <h4 style={{ margin: "0 0 4px", fontSize: 11, fontWeight: 700, color: "#b8860b", textTransform: "uppercase" }}>Info vérifiée</h4>
-                    <p style={{ margin: 0, fontSize: 12, color: "#444", lineHeight: 1.5 }}>{scenario.narrative.background_fact}</p>
-                  </div>
-                )}
-
-                {/* Score hidden globally */}
-              </div>
-            )}
-
-            {/* ── Documents panel ── */}
-            {rightPanel === "docs" && (
-              <DocumentsView
-                documents={allDocuments}
-                scenarioId={scenarioId}
-                currentPhaseId={currentPhaseId}
-                pacteSigned={pacteSigned}
-                onOpenInlineDoc={(title, content) => setInlineDocContent({ title, content })}
-              />
-            )}
-          </div>
-        </aside>
+        <RightPanel
+          tab={rightPanel}
+          onTabChange={setRightPanel}
+          scenario={scenario}
+          allDocuments={allDocuments}
+          scenarioId={scenarioId as string}
+          currentPhaseId={currentPhaseId}
+          pacteSigned={pacteSigned}
+          onOpenInlineDoc={(title, content) => setInlineDocContent({ title, content })}
+        />
       </div>
       )}
 
