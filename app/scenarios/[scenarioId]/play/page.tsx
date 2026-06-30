@@ -47,6 +47,7 @@ import NotesView from "./NotesView";
 import ChatView from "./ChatView";
 import { usePhaseTimer } from "./hooks/usePhaseTimer";
 import { resolvePhaseHandler, InterviewHandler, ContractHandler, resolveModules, dispatch, buildModuleContext } from "./handlers";
+import { runContractNegotiation, detectsExclusivity as detectsExcl } from "./handlers/contractNegotiationSenders";
 import type { ModuleAction, ContractModuleContext } from "./handlers";
 import type { MailModuleExtra } from "./handlers";
 import { applyModuleActions as applyModuleActionsImpl, type ApplyModuleActionsDeps } from "./handlers/applyModuleActions";
@@ -2251,116 +2252,98 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   }
 
   // ════════════════════════════════════════════════════════════════════
-  // PACTE NEGOTIATION — send amendment message to CTO via contracts module
+  // 3 CONTRACT NEGOTIATION SENDERS (S0/S2/S5) — one mechanism, 3 UX wires
+  // ────────────────────────────────────────────────────────────────────
+  // All 3 use the same async flow in handlers/contractNegotiationSenders.
+  // Per-contract differences are passed as opts:
+  //   - S0 pacte:      exclusivity detection + flag updates
+  //   - S2 novadev:    no extras (pure standard)
+  //   - S5 exceptions: session message logging for the debrief
   // ════════════════════════════════════════════════════════════════════
+
   async function sendPacteNegotiationMessage(textOverride?: string) {
     const text = textOverride || amendmentInput.trim();
-    if (!text || pacteThreadLoading) return;
-    if (!textOverride) setAmendmentInput("");
-    setPacteThread((prev) => [...prev, { role: "player", content: text }]);
-    // Detect exclusivity mention (S0 pedagogical trap)
-    const mentionsExcl = detectsExclusivity(text);
-    if (session) {
-      const flagUpdates: Record<string, any> = { asked_modification: true };
-      if (mentionsExcl) flagUpdates.pacte_signed_clean = true;
-      setSession({ ...session, flags: { ...session.flags, ...flagUpdates } });
-    }
-    // Get CTO response via module
-    setPacteThreadLoading(true);
-    const negConfig = ContractHandler.getNegotiationConfig("s0_pacte");
-    try {
-      const ctoId = chosenCtoId || "sofia_renault";
-      const activePrompt = aiPromptsMapRef.current[ctoId] || aiPromptRef.current;
-      const result = await sendNegotiationMessage(text, pacteArticles, pacteThread, {
-        roleplayPrompt: activePrompt,
-        phaseTitle: negConfig.phaseTitle,
-        phaseFocus: negConfig.phaseFocus,
-        narrative: scenario?.narrative || {},
-        playerName: displayPlayerName,
-        apiHeaders,
-      });
-      // Apply modifications to articles
-      if (result.modifications.length > 0) {
-        setPacteArticles((prev) => applyModifications(prev, result.modifications));
-      }
-      setPacteThread((prev) => [...prev, { role: "counterpart", content: result.displayReply }]);
-      // Check acceptance of exclusivity amendment
-      if (detectsAcceptance(result.displayReply) && mentionsExcl) {
-        if (session) {
-          setSession({ ...session, flags: { ...session.flags, pacte_signed_clean: true } });
-        }
-      }
-    } catch {
-      setPacteThread((prev) => [...prev, { role: "counterpart", content: negConfig.fallbackError }]);
-    }
-    setPacteThreadLoading(false);
+    const ctoId = chosenCtoId || "sofia_renault";
+    const activePrompt = aiPromptsMapRef.current[ctoId] || aiPromptRef.current;
+    const mentionsExcl = detectsExcl(text);
+    await runContractNegotiation({
+      contractType: "s0_pacte",
+      text,
+      isAlreadyLoading: pacteThreadLoading,
+      articles: pacteArticles,
+      thread: pacteThread,
+      setArticles: setPacteArticles,
+      setThread: setPacteThread,
+      setLoading: setPacteThreadLoading,
+      clearInput: textOverride ? undefined : () => setAmendmentInput(""),
+      roleplayPrompt: activePrompt,
+      narrative: scenario?.narrative || {},
+      playerName: displayPlayerName,
+      apiHeaders,
+      pacteFlagsHook: {
+        mentionsExclusivity: mentionsExcl,
+        applyFlagsBeforeCall: (updates) => {
+          if (session) setSession({ ...session, flags: { ...session.flags, ...updates } });
+        },
+        onAcceptanceAfterExcl: () => {
+          if (session) setSession({ ...session, flags: { ...session.flags, pacte_signed_clean: true } });
+        },
+      },
+    });
   }
 
-  // ════════════════════════════════════════════════════════════════════
-  // NOVADEV NEGOTIATION — send message to Thomas Vidal via contracts module
-  // ════════════════════════════════════════════════════════════════════
   async function sendNovadevNegotiationMessage(textOverride?: string) {
+    if (!session || !scenario) return;
     const text = textOverride || novadevNegInput.trim();
-    if (!text || novadevThreadLoading || !session || !scenario) return;
-    if (!textOverride) setNovadevNegInput("");
-    setNovadevThread((prev) => [...prev, { role: "player", content: text }]);
-    setNovadevThreadLoading(true);
     const negConfig = ContractHandler.getNegotiationConfig("s2_novadev");
-    try {
-      const activePrompt = aiPromptsMapRef.current[negConfig.actorId] || aiPromptRef.current;
-      const result = await sendNegotiationMessage(text, novadevArticles, novadevThread, {
-        roleplayPrompt: activePrompt,
-        phaseTitle: negConfig.phaseTitle,
-        phaseFocus: negConfig.phaseFocus,
-        narrative: scenario?.narrative || {},
-        playerName: displayPlayerName,
-        apiHeaders,
-      });
-      if (result.modifications.length > 0) {
-        setNovadevArticles((prev) => applyModifications(prev, result.modifications));
-      }
-      setNovadevThread((prev) => [...prev, { role: "counterpart", content: result.displayReply }]);
-    } catch {
-      setNovadevThread((prev) => [...prev, { role: "counterpart", content: negConfig.fallbackError }]);
-    }
-    setNovadevThreadLoading(false);
+    const activePrompt = aiPromptsMapRef.current[negConfig.actorId] || aiPromptRef.current;
+    await runContractNegotiation({
+      contractType: "s2_novadev",
+      text,
+      isAlreadyLoading: novadevThreadLoading,
+      articles: novadevArticles,
+      thread: novadevThread,
+      setArticles: setNovadevArticles,
+      setThread: setNovadevThread,
+      setLoading: setNovadevThreadLoading,
+      clearInput: textOverride ? undefined : () => setNovadevNegInput(""),
+      roleplayPrompt: activePrompt,
+      narrative: scenario?.narrative || {},
+      playerName: displayPlayerName,
+      apiHeaders,
+    });
   }
 
-  // ════════════════════════════════════════════════════════════════════
-  // EXCEPTIONS NEGOTIATION — send message to Me Vasseur via contracts module (S5)
-  // ════════════════════════════════════════════════════════════════════
   async function sendExceptionsNegotiationMessage(textOverride?: string) {
+    if (!session || !scenario) return;
     const text = textOverride || exceptionsNegInput.trim();
-    if (!text || exceptionsThreadLoading || !session || !scenario) return;
-    if (!textOverride) setExceptionsNegInput("");
-    setExceptionsThread((prev) => [...prev, { role: "player", content: text }]);
-    setExceptionsThreadLoading(true);
     const negConfig = ContractHandler.getNegotiationConfig("s5_exceptions");
-    try {
-      const activePrompt = aiPromptsMapRef.current[negConfig.actorId] || aiPromptRef.current;
-      const result = await sendNegotiationMessage(text, exceptionsArticles, exceptionsThread, {
-        roleplayPrompt: activePrompt,
-        phaseTitle: negConfig.phaseTitle,
-        phaseFocus: negConfig.phaseFocus,
-        narrative: scenario?.narrative || {},
-        playerName: displayPlayerName,
-        apiHeaders,
-      });
-      if (result.modifications.length > 0) {
-        setExceptionsArticles((prev) => applyModifications(prev, result.modifications));
-      }
-      setExceptionsThread((prev) => [...prev, { role: "counterpart", content: result.displayReply }]);
-      // Track negotiation in session messages
-      if (session) {
-        const next = cloneSession(session);
-        addPlayerMessage(next, `[Négo contrat] ${text}`, negConfig.actorId);
-        addAIMessage(next, result.displayReply, negConfig.actorId);
-        setSession(next);
-      }
-    } catch {
-      setExceptionsThread((prev) => [...prev, { role: "counterpart", content: negConfig.fallbackError }]);
-    }
-    setExceptionsThreadLoading(false);
+    const activePrompt = aiPromptsMapRef.current[negConfig.actorId] || aiPromptRef.current;
+    await runContractNegotiation({
+      contractType: "s5_exceptions",
+      text,
+      isAlreadyLoading: exceptionsThreadLoading,
+      articles: exceptionsArticles,
+      thread: exceptionsThread,
+      setArticles: setExceptionsArticles,
+      setThread: setExceptionsThread,
+      setLoading: setExceptionsThreadLoading,
+      clearInput: textOverride ? undefined : () => setExceptionsNegInput(""),
+      roleplayPrompt: activePrompt,
+      narrative: scenario?.narrative || {},
+      playerName: displayPlayerName,
+      apiHeaders,
+      sessionLog: {
+        actorId: negConfig.actorId,
+        log: (playerLine, counterpartReply) => {
+          if (!session) return;
+          const next = cloneSession(session);
+          addPlayerMessage(next, `[Négo contrat] ${playerLine}`, negConfig.actorId);
+          addAIMessage(next, counterpartReply, negConfig.actorId);
+          setSession(next);
+        },
+      },
+    });
   }
 
   // ════════════════════════════════════════════════════════════════════
