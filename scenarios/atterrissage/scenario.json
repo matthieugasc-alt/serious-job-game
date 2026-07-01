@@ -369,27 +369,32 @@
           {
             "id": "criterion_1",
             "description": "Identifie que le visa de Jorge Huamán Quispe expire aujourd'hui (7 avril)",
-            "expected": true
+            "expected": true,
+            "severity": "required"
           },
           {
             "id": "criterion_2",
             "description": "Comprend que la mission dure jusqu'au 12 avril, au-delà de la validité du visa",
-            "expected": true
+            "expected": true,
+            "severity": "required"
           },
           {
             "id": "criterion_3",
             "description": "Note que la compagnie aérienne l'a laissé embarquer malgré tout",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_4",
             "description": "Identifie le risque concret : refoulement par la PAF à Bordeaux",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_5",
             "description": "Remarque que les deux autres membres de la délégation sont en règle",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           }
         ]
       }
@@ -457,27 +462,32 @@
           {
             "id": "criterion_1",
             "description": "Identifie le consulat de France à Madrid comme interlocuteur pertinent",
-            "expected": true
+            "expected": true,
+            "severity": "required"
           },
           {
             "id": "criterion_2",
             "description": "Propose d'écrire un courriel formel (pas seulement un appel)",
-            "expected": true
+            "expected": true,
+            "severity": "required"
           },
           {
             "id": "criterion_3",
             "description": "Pense à mettre la PAF en copie",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_4",
             "description": "Envisage une action parallèle (appel PAF + mail consulat)",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_5",
             "description": "Arrive à la stratégie sans aide directionnelle forte de Romain",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           }
         ]
       }

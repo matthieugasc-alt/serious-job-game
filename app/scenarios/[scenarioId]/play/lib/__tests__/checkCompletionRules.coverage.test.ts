@@ -125,14 +125,21 @@ const RULE_STRESS_CASES: Record<
     expectedWhenFailing: false,
     description: "phase avec min_criteria_count=3 non atteint → false (câblage E3)",
   },
+  critical_failure_criteria: {
+    // W-chantier: câblage runtime dans applyPhaseObservation (W2).
+    // Standalone dans isCurrentPhaseValidatedByRules → toujours false attendu.
+    rules: { critical_failure_criteria: ["divulgated_secret"] },
+    expectedWhenFailing: false,
+    description: "phase avec critical_failure_criteria → false (câblage W2)",
+  },
 };
 
 describe("completion_rules — coverage garde-fou", () => {
   it("COMPLETION_RULES_KEYS contient toutes les keys utilisables du type", () => {
     // Cohérence de base: la liste exportée n'est pas vide et contient
-    // exactement 9 keys (voir CompletionRules dans types.ts).
-    // 7 legacy + 2 E-chantier (required_criteria, min_criteria_count).
-    expect(COMPLETION_RULES_KEYS.length).toBe(9);
+    // exactement 10 keys (voir CompletionRules dans types.ts).
+    // 7 legacy + 2 E-chantier + 1 W-chantier (critical_failure_criteria).
+    expect(COMPLETION_RULES_KEYS.length).toBe(10);
     // Vérifie qu'aucune duplication.
     const asSet = new Set(COMPLETION_RULES_KEYS);
     expect(asSet.size).toBe(COMPLETION_RULES_KEYS.length);

@@ -44,11 +44,13 @@ describe("checkEvaluationCoverage — happy paths", () => {
     expect(issuesFor(phase)).toEqual([]);
   });
 
-  it("min_criteria_count = observed.length (exactement) → OK", () => {
+  it("min_criteria_count = observed.length (exactement) + required OK → aucune issue", () => {
+    // NOTE post-W5: la phase doit avoir au moins un chemin d'échec.
+    // Ici required_criteria fournit ce chemin (a manquant = échec).
     const phase = {
       phase_id: "p1",
       evaluation: { observed_criteria: [{ id: "a", description: "" }, { id: "b", description: "" }] },
-      completion_rules: { min_criteria_count: 2 },
+      completion_rules: { min_criteria_count: 2, required_criteria: ["a"] },
     };
     expect(issuesFor(phase)).toEqual([]);
   });
@@ -151,6 +153,88 @@ describe("checkEvaluationCoverage — EVAL_RULE_WITHOUT_CRITERIA", () => {
     };
     const issues = issuesFor(phase);
     expect(issues.some((i) => i.code === "EVAL_RULE_WITHOUT_CRITERIA")).toBe(true);
+  });
+});
+
+describe("checkEvaluationCoverage — W5 EVAL_CRITICAL_NOT_DECLARED", () => {
+  it("critical_failure_criteria ref un id inconnu → erreur", () => {
+    const phase = {
+      phase_id: "p1",
+      evaluation: { observed_criteria: [{ id: "a", description: "", severity: "critical" }] },
+      completion_rules: { required_criteria: ["a"], critical_failure_criteria: ["ghost"] },
+    };
+    const issues = issuesFor(phase);
+    expect(issues.some((i) => i.code === "EVAL_CRITICAL_NOT_DECLARED")).toBe(true);
+  });
+});
+
+describe("checkEvaluationCoverage — W5 EVAL_CRITICAL_SEVERITY_MISMATCH", () => {
+  it("critical_failure_criteria ref un id avec severity != critical → erreur", () => {
+    const phase = {
+      phase_id: "p1",
+      evaluation: {
+        observed_criteria: [{ id: "a", description: "", severity: "required" }],
+      },
+      completion_rules: { required_criteria: ["a"], critical_failure_criteria: ["a"] },
+    };
+    const issues = issuesFor(phase);
+    expect(issues.some((i) => i.code === "EVAL_CRITICAL_SEVERITY_MISMATCH")).toBe(true);
+  });
+
+  it("severity=critical alignée → pas d'erreur mismatch", () => {
+    const phase = {
+      phase_id: "p1",
+      evaluation: {
+        observed_criteria: [
+          { id: "greet", description: "", severity: "required" },
+          { id: "insulte", description: "", severity: "critical" },
+        ],
+      },
+      completion_rules: { required_criteria: ["greet"], critical_failure_criteria: ["insulte"] },
+    };
+    expect(issuesFor(phase).filter((i) => i.code === "EVAL_CRITICAL_SEVERITY_MISMATCH")).toEqual([]);
+  });
+});
+
+describe("checkEvaluationCoverage — W5 EVAL_NO_FAIL_PATH", () => {
+  it("evaluation déclarée mais ni required, ni critical → erreur", () => {
+    const phase = {
+      phase_id: "p1",
+      evaluation: {
+        observed_criteria: [
+          { id: "bonus1", description: "", severity: "bonus" },
+          { id: "minor1", description: "", severity: "minor" },
+        ],
+      },
+      completion_rules: { min_criteria_count: 1 },
+    };
+    const issues = issuesFor(phase);
+    expect(issues.some((i) => i.code === "EVAL_NO_FAIL_PATH")).toBe(true);
+  });
+
+  it("required_criteria présent → pas d'erreur no-fail-path", () => {
+    const phase = {
+      phase_id: "p1",
+      evaluation: {
+        observed_criteria: [{ id: "a", description: "", severity: "bonus" }, { id: "b", description: "", severity: "required" }],
+      },
+      completion_rules: { required_criteria: ["b"] },
+    };
+    expect(issuesFor(phase).filter((i) => i.code === "EVAL_NO_FAIL_PATH")).toEqual([]);
+  });
+
+  it("severity=critical sur au moins 1 critère → pas d'erreur no-fail-path", () => {
+    const phase = {
+      phase_id: "p1",
+      evaluation: {
+        observed_criteria: [
+          { id: "bonus1", description: "", severity: "bonus" },
+          { id: "insulte", description: "", severity: "critical" },
+        ],
+      },
+      completion_rules: { min_criteria_count: 1 },
+    };
+    expect(issuesFor(phase).filter((i) => i.code === "EVAL_NO_FAIL_PATH")).toEqual([]);
   });
 });
 

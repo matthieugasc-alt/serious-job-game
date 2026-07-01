@@ -20,7 +20,11 @@ export type GameEventType =
   | "phase_completed"
   | "scenario_completed"
   | "outcome_applied"
-  | "phase_abandoned";
+  | "phase_abandoned"
+  // Y-chantier: pedagogical telemetry
+  | "phase_evaluated"
+  | "help_requested"
+  | "scenario_abandoned";
 
 /** A single game event — immutable once written. */
 export interface GameEvent {

@@ -657,6 +657,13 @@ export type CompletionRules = {
    * of any REMAINING (non-required) criteria.
    */
   min_criteria_count?: number;
+
+  /**
+   * W-chantier — ids that trigger IMMEDIATE phase failure when observed=true.
+   * Short-circuits every other rule. Each id must be declared in
+   * evaluation.observed_criteria with severity='critical' (garde-fou W5).
+   */
+  critical_failure_criteria?: string[];
 };
 
 /**
@@ -682,7 +689,25 @@ export type PhaseEvaluationCriterion = {
   expected?: boolean;
   /** Weight for min_criteria_count (default 1). Sum >= min_criteria_count → pass. */
   weight?: number;
+  /**
+   * W-chantier — pedagogical severity:
+   * - "critical" : observed=true short-circuits into failure (rédhibitoire)
+   * - "required" : must be matched (expected value observed) to pass
+   * - "bonus"    : optional positive; adds to score, doesn't gate
+   * - "minor"    : low-weight contribution to min_criteria_count
+   * Defaults to "required" when omitted (preserves E-chantier behavior).
+   */
+  severity?: CriterionSeverity;
 };
+
+export type CriterionSeverity = "critical" | "required" | "bonus" | "minor";
+
+export const CRITERION_SEVERITIES = [
+  "critical",
+  "required",
+  "bonus",
+  "minor",
+] as const satisfies readonly CriterionSeverity[];
 
 /**
  * ⚠ GARDE-FOU AUTOMATIQUE — source de vérité runtime.
@@ -710,6 +735,8 @@ export const COMPLETION_RULES_KEYS = [
   // pour rester compat avec isCurrentPhaseValidatedByRules).
   "required_criteria",
   "min_criteria_count",
+  // W-chantier — critical severity handling.
+  "critical_failure_criteria",
 ] as const satisfies readonly (keyof CompletionRules)[];
 
 /**

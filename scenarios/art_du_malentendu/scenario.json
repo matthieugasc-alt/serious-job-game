@@ -366,32 +366,38 @@
           {
             "id": "criterion_1",
             "description": "Rédige un premier SMS professionnel et chaleureux en anglais",
-            "expected": true
+            "expected": true,
+            "severity": "required"
           },
           {
             "id": "criterion_2",
             "description": "Mentionne explicitement l'âge du public (7-10 ans) à l'artiste",
-            "expected": true
+            "expected": true,
+            "severity": "required"
           },
           {
             "id": "criterion_3",
             "description": "Identifie diplomatiquement les propos problématiques à éviter",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_4",
             "description": "Propose des alternatives ou des angles positifs à l'artiste",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_5",
             "description": "Maintient une relation cordiale malgré la résistance de l'artiste",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_6",
             "description": "Obtient un engagement (même partiel) de l'artiste à adapter son discours",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           }
         ]
       }
@@ -494,32 +500,38 @@
           {
             "id": "criterion_1",
             "description": "Présente l'artiste de manière accessible et engageante pour des 7-10 ans",
-            "expected": true
+            "expected": true,
+            "severity": "required"
           },
           {
             "id": "criterion_2",
             "description": "Explique le concept de l'exposition sans utiliser de jargon artistique",
-            "expected": true
+            "expected": true,
+            "severity": "required"
           },
           {
             "id": "criterion_3",
             "description": "Prépare les enfants à l'échange interculturel (Japon, langue différente)",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_4",
             "description": "Adopte un ton adapté à l'âge (ni trop infantilisant, ni trop adulte)",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_5",
             "description": "Structure sa présentation avec un début, un développement et une ouverture vers les questions",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_6",
             "description": "Prend en compte les mains levées sans se laisser déconcentrer",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           }
         ]
       }
@@ -629,37 +641,44 @@
           {
             "id": "criterion_1",
             "description": "Traduit fidèlement les questions des enfants du français vers l'anglais",
-            "expected": true
+            "expected": true,
+            "severity": "required"
           },
           {
             "id": "criterion_2",
             "description": "Traduit les réponses de l'artiste en les adaptant au public enfantin",
-            "expected": true
+            "expected": true,
+            "severity": "required"
           },
           {
             "id": "criterion_3",
             "description": "Reformule avec tact les propos inappropriés sans trahir le sens général",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_4",
             "description": "Gère les situations imprévues (cliché qui échappe, question sensible d'un enfant)",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_5",
             "description": "Maintient un équilibre entre fidélité à l'artiste et protection du jeune public",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_6",
             "description": "Anime l'interaction de manière fluide et dynamique",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           },
           {
             "id": "criterion_7",
             "description": "Répond avec bienveillance aux questions naïves sur les différences culturelles",
-            "expected": true
+            "expected": true,
+            "severity": "bonus"
           }
         ]
       }

@@ -200,6 +200,141 @@ describe("applyPhaseObservation — drift detection", () => {
   });
 });
 
+// ─── W-chantier: severity semantics ─────────────────────────────
+
+describe("applyPhaseObservation — severity: critical (short-circuit)", () => {
+  const evalWithCritical: PhaseEvaluation = {
+    observed_criteria: [
+      { id: "greeting", description: "Bonjour", severity: "required" },
+      { id: "divulgated_secret", description: "Secret", severity: "critical" },
+    ],
+  };
+
+  it("critical:false observé → passe (rien ne se déclenche)", () => {
+    const r = applyPhaseObservation(
+      mkPhase(evalWithCritical, { required_criteria: ["greeting"] }),
+      obs({ greeting: true, divulgated_secret: false }),
+    );
+    expect(r.passed).toBe(true);
+    expect(r.appliedRule).toBe("required_criteria");
+    expect(r.criticalFailures).toEqual([]);
+  });
+
+  it("critical:true observé → échec immédiat même si required OK", () => {
+    const r = applyPhaseObservation(
+      mkPhase(evalWithCritical, { required_criteria: ["greeting"] }),
+      obs({ greeting: true, divulgated_secret: true }),
+    );
+    expect(r.passed).toBe(false);
+    expect(r.appliedRule).toBe("critical_failure");
+    expect(r.criticalFailures).toEqual(["divulgated_secret"]);
+    expect(r.reason).toContain("Phase échouée");
+    expect(r.reason).toContain("divulgated_secret");
+  });
+
+  it("critical_failure_criteria côté rules équivaut à severity=critical côté criterion", () => {
+    const evalNoSeverity: PhaseEvaluation = {
+      observed_criteria: [
+        { id: "greeting", description: "Bonjour" },
+        { id: "insulte", description: "Insulte le client" },
+      ],
+    };
+    const r = applyPhaseObservation(
+      mkPhase(evalNoSeverity, {
+        required_criteria: ["greeting"],
+        critical_failure_criteria: ["insulte"],
+      }),
+      obs({ greeting: true, insulte: true }),
+    );
+    expect(r.passed).toBe(false);
+    expect(r.appliedRule).toBe("critical_failure");
+    expect(r.criticalFailures).toEqual(["insulte"]);
+  });
+
+  it("plusieurs criticals déclenchés → tous surfacés", () => {
+    const evalTwoCritical: PhaseEvaluation = {
+      observed_criteria: [
+        { id: "greeting", description: "", severity: "required" },
+        { id: "secret_a", description: "", severity: "critical" },
+        { id: "secret_b", description: "", severity: "critical" },
+      ],
+    };
+    const r = applyPhaseObservation(
+      mkPhase(evalTwoCritical, { required_criteria: ["greeting"] }),
+      obs({ greeting: true, secret_a: true, secret_b: true }),
+    );
+    expect(r.passed).toBe(false);
+    expect(r.criticalFailures).toContain("secret_a");
+    expect(r.criticalFailures).toContain("secret_b");
+  });
+});
+
+describe("applyPhaseObservation — severity: bonus (score, don't gate)", () => {
+  it("bonus matched → surfacé dans bonusMatched, ne conditionne pas le pass", () => {
+    const evalWithBonus: PhaseEvaluation = {
+      observed_criteria: [
+        { id: "core", description: "", severity: "required" },
+        { id: "extra", description: "", severity: "bonus" },
+      ],
+    };
+    const r = applyPhaseObservation(
+      mkPhase(evalWithBonus, { required_criteria: ["core"] }),
+      obs({ core: true, extra: true }),
+    );
+    expect(r.passed).toBe(true);
+    expect(r.bonusMatched).toEqual(["extra"]);
+    expect(r.reason).toContain("Bonus");
+  });
+
+  it("bonus manqué → pass reste true si required OK", () => {
+    const evalWithBonus: PhaseEvaluation = {
+      observed_criteria: [
+        { id: "core", description: "", severity: "required" },
+        { id: "extra", description: "", severity: "bonus" },
+      ],
+    };
+    const r = applyPhaseObservation(
+      mkPhase(evalWithBonus, { required_criteria: ["core"] }),
+      obs({ core: true, extra: false }),
+    );
+    expect(r.passed).toBe(true);
+    expect(r.bonusMatched).toEqual([]);
+  });
+});
+
+describe("applyPhaseObservation — severity: pondération dérivée", () => {
+  it("min_criteria_count utilise le poids severity-derived (required=2, minor=0.5)", () => {
+    const evalMixed: PhaseEvaluation = {
+      observed_criteria: [
+        { id: "big", description: "", severity: "required" },  // weight=2
+        { id: "small", description: "", severity: "minor" },   // weight=0.5
+      ],
+    };
+    const r = applyPhaseObservation(
+      mkPhase(evalMixed, { min_criteria_count: 2 }),
+      obs({ big: true, small: true }),
+    );
+    // big(2) + small(0.5) = 2.5 >= 2 → passed
+    expect(r.passed).toBe(true);
+    expect(r.weightedScore).toBe(2.5);
+  });
+
+  it("weight explicite gagne sur severity-derived", () => {
+    const evalExplicit: PhaseEvaluation = {
+      observed_criteria: [
+        { id: "override", description: "", severity: "required", weight: 0.1 },
+      ],
+    };
+    const r = applyPhaseObservation(
+      mkPhase(evalExplicit, { min_criteria_count: 1 }),
+      obs({ override: true }),
+    );
+    // 0.1 < 1 → failed
+    expect(r.passed).toBe(false);
+    expect(r.weightedScore).toBe(0.1);
+  });
+});
+
 // ─── Determinism ────────────────────────────────────────────────
 
 describe("applyPhaseObservation — déterminisme", () => {

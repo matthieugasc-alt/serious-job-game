@@ -96,5 +96,52 @@ export function checkEvaluationCoverage(phase, phasePath) {
     });
   }
 
+  // W-chantier W5 — critical_failure_criteria must reference severity='critical'
+  const criticalIds = Array.isArray(phase.completion_rules?.critical_failure_criteria)
+    ? phase.completion_rules.critical_failure_criteria
+    : [];
+  const severityOf = new Map();
+  for (const c of observedCriteria) {
+    if (typeof c?.id === "string") severityOf.set(c.id, c.severity);
+  }
+  for (const cid of criticalIds) {
+    if (typeof cid !== "string") continue;
+    if (!observedIds.has(cid)) {
+      issues.push({
+        severity: "error",
+        code: "EVAL_CRITICAL_NOT_DECLARED",
+        message: `Phase "${pid}" completion_rules.critical_failure_criteria references "${cid}" which is not declared in evaluation.observed_criteria`,
+        path: `${p}.completion_rules.critical_failure_criteria`,
+      });
+    } else if (severityOf.get(cid) !== undefined && severityOf.get(cid) !== "critical") {
+      issues.push({
+        severity: "error",
+        code: "EVAL_CRITICAL_SEVERITY_MISMATCH",
+        message: `Phase "${pid}" completion_rules.critical_failure_criteria contains "${cid}" but its severity is "${severityOf.get(cid)}", not "critical". Set severity: "critical" on the criterion or remove it from critical_failure_criteria.`,
+        path: `${p}.evaluation.observed_criteria`,
+      });
+    }
+  }
+
+  // W-chantier W5 — no-fail-path: a migrated phase (declares evaluation)
+  // MUST have at least one path to failure (required_criteria non-empty
+  // OR at least one criterion with severity='critical' OR critical_failure_criteria).
+  // Otherwise the phase can never fail → not pedagogical.
+  if (observedIds.size > 0) {
+    const hasRequired = requiredCriteria.length > 0;
+    const hasCriticalDeclared = criticalIds.length > 0;
+    const hasCriticalSeverity = observedCriteria.some(
+      (c) => c?.severity === "critical",
+    );
+    if (!hasRequired && !hasCriticalDeclared && !hasCriticalSeverity) {
+      issues.push({
+        severity: "error",
+        code: "EVAL_NO_FAIL_PATH",
+        message: `Phase "${pid}" declares evaluation.observed_criteria but has no path to failure: no required_criteria, no critical_failure_criteria, no criterion with severity="critical". The phase cannot fail via the E/W-chantier — it's not pedagogical.`,
+        path: `${p}`,
+      });
+    }
+  }
+
   return issues;
 }

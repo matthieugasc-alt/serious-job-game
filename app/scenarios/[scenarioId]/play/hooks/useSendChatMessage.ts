@@ -16,7 +16,7 @@
 
 import type { PlayerContextValue } from "../contexts/PlayerContext";
 import { fetchChatWithRetry } from "../lib/fetchChatWithRetry";
-import { firePlayerMessage, fireAIMessage } from "@/app/lib/gameEvents/client";
+import { firePlayerMessage, fireAIMessage, firePhaseEvaluated } from "@/app/lib/gameEvents/client";
 import { applyPhaseObservation } from "@/app/lib/evaluation/applyPhaseObservation";
 
 export function useSendChatMessage(ctx: PlayerContextValue) {
@@ -180,6 +180,23 @@ export function useSendChatMessage(ctx: PlayerContextValue) {
         if (result.passed) {
           final.flags[`phase_evaluation_passed_${result.phaseId}`] = true;
         }
+        // Y-chantier: fire telemetry event for analytics dashboard.
+        try {
+          firePhaseEvaluated(
+            authTokenRef.current || "",
+            gameSessionIdRef.current,
+            scenarioId as string,
+            result.phaseId,
+            {
+              passed: result.passed,
+              appliedRule: result.appliedRule,
+              matched: [...result.matched],
+              missing: [...result.missing],
+              criticalFailures: [...result.criticalFailures],
+              criteriaObserved: result.observation.criteria,
+            },
+          );
+        } catch { /* never break */ }
       }
 
       // ── Success keywords: NPC positive response sets flags ──

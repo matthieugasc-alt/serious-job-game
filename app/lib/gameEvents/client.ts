@@ -178,3 +178,70 @@ export function firePhaseAbandoned(
     reason,
   });
 }
+
+// ── Y-chantier: telemetry events for analytics dashboard ──────────
+
+/**
+ * Fired after applyPhaseObservation() when the moteur has evaluated
+ * an AI observation. Emits ONE event per criterion — enables the
+ * analytics dashboard to compute match rates per criterion cheaply.
+ */
+export function firePhaseEvaluated(
+  token: string,
+  sessionId: string,
+  scenarioId: string,
+  phaseId: string,
+  observation: {
+    passed: boolean;
+    appliedRule: string;
+    matched: string[];
+    missing: string[];
+    criticalFailures: string[];
+    criteriaObserved: Record<string, boolean>;
+  },
+): void {
+  fireEvent(token, "phase_evaluated", sessionId, scenarioId, phaseId, {
+    passed: observation.passed,
+    appliedRule: observation.appliedRule,
+    matched: observation.matched,
+    missing: observation.missing,
+    criticalFailures: observation.criticalFailures,
+    criteriaObserved: observation.criteriaObserved,
+  });
+}
+
+/**
+ * Fired when the player asks for help (clicks a hint, opens the
+ * briefing overlay a 2nd+ time, opens a document during a
+ * blocking phase, etc.). Payload identifies what triggered.
+ */
+export function fireHelpRequested(
+  token: string,
+  sessionId: string,
+  scenarioId: string,
+  phaseId: string | null,
+  source: string,
+  meta: Record<string, unknown> = {},
+): void {
+  fireEvent(token, "help_requested", sessionId, scenarioId, phaseId, {
+    source,
+    ...meta,
+  });
+}
+
+/**
+ * Fired when the scenario is deliberately abandoned by the player
+ * (close tab, "Quitter" button, campaign paused). Distinct from
+ * scenario_completed which fires on natural end.
+ */
+export function fireScenarioAbandoned(
+  token: string,
+  sessionId: string,
+  scenarioId: string,
+  lastPhaseId: string | null,
+  reason: string,
+): void {
+  fireEvent(token, "scenario_abandoned", sessionId, scenarioId, lastPhaseId, {
+    reason,
+  });
+}

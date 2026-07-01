@@ -12,6 +12,11 @@ import {
   logScenarioCompleted,
   logPhaseAbandoned,
 } from "@/app/lib/gameEvents";
+import {
+  logPhaseEvaluated,
+  logHelpRequested,
+  logScenarioAbandoned,
+} from "@/app/lib/gameEvents/writer";
 
 /**
  * POST /api/game-events
@@ -119,6 +124,25 @@ export async function POST(req: NextRequest) {
         logPhaseAbandoned(
           sessionId, userId, scenarioId, phaseId || "",
           payload.phaseIndex ?? 0,
+          payload.reason || "unknown",
+        );
+        break;
+
+      case "phase_evaluated":
+        logPhaseEvaluated(sessionId, userId, scenarioId, phaseId || "", payload);
+        break;
+
+      case "help_requested":
+        logHelpRequested(
+          sessionId, userId, scenarioId, phaseId,
+          payload.source || "unknown",
+          payload,
+        );
+        break;
+
+      case "scenario_abandoned":
+        logScenarioAbandoned(
+          sessionId, userId, scenarioId, phaseId,
           payload.reason || "unknown",
         );
         break;

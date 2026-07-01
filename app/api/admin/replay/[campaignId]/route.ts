@@ -72,6 +72,7 @@ export async function GET(
         observed_criteria: p.evaluation?.observed_criteria,
         required_criteria: p.completion_rules?.required_criteria,
         min_criteria_count: p.completion_rules?.min_criteria_count,
+        critical_failure_criteria: p.completion_rules?.critical_failure_criteria,
       }));
     } catch {
       // scenario absent or malformed — skip silently

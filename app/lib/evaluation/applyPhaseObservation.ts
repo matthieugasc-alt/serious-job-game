@@ -25,6 +25,7 @@ import type {
   PhaseEvaluation,
   PhaseEvaluationCriterion,
   CompletionRules,
+  CriterionSeverity,
 } from "../types";
 
 // ─── Public types ───────────────────────────────────────────────
@@ -60,6 +61,7 @@ export interface EvaluationResult {
     | "required_criteria"
     | "min_criteria_count"
     | "required_and_min"
+    | "critical_failure"
     | "no_evaluation_declared"
     | "no_criteria_observed";
 
@@ -71,6 +73,18 @@ export interface EvaluationResult {
 
   /** Criteria the AI reported that aren't in the schema (schema drift). */
   readonly unexpected: readonly string[];
+
+  /**
+   * W-chantier — critical-severity criteria that were observed=true
+   * (which triggered immediate failure). Empty when no critical fired.
+   */
+  readonly criticalFailures: readonly string[];
+
+  /**
+   * W-chantier — bonus-severity criteria that were matched. Never
+   * gates the phase but boosts the pedagogical score.
+   */
+  readonly bonusMatched: readonly string[];
 
   /**
    * For min_criteria_count: weighted score achieved vs threshold.
@@ -125,6 +139,8 @@ export function applyPhaseObservation(
       matched: [],
       missing: [],
       unexpected: [],
+      criticalFailures: [],
+      bonusMatched: [],
       weightedScore: null,
       weightedThreshold: null,
       reason:
@@ -141,7 +157,6 @@ export function applyPhaseObservation(
   const observedIds = new Set(Object.keys(observation.criteria ?? {}));
 
   // Criteria the AI observed but the scenario doesn't declare.
-  // Signals schema drift — the prompt says X but the JSON evaluation lists Y.
   const unexpected = [...observedIds].filter((id) => !declaredIds.has(id));
 
   // Guard: nothing observed at all.
@@ -152,6 +167,8 @@ export function applyPhaseObservation(
       matched: [],
       missing: criteria.map((c) => c.id),
       unexpected,
+      criticalFailures: [],
+      bonusMatched: [],
       weightedScore: 0,
       weightedThreshold: null,
       reason:
@@ -173,8 +190,51 @@ export function applyPhaseObservation(
     else missing.push(c.id);
   }
 
-  // ── Apply completion_rules ──
+  // ── W-chantier: severity index for quick lookups ──
+  const severityOf = new Map<string, CriterionSeverity>();
+  for (const c of criteria) severityOf.set(c.id, effectiveSeverity(c));
+
+  // ── W-chantier: critical failure short-circuit ──
+  // A critical criterion FIRES when observation.criteria[id] === true
+  // (regardless of `expected`, since criticals model "player did an
+  // irrecoverable bad thing"). It short-circuits ALL other rules.
   const rules = phase?.completion_rules ?? {};
+  const declaredCriticalIds = new Set(rules.critical_failure_criteria ?? []);
+  const criticalFailures: string[] = [];
+  for (const c of criteria) {
+    const isCritical =
+      severityOf.get(c.id) === "critical" || declaredCriticalIds.has(c.id);
+    if (isCritical && observation.criteria?.[c.id] === true) {
+      criticalFailures.push(c.id);
+    }
+  }
+
+  if (criticalFailures.length > 0) {
+    return freeze({
+      passed: false,
+      appliedRule: "critical_failure",
+      matched,
+      missing: [],
+      unexpected,
+      criticalFailures,
+      bonusMatched: [],
+      weightedScore: null,
+      weightedThreshold: null,
+      reason:
+        `Phase échouée. Critère(s) critique(s) déclenché(s) : ${criticalFailures.join(", ")}. ` +
+        `Un critère critique observé annule immédiatement la phase — les autres règles ne sont pas évaluées.`,
+      timestamp,
+      phaseId,
+      observation,
+    });
+  }
+
+  // ── Bonus-matched are surfaced separately (never gate) ──
+  const bonusMatched = matched.filter(
+    (id) => severityOf.get(id) === "bonus",
+  );
+
+  // ── Apply completion_rules (required + min_criteria_count) ──
   const requiredIds = rules.required_criteria ?? [];
   const minCount = rules.min_criteria_count;
 
@@ -199,20 +259,20 @@ export function applyPhaseObservation(
   if (usesMinCount) {
     weightedThreshold = minCount!;
     // If both are used, only count NON-required matches toward the threshold
-    // (required is enforced separately).
+    // (required is enforced separately). Bonus + minor count with their weight.
     const eligibleCriteria = usesRequired
       ? criteria.filter((c) => !requiredIds.includes(c.id))
       : criteria;
     weightedScore = eligibleCriteria
       .filter((c) => matched.includes(c.id))
-      .reduce((sum, c) => sum + criterionWeight(c), 0);
+      .reduce((sum, c) => sum + effectiveWeight(c), 0);
     minCountPass = weightedScore >= weightedThreshold;
     appliedRule = usesRequired ? "required_and_min" : "min_criteria_count";
   }
 
   const passed = usesRequired || usesMinCount
     ? requiredPass && minCountPass
-    : false; // No rule declared → moteur refuses to guess.
+    : false;
 
   const reason = buildReason({
     passed,
@@ -224,6 +284,7 @@ export function applyPhaseObservation(
     weightedScore,
     weightedThreshold,
     unexpected,
+    bonusMatched,
   });
 
   return freeze({
@@ -232,6 +293,8 @@ export function applyPhaseObservation(
     matched,
     missing: usesRequired ? requiredMissing : missing,
     unexpected,
+    criticalFailures: [],
+    bonusMatched,
     weightedScore,
     weightedThreshold,
     reason,
@@ -249,6 +312,34 @@ function criterionWeight(c: PhaseEvaluationCriterion): number {
   return w;
 }
 
+/**
+ * W-chantier — severity-aware effective weight. The precedence is:
+ *   1. Explicit `weight` on the criterion (always wins)
+ *   2. Severity-derived default (ONLY when severity is explicitly set)
+ *   3. Legacy default of 1 (when neither weight nor severity is set)
+ *
+ * Severity-derived defaults:
+ *   critical: 0   (never contributes to min_count — it's a gate, not a score)
+ *   required: 2
+ *   bonus:    1
+ *   minor:    0.5
+ */
+function effectiveWeight(c: PhaseEvaluationCriterion): number {
+  if (typeof c.weight === "number" && c.weight >= 0) return c.weight;
+  // Backward compat: if severity is not explicit, use legacy default of 1.
+  if (c.severity === undefined) return 1;
+  switch (c.severity) {
+    case "critical": return 0;
+    case "required": return 2;
+    case "bonus":    return 1;
+    case "minor":    return 0.5;
+  }
+}
+
+function effectiveSeverity(c: PhaseEvaluationCriterion): CriterionSeverity {
+  return c.severity ?? "required";
+}
+
 function buildReason(input: {
   passed: boolean;
   appliedRule: EvaluationResult["appliedRule"];
@@ -259,6 +350,7 @@ function buildReason(input: {
   weightedScore: number | null;
   weightedThreshold: number | null;
   unexpected: string[];
+  bonusMatched: string[];
 }): string {
   const parts: string[] = [];
 
@@ -287,6 +379,12 @@ function buildReason(input: {
   if (!input.usesRequired && !input.usesMinCount) {
     parts.push(
       "Aucune règle E-chantier déclarée (required_criteria / min_criteria_count).",
+    );
+  }
+
+  if (input.bonusMatched.length > 0) {
+    parts.push(
+      `Bonus observé(s) : ${input.bonusMatched.join(", ")}.`,
     );
   }
 

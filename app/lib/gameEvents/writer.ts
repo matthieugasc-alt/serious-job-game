@@ -312,3 +312,68 @@ export function logPhaseAbandoned(
     payload: { phaseIndex, reason },
   });
 }
+
+// ── Y-chantier: telemetry log helpers ───────────────────────────────
+
+/**
+ * Y-chantier — phase_evaluated: one write per applyPhaseObservation() call.
+ * Enables the analytics dashboard to compute per-criterion match rates
+ * across all campaigns cheaply.
+ */
+export function logPhaseEvaluated(
+  sessionId: string,
+  userId: string,
+  scenarioId: string,
+  phaseId: string,
+  payload: Record<string, unknown>,
+): void {
+  appendEvent({
+    eventId: randomUUID(),
+    sessionId,
+    type: "phase_evaluated",
+    timestamp: new Date().toISOString(),
+    scenarioId,
+    userId,
+    phaseId,
+    payload,
+  });
+}
+
+export function logHelpRequested(
+  sessionId: string,
+  userId: string,
+  scenarioId: string,
+  phaseId: string | null,
+  source: string,
+  meta: Record<string, unknown>,
+): void {
+  appendEvent({
+    eventId: randomUUID(),
+    sessionId,
+    type: "help_requested",
+    timestamp: new Date().toISOString(),
+    scenarioId,
+    userId,
+    phaseId: phaseId ?? "",
+    payload: { source, ...meta },
+  });
+}
+
+export function logScenarioAbandoned(
+  sessionId: string,
+  userId: string,
+  scenarioId: string,
+  lastPhaseId: string | null,
+  reason: string,
+): void {
+  appendEvent({
+    eventId: randomUUID(),
+    sessionId,
+    type: "scenario_abandoned",
+    timestamp: new Date().toISOString(),
+    scenarioId,
+    userId,
+    phaseId: lastPhaseId ?? "",
+    payload: { reason },
+  });
+}

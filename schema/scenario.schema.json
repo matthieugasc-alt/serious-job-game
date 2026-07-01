@@ -615,6 +615,11 @@
           "items": { "type": "string" },
           "description": "E-chantier: ids of criteria (declared in phase.evaluation.observed_criteria) that MUST all be observed=true for the phase to complete. The moteur cross-checks the AI-produced observation against this list. Failure = specific missing_criteria surfaced in EvaluationResult, no AI 'phase_passed' guessing."
         },
+        "critical_failure_criteria": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "W-chantier — ids de critères qui, s'ils SONT observés (observed=true) ET marqués severity='critical', déclenchent un échec IMMÉDIAT de la phase, court-circuitant toute autre règle. Utilisé pour les erreurs rédhibitoires (divulgation secret, insulte client, mensonge documenté). Chaque id ici doit être déclaré dans evaluation.observed_criteria avec severity='critical' (garde-fou W5 vérifie cette cohérence)."
+        },
         "min_criteria_count": {
           "type": "number",
           "minimum": 1,
@@ -655,6 +660,11 @@
                 "type": "number",
                 "minimum": 0,
                 "description": "Optional: relative importance used by min_criteria_count (weighted sum). Defaults to 1."
+              },
+              "severity": {
+                "type": "string",
+                "enum": ["critical", "required", "bonus", "minor"],
+                "description": "W-chantier — pedagogical severity of the criterion:\n- 'critical'  : missing this = immediate phase failure, no other rule evaluated (ex: 'a divulgué un secret industriel'). Referenced by completion_rules.critical_failure_criteria.\n- 'required'  : must be observed to pass (ex: 'a identifié le besoin client'). Referenced by completion_rules.required_criteria.\n- 'bonus'     : observing it adds to the score but is not mandatory (ex: 'a proposé une deadline précise').\n- 'minor'     : low-weight contribution to min_criteria_count (ex: 'a dit bonjour').\nDefaults to 'required' when omitted (preserves legacy behavior). Verrouillé par le garde-fou W5."
               }
             }
           }

@@ -15,6 +15,7 @@
 
 import { useEffect, useState, use as usePromise } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface EvaluationHistoryEntry {
   phaseId: string;
@@ -24,6 +25,9 @@ interface EvaluationHistoryEntry {
   matched: string[];
   missing: string[];
   unexpected: string[];
+  // W-chantier
+  criticalFailures?: string[];
+  bonusMatched?: string[];
   weightedScore: number | null;
   weightedThreshold: number | null;
   reason: string;
@@ -34,13 +38,28 @@ interface EvaluationHistoryEntry {
   };
 }
 
+type Severity = "critical" | "required" | "bonus" | "minor";
+
 interface PhaseContract {
   phase_id: string;
   title: string;
-  observed_criteria?: Array<{ id: string; description: string; expected?: boolean }>;
+  observed_criteria?: Array<{
+    id: string;
+    description: string;
+    expected?: boolean;
+    severity?: Severity;
+  }>;
   required_criteria?: string[];
   min_criteria_count?: number;
+  critical_failure_criteria?: string[];
 }
+
+const SEVERITY_STYLES: Record<Severity, { color: string; bg: string; label: string }> = {
+  critical: { color: "#7f1d1d", bg: "#fee2e2", label: "critical" },
+  required: { color: "#7c3aed", bg: "#ede9fe", label: "required" },
+  bonus:    { color: "#065f46", bg: "#d1fae5", label: "bonus" },
+  minor:    { color: "#374151", bg: "#e5e7eb", label: "minor" },
+};
 
 interface ApiResponse {
   campaign: {
@@ -117,10 +136,10 @@ export default function AdminReplayPage({
 
   // Index phases by (scenarioId, phaseId) for cross-reference — the
   // history entry only has phaseId, so we look up across all scenarios.
-  const findContract = (phaseId: string): PhaseContract | null => {
-    for (const scenarios of Object.values(data.phaseContracts)) {
+  const findContract = (phaseId: string): { contract: PhaseContract; scenarioId: string } | null => {
+    for (const [scenarioId, scenarios] of Object.entries(data.phaseContracts)) {
       const found = scenarios.find((p) => p.phase_id === phaseId);
-      if (found) return found;
+      if (found) return { contract: found, scenarioId };
     }
     return null;
   };
@@ -147,7 +166,9 @@ export default function AdminReplayPage({
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {data.evaluation_history.map((entry, i) => {
-            const contract = findContract(entry.phaseId);
+            const lookup = findContract(entry.phaseId);
+            const contract = lookup?.contract ?? null;
+            const scenarioId = lookup?.scenarioId ?? null;
             const isOpen = expanded.has(i);
             return (
               <div key={i} style={cardStyle}>
@@ -163,6 +184,15 @@ export default function AdminReplayPage({
                       }}
                     />
                     <strong style={{ fontSize: 14 }}>{entry.phaseId}</strong>
+                    {scenarioId ? (
+                      <Link
+                        href={`/admin/replay/scenario/${scenarioId}`}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ fontSize: 11, color: "#2563eb", textDecoration: "underline" }}
+                      >
+                        voir les {50} dernières parties de {scenarioId} →
+                      </Link>
+                    ) : null}
                     <span style={{ color: "#6b7280", fontSize: 12 }}>
                       · {entry.appliedRule}
                     </span>
@@ -177,11 +207,29 @@ export default function AdminReplayPage({
                   <div style={{ marginTop: 12, display: "grid", gap: 12 }}>
                     <div style={{ fontSize: 13, color: "#111" }}>{entry.reason}</div>
 
+                    {entry.criticalFailures && entry.criticalFailures.length > 0 ? (
+                      <div style={{
+                        background: "#fee2e2",
+                        border: "2px solid #dc2626",
+                        borderRadius: 6,
+                        padding: "10px 14px",
+                        color: "#7f1d1d",
+                        fontSize: 13,
+                        fontWeight: 600,
+                      }}>
+                        ⛔ Critère(s) critique(s) déclenché(s) : {entry.criticalFailures.join(", ")}
+                        <div style={{ fontWeight: 400, fontSize: 12, marginTop: 4, color: "#991b1b" }}>
+                          Un critère critique observé annule immédiatement la phase — les autres règles n'ont pas été évaluées.
+                        </div>
+                      </div>
+                    ) : null}
+
                     {contract?.observed_criteria ? (
                       <table style={tableStyle}>
                         <thead>
                           <tr>
                             <th style={thStyle}>Critère</th>
+                            <th style={thStyle}>Sévérité</th>
                             <th style={thStyle}>Description</th>
                             <th style={thStyle}>Attendu</th>
                             <th style={thStyle}>Observé</th>
@@ -195,13 +243,31 @@ export default function AdminReplayPage({
                             const expected = c.expected ?? true;
                             const isMatched = entry.matched.includes(c.id);
                             const isRequired = contract.required_criteria?.includes(c.id);
+                            const isCriticalFired = entry.criticalFailures?.includes(c.id);
+                            const isBonusMatched = entry.bonusMatched?.includes(c.id);
+                            // Severity precedence: explicit > declared-as-critical-in-rules > default
+                            const declaredCritical = contract.critical_failure_criteria?.includes(c.id);
+                            const sev: Severity = c.severity ?? (declaredCritical ? "critical" : "required");
+                            const style = SEVERITY_STYLES[sev];
                             return (
-                              <tr key={c.id}>
+                              <tr key={c.id} style={isCriticalFired ? { background: "#fef2f2" } : undefined}>
                                 <td style={{ ...tdStyle, fontFamily: "monospace", fontSize: 11 }}>
                                   {c.id}
                                   {isRequired ? (
                                     <span style={requiredBadge}>required</span>
                                   ) : null}
+                                </td>
+                                <td style={{ ...tdStyle, textAlign: "center" }}>
+                                  <span style={{
+                                    display: "inline-block",
+                                    padding: "1px 6px",
+                                    fontSize: 9,
+                                    fontWeight: 700,
+                                    color: style.color,
+                                    background: style.bg,
+                                    borderRadius: 4,
+                                    textTransform: "uppercase",
+                                  }}>{style.label}</span>
                                 </td>
                                 <td style={{ ...tdStyle, fontSize: 12 }}>{c.description}</td>
                                 <td style={{ ...tdStyle, textAlign: "center" }}>
@@ -211,10 +277,22 @@ export default function AdminReplayPage({
                                   {observed === true ? "✓" : observed === false ? "✗" : "—"}
                                 </td>
                                 <td style={{ ...tdStyle, textAlign: "center", fontSize: 16 }}>
-                                  {isMatched ? "🟢" : "🔴"}
+                                  {isCriticalFired ? "⛔" : isMatched ? (isBonusMatched ? "⭐" : "🟢") : "🔴"}
                                 </td>
                                 <td style={{ ...tdStyle, fontSize: 11, color: "#6b7280", fontStyle: "italic" }}>
                                   {entry.observation.evidence?.[c.id] ?? ""}
+                                  {scenarioId ? (
+                                    <div style={{ marginTop: 4 }}>
+                                      <a
+                                        href={`/studio?scenario=${scenarioId}&phase=${entry.phaseId}&criterion=${c.id}`}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ fontSize: 10, color: "#2563eb", textDecoration: "underline" }}
+                                      >
+                                        éditer ce critère →
+                                      </a>
+                                    </div>
+                                  ) : null}
                                 </td>
                               </tr>
                             );
