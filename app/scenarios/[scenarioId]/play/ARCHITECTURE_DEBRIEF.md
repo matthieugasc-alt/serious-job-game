@@ -335,3 +335,239 @@ Toujours passer par `scripts/deploy.sh` — la one-liner est bannie parce qu'ell
 ---
 
 *Document généré le 1er juillet 2026 après régression `checkCompletionRules` — à maintenir à chaque évolution majeure. Mise à jour prévue quand P0 (E2E Playwright) sera en place.*
+
+---
+
+## 8. Matrice de maturité des mécaniques (retour PO — 1er juillet 2026)
+
+Framework proposé par le product officer pour évaluer où investir. Chaque mécanique du player évaluée sur 4 axes :
+
+- **Data-driven** : la logique/textes vivent dans `scenario.json` (✅) vs hardcodés en TypeScript (❌)
+- **Testée** : couverture unit et/ou E2E réelle (✅) vs zéro test (❌)
+- **Réutilisable** : un nouveau scenario peut l'utiliser sans toucher de TS (✅) vs nécessite modif code (❌)
+- **Stable** : battle-testée en prod sans régression récente (✅) vs récente/bogué historiquement (❌)
+
+Convention : ✅ solide · ⚠️ partiel/récent · ❌ rien
+
+### 8.1 Matrice — toutes les mécaniques du player
+
+| Mécanique | Data-driven | Testée | Réutilisable | Stable | Zone critique |
+|---|:---:|:---:|:---:|:---:|---|
+| **Mail (send flow)** | ✅ | ⚠️ | ✅ | ⚠️ | Régression `checkCompletionRules` corrigée ce jour |
+| **Chat (sendMessage)** | ⚠️ | ❌ | ⚠️ | ✅ | Bloc pivot Clinique S3 hardcodé dans le hook |
+| **Contrats S0/S2/S5 (`runContractNegotiation`)** | ⚠️ | ❌ | ✅ | ⚠️ | Textes dans `ContractHandler.getNegotiationConfig` (TS) |
+| **Contrat clinique S3** | ✅ | ✅ | ✅ | ⚠️ | Migré JSON (PRIO 4), 5 tests, pivot récent |
+| **Devis S4 (`sendDevisNegoMsg`)** | ⚠️ | ❌ | ⚠️ | ✅ | `scopeContext` + `parseDealTag` inline page.tsx, S4-spécifique |
+| **Présentation vocale (`endPresentation`)** | ⚠️ | ❌ | ✅ | ⚠️ | Spinner-block historique, background eval fragile |
+| **Voice QA (jury / children)** | ⚠️ | ❌ | ✅ | ✅ | Round-robin jury + pitch timer, stable en prod |
+| **Interruptions (timed events)** | ✅ | ❌ | ✅ | ✅ | Purement déclaratif, jamais bogué |
+| **Scoring (`applyEvaluation`)** | ✅ | ❌ | ✅ | ✅ | `criteria` en JSON, IA renvoie matches |
+| **Phase advancement (`isCurrentPhaseValidatedByRules`)** | ✅ | ✅ | ✅ | ✅ | Source de vérité + 9 tests régression |
+| **Résolution `chosen_cto`/`chosen_kol`/establishment** | ⚠️ | ✅ | ⚠️ | ✅ | `establishmentMap` hardcodé (3 entrées S3/S4) |
+| **Notifications (toasts + unread badge)** | ❌ | ❌ | ✅ | ✅ | Emojis en dur, mais universel |
+| **Persistence founder (deep snapshot)** | ✅ | ✅ | ✅ | ⚠️ | Livré ce jour (fix #70), pas battle-testé longuement |
+| **One-pager (S1)** | ✅ | ❌ | ⚠️ | ⚠️ | Config JSON (PRIO 4), UX refonte du jour |
+| **Mindmap / notes** | ✅ | ❌ | ✅ | ✅ | Pur client-side |
+| **HARD_REJECT S5 (rollback KOL)** | ✅ | ❌ | ⚠️ | ⚠️ | Refonte récente, pas de test unit |
+| **Pivot Clinique S3** | ⚠️ | ❌ | ❌ | ⚠️ | Détection hardcodée dans `useSendChatMessage` |
+| **Debrief AI (fin scenario)** | ✅ | ❌ | ✅ | ✅ | `criteria` + `scenarioCompetencies` en JSON |
+| **Checkpoint founder (advance/clear/rollback)** | ✅ | ✅ | ✅ | ✅ | 6 tests + fix #70 sur deep snapshot |
+
+### 8.2 Score global
+
+```
+Total mécaniques évaluées : 19
+Data-driven ✅ : 13 (68 %)  ⚠️ : 5 (26 %)  ❌ : 1 (5 %)
+Testée      ✅ : 5  (26 %)  ⚠️ : 1 (5 %)   ❌ : 13 (68 %)
+Réutilisable ✅ : 13 (68 %)  ⚠️ : 4 (21 %)  ❌ : 1 (5 %)
+Stable      ✅ : 10 (53 %)  ⚠️ : 8 (42 %)  ❌ : 0
+```
+
+**Verdict** : le refacto a bien fait bouger les curseurs *Data-driven* et *Réutilisable* (∼70 % vert), mais **la couverture de tests reste à 26 %** — c'est LA fragilité majeure. La stabilité est à 53 % vert / 42 % orange, ce qui reflète les changements très récents (fix #70, checkCompletionRules corrigé, UX one-pager, S3 clinical migration).
+
+### 8.3 Où investir en priorité
+
+En croisant les axes, les zones où il faut concentrer l'effort :
+
+#### 🔴 Zones "❌ Testée + ⚠️ Stable" — investir immédiatement
+
+Ce sont les mécaniques récentes ou refactorées sans tests. Une régression est probable dans les 2 semaines qui viennent.
+
+1. **`endPresentation` + Voice QA** — spinner-block historique, refonte récente, zéro test. Test unit qui mock `stopRecognition()` avec les 3 shapes (error/empty/success).
+2. **HARD_REJECT S5** — mécanique la plus bogée historiquement (tasks #55→#67 dans le tracker), aucun test unit. Test qui simule un mail HARD_REJECT et vérifie rollback + wipe chosen_kol_id.
+3. **Pivot Clinique S3** — hardcodé dans `useSendChatMessage`, ni data-driven ni testé. Doublement fragile : un changement de scenario S3 ou du hook peut casser sans crasher.
+4. **One-pager S1** — UX du jour + config JSON du jour. Test smoke qui valide que le mail final contient bien le body attendu.
+
+#### 🟡 Zones "⚠️ Data-driven" — sortir en JSON pour la V2
+
+Ces mécaniques marchent bien mais restent hardcodées. Migration data-first à planifier :
+
+1. **Contrats S0/S2/S5** : `ContractHandler.getNegotiationConfig` reste un switch TS avec phaseTitle/phaseFocus/fallbackError. Peut vivre dans `scenario.narrative.contract_negotiation` par contract type.
+2. **Establishment map** : 3 entrées hardcodées dans `lib/establishmentMap.ts`. Peut vivre dans `scenario.resources.establishments`.
+3. **Devis S4** : `DEVIS_FEATURES_DATA` (5 features avec prix) + `parseDealTag` (regex). Migration délicate mais faisable.
+4. **Bloc pivot Clinique S3** : Détection `scenarioId?.startsWith("founder_03") && switched_to_clinique` dans `useSendChatMessage`. À sortir en `scenario.chat_context_enrichment.pivot_config` ou équivalent.
+
+#### 🟢 Zones "✅ tout vert" — capitaliser
+
+- **Phase advancement** : source de vérité claire, 9 tests, extension via runtime.ts uniquement. **Ne jamais dupliquer.**
+- **Checkpoint founder** : contrat serveur/client aligné, tests, fix #70 fresh mais couvert.
+- **Interruptions** + **Scoring** + **Notifications** + **Mindmap** : mécaniques universelles, aucun scenario-specific à gérer.
+
+### 8.4 Recommandation "V2 Revealio comme plateforme"
+
+Le PO a raison sur le fond : passer d'app à plateforme = **une mécanique n'est finie que quand elle est data-driven + testée + réutilisable + stable**.
+
+Roadmap pour y arriver :
+
+| Phase | Livrable | Impact matrice |
+|---|---|---|
+| **1 (2 semaines)** | Playwright + 5 tests E2E happy-path (1 par scenario S0→S5) | 5 rangées passent de ❌ à ⚠️ sur *Testée* |
+| **2 (1 semaine)** | Test unit sur `applyEvaluation` + `handlePhaseFailure` + `updateAdaptiveMode` + `scheduleInterruption` (runtime.ts) | Verrouille les 4 fonctions critiques importées par tous les hooks |
+| **3 (2 semaines)** | Sortir Contrats S0/S2/S5 + establishment map en JSON | 3 rangées passent de ⚠️ à ✅ sur *Data-driven* |
+| **4 (2 semaines)** | Sortir bloc pivot Clinique S3 en config JSON générique | 1 rangée ❌ → ✅ sur *Réutilisable* |
+| **5 (1 semaine)** | Test unit sur `runContractNegotiation` + `executeMailAsyncEffect` (4 kinds) | 2 rangées ⚠️ → ✅ sur *Testée* |
+
+Après ces 5 phases (8 semaines), la matrice devrait être à **∼90 % vert sur les 4 axes**, condition pour claimer "Revealio est une plateforme, pas une application".
+
+### 8.5 Ma recommandation d'ordre
+
+**Semaine 1** : Playwright + les 5 tests E2E → filet de sécurité qui protège TOUT le reste du refacto ci-dessus. Impossible d'avancer sereinement sans ça.
+
+**Semaine 2** : Tests unit sur les 4 fonctions runtime.ts critiques (les mêmes qui ont causé la régression `checkCompletionRules` — si on avait testé `isCurrentPhaseValidatedByRules` avant, on aurait vu le problème).
+
+**Semaines 3-4** : Migrations data-first (contrats, establishment) sans risque grâce au filet des semaines 1-2.
+
+Le message central est simple : **la couverture de tests est la priorité absolue, tout le reste peut suivre**. Sans tests, chaque migration data-first ou refacto ajoute un risque de régression du même type que celle de `checkCompletionRules`.
+
+---
+
+## 9. Vision "framework" (retour advisor — 1er juillet 2026)
+
+Retour formulé par un advisor produit : *"Avant : découper page.tsx. Aujourd'hui : faire du moteur de jeu un framework."* Nouvelle pyramide cible :
+
+```
+GameEngine
+    Engine
+        Runtime
+            Modules
+                Scenario JSON
+```
+
+Le jour où on y arrive : **créer un nouveau serious game = 1 scenario JSON + quelques prompts + des documents + éventuellement 1 nouveau module** si la mécanique est vraiment nouvelle.
+
+### 9.1 Diagnostic vs cette cible
+
+**Les 5 couches existent déjà dans le codebase après le refacto de la journée.** Ce qui manque c'est la surface publique, pas la substance.
+
+| Couche | Existant | Gap "framework" |
+|---|---|---|
+| **GameEngine** | `page.tsx` (2643 L) composant React | Pas de point d'entrée programmatique. Rien qui dise "voici comment on lance un jeu depuis l'extérieur". |
+| **Engine** (hooks) | `useSendChatMessage`, `useSendMail`, `useEndPresentation`, `useScenarioInit`, `useDeepSave`, `PlayerContext` | Aucun `index.ts` barrel qui exporte l'API publique. Un dev externe ne sait pas quoi importer. |
+| **Runtime** | `app/lib/runtime.ts` (~1500 L, fonctions pures) | Types en `any` partout (`SessionState` existe mais `scenario as any` répandu). Aucune JSDoc systématique. |
+| **Modules** | `handlers/modules/{Mail,Contract,Interview}Module.ts` + registry | Registre hardcodé (`registry.ts` mappe types → modules). Ajouter un module = modifier ce fichier. Aucun kit "how to write a module". |
+| **Scenario JSON** | 10 scenarios actifs + 13 maintenance | **Aucun schéma JSON versionné**. Aucune doc de référence. Aucun scaffolding pour créer un nouveau. |
+
+### 9.2 Le vrai gap : DX & packaging, pas refonte technique
+
+Aujourd'hui, si tu veux créer un nouveau scenario `founder_06_launch` :
+
+1. Tu dois copier un scenario existant (ex: `founder_02_mvp`), le renommer partout
+2. Tu ouvres le JSON, tu essaies de deviner ce que chaque champ fait — il n'y a pas de schéma
+3. Si tu veux utiliser MailModule, tu ne sais pas quelles clés `mail_config` sont supportées sans lire `MailModule.ts`
+4. Si tu veux une mécanique custom, tu ne sais pas comment écrire un module — il faut lire les 3 modules existants et le registry
+
+**Aucune de ces étapes ne casse le refacto de la journée. Elles restent juste opaques.** Un dev externe (ou même un game designer non-dev) n'a pas les outils pour créer un scenario en autonomie.
+
+### 9.3 Ce qu'il faut livrer pour passer d'app à framework
+
+En 4 chantiers modestes (chacun ∼1 semaine) :
+
+#### Chantier F1 — Schéma JSON versionné du scenario
+
+Créer `packages/scenario-schema/scenario.schema.json` (JSON Schema Draft 2020-12) qui documente :
+- Chaque champ de `scenario.json` avec sa description et son type
+- Les patterns par module (`mail_config` si `modules: ["mail"]`, etc.)
+- Les valeurs enum acceptées (`interaction_mode`, `contract_type`, etc.)
+
+Puis :
+- Wire dans `validate:scenarios` : valider chaque scenario contre le schéma
+- Générer les types TypeScript depuis le schéma (`json-schema-to-typescript`) → remplace tous les `(scenario as any)`
+- Publier le schéma sur `revealio.live/scenario.schema.json` pour que Cursor/VSCode fasse l'autocomplete quand on édite un scenario JSON
+
+**Impact** : un game designer voit l'autocomplete de chaque champ dans son IDE.
+
+#### Chantier F2 — API publique `@revealio/engine`
+
+Créer un barrel `app/lib/engine/index.ts` qui exporte :
+- `startGame(scenario, callbacks)` — point d'entrée programmatique
+- Types : `Scenario`, `Phase`, `Actor`, `Session`, `ModuleAction`
+- Les 4 handlers publics : `Mail`, `Contract`, `Interview`, `Voice`
+- Les hooks React : `usePlayer`, `useSendMessage`, `useSendMail`, `useEndPresentation`
+- Documentation JSDoc systématique sur chaque export
+
+Puis `README.md` du package avec un exemple minimal (10 lignes de code qui joue un scenario Hello World).
+
+**Impact** : quand un dev arrive, il ouvre `app/lib/engine/README.md` et sait tout de suite quoi importer.
+
+#### Chantier F3 — Scaffolding CLI
+
+Créer `scripts/scaffold-scenario.mjs` :
+
+```bash
+npm run scaffold:scenario -- --id founder_06_launch --title "Lancer la V2"
+```
+
+Génère :
+- `scenarios/founder_06_launch/scenario.json` (template minimal avec 2 phases préconfigurées, valide au schéma)
+- `scenarios/founder_06_launch/prompts/example_actor.md` (template de prompt)
+- `scenarios/founder_06_launch/documents/README.md` (comment ajouter des PDFs)
+
+**Impact** : un game designer crée un scenario en 30 secondes au lieu de 30 minutes.
+
+#### Chantier F4 — Module registry déclaratif
+
+Aujourd'hui `handlers/registry.ts` mappe hardcodé `{ mail: MailModule, contract: ContractModule, interview: InterviewModule }`. Le rendre découvrable :
+
+- Convention `handlers/modules/{name}Module.ts` avec un export nommé `{name}Module: ModuleDefinition`
+- `resolveModules(phase)` glob le folder et charge les modules déclarés dans `phase.modules`
+- Doc `MODULE_GUIDE.md` : "comment écrire un nouveau module en 4 étapes"
+
+**Impact** : ajouter un module custom `LeadCaptureModule.ts` ne demande plus de toucher au registry.
+
+### 9.4 Ordre recommandé — F1 avant tout
+
+- **Sans F1 (schéma JSON) rien d'autre ne tient** : les 3 autres chantiers dépendent de types clairs et d'un contrat data-first documenté.
+- F2 et F3 sont indépendants, peuvent être faits en parallèle après F1.
+- F4 peut attendre : ajouter un nouveau module reste rare (∼1× par an ?).
+
+### 9.5 Ce que ça donne à 3 mois si les 4 chantiers sont livrés
+
+**Créer un nouveau serious game "Directeur RH en crise"** :
+
+1. `npm run scaffold:scenario -- --id rh_crisis --title "Directeur RH en crise"` (30 s)
+2. Éditer `rh_crisis/scenario.json` dans VSCode avec autocomplete Zod-like (10-20 min pour poser la structure des phases)
+3. Écrire les prompts pour les acteurs IA (30 min-2 h selon densité)
+4. Ajouter les PDFs dans `documents/`
+5. Lancer `npm run test` — le schema validation passe → prêt à jouer
+
+**Zéro TypeScript à écrire.** C'est ça, la véritable cible de Revealio.
+
+### 9.6 Cohérence avec la matrice du § 8
+
+- F1 (schéma JSON) fait passer les rangées ⚠️ *Data-driven* à ✅ en donnant un cadre clair de ce qui doit vivre en JSON
+- F2 (API publique) fait passer *Réutilisable* à ✅ en donnant des points d'entrée stables
+- F3 (scaffolding) rend concrète la promesse "nouveau scenario en 30 min"
+- F4 (module registry) rend concrète la promesse "1 nouveau module si vraiment nouveau"
+
+**Les 4 chantiers ensemble transforment Revealio d'application en plateforme.** C'est cohérent avec l'analyse du PO, et c'est faisable en 4 semaines calendaires (∼1 sprint chacun) une fois les tests E2E de la Section 8 en place.
+
+### 9.7 Ma recommandation d'ordre final (mise à jour du § 8.5)
+
+1. **Semaine 1** : Playwright + 5 tests E2E happy-path (filet obligatoire)
+2. **Semaine 2** : Tests unit runtime.ts critiques
+3. **Semaines 3-4** : F1 — schéma JSON + types stricts + validation
+4. **Semaine 5** : F2 — API publique + README
+5. **Semaine 6** : F3 — scaffolding CLI
+6. **Semaine 7** : F4 — module registry (optionnel, peut attendre)
+
+Après 6-7 semaines : **Revealio est un framework, plus une app.** Un game designer non-dev peut prototyper un scenario, un dev externe peut ajouter un module custom sans lire tout le codebase, et un futur pivot produit (revendre la plateforme à des écoles / assureurs / hôpitaux qui veulent leurs propres scénarios) devient techniquement crédible.

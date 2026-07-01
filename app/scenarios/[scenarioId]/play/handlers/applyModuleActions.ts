@@ -278,7 +278,40 @@ export function applyModuleActions(
         }
         break;
       default:
-        break;
+        // ⚠ GARDE-FOU AUTOMATIQUE — exhaustive check
+        // Si un nouveau `type` est ajouté à ModuleAction sans être géré ici,
+        // TypeScript FAIT ÉCHOUER LE BUILD sur cette ligne (l'action doit
+        // être `never` pour que l'assignment passe). Remplace l'ancien
+        // `default: break;` qui swallowait silencieusement les nouveaux cas.
+        //
+        // Comment fixer si tu vois l'erreur au build :
+        //   1. Ajoute un `case "mon_nouveau_type":` juste au-dessus qui
+        //      exécute le side effect voulu, puis `break`.
+        //   2. Ou (rare) élargis explicitement le type ModuleAction.
+        assertNeverModuleAction(action);
     }
   }
+}
+
+/**
+ * Force TypeScript à vérifier qu'aucun variant de ModuleAction n'est
+ * oublié dans le switch. Si un nouveau `type` est ajouté au union sans
+ * un case correspondant, l'inférence donne `action: <variant>` au lieu
+ * de `action: never` → le compilateur émet TS2345 sur cette ligne.
+ *
+ * En runtime (branche théoriquement inatteignable), on log + throw pour
+ * ne PAS avoir de silent no-op comme l'ancien `default: break`.
+ */
+function assertNeverModuleAction(action: never): never {
+  const type = (action as { type?: string })?.type ?? "<unknown>";
+  console.error(
+    `[applyModuleActions] Unhandled ModuleAction type: ${type}. ` +
+    `This is a bug: the type union was extended without adding a case. ` +
+    `Full payload:`,
+    action,
+  );
+  throw new Error(
+    `applyModuleActions: unhandled ModuleAction type "${type}". ` +
+    `See handlers/modules/types.ts for the full union.`,
+  );
 }

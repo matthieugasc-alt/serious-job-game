@@ -631,7 +631,40 @@ export type CompletionRules = {
     keywords: string[];
     min_matches: number;
   }>;
+
+  /**
+   * Hard gate: required keywords that MUST appear in NPC/AI messages before
+   * the phase can be validated (e.g., "Je te fais parvenir le contrat").
+   * Symmetric of required_player_evidence but on the assistant side.
+   */
+  required_npc_evidence?: Array<{
+    keywords: string[];
+    min_matches: number;
+  }>;
 };
+
+/**
+ * ⚠ GARDE-FOU AUTOMATIQUE — source de vérité runtime.
+ *
+ * Liste EXHAUSTIVE des clés de CompletionRules que `isCurrentPhaseValidatedByRules`
+ * (app/lib/runtime.ts) sait évaluer. Si tu ajoutes une clé au type ci-dessus,
+ * ajoute-la ici SIMULTANÉMENT — sinon:
+ *   1. Le test app/scenarios/[scenarioId]/play/lib/__tests__/checkCompletionRules.coverage.test.ts
+ *      va échouer immédiatement.
+ *   2. Un scenario qui utilise la nouvelle règle avancera par défaut (bug
+ *      régression du 1er juillet 2026 sur checkCompletionRules incomplet).
+ *
+ * Chaque entrée doit être implémentée dans `isCurrentPhaseValidatedByRules`.
+ */
+export const COMPLETION_RULES_KEYS = [
+  "min_score",
+  "any_flags",
+  "all_flags",
+  "max_exchanges",
+  "custom",
+  "required_player_evidence",
+  "required_npc_evidence",
+] as const satisfies readonly (keyof CompletionRules)[];
 
 /**
  * Mail-specific configuration for a phase.
