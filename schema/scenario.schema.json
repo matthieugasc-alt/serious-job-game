@@ -1,0 +1,657 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://revealio.live/schema/scenario.schema.json",
+  "title": "Revealio Scenario",
+  "description": "Data-first source of truth for a Revealio serious game scenario. Every field here maps to runtime behavior in app/lib/runtime.ts or a module in app/scenarios/[scenarioId]/play/handlers/modules/. Extending this schema is the way to add new declarative capabilities — DO NOT add scenario-specific logic to TypeScript modules.",
+  "type": "object",
+  "required": [
+    "scenario_id",
+    "version",
+    "locale",
+    "meta",
+    "introduction",
+    "narrative",
+    "timeline",
+    "actors",
+    "channels",
+    "resources",
+    "constraints",
+    "initial_events",
+    "phases",
+    "endings",
+    "competencies_evaluated"
+  ],
+  "additionalProperties": true,
+
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Optional pointer to this JSON schema for IDE autocomplete."
+    },
+    "scenario_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9_]+$",
+      "description": "Unique scenario identifier — MUST match the folder name (snake_case)."
+    },
+    "version": {
+      "type": "string",
+      "description": "Semantic version of the scenario content (e.g. '1.0.0'). Bump on gameplay-affecting changes."
+    },
+    "locale": {
+      "type": "string",
+      "enum": ["fr-FR", "en-US"],
+      "description": "Content locale — drives prompts, UI copy, TTS voice defaults."
+    },
+
+    "meta": {
+      "type": "object",
+      "description": "Discoverability + presentation metadata (used by the home page grid and the scenario intro screen).",
+      "required": ["title", "difficulty"],
+      "additionalProperties": true,
+      "properties": {
+        "title": { "type": "string" },
+        "subtitle": { "type": "string" },
+        "description": { "type": "string" },
+        "difficulty": {
+          "type": "string",
+          "description": "Displayed as a colored badge on the home. Legacy scenarios utilisent parfois du free-form FR ('avancé', 'intermédiaire', 'pour débuter'). Nouveaux scenarios: privilégier 'junior' | 'intermediate' | 'senior'."
+        },
+        "estimated_duration_min": {
+          "type": "number",
+          "minimum": 1,
+          "description": "Displayed to the player before starting."
+        },
+        "job_family": {
+          "type": "string",
+          "description": "Category (e.g. 'founder', 'sales', 'management') — drives home filtering and founder-mode lock."
+        },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "show_objective": {
+          "type": "boolean",
+          "description": "If false, hide the 'Objectif' block in the LeftSidebar (per scenario)."
+        },
+        "show_background_fact": {
+          "type": "boolean",
+          "description": "If false, hide the 'Info vérifiée' block in the BriefingOverlay."
+        }
+      }
+    },
+
+    "introduction": {
+      "type": "object",
+      "description": "Screens shown to the player before the game starts (context + tutorial cards).",
+      "additionalProperties": true
+    },
+
+    "narrative": {
+      "type": "object",
+      "description": "Story anchors displayed in the briefing + right panel. All fields optional; used verbatim.",
+      "additionalProperties": true,
+      "properties": {
+        "context": { "type": "string" },
+        "mission": { "type": "string" },
+        "initial_situation": { "type": "string" },
+        "trigger": { "type": "string" },
+        "background_fact": { "type": "string" },
+        "one_pager": {
+          "type": "object",
+          "description": "S1-style one-pager overlay config (see components/OnePagerEditor.tsx). If absent, hardcoded 'Orisio' fallback kicks in.",
+          "additionalProperties": true,
+          "properties": {
+            "title": { "type": "string" },
+            "subtitle": { "type": "string" },
+            "company_name": { "type": "string" },
+            "recipient_email": { "type": "string", "format": "email" },
+            "recipient_label": { "type": "string" },
+            "submit_button_label": { "type": "string" },
+            "default_subject": { "type": "string" },
+            "body_intro": { "type": "string" },
+            "body_signature": { "type": "string" },
+            "sections": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": ["title", "placeholder"],
+                "properties": {
+                  "title": { "type": "string" },
+                  "placeholder": { "type": "string" }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+
+    "timeline": {
+      "type": "object",
+      "description": "Time-of-day metadata used for the simulated clock in the header.",
+      "additionalProperties": true
+    },
+
+    "actors": {
+      "type": "array",
+      "minItems": 1,
+      "description": "All characters the player can interact with (player + NPCs).",
+      "items": {
+        "type": "object",
+        "required": ["actor_id", "name", "controlled_by"],
+        "additionalProperties": true,
+        "properties": {
+          "actor_id": {
+            "type": "string",
+            "pattern": "^[a-z0-9_]+$",
+            "description": "Unique id used in ai_actors, entry_events, mail from/to."
+          },
+          "name": { "type": "string" },
+          "role": { "type": "string" },
+          "controlled_by": {
+            "type": "string",
+            "enum": ["player", "ai", "system"],
+            "description": "'ai' actors require a prompt_file. 'player' is the human. 'system' is used for narrator/env messages."
+          },
+          "prompt_file": {
+            "description": "Path to the roleplay prompt (relative to scenario folder, e.g. 'prompts/sofia.md'). Required for controlled_by='ai'. Legacy scenarios utilisent parfois un objet {file, ...} — string préféré.",
+            "oneOf": [
+              { "type": "string" },
+              { "type": "object", "additionalProperties": true }
+            ]
+          },
+          "email": { "type": "string" },
+          "avatar": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "initials": { "type": "string" },
+              "color": { "type": "string" }
+            }
+          },
+          "tts_voice": {
+            "description": "OpenAI TTS voice id. Nouveaux scenarios: string parmi alloy/echo/fable/onyx/nova/shimmer/coral. Legacy toléré sur type libre.",
+            "oneOf": [
+              { "type": "string" },
+              { "type": "object", "additionalProperties": true }
+            ]
+          },
+          "contact_status": {
+            "type": "string",
+            "enum": ["available", "away", "busy", "locked", "offline"]
+          },
+          "visible_in_contacts": { "type": "boolean" },
+          "interaction_modes": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": ["chat", "mail", "email", "voice_qa", "phone", "whatsapp", "in_person", "unreachable"]
+            }
+          },
+          "mail_only": {
+            "type": "boolean",
+            "description": "If true, this actor cannot be talked to via chat — only via mail."
+          },
+          "busy_after_phase": {
+            "type": "string",
+            "description": "Actor becomes visually unavailable in contacts once this phase_id has completed."
+          },
+          "busy_message": { "type": "string" }
+        },
+        "allOf": [
+          {
+            "if": { "properties": { "controlled_by": { "const": "ai" } }, "required": ["controlled_by"] },
+            "then": { "required": ["prompt_file"] }
+          }
+        ]
+      }
+    },
+
+    "channels": {
+      "type": "array",
+      "description": "Communication channels available (chat, mail, voice, etc.) — currently informational, actual availability is per-phase.",
+      "items": { "type": "object", "additionalProperties": true }
+    },
+
+    "resources": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Attached documents + data-first templates (see clinicalContractTemplates for S3).",
+      "properties": {
+        "documents": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["doc_id", "label"],
+            "additionalProperties": true,
+            "properties": {
+              "doc_id": { "type": "string" },
+              "label": { "type": "string" },
+              "abstract": { "type": "string" },
+              "file_path": { "type": "string" },
+              "image_path": { "type": "string" }
+            }
+          }
+        },
+        "clinical_contract_templates": {
+          "type": "object",
+          "description": "S3-specific: 3 variantes CHU/SM/Clinique. Consommé par lib/clinicalContractTemplates.ts avec fallback constantes TypeScript.",
+          "additionalProperties": true,
+          "properties": {
+            "chu": { "$ref": "#/$defs/clinicalArticleList" },
+            "sm": { "$ref": "#/$defs/clinicalArticleList" },
+            "clinique": { "$ref": "#/$defs/clinicalArticleList" }
+          }
+        }
+      }
+    },
+
+    "constraints": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Free-form scenario constraints (e.g. budget, time pressure)."
+    },
+
+    "initial_events": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true },
+      "description": "Events injected once at scenario start (before phase 0)."
+    },
+
+    "phases": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/phase" }
+    },
+
+    "endings": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["ending_id"],
+        "properties": {
+          "ending_id": { "type": "string" },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "conditions": { "type": "object", "additionalProperties": true }
+        }
+      }
+    },
+
+    "default_ending": {
+      "description": "Fallback ending. Legacy scenarios utilisent un objet inline {ending_id, label, content}; nouveaux scenarios peuvent utiliser un string qui référence endings[].ending_id.",
+      "oneOf": [
+        { "type": "string" },
+        {
+          "type": "object",
+          "required": ["ending_id"],
+          "additionalProperties": true,
+          "properties": {
+            "ending_id": { "type": "string" },
+            "label": { "type": "string" },
+            "content": { "type": "string" }
+          }
+        }
+      ]
+    },
+
+    "competencies_evaluated": {
+      "type": "array",
+      "description": "Liste des compétences évaluées à la fin du scenario. Accepte string (legacy) ou objet {competency, description}.",
+      "items": {
+        "oneOf": [
+          { "type": "string" },
+          {
+            "type": "object",
+            "required": ["competency"],
+            "additionalProperties": true,
+            "properties": {
+              "competency": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        ]
+      }
+    },
+
+    "state": { "type": "object", "additionalProperties": true },
+
+    "contact_visibility_mode": {
+      "type": "string",
+      "enum": ["auto", "explicit"],
+      "description": "'auto' shows every actor in the contacts panel; 'explicit' shows only those listed in phase.chat_visible_actors."
+    }
+  },
+
+  "$defs": {
+    "phase": {
+      "type": "object",
+      "required": ["phase_id", "title"],
+      "additionalProperties": true,
+      "properties": {
+        "phase_id": {
+          "type": "string",
+          "pattern": "^[a-z0-9_]+$"
+        },
+        "title": { "type": "string" },
+        "objective": { "type": "string" },
+        "phase_focus": {
+          "type": "string",
+          "description": "System-prompt fragment prepended to actor prompts in this phase. Steers the AI's role for the current step."
+        },
+        "phase_prompt": { "type": "string" },
+
+        "interaction_mode": {
+          "type": "string",
+          "enum": ["chat_mail", "presentation", "voice_qa"],
+          "description": "Drives which BODY layout renders (LeftSidebar/Main/RightPanel vs PresentationModeView)."
+        },
+
+        "ai_actors": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Actor ids active in this phase. May include placeholders 'chosen_cto' / 'chosen_kol' resolved at runtime by dynamicActorResolution.ts."
+        },
+
+        "chat_visible_actors": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Only used when scenario.contact_visibility_mode === 'explicit'. Whitelist of actors shown in the contacts panel in this phase."
+        },
+
+        "dynamic_actor": {
+          "type": "string",
+          "enum": ["chosen_cto", "chosen_kol", "resolved"],
+          "description": "Marker consumed by handlers/dynamicActorResolution.ts. Flips to 'resolved' after substitution to make the resolution idempotent."
+        },
+
+        "dynamic_mail_to": {
+          "type": "string",
+          "enum": ["establishment", "resolved"],
+          "description": "S3/S4 marker: mail_config.defaults.to will be replaced by the establishment email chosen by the player."
+        },
+
+        "active_channels": {
+          "type": "array",
+          "items": { "type": "string" }
+        },
+
+        "modules": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["mail", "contract", "interview", "debrief", "chat", "timer"]
+          },
+          "description": "Enables the corresponding PhaseModule. If a module is listed here, its lifecycle hooks (enter_phase, mail_sent, contract_signed, etc.) are invoked before the legacy fallback in page.tsx. Note: 'chat' + 'timer' are declared by legacy scenarios mais n'ont pas encore de module implémenté — restent tolérés pour éviter de casser la data."
+        },
+
+        "duration_target_min": { "type": "number" },
+        "max_duration_sec": {
+          "type": "number",
+          "description": "Hard cap: phase auto-completes when reached. Fires via usePhaseTimer + phaseMaxDurationTriggeredRef."
+        },
+        "auto_advance": {
+          "type": "boolean",
+          "description": "If true, the phase advances as soon as its completion_rules pass (no user click). Used sparingly."
+        },
+        "min_player_messages": {
+          "type": "number",
+          "description": "Fallback advance rule when no completion_rules: phase completes after N player messages (default 2)."
+        },
+
+        "completion_rules": { "$ref": "#/$defs/completionRules" },
+
+        "failure_rules": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Loop-back mechanic: if NPC response contains these keywords, player is sent back to a previous phase. See runtime.handlePhaseFailure.",
+          "required": ["npc_keywords", "next_phase"],
+          "properties": {
+            "npc_keywords": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "next_phase": { "type": "string" },
+            "reset_flags": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "message": { "type": "string" }
+          }
+        },
+
+        "on_complete": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "set_flags": {
+              "type": "object",
+              "additionalProperties": { "type": "boolean" }
+            }
+          }
+        },
+
+        "next_phase": {
+          "description": "Optional explicit successor. Defaults to next phase in the array. Nouveau: string phase_id ou 'finish'. Legacy: parfois un objet {phase_id, ...}.",
+          "oneOf": [
+            { "type": "string" },
+            { "type": "object", "additionalProperties": true }
+          ]
+        },
+
+        "scoring": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "criteria": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": true,
+                "description": "Un critère de scoring évalué par l'IA. Le field d'identité est `criterion_id` (legacy) — TOUTE ligne du code qui lit ce tableau doit accepter les 2 formes. Nouveaux scenarios: utiliser `criterion_id` pour rester cohérent.",
+                "properties": {
+                  "criterion_id": { "type": "string" },
+                  "id": { "type": "string" },
+                  "label": { "type": "string" },
+                  "description": { "type": "string" },
+                  "points": { "type": "number" },
+                  "weight": { "type": "number" },
+                  "sets_flag": { "type": "string" }
+                },
+                "anyOf": [
+                  { "required": ["criterion_id"] },
+                  { "required": ["id"] }
+                ]
+              }
+            }
+          }
+        },
+
+        "mail_config": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Enables the mail compose form in this phase. Consumed by MailModule (or the legacy fallback in useSendMail). `enabled` défaut à true si absent.",
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "kind": {
+              "type": "string",
+              "description": "Free-form kind key used by MailModule.handle to branch."
+            },
+            "defaults": {
+              "type": "object",
+              "additionalProperties": true,
+              "properties": {
+                "to": { "type": "string" },
+                "cc": { "type": "string" },
+                "subject": { "type": "string" }
+              }
+            },
+            "require_attachments": { "type": "boolean" },
+            "send_advances_phase": {
+              "type": "boolean",
+              "description": "If true, sending the mail triggers checkCompletionRules → advance. Combine with on_send_flags + any_flags in completion_rules for the classic 'submit form to advance' pattern."
+            },
+            "on_send_flags": {
+              "type": "object",
+              "additionalProperties": { "type": "boolean" },
+              "description": "Flags set on session.flags at the moment the mail is sent. Typically the same flag that appears in completion_rules.any_flags."
+            },
+            "send_label": { "type": "string" }
+          }
+        },
+
+        "entry_events": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/phaseEvent" }
+        },
+
+        "presentation_config": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Only when interaction_mode === 'presentation'. Drives PresentationModeView.",
+          "properties": {
+            "instructions": { "type": "string" },
+            "max_duration_sec": { "type": "number" },
+            "language": {
+              "type": "string",
+              "description": "BCP 47 tag for the SpeechRecognition (e.g. 'fr-FR')."
+            }
+          }
+        },
+
+        "voice_qa_config": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Only when interaction_mode === 'voice_qa'.",
+          "properties": {
+            "children_names": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "CMJ mode: names for the raised-hand children UI."
+            },
+            "max_simultaneous_hands": { "type": "number" },
+            "hand_raise_interval_sec": { "type": "number" }
+          }
+        },
+
+        "advancement": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "S5 phase-1 prospection: declarative advancement config consumed by MailModule.handleDsiResponseReply."
+        },
+
+        "chat_context_enrichment": {
+          "type": "object",
+          "additionalProperties": true,
+          "description": "Per-actor list of context keys to inject into the chat prompt (see lib/chatContextEnrichment)."
+        }
+      }
+    },
+
+    "completionRules": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "⚠ SYNC WITH types.ts:CompletionRules AND runtime.isCurrentPhaseValidatedByRules. Adding a key here without extending BOTH will fail the coverage test (lib/__tests__/checkCompletionRules.coverage.test.ts).",
+      "properties": {
+        "min_score": {
+          "type": "number",
+          "description": "Phase completes if phase score >= this value."
+        },
+        "any_flags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Phase completes if ANY of these flags is truthy on session.flags."
+        },
+        "all_flags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Phase completes if ALL of these flags are truthy."
+        },
+        "max_exchanges": {
+          "type": "number",
+          "description": "Phase completes after N total player+NPC messages, IF required_*_evidence also pass."
+        },
+        "custom": {
+          "type": "string",
+          "description": "Reserved: expression evaluated against session state. NOT YET IMPLEMENTED in runtime."
+        },
+        "required_player_evidence": { "$ref": "#/$defs/evidenceList" },
+        "required_npc_evidence": { "$ref": "#/$defs/evidenceList" }
+      }
+    },
+
+    "evidenceList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["keywords"],
+        "additionalProperties": false,
+        "properties": {
+          "keywords": {
+            "type": "array",
+            "items": { "type": "string" },
+            "minItems": 1
+          },
+          "min_matches": {
+            "type": "number",
+            "minimum": 1,
+            "description": "How many keywords from the list must appear (default 1)."
+          }
+        }
+      }
+    },
+
+    "phaseEvent": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Injected via runtime.injectPhaseEntryEvents. Idempotent per phaseId::eventId (see lib/phaseEventTracker).",
+      "properties": {
+        "id": { "type": "string" },
+        "event_id": { "type": "string" },
+        "message_id": { "type": "string" },
+        "actor": { "type": "string" },
+        "content": { "type": "string" },
+        "type": {
+          "type": "string",
+          "enum": ["chat", "mail", "phone_call", "whatsapp_message", "sms", "visio", "interruption"]
+        },
+        "subject": { "type": "string" },
+        "attachments": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "label"],
+            "additionalProperties": false,
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" }
+            }
+          }
+        },
+        "delay_ms": { "type": "number", "minimum": 0 },
+        "phaseId": { "type": "string" }
+      }
+    },
+
+    "clinicalArticleList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "title", "content"],
+        "additionalProperties": true,
+        "properties": {
+          "id": { "type": "string" },
+          "title": { "type": "string" },
+          "content": { "type": "string" },
+          "toxic": {
+            "type": "boolean",
+            "description": "Toxic clause: signing it as-is triggers a bad outcome in the debrief."
+          },
+          "moderate": {
+            "type": "boolean",
+            "description": "Moderate concern: warning in the debrief but not a hard fail."
+          }
+        }
+      }
+    }
+  }
+}

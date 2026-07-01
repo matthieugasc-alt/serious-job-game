@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/scenario.schema.json",
   "scenario_id": "amendement_derniere_minute",
   "version": "1.0",
   "locale": "fr-FR",

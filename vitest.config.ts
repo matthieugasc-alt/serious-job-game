@@ -15,6 +15,7 @@ export default defineConfig({
     globals: false,
     include: [
       "app/**/__tests__/**/*.test.ts",
+      "schema/**/__tests__/**/*.test.ts",
       "tests/**/*.test.ts",
     ],
     // Faster: no coverage by default. Run `npm run test:coverage` to opt in.

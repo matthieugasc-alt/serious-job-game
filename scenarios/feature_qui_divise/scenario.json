@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/scenario.schema.json",
   "scenario_id": "feature_qui_divise",
   "version": "1.0",
   "locale": "fr-FR",

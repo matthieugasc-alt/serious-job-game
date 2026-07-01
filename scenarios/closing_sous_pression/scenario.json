@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/scenario.schema.json",
   "scenario_id": "closing_sous_pression",
   "version": "1.0",
   "locale": "fr-FR",

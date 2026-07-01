@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/scenario.schema.json",
   "scenario_id": "client_qui_hesite",
   "version": "1.0.0",
   "locale": "fr-FR",

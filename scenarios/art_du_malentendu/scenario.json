@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/scenario.schema.json",
   "scenario_id": "art_du_malentendu",
   "version": "1.0.0",
   "locale": "fr-FR",

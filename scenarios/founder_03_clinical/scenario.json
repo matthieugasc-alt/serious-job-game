@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/scenario.schema.json",
   "scenario_id": "founder_03_clinical",
   "version": "1.0.0",
   "locale": "fr-FR",

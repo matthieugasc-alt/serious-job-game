@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/scenario.schema.json",
   "scenario_id": "compromis_qui_coince",
   "version": "1.0",
   "locale": "fr-FR",

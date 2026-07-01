@@ -1,4 +1,5 @@
 {
+  "$schema": "../../schema/scenario.schema.json",
   "scenario_id": "founder_02_mvp",
   "version": "3.0.0",
   "locale": "fr-FR",

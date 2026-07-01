@@ -21,6 +21,8 @@
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
+import Ajv from "ajv/dist/2020.js";
+import addFormats from "ajv-formats";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -125,10 +127,54 @@ function collectTextFields(obj, prefix = "") {
   return results;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// JSON SCHEMA (source de vérité data-first — schema/scenario.schema.json)
+// ═══════════════════════════════════════════════════════════════════
+// Chargé une fois au boot. Chaque scenario est validé contre lui AVANT
+// les checks métier ci-dessous. Un scenario qui échoue au schéma se voit
+// remonter des SCHEMA_* errors et bloque le build (via exit 1 en fin de
+// script quand des ACTIVE scenarios ont des erreurs).
+
+const schemaPath = path.join(projectRoot, "schema", "scenario.schema.json");
+let schemaValidator = null;
+try {
+  const schema = JSON.parse(fs.readFileSync(schemaPath, "utf8"));
+  const ajv = new Ajv({ allErrors: true, strict: false });
+  addFormats(ajv);
+  schemaValidator = ajv.compile(schema);
+} catch (e) {
+  console.error(`[validate-scenarios] Cannot load JSON schema: ${e.message}`);
+  process.exit(2);
+}
+
+function validateAgainstSchema(scenario) {
+  const issues = [];
+  const ok = schemaValidator(scenario);
+  if (ok) return issues;
+  for (const e of schemaValidator.errors || []) {
+    const p = e.instancePath || "(root)";
+    const code = `SCHEMA_${(e.keyword || "invalid").toUpperCase()}`;
+    let msg = `JSON schema: ${e.message}`;
+    if (e.params) {
+      const paramStr = Object.entries(e.params)
+        .map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+        .join(", ");
+      if (paramStr) msg += ` (${paramStr})`;
+    }
+    issues.push(err(code, msg, p));
+  }
+  return issues;
+}
+
 function validateScenario(scenario, scenarioId) {
   const issues = [];
   const scenarioDir = path.join(scenariosDir, scenarioId);
   const isFounder = scenarioId.startsWith("founder_");
+
+  // ─── 0. JSON Schema (source de vérité data-first) ────────────
+  // Fait AVANT les checks métier: si le schéma échoue, les checks
+  // suivants peuvent produire des faux positifs sur des objets malformés.
+  issues.push(...validateAgainstSchema(scenario));
 
   // ─── 1. Basic structure ───────────────────────────────────────
 
