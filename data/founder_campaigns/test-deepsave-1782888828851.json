@@ -1,0 +1,33 @@
+{
+  "id": "test-deepsave-1782888828851",
+  "userId": "test-user",
+  "createdAt": "2026-07-01T06:53:48.871Z",
+  "status": "in_progress",
+  "currentScenarioIndex": 0,
+  "pendingScenarioId": null,
+  "state": {
+    "treasury": 10000,
+    "ownership": 100,
+    "mrr": 0,
+    "payroll": 0,
+    "productQuality": 50,
+    "techDebt": 20,
+    "investorConfidence": 50,
+    "marketValidation": 50,
+    "elapsedMonths": 0
+  },
+  "completedScenarios": [],
+  "lastMicroDebrief": null,
+  "hasAdvisoryBoard": false,
+  "burnRateMonthly": 0,
+  "checkpoint": {
+    "scenarioId": "founder_02_pmv",
+    "phaseIndex": 1,
+    "completedPhases": [
+      "phase_1"
+    ],
+    "abandonCount": 0,
+    "penaltiesApplied": 0,
+    "savedAt": "2026-07-01T06:53:48.872Z"
+  }
+}
