@@ -10,6 +10,7 @@
     "validate:scenarios": "node scripts/validate-scenarios.mjs",
     "validate:founder": "node scripts/validate-founder.mjs",
     "scenario:pointer": "node scripts/inject-schema-pointer.mjs",
+    "scaffold:scenario": "node scripts/scaffold-scenario.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage"

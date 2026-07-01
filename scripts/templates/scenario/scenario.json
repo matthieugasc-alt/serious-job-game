@@ -1,0 +1,157 @@
+{
+  "$schema": "../../schema/scenario.schema.json",
+  "scenario_id": "__template__",
+  "version": "0.1.0",
+  "locale": "fr-FR",
+
+  "meta": {
+    "title": "Template Scenario",
+    "subtitle": "Décris ici la situation en une phrase.",
+    "description": "Explique en 2-3 phrases le contexte narratif complet, le rôle du joueur et l'enjeu principal.",
+    "difficulty": "intermediate",
+    "estimated_duration_min": 15,
+    "job_family": "custom",
+    "tags": [],
+    "show_objective": true,
+    "show_background_fact": false
+  },
+
+  "introduction": {
+    "welcome_message": "Bienvenue dans ce scenario. Ton rôle : [définir le rôle du joueur].",
+    "context_cards": []
+  },
+
+  "narrative": {
+    "context": "Contexte du scenario en 3-5 phrases (situation initiale, tension, enjeux).",
+    "mission": "Objectif macro à atteindre par le joueur pendant le scenario.",
+    "initial_situation": "État du monde au moment où le joueur arrive.",
+    "trigger": "Événement déclencheur qui met le scenario en mouvement."
+  },
+
+  "timeline": {
+    "start_time": "09:00",
+    "end_time": "18:00"
+  },
+
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "Joueur",
+      "controlled_by": "player"
+    },
+    {
+      "actor_id": "npc_example",
+      "name": "Personnage exemple",
+      "role": "Contact principal",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/npc_example.md",
+      "email": "contact@example.com",
+      "avatar": { "initials": "PE", "color": "#5b5fc7" },
+      "visible_in_contacts": true,
+      "contact_status": "available"
+    }
+  ],
+
+  "channels": [
+    { "channel_id": "chat", "label": "Messagerie interne" },
+    { "channel_id": "mail", "label": "Email" }
+  ],
+
+  "resources": {
+    "documents": []
+  },
+
+  "constraints": {},
+
+  "initial_events": [],
+
+  "phases": [
+    {
+      "phase_id": "phase_1_intro",
+      "title": "Phase 1 — Prise de contact",
+      "objective": "Que doit accomplir le joueur dans cette phase ?",
+      "phase_focus": "Description du comportement attendu de l'AI dans cette phase (steer du prompt).",
+      "interaction_mode": "chat_mail",
+      "ai_actors": ["npc_example"],
+      "active_channels": ["chat"],
+      "modules": [],
+      "completion_rules": {
+        "max_exchanges": 4,
+        "required_player_evidence": [
+          {
+            "keywords": ["bonjour", "présenter"],
+            "min_matches": 1
+          }
+        ]
+      },
+      "next_phase": "phase_2_action",
+      "entry_events": [
+        {
+          "event_id": "phase_1_intro_hello",
+          "actor": "npc_example",
+          "content": "Bonjour, je suis le personnage exemple. Comment puis-je vous aider ?",
+          "type": "chat",
+          "delay_ms": 500
+        }
+      ],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "greeting_quality",
+            "description": "Salutation professionnelle et personnalisée.",
+            "points": 20
+          }
+        ]
+      }
+    },
+    {
+      "phase_id": "phase_2_action",
+      "title": "Phase 2 — Passage à l'action",
+      "objective": "Le joueur doit envoyer un mail concluant à la conversation.",
+      "phase_focus": "L'AI attend une action structurée par mail.",
+      "interaction_mode": "chat_mail",
+      "ai_actors": ["npc_example"],
+      "active_channels": ["chat", "mail"],
+      "modules": [],
+      "completion_rules": {
+        "any_flags": ["mail_sent_template"]
+      },
+      "mail_config": {
+        "enabled": true,
+        "kind": "template_action",
+        "defaults": {
+          "to": "contact@example.com",
+          "cc": "",
+          "subject": "Suite à notre échange"
+        },
+        "send_advances_phase": true,
+        "on_send_flags": {
+          "mail_sent_template": true
+        },
+        "send_label": "Envoyer la réponse"
+      }
+    }
+  ],
+
+  "endings": [
+    {
+      "ending_id": "success",
+      "title": "Succès",
+      "description": "Le joueur a mené l'échange à bien.",
+      "conditions": {}
+    },
+    {
+      "ending_id": "partial",
+      "title": "Partiel",
+      "description": "Objectifs partiellement atteints.",
+      "conditions": {}
+    }
+  ],
+
+  "default_ending": "partial",
+
+  "competencies_evaluated": [
+    "Communication écrite",
+    "Structuration de l'information"
+  ]
+}
