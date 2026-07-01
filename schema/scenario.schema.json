@@ -381,7 +381,7 @@
             "type": "string",
             "enum": ["mail", "contract", "interview", "debrief", "chat", "timer"]
           },
-          "description": "Enables the corresponding PhaseModule. If a module is listed here, its lifecycle hooks (enter_phase, mail_sent, contract_signed, etc.) are invoked before the legacy fallback in page.tsx. Note: 'chat' + 'timer' are declared by legacy scenarios mais n'ont pas encore de module implémenté — restent tolérés pour éviter de casser la data."
+          "description": "Enables the corresponding PhaseModule. If a module is listed here, its lifecycle hooks (enter_phase, mail_sent, contract_signed, etc.) are invoked before the legacy fallback in page.tsx. This enum is verrouillé par un test — voir app/scenarios/[scenarioId]/play/handlers/PhaseModuleRegistry.ts. Les types 'chat', 'timer', 'debrief' sont whitelistés (KNOWN_UNIMPLEMENTED_MODULE_TYPES) : autorisés dans les scenarios mais résolus au niveau du runtime (chat) / d'un hook (timer) / TODO (debrief)."
         },
 
         "duration_target_min": { "type": "number" },
