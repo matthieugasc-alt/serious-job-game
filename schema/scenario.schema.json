@@ -343,8 +343,39 @@
         "interaction_mode": {
           "type": "string",
           "enum": ["chat_mail", "presentation", "voice_qa"],
-          "description": "Drives which BODY layout renders (LeftSidebar/Main/RightPanel vs PresentationModeView)."
+          "description": "LEGACY: single-mode declaration. Prefer 'interaction_modes' (array). If both are set, 'interaction_modes' wins. Kept for backward compatibility — the loader normalizes single → [single, 'text'] when interaction_modes is absent."
         },
+
+        "interaction_modes": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "enum": ["voice", "text", "chat_mail", "presentation", "voice_qa"]
+          },
+          "description": "Ordered list of interaction modes the phase supports, best-preferred first. The moteur probes browser capability at boot (voiceCapability.ts) and picks the first supported mode via pickBestMode(). 'text' is always a valid fallback and is auto-appended if absent, so no phase becomes unplayable when the mic is unavailable. Verrouillé par le garde-fou __tests__/interactionModes.coverage.test.ts."
+        },
+
+        "mode_config": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": true,
+            "properties": {
+              "timer_multiplier": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Multiplier applied to max_duration_sec when this mode is picked. Typing takes longer than speaking — use 3 for text fallback of a voice phase. 0 = disable timer for this mode (equivalent to disable_timer:true)."
+              },
+              "disable_timer": {
+                "type": "boolean",
+                "description": "Force-disables the max_duration_sec cap when this mode is picked. Takes precedence over timer_multiplier."
+              }
+            }
+          },
+          "description": "Per-mode overrides. Keys are mode names from interaction_modes (e.g. 'voice', 'text'). Currently supports timer_multiplier and disable_timer. Example: { \"text\": { \"timer_multiplier\": 3 } } triples the phase deadline when the moteur falls back from voice → text."
+        },
+
 
         "ai_actors": {
           "type": "array",
@@ -397,6 +428,8 @@
           "type": "number",
           "description": "Fallback advance rule when no completion_rules: phase completes after N player messages (default 2)."
         },
+
+        "evaluation": { "$ref": "#/$defs/phaseEvaluation" },
 
         "completion_rules": { "$ref": "#/$defs/completionRules" },
 
@@ -575,7 +608,57 @@
           "description": "Reserved: expression evaluated against session state. NOT YET IMPLEMENTED in runtime."
         },
         "required_player_evidence": { "$ref": "#/$defs/evidenceList" },
-        "required_npc_evidence": { "$ref": "#/$defs/evidenceList" }
+        "required_npc_evidence": { "$ref": "#/$defs/evidenceList" },
+
+        "required_criteria": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "E-chantier: ids of criteria (declared in phase.evaluation.observed_criteria) that MUST all be observed=true for the phase to complete. The moteur cross-checks the AI-produced observation against this list. Failure = specific missing_criteria surfaced in EvaluationResult, no AI 'phase_passed' guessing."
+        },
+        "min_criteria_count": {
+          "type": "number",
+          "minimum": 1,
+          "description": "E-chantier: number of criteria (from phase.evaluation.observed_criteria) that must be observed=true. Use as an alternative to required_criteria when partial credit is acceptable. Combined with required_criteria if both present (required first, then min count of any others)."
+        }
+      }
+    },
+
+    "phaseEvaluation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "E-chantier — Declarative evaluation contract (F1 of the E-chantier). The AI ONLY reports which of these criteria it observed; the moteur applies completion_rules.required_criteria / min_criteria_count to decide pass/fail. No more 'phase_passed' guessing. Every completion_rules.required_criteria id MUST appear in observed_criteria (checked by garde-fou E6).",
+      "required": ["observed_criteria"],
+      "properties": {
+        "observed_criteria": {
+          "type": "array",
+          "minItems": 1,
+          "description": "List of criteria the AI observes on the player's behavior. Each criterion has a stable id (used by completion_rules) and a short natural-language description that goes into the AI's evaluation prompt.",
+          "items": {
+            "type": "object",
+            "required": ["id", "description"],
+            "additionalProperties": false,
+            "properties": {
+              "id": {
+                "type": "string",
+                "pattern": "^[a-z0-9_]+$",
+                "description": "Stable snake_case identifier — referenced by completion_rules.required_criteria and persisted in session.evaluation_history."
+              },
+              "description": {
+                "type": "string",
+                "description": "Human-readable, injected into the AI evaluation prompt (e.g. 'Le joueur a identifié le besoin explicite du client')."
+              },
+              "expected": {
+                "type": "boolean",
+                "description": "Optional: the value the moteur EXPECTS for the phase to pass. Defaults to true. Setting to false lets you assert 'the player did NOT insult the client' as a criterion."
+              },
+              "weight": {
+                "type": "number",
+                "minimum": 0,
+                "description": "Optional: relative importance used by min_criteria_count (weighted sum). Defaults to 1."
+              }
+            }
+          }
+        }
       }
     },
 

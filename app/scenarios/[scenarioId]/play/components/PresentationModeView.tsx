@@ -13,11 +13,19 @@
  * field is named so adding a new control means editing one place only.
  */
 
-import React from "react";
+import React, { useState } from "react";
 import { Avatar, TypingDots } from "./Avatars";
 import { getInitials } from "../lib/playerUtils";
 
 export type PresentationMode = "presentation" | "voice_qa";
+
+/**
+ * Which input surface to render. "voice" = mic UX (default, legacy behavior).
+ * "text" = textarea fallback used when the moteur downgraded (V5).
+ * The scenario logic and visuals stay identical between modes; only the
+ * input control changes.
+ */
+export type PresentationInputMode = "voice" | "text";
 
 export type VoiceCapabilitiesLite = {
   recommendedMode: "native" | "backend" | "unavailable" | string;
@@ -78,12 +86,121 @@ export type PresentationModeViewProps = {
   pitchSecondsLeft: number;
   onChildRaiseClick: (childName: string) => void;
   onMicToggle: () => void;
+
+  // ── V5 additions: input mode + text fallback ──
+  /**
+   * When set to "text", the mic UI is replaced by a textarea + Submit
+   * button in both presentation and voice_qa modes. Defaults to "voice"
+   * for backward compatibility — existing callers unchanged.
+   */
+  inputMode?: PresentationInputMode;
+  /**
+   * Called when the player submits a text response in inputMode="text".
+   * In presentation mode: treated as the final transcript (equivalent
+   * to voiceTranscript after recording stops). In voice_qa: treated as
+   * the current message being sent (same effect as onMicToggle after
+   * voice capture completes).
+   */
+  onTextSubmit?: (text: string) => void;
 };
 
 const CHILD_COLORS = [
   "#FF6B6B", "#4ECDC4", "#45B7D1", "#96CEB4",
   "#FFEAA7", "#DDA0DD", "#98D8C8", "#F7DC6F",
 ];
+
+/**
+ * Text fallback input (V5). Rendered inside both PresentationRecording
+ * and VoiceQAPanel when inputMode === "text". The submit button and the
+ * Enter-to-submit shortcut both drop the text through onTextSubmit.
+ */
+function TextFallbackInput({
+  onSubmit,
+  placeholder,
+  submitLabel,
+  hint,
+  disabled,
+  dark = true,
+}: {
+  onSubmit: (text: string) => void;
+  placeholder: string;
+  submitLabel: string;
+  hint?: string;
+  disabled?: boolean;
+  dark?: boolean;
+}) {
+  const [value, setValue] = useState("");
+  const canSubmit = !disabled && value.trim().length > 0;
+
+  function send() {
+    if (!canSubmit) return;
+    onSubmit(value.trim());
+    setValue("");
+  }
+
+  return (
+    <div style={{ width: "100%", maxWidth: 700, margin: "0 auto" }}>
+      <textarea
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            send();
+          }
+        }}
+        placeholder={placeholder}
+        disabled={disabled}
+        rows={5}
+        style={{
+          width: "100%",
+          borderRadius: 12,
+          padding: "14px 16px",
+          fontSize: 15,
+          lineHeight: 1.5,
+          fontFamily: "inherit",
+          resize: "vertical",
+          minHeight: 120,
+          background: dark ? "rgba(255,255,255,0.08)" : "#fff",
+          color: dark ? "#fff" : "#111",
+          border: dark
+            ? "1px solid rgba(255,255,255,0.15)"
+            : "1px solid #d1d5db",
+          outline: "none",
+        }}
+      />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginTop: 10,
+          gap: 12,
+        }}
+      >
+        <div style={{ fontSize: 12, color: dark ? "#9ca3af" : "#6b7280" }}>
+          {hint || "Astuce : Cmd/Ctrl + Entrée pour envoyer"}
+        </div>
+        <button
+          onClick={send}
+          disabled={!canSubmit}
+          style={{
+            background: canSubmit ? "#5b5fc7" : "rgba(91,95,199,0.35)",
+            color: "#fff",
+            border: "none",
+            borderRadius: 10,
+            padding: "10px 20px",
+            fontSize: 14,
+            fontWeight: 600,
+            cursor: canSubmit ? "pointer" : "not-allowed",
+          }}
+        >
+          {submitLabel}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function PresentationModeView(props: PresentationModeViewProps) {
   if (props.mode === "presentation") return <PresentationRecording {...props} />;
@@ -111,7 +228,10 @@ function PresentationRecording({
   onStartPresentation,
   onStopPresentation,
   onRetryPresentation,
+  inputMode = "voice",
+  onTextSubmit,
 }: PresentationModeViewProps) {
+  const isTextMode = inputMode === "text";
   return (
     <div
       style={{
@@ -156,48 +276,63 @@ function PresentationRecording({
             }}
           >
             <h2 style={{ color: "#7b7fff", fontSize: 14, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1, margin: "0 0 12px" }}>
-              🎤 Présentation orale
+              {isTextMode ? "✍️ Présentation écrite" : "🎤 Présentation orale"}
             </h2>
             <p style={{ color: "#e0e0e0", fontSize: 14, lineHeight: 1.7, margin: 0, whiteSpace: "pre-line" }}>
               {instructions}
             </p>
           </div>
 
-          <div style={{ marginBottom: 24 }}>
-            <button
-              onClick={() => (isRecording ? onStopPresentation() : onStartPresentation(recordingLang))}
-              style={{
-                width: 120,
-                height: 120,
-                borderRadius: "50%",
-                background: isRecording ? "#e94b3c" : "#5b5fc7",
-                border: isRecording ? "4px solid rgba(233,75,60,0.3)" : "4px solid rgba(91,95,199,0.3)",
-                color: "#fff",
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: 48,
-                transition: "all .2s",
-                boxShadow: isRecording ? "0 0 40px rgba(233,75,60,0.4)" : "0 0 30px rgba(91,95,199,0.3)",
-              }}
-            >
-              {isRecording ? "⏹" : "🎙️"}
-            </button>
-          </div>
-
-          <div style={{ color: isRecording ? "#ff8a80" : "#7b7fff", fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
-            {isRecording ? "Cliquez sur le micro pour terminer votre présentation" : "Cliquez sur le micro pour commencer"}
-          </div>
-
-          {isRecording && (
-            <div style={{ color: "#fff", fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums", marginBottom: 24 }}>
-              {Math.floor(recordingElapsed / 60).toString().padStart(2, "0")}:
-              {(recordingElapsed % 60).toString().padStart(2, "0")}
-              <span style={{ fontSize: 14, color: "#888", marginLeft: 12 }}>
-                / {Math.floor(maxDurationSec / 60)}:00
-              </span>
+          {isTextMode ? (
+            <div style={{ marginBottom: 24 }}>
+              <TextFallbackInput
+                onSubmit={(text) => onTextSubmit?.(text)}
+                placeholder="Rédige ta présentation ici… (le temps a été rallongé automatiquement car le micro n'est pas disponible)"
+                submitLabel="Envoyer ma présentation"
+                hint="Astuce : Cmd/Ctrl + Entrée pour envoyer"
+                disabled={!onTextSubmit}
+                dark
+              />
             </div>
+          ) : (
+            <>
+              <div style={{ marginBottom: 24 }}>
+                <button
+                  onClick={() => (isRecording ? onStopPresentation() : onStartPresentation(recordingLang))}
+                  style={{
+                    width: 120,
+                    height: 120,
+                    borderRadius: "50%",
+                    background: isRecording ? "#e94b3c" : "#5b5fc7",
+                    border: isRecording ? "4px solid rgba(233,75,60,0.3)" : "4px solid rgba(91,95,199,0.3)",
+                    color: "#fff",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 48,
+                    transition: "all .2s",
+                    boxShadow: isRecording ? "0 0 40px rgba(233,75,60,0.4)" : "0 0 30px rgba(91,95,199,0.3)",
+                  }}
+                >
+                  {isRecording ? "⏹" : "🎙️"}
+                </button>
+              </div>
+
+              <div style={{ color: isRecording ? "#ff8a80" : "#7b7fff", fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+                {isRecording ? "Cliquez sur le micro pour terminer votre présentation" : "Cliquez sur le micro pour commencer"}
+              </div>
+
+              {isRecording && (
+                <div style={{ color: "#fff", fontSize: 32, fontWeight: 700, fontVariantNumeric: "tabular-nums", marginBottom: 24 }}>
+                  {Math.floor(recordingElapsed / 60).toString().padStart(2, "0")}:
+                  {(recordingElapsed % 60).toString().padStart(2, "0")}
+                  <span style={{ fontSize: 14, color: "#888", marginLeft: 12 }}>
+                    / {Math.floor(maxDurationSec / 60)}:00
+                  </span>
+                </div>
+              )}
+            </>
           )}
 
           {(voiceTranscript || interimText) && (
@@ -326,8 +461,11 @@ function VoiceQAPanel(props: PresentationModeViewProps) {
     getActorInfo, chatEndRef, pitchTimerActive, pitchCutoff, pitchSecondsLeft,
     voiceFatalError, voiceTranscript, interimText, voiceTranscribing, isRecording,
     onChildRaiseClick, onMicToggle,
+    inputMode = "voice",
+    onTextSubmit,
   } = props;
 
+  const isTextMode = inputMode === "text";
   const isPitchPhase = currentPhaseAiActors.length === 0;
   const micDisabled = isPitchPhase && pitchCutoff;
   const yukiActor = actors.find((a: any) => a.actor_id === "yuki_tanaka");
@@ -542,52 +680,67 @@ function VoiceQAPanel(props: PresentationModeViewProps) {
           <div style={{ flex: 1 }} />
 
           <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div style={{
-              display: "flex", alignItems: "center", gap: 8,
-              background: micDisabled ? "#f5f5f5" : isRecording ? "#fef2f2" : "#f0f0f0",
-              padding: "8px 16px", borderRadius: 20,
-              border: micDisabled ? "1px solid #e0e0e0" : isRecording ? "1px solid #fca5a5" : "1px solid #ddd",
-            }}>
-              <div style={{
-                width: 12, height: 12, borderRadius: "50%",
-                background: micDisabled ? "#ccc" : isRecording ? "#e94b3c" : "#999",
-                animation: isRecording && !micDisabled ? "micBlink 1s ease-in-out infinite" : "none",
-              }} />
-              <span style={{ fontSize: 12, fontWeight: 600, color: micDisabled ? "#bbb" : isRecording ? "#e94b3c" : "#999" }}>
-                {micDisabled
-                  ? "⏰ Pitch terminé"
-                  : voiceTranscribing
-                    ? "Transcription..."
-                    : isRecording
-                      ? (isSending ? "Analyse en cours..." : "🎤 Parlez puis appuyez sur 🔇 pour envoyer")
-                      : isSpeakingTTS
-                        ? "🔊 Écoutez le jury..."
-                        : "Micro coupé — Appuyez sur 🎙️ pour parler"}
-              </span>
-            </div>
-            {voiceFatalError && (
-              <span style={{ fontSize: 11, color: "#c62828", fontWeight: 600 }} title={voiceFatalError.message}>
-                ⚠️ {voiceFatalError.category === "permission_denied" ? "Micro refusé"
-                   : voiceFatalError.category === "mic_missing" ? "Aucun micro"
-                   : voiceFatalError.category === "mic_busy" ? "Micro occupé"
-                   : "Indisponible"}
-              </span>
+            {isTextMode ? (
+              <div style={{ width: 320 }}>
+                <TextFallbackInput
+                  onSubmit={(text) => onTextSubmit?.(text)}
+                  placeholder={micDisabled ? "Le temps est écoulé." : "Écris ta réponse au jury…"}
+                  submitLabel="Envoyer"
+                  hint="Cmd/Ctrl + Entrée"
+                  disabled={micDisabled || isSending || !onTextSubmit}
+                  dark={false}
+                />
+              </div>
+            ) : (
+              <>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  background: micDisabled ? "#f5f5f5" : isRecording ? "#fef2f2" : "#f0f0f0",
+                  padding: "8px 16px", borderRadius: 20,
+                  border: micDisabled ? "1px solid #e0e0e0" : isRecording ? "1px solid #fca5a5" : "1px solid #ddd",
+                }}>
+                  <div style={{
+                    width: 12, height: 12, borderRadius: "50%",
+                    background: micDisabled ? "#ccc" : isRecording ? "#e94b3c" : "#999",
+                    animation: isRecording && !micDisabled ? "micBlink 1s ease-in-out infinite" : "none",
+                  }} />
+                  <span style={{ fontSize: 12, fontWeight: 600, color: micDisabled ? "#bbb" : isRecording ? "#e94b3c" : "#999" }}>
+                    {micDisabled
+                      ? "⏰ Pitch terminé"
+                      : voiceTranscribing
+                        ? "Transcription..."
+                        : isRecording
+                          ? (isSending ? "Analyse en cours..." : "🎤 Parlez puis appuyez sur 🔇 pour envoyer")
+                          : isSpeakingTTS
+                            ? "🔊 Écoutez le jury..."
+                            : "Micro coupé — Appuyez sur 🎙️ pour parler"}
+                  </span>
+                </div>
+                {voiceFatalError && (
+                  <span style={{ fontSize: 11, color: "#c62828", fontWeight: 600 }} title={voiceFatalError.message}>
+                    ⚠️ {voiceFatalError.category === "permission_denied" ? "Micro refusé"
+                       : voiceFatalError.category === "mic_missing" ? "Aucun micro"
+                       : voiceFatalError.category === "mic_busy" ? "Micro occupé"
+                       : "Indisponible"}
+                  </span>
+                )}
+                <button
+                  disabled={micDisabled || isSending}
+                  onClick={onMicToggle}
+                  style={{
+                    width: 44, height: 44, borderRadius: "50%",
+                    background: micDisabled ? "#ccc" : isRecording ? "#e94b3c" : "#5b5fc7",
+                    border: "none", color: "#fff",
+                    cursor: micDisabled || isSending ? "not-allowed" : "pointer",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 20, transition: "all .2s",
+                    opacity: micDisabled ? 0.5 : 1,
+                  }}
+                >
+                  {micDisabled ? "🚫" : isRecording ? "🔇" : "🎙️"}
+                </button>
+              </>
             )}
-            <button
-              disabled={micDisabled || isSending}
-              onClick={onMicToggle}
-              style={{
-                width: 44, height: 44, borderRadius: "50%",
-                background: micDisabled ? "#ccc" : isRecording ? "#e94b3c" : "#5b5fc7",
-                border: "none", color: "#fff",
-                cursor: micDisabled || isSending ? "not-allowed" : "pointer",
-                display: "flex", alignItems: "center", justifyContent: "center",
-                fontSize: 20, transition: "all .2s",
-                opacity: micDisabled ? 0.5 : 1,
-              }}
-            >
-              {micDisabled ? "🚫" : isRecording ? "🔇" : "🎙️"}
-            </button>
           </div>
         </div>
 

@@ -641,6 +641,47 @@ export type CompletionRules = {
     keywords: string[];
     min_matches: number;
   }>;
+
+  /**
+   * E-chantier: ids of criteria (from phase.evaluation.observed_criteria)
+   * that MUST all be observed=true for the phase to complete.
+   * The moteur applies this against the AI-produced observation. No more
+   * 'phase_passed' guessing.
+   */
+  required_criteria?: string[];
+
+  /**
+   * E-chantier: number of observed_criteria that must be observed=true.
+   * Alternative to required_criteria when partial credit is acceptable.
+   * If both are set, required_criteria applies first, then min_criteria_count
+   * of any REMAINING (non-required) criteria.
+   */
+  min_criteria_count?: number;
+};
+
+/**
+ * E-chantier: declarative evaluation contract on a phase.
+ * The AI outputs {criteria: {[id]: boolean}} — the moteur decides pass/fail
+ * by cross-referencing with completion_rules.required_criteria /
+ * min_criteria_count. See app/lib/evaluation/applyPhaseObservation.ts (E3).
+ */
+export type PhaseEvaluation = {
+  /**
+   * Criteria the AI is instructed to observe on the player. Order matters
+   * for prompt readability but is not semantic.
+   */
+  observed_criteria: PhaseEvaluationCriterion[];
+};
+
+export type PhaseEvaluationCriterion = {
+  /** Stable snake_case id, referenced by completion_rules and persistence. */
+  id: string;
+  /** Human-readable, injected into the AI evaluation prompt. */
+  description: string;
+  /** Expected observed value (default true). false = 'player MUST NOT do X'. */
+  expected?: boolean;
+  /** Weight for min_criteria_count (default 1). Sum >= min_criteria_count → pass. */
+  weight?: number;
 };
 
 /**
@@ -664,6 +705,11 @@ export const COMPLETION_RULES_KEYS = [
   "custom",
   "required_player_evidence",
   "required_npc_evidence",
+  // E-chantier (câblage runtime en E3 — applyPhaseObservation() piloté par le
+  // moteur ajoute automatiquement un flag `evaluation_passed` via any_flags
+  // pour rester compat avec isCurrentPhaseValidatedByRules).
+  "required_criteria",
+  "min_criteria_count",
 ] as const satisfies readonly (keyof CompletionRules)[];
 
 /**
@@ -1154,6 +1200,40 @@ export type SessionState = {
 
   /** Mail drafts currently being composed (keyed by mail kind) */
   mailDrafts: Record<string, MailDraft>;
+
+  /**
+   * E-chantier E4 — audit trail of every applyPhaseObservation() call.
+   * Persisted alongside chat/mails in the deep snapshot. Consumed by
+   * the /admin/replay view (E5) to answer "pourquoi cette phase est-
+   * elle validée ?" without ever re-running the AI.
+   *
+   * Append-only: never mutate an entry once persisted. Order preserved.
+   */
+  evaluation_history?: EvaluationHistoryEntry[];
+};
+
+/**
+ * A single entry in session.evaluation_history. Mirrors
+ * EvaluationResult from lib/evaluation/applyPhaseObservation.ts
+ * but decoupled to avoid a circular import between runtime types
+ * and the evaluation moteur.
+ */
+export type EvaluationHistoryEntry = {
+  readonly phaseId: string;
+  readonly timestamp: string;
+  readonly passed: boolean;
+  readonly appliedRule: string;
+  readonly matched: readonly string[];
+  readonly missing: readonly string[];
+  readonly unexpected: readonly string[];
+  readonly weightedScore: number | null;
+  readonly weightedThreshold: number | null;
+  readonly reason: string;
+  readonly observation: {
+    readonly criteria: Record<string, boolean>;
+    readonly evidence?: Record<string, string>;
+    readonly meta?: { readonly model?: string; readonly at?: string };
+  };
 };
 
 // ===== AUTH TYPES =====

@@ -26,6 +26,12 @@ export type DeepSaveSnapshot = {
   currentPhaseIndex: number;
   chosenCtoId?: string | null;
   chosenKolId?: string | null;
+  /**
+   * E-chantier E4 — audit trail of every applyPhaseObservation() call.
+   * Append-only. Reconstructs "pourquoi cette phase est-elle validée ?"
+   * without ever re-running the AI. Consumed by /admin/replay (E5).
+   */
+  evaluation_history?: any[];
 };
 
 export type FounderCheckpointAPI = {

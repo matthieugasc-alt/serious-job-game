@@ -29,6 +29,7 @@ const SNAPSHOTTABLE_FIELDS = [
   "sentMails",
   "injectedPhaseEntryEvents",
   "currentPhaseIndex",
+  "evaluation_history",
 ] as const;
 
 type SnapshottableField = (typeof SNAPSHOTTABLE_FIELDS)[number];
@@ -54,6 +55,21 @@ describe("Snapshot round-trip — garde-fou", () => {
       sentMails: [{ id: "s1", kind: "one_pager_submission", to: "j@t.f", subject: "s", body: "b" }],
       injectedPhaseEntryEvents: ["phase_1::intro"],
       currentPhaseIndex: 2,
+      evaluation_history: [
+        {
+          phaseId: "phase_1",
+          timestamp: "2026-07-01T09:00:00.000Z",
+          passed: true,
+          appliedRule: "required_criteria",
+          matched: ["identified_client_need"],
+          missing: [],
+          unexpected: [],
+          weightedScore: null,
+          weightedThreshold: null,
+          reason: "Phase validée.",
+          observation: { criteria: { identified_client_need: true } },
+        },
+      ],
     };
     for (const f of SNAPSHOTTABLE_FIELDS) {
       expect(sample[f], `Snapshot field "${f}" is undefined — did DeepSaveSnapshot type diverge?`).toBeDefined();
@@ -94,6 +110,25 @@ describe("Snapshot round-trip — garde-fou", () => {
       ],
       injectedPhaseEntryEvents: ["phase_1::intro", "phase_2::briefing"],
       currentPhaseIndex: 1,
+      evaluation_history: [
+        {
+          phaseId: "phase_1",
+          timestamp: "2026-07-01T09:00:00.000Z",
+          passed: true,
+          appliedRule: "required_and_min",
+          matched: ["identified_client_need", "handled_objection"],
+          missing: [],
+          unexpected: [],
+          weightedScore: 1,
+          weightedThreshold: 1,
+          reason: "Phase validée. Tous les critères requis observés (2). Seuil pondéré : 1/1.",
+          observation: {
+            criteria: { identified_client_need: true, handled_objection: true, verified_budget: false },
+            evidence: { identified_client_need: "Le joueur a demandé 'quel est ton besoin ?'" },
+            meta: { model: "claude-sonnet-4", at: "2026-07-01T09:00:00.000Z" },
+          },
+        },
+      ],
     };
 
     const serialized = JSON.stringify(original);
@@ -117,6 +152,7 @@ describe("Snapshot round-trip — garde-fou", () => {
       sentMails: [],
       injectedPhaseEntryEvents: [],
       currentPhaseIndex: 0,
+      evaluation_history: [],
     };
     const restored = JSON.parse(JSON.stringify(empty)) as DeepSaveSnapshot;
     expect(restored).toEqual(empty);

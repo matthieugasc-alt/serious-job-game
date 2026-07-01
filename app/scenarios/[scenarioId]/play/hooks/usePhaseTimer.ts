@@ -12,6 +12,8 @@ import {
   updateMailDraft,
 } from "@/app/lib/runtime";
 import { InterviewHandler } from "../handlers";
+import type { InteractionMode } from "@/app/lib/capabilities";
+import { adjustTimerForMode } from "@/app/lib/capabilities";
 
 /**
  * Parameters for the usePhaseTimer hook.
@@ -39,6 +41,14 @@ interface UsePhaseTimerParams {
   notifyCheckpointAdvance: (phaseId: string, newIndex: number) => void;
   /** Deep-clone a session object */
   cloneSession: (prev: any) => any;
+  /**
+   * V5: the actual mode the moteur picked for this phase (after
+   * pickBestMode). Used to apply mode_config.timer_multiplier so a
+   * phase that fell back voice → text gets the longer deadline
+   * declared in scenario JSON. Defaults to "voice" for callers who
+   * haven't threaded the capability check yet.
+   */
+  activeMode?: InteractionMode;
 }
 
 export function usePhaseTimer({
@@ -58,6 +68,7 @@ export function usePhaseTimer({
   injectIntroEventsOnly,
   notifyCheckpointAdvance,
   cloneSession,
+  activeMode = "voice",
 }: UsePhaseTimerParams): void {
   // ── Internal refs (only used within these effects) ──
   const timeAdvanceTriggeredRef = useRef<string | null>(null);
@@ -177,7 +188,11 @@ export function usePhaseTimer({
   useEffect(() => {
     if (!session || !scenario) return;
     const phase = scenario.phases[session.currentPhaseIndex] as any;
-    const maxSec = phase?.max_duration_sec;
+    // V5: apply mode_config.timer_multiplier / disable_timer.
+    // Backward compat: with no mode_config, this returns
+    // base max_duration_sec unchanged.
+    const adjustment = adjustTimerForMode(phase, activeMode);
+    const maxSec = adjustment.effectiveMaxDurationSec;
     if (!maxSec || typeof maxSec !== "number") return;
     // Don't start timer for interview phases until interview has started
     if (InterviewHandler.isGateActive(phase, interviewStarted)) return;

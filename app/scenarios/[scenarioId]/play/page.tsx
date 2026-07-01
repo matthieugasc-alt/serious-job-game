@@ -66,6 +66,13 @@ import { OnePagerEditor } from "./components/OnePagerEditor";
 import { RightPanel } from "./components/RightPanel";
 import { LeftSidebar } from "./components/LeftSidebar";
 import { PresentationModeView } from "./components/PresentationModeView";
+import { CapabilityFallbackBanner } from "./components/CapabilityFallbackBanner";
+import {
+  probeVoiceCapability,
+  pickBestMode,
+  type VoiceCapabilityStatus,
+  type InteractionMode,
+} from "@/app/lib/capabilities";
 import { useToasts } from "./hooks/useToasts";
 import { useFounderCheckpoint } from "./hooks/useFounderCheckpoint";
 import { useDeepSave } from "./hooks/useDeepSave";
@@ -801,9 +808,57 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     );
   }, [debugMode, view?.phaseId, view?.canAdvance, session?.currentPhaseIndex, allDocuments.length]);
 
-  // ── Interaction mode ──
-  const currentInteractionMode: string = scenario?.phases?.[session?.currentPhaseIndex]?.interaction_mode || "chat";
+  // ── Voice capability (V-chantier: boot probe once, cache result) ──
+  // Runs once on mount. If the browser/device/permissions don't allow
+  // voice, pickBestMode() below downgrades voice_qa → text and the
+  // CapabilityFallbackBanner tells the player why.
+  const [voiceCapability, setVoiceCapability] =
+    useState<VoiceCapabilityStatus | null>(null);
+  const [bannerDismissed, setBannerDismissed] = useState(false);
+
+  useEffect(() => {
+    let mounted = true;
+    probeVoiceCapability().then((status) => {
+      if (mounted) setVoiceCapability(status);
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // ── Interaction mode (V-chantier: schema-declared + capability-picked) ──
   const currentPhaseConfig = scenario?.phases?.[session?.currentPhaseIndex];
+  const modeSelection = useMemo(() => {
+    // Defensive default while the probe is in-flight: assume voice OK
+    // so scenarios don't flash the fallback banner on first paint.
+    const cap: VoiceCapabilityStatus =
+      voiceCapability ??
+      ({
+        usable: true,
+        reason: "ready",
+        api: {
+          hasGetUserMedia: false,
+          hasMediaRecorder: false,
+          hasSpeechRecognition: false,
+          recommendedMode: "unavailable" as const,
+        },
+        probed: false,
+      } as VoiceCapabilityStatus);
+    return pickBestMode(currentPhaseConfig ?? null, cap);
+  }, [currentPhaseConfig, voiceCapability]);
+  const activeMode: InteractionMode = modeSelection.mode;
+
+  // Voice modes route through PresentationModeView; text fallback of a
+  // voice mode ALSO routes through PresentationModeView (mode-agnostique,
+  // V5) so the scenario UX stays visually consistent — only the input
+  // control swaps mic → textarea.
+  const currentInteractionMode: string =
+    activeMode === "text" &&
+    (modeSelection.preferred === "voice" ||
+      modeSelection.preferred === "voice_qa" ||
+      modeSelection.preferred === "presentation")
+      ? (modeSelection.preferred as string)
+      : (currentPhaseConfig as any)?.interaction_mode || "chat";
 
   // Per-contact conversation filtering
   // For interview phases (single ai_actor), show only messages from the CURRENT PHASE
@@ -937,6 +992,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     injectIntroEventsOnly,
     notifyCheckpointAdvance,
     cloneSession,
+    // V5: thread activeMode so mode_config.timer_multiplier applies
+    // (text fallback of a voice phase gets a longer deadline).
+    activeMode,
   });
 
   // ── Detect voice capture capabilities on mount ──
@@ -2399,10 +2457,37 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
         }}
       />
 
+      {/* ═══════ V-chantier: capability fallback banner ═══════ */}
+      {modeSelection.downgraded && !bannerDismissed && voiceCapability ? (
+        <CapabilityFallbackBanner
+          status={voiceCapability}
+          preferredMode={modeSelection.preferred}
+          activeMode={activeMode}
+          onDismiss={() => setBannerDismissed(true)}
+          onRetry={async () => {
+            const fresh = await probeVoiceCapability();
+            setVoiceCapability(fresh);
+            return fresh.usable;
+          }}
+        />
+      ) : null}
+
       {/* ═══════ BODY ═══════ */}
       {(currentInteractionMode === "presentation" || currentInteractionMode === "voice_qa") ? (
         <PresentationModeView
           mode={currentInteractionMode as "presentation" | "voice_qa"}
+          inputMode={activeMode === "text" ? "text" : "voice"}
+          onTextSubmit={(text) => {
+            if (currentInteractionMode === "voice_qa") {
+              dispatchVoiceQAMessage(text);
+            } else if (currentInteractionMode === "presentation") {
+              // Inject the typed transcript as if it were the recording
+              // result, then trigger the same end-of-presentation flow.
+              voiceTranscriptRef.current = text;
+              setVoiceTranscript(text);
+              endPresentation("manual");
+            }
+          }}
           voiceCapabilities={voiceCapabilities}
           voiceFatalError={voiceFatalError}
           presentationDone={presentationDone}

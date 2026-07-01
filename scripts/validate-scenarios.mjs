@@ -23,6 +23,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import Ajv from "ajv/dist/2020.js";
 import addFormats from "ajv-formats";
+import { checkEvaluationCoverage } from "./lib/checkEvaluationCoverage.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -311,6 +312,10 @@ function validateScenario(scenario, scenarioId) {
     if (phase.scoring && (!phase.scoring.criteria || !Array.isArray(phase.scoring.criteria) || phase.scoring.criteria.length === 0)) {
       issues.push(warn("EMPTY_SCORING_CRITERIA", `Phase "${pid}" has scoring section but no criteria array`, `${p}.scoring`));
     }
+
+    // E-chantier E6 — required_criteria / min_criteria_count coverage.
+    // Delegated to scripts/lib/checkEvaluationCoverage.mjs (unit-testable).
+    issues.push(...checkEvaluationCoverage(phase, p));
 
     // entry_events actor refs
     const entryEvents = [...(phase.entry_events || []), ...(phase.system_messages || []), ...(phase.incoming || [])];

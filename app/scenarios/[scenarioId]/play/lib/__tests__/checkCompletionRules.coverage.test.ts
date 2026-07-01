@@ -111,13 +111,28 @@ const RULE_STRESS_CASES: Record<
     expectedWhenFailing: false,
     description: "phase avec required_npc_evidence non satisfait → false",
   },
+  required_criteria: {
+    // E-chantier: câblage via applyPhaseObservation (E3) qui set un flag
+    // 'evaluation_passed'. Tant que E3 n'est pas livré, la règle est
+    // reconnue par le type mais n'a aucun effet standalone → false attendu.
+    rules: { required_criteria: ["identified_client_need", "handled_objection"] },
+    expectedWhenFailing: false,
+    description: "phase avec required_criteria non satisfait → false (câblage E3)",
+  },
+  min_criteria_count: {
+    // E-chantier idem: câblage via applyPhaseObservation (E3).
+    rules: { min_criteria_count: 3 },
+    expectedWhenFailing: false,
+    description: "phase avec min_criteria_count=3 non atteint → false (câblage E3)",
+  },
 };
 
 describe("completion_rules — coverage garde-fou", () => {
   it("COMPLETION_RULES_KEYS contient toutes les keys utilisables du type", () => {
     // Cohérence de base: la liste exportée n'est pas vide et contient
-    // exactement 7 keys (voir CompletionRules dans types.ts).
-    expect(COMPLETION_RULES_KEYS.length).toBe(7);
+    // exactement 9 keys (voir CompletionRules dans types.ts).
+    // 7 legacy + 2 E-chantier (required_criteria, min_criteria_count).
+    expect(COMPLETION_RULES_KEYS.length).toBe(9);
     // Vérifie qu'aucune duplication.
     const asSet = new Set(COMPLETION_RULES_KEYS);
     expect(asSet.size).toBe(COMPLETION_RULES_KEYS.length);
