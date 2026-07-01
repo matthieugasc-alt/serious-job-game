@@ -11,10 +11,30 @@
 
 import { useCallback } from "react";
 
+/** Shape of the deep snapshot payload sent to /deep_save. Mirrors the
+ *  server-side FounderCheckpoint["sessionSnapshot"] type. */
+export type DeepSaveSnapshot = {
+  flags: Record<string, any>;
+  chatMessages: any[];
+  mailDrafts: Record<string, any>;
+  savedDrafts: Record<string, any>;
+  scores: Record<string, number>;
+  pendingTimedEvents: any[];
+  inboxMails: any[];
+  sentMails: any[];
+  injectedPhaseEntryEvents: string[];
+  currentPhaseIndex: number;
+  chosenCtoId?: string | null;
+  chosenKolId?: string | null;
+};
+
 export type FounderCheckpointAPI = {
   notifyAdvance: (completedPhaseId: string, newPhaseIndex: number) => void;
   notifyClear: () => void;
   notifyRollback: (targetPhaseId: string, targetPhaseIndex: number) => void;
+  /** Persist the deep session snapshot. Non-blocking, silent on failure.
+   *  Callers throttle: hook useDeepSave does 10 s cadence + on unload. */
+  notifyDeepSave: (snapshot: DeepSaveSnapshot) => void;
 };
 
 export function useFounderCheckpoint(args: {
@@ -67,5 +87,23 @@ export function useFounderCheckpoint(args: {
     [scenarioId, isFounderScenario, apiHeaders],
   );
 
-  return { notifyAdvance, notifyClear, notifyRollback };
+  const notifyDeepSave = useCallback(
+    (snapshot: DeepSaveSnapshot) => {
+      if (!isFounderScenario) return;
+      // Best-effort: swallow all errors so throttled saves never disrupt
+      // gameplay. The server logs its own reject reasons.
+      fetch("/api/founder/checkpoint", {
+        method: "POST",
+        headers: apiHeaders(),
+        body: JSON.stringify({
+          scenarioId,
+          action: "deep_save",
+          snapshot,
+        }),
+      }).catch((e) => console.warn("[founder] deep_save failed:", e));
+    },
+    [scenarioId, isFounderScenario, apiHeaders],
+  );
+
+  return { notifyAdvance, notifyClear, notifyRollback, notifyDeepSave };
 }

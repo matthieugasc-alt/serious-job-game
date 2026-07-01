@@ -68,6 +68,7 @@ import { LeftSidebar } from "./components/LeftSidebar";
 import { PresentationModeView } from "./components/PresentationModeView";
 import { useToasts } from "./hooks/useToasts";
 import { useFounderCheckpoint } from "./hooks/useFounderCheckpoint";
+import { useDeepSave } from "./hooks/useDeepSave";
 import { useOnePagerEditor } from "./hooks/useOnePagerEditor";
 import { useTTS } from "./hooks/useTTS";
 import { buildClinicalArticles } from "./lib/clinicalContractTemplates";
@@ -668,10 +669,23 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     notifyAdvance: notifyCheckpointAdvance,
     notifyClear: notifyCheckpointClear,
     notifyRollback: notifyCheckpointRollback,
+    notifyDeepSave,
   } = useFounderCheckpoint({
     scenarioId: scenarioId as string,
     isFounderScenario,
     apiHeaders,
+  });
+
+  // ── Deep persistence: throttled snapshot of the client session ──
+  // Every 10 s + on beforeunload/pagehide. Rehydrated by useScenarioInit
+  // on next Reprendre. Fixes bug #70 (flags/mails/chat perdus au reload).
+  useDeepSave({
+    isFounderScenario,
+    isFinished: view?.isFinished || false,
+    sessionRef,
+    notifyDeepSave,
+    scenarioId: scenarioId as string,
+    authTokenRef,
   });
 
   // ── Debrief hook (extracted from page.tsx — zero logic change) ──

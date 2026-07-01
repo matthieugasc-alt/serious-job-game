@@ -204,16 +204,60 @@ export function useScenarioInit(deps: UseScenarioInitDeps): void {
                   }
                 }
                 s.currentPhaseIndex = cpData.resumePhaseIndex;
-                injectPhaseEntryEvents(s);
-                const resumePhase = data.phases[cpData.resumePhaseIndex];
-                if (resumePhase?.mail_config?.defaults) {
-                  updateMailDraft(s, resumePhase.phase_id, {
-                    to: "",
-                    cc: "",
-                    subject: resumePhase.mail_config.defaults.subject || "",
-                    body: "",
-                    attachments: [],
-                  });
+
+                // ── Deep hydrate (fix #70) ──────────────────────────
+                // If the server has a deep snapshot, replay it BEFORE
+                // injecting entry_events so the idempotency keys
+                // (injectedPhaseEntryEvents) prevent re-injection of
+                // events the player already saw.
+                //
+                // Legacy checkpoints without sessionSnapshot: fall
+                // through to the phaseIndex-only path (mail draft reset
+                // + injectPhaseEntryEvents). Same behavior as before.
+                const snap = cpData.resumeSnapshot;
+                if (snap && typeof snap === "object") {
+                  // Deep restore — replace the initialized session's
+                  // volatile state with the snapshot's persisted state.
+                  // We keep initializeSession's derived structure and
+                  // only overwrite the fields that were saved.
+                  s.flags = { ...s.flags, ...(snap.flags || {}) };
+                  s.chatMessages = Array.isArray(snap.chatMessages) ? snap.chatMessages : [];
+                  s.mailDrafts = snap.mailDrafts && typeof snap.mailDrafts === "object" ? snap.mailDrafts : {};
+                  s.savedDrafts = snap.savedDrafts && typeof snap.savedDrafts === "object" ? snap.savedDrafts : {};
+                  s.scores = snap.scores && typeof snap.scores === "object" ? snap.scores : {};
+                  s.pendingTimedEvents = Array.isArray(snap.pendingTimedEvents) ? snap.pendingTimedEvents : [];
+                  s.inboxMails = Array.isArray(snap.inboxMails) ? snap.inboxMails : [];
+                  s.sentMails = Array.isArray(snap.sentMails) ? snap.sentMails : [];
+                  s.injectedPhaseEntryEvents = Array.isArray(snap.injectedPhaseEntryEvents)
+                    ? snap.injectedPhaseEntryEvents
+                    : [];
+                  // Guard: snapshot's phaseIndex must match server checkpoint.
+                  // If drift is detected, trust the checkpoint (it's the
+                  // authoritative source for phase progression).
+                  if (typeof snap.currentPhaseIndex === "number" && snap.currentPhaseIndex !== cpData.resumePhaseIndex) {
+                    console.warn(
+                      "[deepRestore] snapshot phase mismatch",
+                      { snap: snap.currentPhaseIndex, cp: cpData.resumePhaseIndex },
+                    );
+                  }
+                  // injectPhaseEntryEvents is idempotent (checks keys)
+                  // so re-calling it after deep restore is safe.
+                  injectPhaseEntryEvents(s);
+                  // Do NOT reset mail draft on deep restore — the
+                  // player may have a partially typed draft.
+                } else {
+                  // Legacy path: phaseIndex-only restore (unchanged).
+                  injectPhaseEntryEvents(s);
+                  const resumePhase = data.phases[cpData.resumePhaseIndex];
+                  if (resumePhase?.mail_config?.defaults) {
+                    updateMailDraft(s, resumePhase.phase_id, {
+                      to: "",
+                      cc: "",
+                      subject: resumePhase.mail_config.defaults.subject || "",
+                      body: "",
+                      attachments: [],
+                    });
+                  }
                 }
               }
               if (cpData.penaltyApplied) {

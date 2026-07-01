@@ -166,6 +166,33 @@ export interface FounderCheckpoint {
   abandonCount:     number;     // how many times the player left mid-scenario
   penaltiesApplied: number;     // how many penalties already applied (avoids double-apply)
   savedAt:          string;
+
+  // Deep snapshot of the client PlayerSession — added by the /deep_save
+  // route. Optional so old checkpoints still restore cleanly (fallback:
+  // phaseIndex-only fast-forward). Written every 10 s + on unload +
+  // after each phase advance.
+  //
+  // Shape mirrors the live PlayerSession but only the fields that survive
+  // a JSON round-trip. Missing volatile refs (audio, timers, DOM refs).
+  sessionSnapshot?: {
+    flags:                Record<string, any>;
+    chatMessages:         any[];
+    mailDrafts:           Record<string, any>;
+    savedDrafts:          Record<string, any>;
+    scores:               Record<string, number>;
+    pendingTimedEvents:   any[];
+    inboxMails:           any[];
+    sentMails:            any[];
+    injectedPhaseEntryEvents: string[];
+    currentPhaseIndex:    number;
+    // Client-side chosen actor state (chosen_cto S0, chosen_kol S5).
+    // Not strictly in PlayerSession but needed to re-resolve dynamic actors
+    // after reload without asking the user again.
+    chosenCtoId?:         string | null;
+    chosenKolId?:         string | null;
+    // When the snapshot was captured (client-side ISO).
+    capturedAt:           string;
+  };
 }
 
 export interface FounderCampaign {
@@ -382,6 +409,9 @@ export function handleScenarioEntry(
   penaltyMonths: number;
   resumePhaseIndex: number;
   resumeCompletedPhases: string[];
+  /** Deep snapshot to hydrate the client PlayerSession — undefined for
+   *  first entry and for legacy checkpoints saved before deep_save shipped. */
+  resumeSnapshot?: NonNullable<FounderCheckpoint["sessionSnapshot"]>;
   campaign: FounderCampaign;
 } {
   const cp = campaign.checkpoint;
@@ -474,6 +504,9 @@ export function handleScenarioEntry(
     penaltyMonths,
     resumePhaseIndex: cp.phaseIndex,
     resumeCompletedPhases: [...cp.completedPhases],
+    // Deep snapshot passed through untouched — the client decides whether
+    // to hydrate the full session or fall back to phaseIndex-only restore.
+    resumeSnapshot: cp.sessionSnapshot,
     campaign,
   };
 }
@@ -536,5 +569,56 @@ export function rollbackCheckpoint(
     campaign.checkpoint.completedPhases = campaign.checkpoint.completedPhases.slice(0, idx);
   }
   campaign.checkpoint.savedAt = new Date().toISOString();
+  // Rollback wipes the deep snapshot: the whole point of HARD_REJECT is
+  // to reset the phase state, so the old snapshot (captured at phase N)
+  // must not be replayed after the rollback to phase N-1.
+  campaign.checkpoint.sessionSnapshot = undefined;
   saveCampaign(campaign);
+}
+
+/**
+ * Deep save: persist the client PlayerSession snapshot alongside the
+ * checkpoint so that Reprendre after a page reload restores flags,
+ * mails, chat history, drafts, scores and pendingTimedEvents.
+ *
+ * Design contract:
+ *  - Called by the client throttled to every 10 s + on unload +
+ *    right after each phase advance.
+ *  - Silently no-ops if there's no active checkpoint (checkpoint is
+ *    created by handleScenarioEntry on the FIRST enter; deep_save can
+ *    only enrich an existing one, never create one).
+ *  - Validates `snapshot.currentPhaseIndex === checkpoint.phaseIndex`
+ *    to prevent a stale snapshot from a previous phase overwriting the
+ *    current state after an advance.
+ *  - Never throws — save errors are logged and swallowed so the client
+ *    doesn't get 500s during normal play.
+ */
+export function deepSaveCheckpoint(
+  campaign: FounderCampaign,
+  snapshot: NonNullable<FounderCheckpoint["sessionSnapshot"]>,
+): { saved: boolean; reason?: string } {
+  if (!campaign.checkpoint) {
+    return { saved: false, reason: "no checkpoint" };
+  }
+  // Guard: a stale snapshot from a previous phase must not overwrite.
+  if (
+    typeof snapshot.currentPhaseIndex === "number" &&
+    snapshot.currentPhaseIndex !== campaign.checkpoint.phaseIndex
+  ) {
+    return {
+      saved: false,
+      reason: `snapshot phase ${snapshot.currentPhaseIndex} != checkpoint phase ${campaign.checkpoint.phaseIndex}`,
+    };
+  }
+  campaign.checkpoint.sessionSnapshot = {
+    ...snapshot,
+    capturedAt: new Date().toISOString(),
+  };
+  campaign.checkpoint.savedAt = new Date().toISOString();
+  try {
+    saveCampaign(campaign);
+    return { saved: true };
+  } catch (e: any) {
+    return { saved: false, reason: `write error: ${e?.message || e}` };
+  }
 }

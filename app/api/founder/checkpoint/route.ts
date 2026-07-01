@@ -6,6 +6,7 @@ import {
   advanceCheckpoint,
   clearCheckpoint,
   rollbackCheckpoint,
+  deepSaveCheckpoint,
   ABANDON_PENALTY,
   SCENARIO_0_ID,
 } from '@/app/lib/founder';
@@ -23,13 +24,18 @@ import * as path from 'path';
  * Body: { scenarioId, action, phaseIndex?, completedPhaseId? }
  */
 export async function POST(req: NextRequest) {
-  const token = req.headers.get('authorization')?.replace('Bearer ', '');
+  const body = await req.json();
+  // sendBeacon (used by useDeepSave on unload) can't send Authorization
+  // headers, so we allow the client to pass the token in the body as a
+  // fallback. The token is validated the same way either source.
+  const token =
+    req.headers.get('authorization')?.replace('Bearer ', '') ||
+    (typeof body._unloadToken === 'string' ? body._unloadToken : '');
   if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   const session = validateSession(token);
   if (!session) return NextResponse.json({ error: 'Invalid session' }, { status: 401 });
 
-  const body = await req.json();
   const { scenarioId, action, phaseIndex, completedPhaseId, targetPhaseId, targetPhaseIndex } = body;
 
   if (!scenarioId || !action) {
@@ -62,6 +68,9 @@ export async function POST(req: NextRequest) {
         penaltyMonths: result.penaltyMonths,
         resumePhaseIndex: result.resumePhaseIndex,
         resumeCompletedPhases: result.resumeCompletedPhases,
+        // Deep snapshot when available (undefined for legacy checkpoints
+        // saved before the deep_save action shipped, and for first entry).
+        resumeSnapshot: result.resumeSnapshot,
         abandonPenalty: ABANDON_PENALTY,
       });
     }
@@ -103,6 +112,30 @@ export async function POST(req: NextRequest) {
       }
       rollbackCheckpoint(campaign, targetPhaseId, targetPhaseIndex);
       return NextResponse.json({ ok: true });
+    }
+
+    case 'deep_save': {
+      // Deep snapshot of the client PlayerSession. Called throttled by the
+      // client (every 10 s + on unload + after each advance) so the server
+      // has enough state to fully hydrate the session on Reprendre.
+      //
+      // - Scenario 0 skipped: it's one-shot, no resume by design.
+      // - No-op if there's no checkpoint yet (should not happen — enter
+      //   creates one — but be defensive).
+      // - Stale snapshot guard: deepSaveCheckpoint rejects a snapshot
+      //   whose currentPhaseIndex doesn't match the server checkpoint's
+      //   phaseIndex (prevents overwriting after an advance).
+      if (scenarioId === SCENARIO_0_ID) {
+        return NextResponse.json({ ok: true, skipped: 'scenario 0' });
+      }
+      const snapshot = body.snapshot;
+      if (!snapshot || typeof snapshot !== 'object') {
+        return NextResponse.json({ error: 'snapshot (object) required' }, { status: 400 });
+      }
+      const result = deepSaveCheckpoint(campaign, snapshot);
+      // Return 200 even when saved=false because callers throttle and
+      // don't want a benign "stale snapshot" to log as an error client-side.
+      return NextResponse.json({ ok: result.saved, reason: result.reason });
     }
 
     default:
