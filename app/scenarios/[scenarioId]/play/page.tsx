@@ -80,7 +80,10 @@ import { fetchChatWithRetry } from "./lib/fetchChatWithRetry";
 import { getActorInfo as getActorInfoImpl } from "./lib/getActorInfo";
 import { useMailSendValidation } from "./hooks/useMailSendValidation";
 import { useNewItemNotifications } from "./hooks/useNewItemNotifications";
-import { checkCompletionRules } from "./lib/checkCompletionRules";
+// checkCompletionRules removed: was an incomplete re-implementation. Use
+// isCurrentPhaseValidatedByRules from @/app/lib/runtime instead (single
+// source of truth: handles npc/player_evidence + min_score + any_flags +
+// all_flags + max_exchanges + fallback min_player_messages).
 import {
   resolveDynamicActors as resolveDynamicActorsImpl,
   resolveEstablishmentPlaceholders as resolveEstablishmentPlaceholdersImpl,

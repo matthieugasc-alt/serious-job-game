@@ -15,9 +15,8 @@
 import type { PlayerContextValue } from "../contexts/PlayerContext";
 import { resolveModules, dispatch, buildModuleContext } from "../handlers";
 import type { MailModuleExtra } from "../handlers";
-import { buildRuntimeView } from "@/app/lib/runtime";
+import { buildRuntimeView, isCurrentPhaseValidatedByRules } from "@/app/lib/runtime";
 import { fireMailSent } from "@/app/lib/gameEvents/client";
-import { checkCompletionRules } from "../lib/checkCompletionRules";
 
 export function useSendMail(ctx: PlayerContextValue) {
   return () => {
@@ -97,12 +96,14 @@ export function useSendMail(ctx: PlayerContextValue) {
     }
 
     // ── LEGACY FALLBACK — generic send_advances_phase only ──
+    // ⚠ CRITIQUE: on utilise isCurrentPhaseValidatedByRules() de runtime.ts
+    // (single source of truth) qui gère TOUTES les completion_rules:
+    // required_player_evidence, required_npc_evidence, min_score, any_flags,
+    // all_flags, max_exchanges, plus le fallback "min_player_messages".
+    // Une extraction précédente n'implémentait que 3 règles sur 6, ce qui
+    // faisait avancer S1 phase 1_onepager sur n'importe quel mail (bug).
     if (phase?.mail_config?.send_advances_phase) {
-      const rulesPass = checkCompletionRules(
-        phase as any,
-        (view?.conversation || []) as any,
-        session.scores,
-      );
+      const rulesPass = isCurrentPhaseValidatedByRules(next);
 
       if (rulesPass) {
         completeCurrentPhaseAndAdvance(next);
