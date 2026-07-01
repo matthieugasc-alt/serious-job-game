@@ -418,11 +418,25 @@ export default function ScenarioSelectionPage() {
             });
             if (prefsRes.ok) {
               const prefsData = await prefsRes.json();
-              const selectedCats = new Set<string>(
-                (prefsData.preferences || [])
-                  .filter((p: UserPreference) => p.followed)
-                  .map((p: UserPreference) => normalizeJobFamily(p.job_family))
-              );
+              // ── API contract (data-first, cf. app/lib/userPreferences.ts) ──
+              // GET /api/profile/preferences returns:
+              //   { preferences: { selectedCategories: string[], displayName?: string } }
+              //
+              // Historical legacy contract (array-shaped) is still supported for
+              // any older cached responses: preferences may be an array of
+              // { job_family, followed } tuples.
+              const raw = prefsData.preferences;
+              let cats: string[] = [];
+              if (raw && typeof raw === "object" && Array.isArray(raw.selectedCategories)) {
+                // New contract: { selectedCategories: string[] }
+                cats = raw.selectedCategories.map((c: string) => normalizeJobFamily(c));
+              } else if (Array.isArray(raw)) {
+                // Legacy contract: array of { job_family, followed }
+                cats = (raw as UserPreference[])
+                  .filter((p) => p.followed)
+                  .map((p) => normalizeJobFamily(p.job_family));
+              }
+              const selectedCats = new Set<string>(cats);
               if (selectedCats.size > 0) {
                 setSelectedCategories(selectedCats);
               }

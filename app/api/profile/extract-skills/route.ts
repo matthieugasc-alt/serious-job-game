@@ -31,17 +31,27 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Record not found' }, { status: 404 });
     }
 
-    // Build the prompt from debrief data
-    const debrief = record.debrief;
+    // ── Build the prompt from debrief data ──
+    // Defensive: some legacy records have debrief shaped as either
+    //  - { phases: [...] } (new)
+    //  - { phases: {...} } (transient AI response never persisted correctly)
+    //  - undefined entirely
+    // Same for scenarioCompetencies. Guarding with Array.isArray avoids the
+    // silent 500 that happens when .map() is called on a non-array.
+    const debrief = record.debrief as any;
     const scenarioTitle = record.scenarioTitle;
-    const scenarioCompetencies = debrief?.scenarioCompetencies || [];
+    const rawScenarioCompetencies = debrief?.scenarioCompetencies;
+    const scenarioCompetencies = Array.isArray(rawScenarioCompetencies)
+      ? rawScenarioCompetencies
+      : [];
 
-    const debriefSummary = debrief?.phases
-      ? debrief.phases.map((p: any) => `Phase "${p.title}": ${p.evaluation || ''}`).join('\n')
+    const rawPhases = debrief?.phases;
+    const debriefSummary = Array.isArray(rawPhases) && rawPhases.length > 0
+      ? rawPhases.map((p: any) => `Phase "${p?.title || '?'}": ${p?.evaluation || ''}`).join('\n')
       : 'Aucune donnée de phase';
 
     const predefinedCompetencies = scenarioCompetencies.length > 0
-      ? `\nCompétences prédéfinies du scénario:\n${scenarioCompetencies.map((c: any) => `- ${c.competency}: ${c.description}`).join('\n')}`
+      ? `\nCompétences prédéfinies du scénario:\n${scenarioCompetencies.map((c: any) => `- ${c?.competency || '?'}: ${c?.description || ''}`).join('\n')}`
       : '';
 
     const systemPrompt = `Tu es un expert en évaluation de compétences professionnelles.
@@ -106,12 +116,29 @@ ${debriefSummary}`;
       return NextResponse.json({ error: 'Failed to parse AI response' }, { status: 500 });
     }
 
-    // Save skills to record
-    updateRecordSkills(user.id, recordId, skills);
+    // Save skills to record — guarded: a failed disk write must not blank
+    // the AI extraction. We return the skills to the client either way and
+    // surface the persist error via a distinct `persistError` field so the
+    // UI can decide whether to show a warning.
+    let persistError: string | null = null;
+    try {
+      updateRecordSkills(user.id, recordId, skills);
+    } catch (persistErr: any) {
+      persistError = persistErr?.message || String(persistErr);
+      console.error('[extract-skills] persist failed (skills still returned):', persistError);
+    }
 
-    return NextResponse.json({ skills });
-  } catch (error) {
-    console.error('Failed to extract skills:', error);
-    return NextResponse.json({ error: 'Failed to extract skills' }, { status: 500 });
+    return NextResponse.json({ skills, ...(persistError ? { persistError } : {}) });
+  } catch (error: any) {
+    // Explicit context so we don't lose the failure cause in prod logs.
+    console.error('Failed to extract skills:', {
+      name: error?.name,
+      message: error?.message,
+      stack: error?.stack?.split('\n').slice(0, 5).join('\n'),
+    });
+    return NextResponse.json(
+      { error: 'Failed to extract skills', reason: error?.message || 'unknown' },
+      { status: 500 },
+    );
   }
 }
