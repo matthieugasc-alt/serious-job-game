@@ -194,7 +194,7 @@ export function OnePagerEditor({
           >
             <span style={{ fontSize: 16 }}>✏️</span>
             <span style={{ color: "#1e40af", fontWeight: 600 }}>
-              Cliquez sur le texte entre crochets pour le remplacer par vos informations.
+              Cliquez dans chaque champ pour écrire directement. Effacez tout pour revoir l&apos;exemple.
             </span>
             {edited && (
               <span
@@ -211,14 +211,40 @@ export function OnePagerEditor({
           </div>
         )}
 
-        {/* Editable content */}
+        {/* Editable content
+         *
+         * UX: each editable field is now its own contentEditable, and the
+         * placeholder is rendered by CSS ::before on :empty. Concrete
+         * behaviour for the player:
+         *   - The field shows the placeholder in italic grey.
+         *   - Click into it → focus, placeholder disappears (CSS pseudo-
+         *     element is not selectable, so there's no "select-and-delete"
+         *     dance).
+         *   - Type → real text appears in the dark color.
+         *   - Delete everything → the field becomes :empty again →
+         *     placeholder reappears automatically.
+         *
+         * The parent <div> is NOT contentEditable — each field is
+         * independent so tab/click navigation works naturally.
+         * innerText on the parent walks the DOM and returns titles + typed
+         * content while ignoring the ::before pseudo-elements, which is
+         * exactly what we want for the submit payload.
+         */}
+        <style>{`
+          .op-field[contenteditable="true"]:empty::before {
+            content: attr(data-placeholder);
+            color: #9ca3af;
+            font-style: italic;
+            pointer-events: none;
+          }
+          .op-field[contenteditable="true"]:focus {
+            outline: 2px solid rgba(91,95,199,0.25);
+            outline-offset: 2px;
+            border-radius: 4px;
+          }
+        `}</style>
         <div
           ref={contentRef}
-          contentEditable={!submitted}
-          suppressContentEditableWarning
-          onInput={() => {
-            if (!edited) onEditedFirst();
-          }}
           style={{
             flex: 1,
             overflow: "auto",
@@ -228,8 +254,6 @@ export function OnePagerEditor({
             lineHeight: 1.8,
             color: "#1a1a2e",
             fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif",
-            outline: "none",
-            cursor: !submitted ? "text" : "default",
           }}
         >
           <div style={{ textAlign: "center", marginBottom: 28 }}>
@@ -242,11 +266,23 @@ export function OnePagerEditor({
                 letterSpacing: -0.5,
               }}
             >
-              <span style={{ color: "#9ca3af", fontStyle: "italic" }}>[NOM DE LA STARTUP]</span>
+              <span
+                className="op-field"
+                contentEditable={!submitted}
+                suppressContentEditableWarning
+                data-placeholder="[NOM DE LA STARTUP]"
+                onInput={() => { if (!edited) onEditedFirst(); }}
+                style={{ display: "inline-block", minWidth: "1ch" }}
+              />
             </h1>
-            <p style={{ fontSize: 14, color: "#9ca3af", fontStyle: "italic", margin: 0 }}>
-              [Tagline — une phrase qui résume ce que vous faites]
-            </p>
+            <p
+              className="op-field"
+              contentEditable={!submitted}
+              suppressContentEditableWarning
+              data-placeholder="[Tagline — une phrase qui résume ce que vous faites]"
+              onInput={() => { if (!edited) onEditedFirst(); }}
+              style={{ fontSize: 14, margin: 0, minHeight: "1.4em" }}
+            />
           </div>
           <hr
             style={{
@@ -262,7 +298,14 @@ export function OnePagerEditor({
               <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>
                 {s.title}
               </h2>
-              <p style={{ color: "#9ca3af", fontStyle: "italic" }}>{s.placeholder}</p>
+              <p
+                className="op-field"
+                contentEditable={!submitted}
+                suppressContentEditableWarning
+                data-placeholder={s.placeholder}
+                onInput={() => { if (!edited) onEditedFirst(); }}
+                style={{ margin: 0, minHeight: "1.7em" }}
+              />
             </React.Fragment>
           ))}
         </div>
