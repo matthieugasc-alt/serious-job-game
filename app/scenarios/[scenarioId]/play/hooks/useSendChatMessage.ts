@@ -17,6 +17,7 @@
 import type { PlayerContextValue } from "../contexts/PlayerContext";
 import { fetchChatWithRetry } from "../lib/fetchChatWithRetry";
 import { firePlayerMessage, fireAIMessage } from "@/app/lib/gameEvents/client";
+import { applyPhaseObservation } from "@/app/lib/evaluation/applyPhaseObservation";
 
 export function useSendChatMessage(ctx: PlayerContextValue) {
   return async () => {
@@ -90,6 +91,12 @@ export function useSendChatMessage(ctx: PlayerContextValue) {
         contactId: targetActor,
       });
 
+      // E-chantier E2: forward observed_criteria if declared on the phase.
+      // /api/chat then augments the eval prompt to also return a
+      // `phase_observation` block that the client feeds to applyPhaseObservation.
+      const observedCriteria =
+        (scenario.phases[session.currentPhaseIndex] as any)?.evaluation?.observed_criteria;
+
       const chatPayload = {
         playerName: displayPlayerName,
         message: text,
@@ -104,6 +111,9 @@ export function useSendChatMessage(ctx: PlayerContextValue) {
         playerMessages: playerOnlyMessages,
         roleplayPrompt: activePrompt,
         ...(chatContext ? { chat_context: chatContext } : {}),
+        ...(Array.isArray(observedCriteria) && observedCriteria.length > 0
+          ? { observed_criteria: observedCriteria }
+          : {}),
       };
 
       const { data, error: fetchError } = await fetchChatWithRetry(chatPayload, {
@@ -136,6 +146,41 @@ export function useSendChatMessage(ctx: PlayerContextValue) {
 
       try { fireAIMessage(authTokenRef.current || "", gameSessionIdRef.current, scenarioId as string, curPhaseId, targetActor, data.reply); } catch { /* never break */ }
       applyEvaluation(final, data.matched_criteria || [], data.score_delta || 0, data.flags_to_set || {});
+
+      // ── E-chantier E2/E3/E4 — apply phase observation ──
+      // When /api/chat returned a phase_observation block (only if the
+      // phase declared evaluation.observed_criteria), let the moteur
+      // applyPhaseObservation decide pass/fail based on completion_rules
+      // and persist the full audit trail in session.evaluation_history.
+      // If passed=true, we ALSO set a standardized flag
+      // `phase_evaluation_passed_<phase_id>` that any_flags can consume
+      // (bridge legacy completion_rules with the E-chantier moteur).
+      const rawObs = (data as any).phase_observation;
+      const currentPhaseE = scenario.phases[final.currentPhaseIndex] as any;
+      if (rawObs && currentPhaseE?.evaluation) {
+        const result = applyPhaseObservation(currentPhaseE, {
+          criteria: rawObs.criteria || {},
+          evidence: rawObs.evidence,
+          meta: rawObs.meta,
+        });
+        if (!Array.isArray(final.evaluation_history)) final.evaluation_history = [];
+        final.evaluation_history.push({
+          phaseId: result.phaseId,
+          timestamp: result.timestamp,
+          passed: result.passed,
+          appliedRule: result.appliedRule,
+          matched: result.matched,
+          missing: result.missing,
+          unexpected: result.unexpected,
+          weightedScore: result.weightedScore,
+          weightedThreshold: result.weightedThreshold,
+          reason: result.reason,
+          observation: result.observation,
+        });
+        if (result.passed) {
+          final.flags[`phase_evaluation_passed_${result.phaseId}`] = true;
+        }
+      }
 
       // ── Success keywords: NPC positive response sets flags ──
       const successFlags = checkNpcSuccessKeywords(final, data.reply);

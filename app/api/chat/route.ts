@@ -235,6 +235,13 @@ export async function POST(req: Request) {
         : 0;
     const previouslyReplied = input.previously_replied === true;
     const chatContext = input.chat_context;
+    // E-chantier E2: observed_criteria from phase.evaluation.observed_criteria.
+    // When present, we ask the AI to produce an observation
+    // {criteria: {[id]: bool}, evidence: {}} in addition to legacy fields.
+    // The moteur applyPhaseObservation (client-side) then decides pass/fail.
+    const observedCriteria = Array.isArray(input.observed_criteria)
+      ? input.observed_criteria
+      : null;
     // Threshold above which a near-duplicate email forces `interested = false`
     // and the NPC explicitly mentions the repetition.
     // Lowered from 0.7 to 0.5 after observing that light reformulations
@@ -561,6 +568,40 @@ Return STRICT JSON only:
 }
 `
     );
+
+    // ── E-chantier E2 — additive observation block ─────────────────
+    // When the scenario declared phase.evaluation.observed_criteria, we
+    // append a NEW section to the evaluation prompt that asks the AI to
+    // ALSO emit a `phase_observation` block. The legacy fields
+    // (matched_criteria / score_delta / flags_to_set) remain unchanged
+    // for backward compat — only migrated scenarios consume the new one.
+    const evaluationPromptE = observedCriteria && observedCriteria.length > 0
+      ? evaluationPrompt +
+        `\n\n=== OBSERVATION E-chantier (à AJOUTER au JSON) ===\n` +
+        `En plus des champs ci-dessus, ajoute au MÊME JSON un champ ` +
+        `\`phase_observation\`. Pour CHAQUE critère listé ci-dessous, ` +
+        `observe si le joueur l'a démontré et renvoie vrai/faux. ` +
+        `Ne juge PAS si la phase est validée — tu observes seulement. ` +
+        `Le moteur applique les règles.\n\n` +
+        `CRITÈRES À OBSERVER :\n` +
+        observedCriteria
+          .map((c) => `  - ${c.id} : ${sanitize(c.description)}`)
+          .join("\n") +
+        `\n\nFormat exact (à ajouter au JSON):\n` +
+        `  "phase_observation": {\n` +
+        `    "criteria": {\n` +
+        observedCriteria.map((c) => `      "${c.id}": true|false`).join(",\n") +
+        `\n    },\n` +
+        `    "evidence": {\n` +
+        `      "criterion_id": "citation courte du message qui prouve l'observation (optionnel)"\n` +
+        `    }\n` +
+        `  }\n\n` +
+        `IMPORTANT :\n` +
+        `- Tu observes UNIQUEMENT ce qui est dans les messages du joueur ci-dessus.\n` +
+        `- Ne mets JAMAIS "phase_passed" ou similaire — tu n'as pas à décider.\n` +
+        `- Pour un critère où le joueur n'a rien dit, mets false.\n` +
+        `- Le champ evidence est optionnel mais aide l'audit (garde-fou E5).\n`
+      : evaluationPrompt;
 
     // ── Build structured messages for the LLM ──
     // Instead of a single string, we pass the system prompt + conversation
@@ -1041,6 +1082,9 @@ INTERDICTIONS :
     }
 
     // ── PARALLEL AI calls: roleplay + evaluation run simultaneously ──
+    // E-chantier E2: evaluationPromptE augments evaluationPrompt with an
+    // additional `phase_observation` output block when observed_criteria
+    // is present. Same LLM call — no extra latency.
     const [roleplayResponse, evalResponse] = await Promise.all([
       client.chat.completions.create({
         model: "gpt-4.1-mini",
@@ -1050,7 +1094,7 @@ INTERDICTIONS :
       }),
       client.responses.create({
         model: "gpt-4.1-mini",
-        input: evaluationPrompt,
+        input: evaluationPromptE,
       }),
     ]);
 
@@ -1106,6 +1150,11 @@ Si le joueur a répondu à ta question, ACCEPTE sa réponse et enchaîne.`,
       matched_criteria?: string[];
       score_delta?: number;
       flags_to_set?: Record<string, boolean>;
+      // E-chantier E2: additive observation block.
+      phase_observation?: {
+        criteria?: Record<string, boolean>;
+        evidence?: Record<string, string>;
+      };
     } = {};
 
     try {
@@ -1115,6 +1164,36 @@ Si le joueur a répondu à ta question, ACCEPTE sa réponse et enchaîne.`,
         matched_criteria: [],
         score_delta: 0,
         flags_to_set: {},
+      };
+    }
+
+    // E-chantier E2: normalize phase_observation before echo.
+    // Silently drop entries whose id is not in observed_criteria (drift is
+    // caught client-side by applyPhaseObservation).
+    let phaseObservation: {
+      criteria: Record<string, boolean>;
+      evidence: Record<string, string>;
+      meta: { model: string; at: string };
+    } | undefined;
+    if (observedCriteria && evaluation.phase_observation) {
+      const rawCriteria = evaluation.phase_observation.criteria ?? {};
+      const rawEvidence = evaluation.phase_observation.evidence ?? {};
+      const criteria: Record<string, boolean> = {};
+      const evidence: Record<string, string> = {};
+      for (const [id, val] of Object.entries(rawCriteria)) {
+        if (typeof val === "boolean") criteria[id] = val;
+      }
+      for (const [id, val] of Object.entries(rawEvidence)) {
+        if (typeof val === "string" && val.length > 0) evidence[id] = val;
+      }
+      // Ensure every declared criterion has an entry (defaults to false).
+      for (const c of observedCriteria) {
+        if (!(c.id in criteria)) criteria[c.id] = false;
+      }
+      phaseObservation = {
+        criteria,
+        evidence,
+        meta: { model: "gpt-4.1-mini", at: new Date().toISOString() },
       };
     }
 
@@ -1151,6 +1230,10 @@ Si le joueur a répondu à ta question, ACCEPTE sa réponse et enchaîne.`,
       matched_criteria: matchedCriteria,
       score_delta: scoreDelta,
       flags_to_set: flagsToSet,
+      // E-chantier E2: emitted only when observed_criteria was supplied.
+      // Consumed client-side by applyPhaseObservation() to update
+      // session.evaluation_history and set the phase advancement flag.
+      ...(phaseObservation ? { phase_observation: phaseObservation } : {}),
     });
   } catch (error: any) {
     console.error("Erreur chat route:", error);

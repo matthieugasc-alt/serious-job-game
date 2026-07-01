@@ -176,11 +176,43 @@
         ]
       },
       "completion_rules": {
-        "min_score": 2
+        "min_score": 2,
+        "required_criteria": [
+          "questions_ouvertes",
+          "reformulation_valeur"
+        ],
+        "min_criteria_count": 1,
+        "any_flags": [
+          "phase_evaluation_passed_phase_1"
+        ]
       },
       "auto_advance": true,
       "max_duration_sec": 420,
-      "next_phase": "phase_2"
+      "next_phase": "phase_2",
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "questions_ouvertes",
+            "description": "Le joueur pose au moins une question ouverte pour comprendre le vrai besoin de Laurent (pas juste 'combien vous payez ?').",
+            "expected": true
+          },
+          {
+            "id": "reformulation_valeur",
+            "description": "Le joueur reformule l'objection prix en termes de valeur (intégration ERP incluse, migration gratuite, support dédié) plutôt que de baisser son prix.",
+            "expected": true
+          },
+          {
+            "id": "couts_caches",
+            "description": "Le joueur identifie ou évoque explicitement au moins un coût caché de la solution concurrente (migration payante, connecteurs ERP payants, users limités, formation supplémentaire).",
+            "expected": true
+          },
+          {
+            "id": "relation_preservee",
+            "description": "Le joueur maintient une posture professionnelle sans dénigrer le concurrent ni être agressif.",
+            "expected": true
+          }
+        ]
+      }
     },
     {
       "phase_id": "phase_2",
@@ -226,10 +258,42 @@
         ]
       },
       "completion_rules": {
-        "min_score": 2
+        "min_score": 2,
+        "required_criteria": [
+          "mail_structure",
+          "reprise_discussion"
+        ],
+        "min_criteria_count": 1,
+        "any_flags": [
+          "phase_evaluation_passed_phase_2"
+        ]
       },
       "auto_advance": true,
-      "max_duration_sec": 480
+      "max_duration_sec": 480,
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "mail_structure",
+            "description": "Le mail est structuré (objet clair, salutation, corps organisé, signature) et personnalisé — pas un template générique.",
+            "expected": true
+          },
+          {
+            "id": "reprise_discussion",
+            "description": "Le mail reprend explicitement les points discutés en phase 1 (intégration Sage/ERP, migration, besoins équipe terrain).",
+            "expected": true
+          },
+          {
+            "id": "offre_ajustee",
+            "description": "Le mail propose une offre commerciale crédible et ajustée (engagement moral ou contractuel, pilote, remise raisonnable, échéancier).",
+            "expected": true
+          },
+          {
+            "id": "appel_action",
+            "description": "Le mail inclut un appel à l'action clair (proposition de RDV, deadline, prochaine étape).",
+            "expected": true
+          }
+        ]
+      }
     }
   ],
   "endings": [

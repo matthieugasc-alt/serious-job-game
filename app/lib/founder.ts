@@ -190,6 +190,9 @@ export interface FounderCheckpoint {
     // after reload without asking the user again.
     chosenCtoId?:         string | null;
     chosenKolId?:         string | null;
+    // E-chantier E4 — audit trail of every applyPhaseObservation() call.
+    // Consumed by /admin/replay/[campaignId] (E5).
+    evaluation_history?:  any[];
     // When the snapshot was captured (client-side ISO).
     capturedAt:           string;
   };

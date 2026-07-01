@@ -122,6 +122,21 @@ export const chatSchema = z.object({
   // Optional context blocks (sent_mails, kol_profiles, phase_state, …)
   // injected into the system prompt. Provided by chatContextEnrichment helper.
   chat_context: z.record(z.string(), z.unknown()).optional(),
+  // E-chantier E2: declarative evaluation criteria from
+  // phase.evaluation.observed_criteria. When present, the API emits a
+  // `phase_observation` block with `{criteria: {[id]: boolean},
+  // evidence?: {[id]: string}}` in addition to the legacy fields.
+  // Consumed client-side by applyPhaseObservation().
+  observed_criteria: z
+    .array(
+      z.object({
+        id: z.string().regex(/^[a-z0-9_]+$/),
+        description: z.string(),
+        expected: z.boolean().optional(),
+        weight: z.number().optional(),
+      }),
+    )
+    .optional(),
 });
 
 // ─── Debrief Schema ───────────────────────────────────────────
