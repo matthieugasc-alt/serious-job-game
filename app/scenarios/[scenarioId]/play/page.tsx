@@ -69,6 +69,10 @@ import { PresentationModeView } from "./components/PresentationModeView";
 import { useToasts } from "./hooks/useToasts";
 import { useFounderCheckpoint } from "./hooks/useFounderCheckpoint";
 import { useDeepSave } from "./hooks/useDeepSave";
+import { useEndPresentation } from "./hooks/useEndPresentation";
+import { useSendMail } from "./hooks/useSendMail";
+import { useSendChatMessage } from "./hooks/useSendChatMessage";
+import { PlayerContext, type PlayerContextValue } from "./contexts/PlayerContext";
 import { useOnePagerEditor } from "./hooks/useOnePagerEditor";
 import { useTTS } from "./hooks/useTTS";
 import { buildClinicalArticles } from "./lib/clinicalContractTemplates";
@@ -981,143 +985,42 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // ════════════════════════════════════════════════════════════════════
   const presentationAutoStoppedRef = useRef(false);
 
-  /**
-   * Ends the current presentation phase.
-   * Guarantees:
-   *  - The spinner never gets stuck (presentationDone is always cleared
-   *    when we either advance the phase OR set an explicit error).
-   *  - Phase 3 always starts when there is a usable transcript,
-   *    EVEN if the background evaluation fails or times out.
-   *  - Empty transcripts trigger an explicit error + retry UI
-   *    (instead of silently blocking on a spinner).
-   */
-  async function endPresentation(trigger: "manual" | "auto") {
-    setPresentationDone(true);
-    setPresentationError(null);
-    const result = await stopRecognition();
-    const trimmed = result.transcript.trim();
+  // ── PlayerContext bag ─────────────────────────────────────────────
+  // Built here as a plain object (no useMemo — deps change every render
+  // anyway due to session/view state, and the sender hooks re-derive
+  // their closures each render). Correctness comes from internal closures
+  // reading refs (sessionRef.current) for always-fresh values.
+  const playerCtx: PlayerContextValue = {
+    scenarioId: scenarioId as string,
+    isFounderScenario, displayPlayerName,
+    session, scenario, view, currentPhaseConfig,
+    actors, currentPhaseAiActors, chosenCtoId, chosenKolId,
+    playerInput, selectedContact, isSending, conversation,
+    currentMailDraft, canActuallySendMail,
+    sessionRef, scenarioRef, viewRef, authTokenRef, gameSessionIdRef,
+    aiPromptRef, aiPromptsMapRef,
+    phaseMaxDurationTriggeredRef, phaseStartRealTimeRef,
+    presentationAutoStoppedRef, inputRef,
+    setSession, setPlayerInput, setIsSending, setSelectedContact,
+    setShowCompose, setPresentationDone, setPresentationError, setVoiceTranscript,
+    apiHeaders,
+    cloneSession, addPlayerMessage, addAIMessage, applyEvaluation, updateMailDraft,
+    resolveActor, resolveDynamicActors, resolveEstablishmentPlaceholders,
+    injectPhaseEntryEvents, completeCurrentPhaseAndAdvance,
+    dispatchEnterPhase, applyModuleActions,
+    updateAdaptiveMode, scheduleInterruption, handlePhaseFailure,
+    checkNpcSuccessKeywords, checkNpcFailureKeywords,
+    sendCurrentPhaseMail, buildChatContext, stopRecognition,
+    notifyCheckpointAdvance, notifyCheckpointClear, notifyCheckpointRollback,
+    addToast, playNotificationSound,
+  };
 
-    // ── Case 1: explicit error from capture pipeline ──
-    if (result.source === "error") {
-      console.warn(`[presentation:${trigger}] capture error:`, result.errorCategory, result.errorMessage);
-      setPresentationError({
-        category:
-          result.errorCategory === "transcribe_timeout" ? "timeout"
-          : result.errorCategory === "transcribe_network" ? "network"
-          : result.errorCategory === "transcribe_invalid_response" ? "invalid_response"
-          : "server_error",
-        message: result.errorMessage || "Erreur de transcription.",
-      });
-      presentationAutoStoppedRef.current = false;
-      return;
-    }
-
-    // ── Case 2: no transcript at all (silence / mic didn't work) ──
-    if (!trimmed) {
-      console.warn(`[presentation:${trigger}] empty transcript (source=${result.source})`);
-      setPresentationError({
-        category: "empty_transcript",
-        message:
-          "Aucun son n'a été capté pendant votre présentation. Vérifiez l'autorisation micro dans votre navigateur, fermez les autres applis qui l'utilisent, et réessayez.",
-      });
-      // Reset the auto-stop guard so the user can restart
-      presentationAutoStoppedRef.current = false;
-      return;
-    }
-
-    // ── Case 3: usable transcript → advance phase synchronously ──
-    if (!session || !scenario || !view) {
-      // Should not happen, but guard anyway
-      setPresentationError({
-        category: "server_error",
-        message: "État de session invalide. Rechargez la page.",
-      });
-      return;
-    }
-
-    const targetActor = (currentPhaseConfig as any)?.ai_actors?.[0] || "sophie_renard";
-    const next = cloneSession(session);
-    addPlayerMessage(next, trimmed, targetActor);
-    addAIMessage(next, "Présentation terminée. Passons à la suite !", targetActor);
-    completeCurrentPhaseAndAdvance(next);
-    injectPhaseEntryEvents(next);
-    const newPhase = scenario.phases[next.currentPhaseIndex];
-    // Module system: dispatch enter_phase (may set contact, open contract, etc.)
-    const modulesHandled = dispatchEnterPhase(next);
-    // Legacy fallback: manual contact selection if modules didn't handle it
-    if (!modulesHandled) {
-      const newBriefing = InterviewHandler.getBriefingActor(newPhase);
-      if (newBriefing) {
-        setSelectedContact(newBriefing);
-      } else if (newPhase?.ai_actors?.[0]) {
-        setSelectedContact(newPhase.ai_actors[0]);
-      }
-    }
-    setSession(next);
-
-    // Clear UI state — the new phase will render its own mode
-    setPresentationDone(false);
-    setVoiceTranscript("");
-    presentationAutoStoppedRef.current = false;
-
-    // ── Background evaluation with timeout + explicit error categories ──
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45_000);
-
-    fetch("/api/evaluate-presentation", {
-      method: "POST",
-      headers: apiHeaders(),
-      body: JSON.stringify({
-        transcript: trimmed,
-        phaseTitle: view.phaseTitle,
-        phaseObjective: view.phaseObjective,
-        criteria: view.criteria,
-      }),
-      signal: controller.signal,
-    })
-      .then(async (res) => {
-        clearTimeout(timeoutId);
-        if (!res.ok) {
-          const errText = await res.text().catch(() => "");
-          throw new Error(`server_error:${res.status}:${errText.slice(0, 120)}`);
-        }
-        let data: any;
-        try {
-          data = await res.json();
-        } catch {
-          throw new Error("invalid_response");
-        }
-        if (!data || typeof data !== "object") throw new Error("invalid_response");
-        const updated = cloneSession(sessionRef.current);
-        applyEvaluation(
-          updated,
-          data.matched_criteria || [],
-          data.score_delta || 0,
-          data.flags_to_set || {}
-        );
-        setSession(updated);
-      })
-      .catch((err) => {
-        clearTimeout(timeoutId);
-        const msg = String(err?.message || err);
-        let category: "timeout" | "network" | "server_error" | "invalid_response" = "network";
-        if (err?.name === "AbortError") category = "timeout";
-        else if (msg.startsWith("server_error")) category = "server_error";
-        else if (msg === "invalid_response") category = "invalid_response";
-        console.error(`[presentation:${trigger}] background eval failed (${category}):`, err);
-        // The phase already advanced — surface a discreet toast so the
-        // user knows their score wasn't updated, but don't block progression.
-        const toastText =
-          category === "timeout"
-            ? "Analyse de présentation expirée (45 s). Progression conservée, critères non évalués."
-            : category === "server_error"
-              ? "Erreur serveur d'analyse. Progression conservée, critères non évalués."
-              : category === "invalid_response"
-                ? "Réponse d'analyse invalide. Progression conservée, critères non évalués."
-                : "Analyse indisponible (réseau). Progression conservée, critères non évalués.";
-        addToast(toastText, "⚠️", "chat");
-      });
-  }
+  // endPresentation moved to hooks/useEndPresentation.
+  const endPresentation = useEndPresentation(playerCtx);
+  // handleSendMail moved to hooks/useSendMail.
+  const handleSendMail = useSendMail(playerCtx);
+  // sendMessage moved to hooks/useSendChatMessage.
+  const sendMessage = useSendChatMessage(playerCtx);
 
   // ── Auto-stop presentation when max_duration_sec reached ──
   useEffect(() => {
@@ -1449,198 +1352,6 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
   // HANDLERS
   // ════════════════════════════════════════════════════════════════════
 
-  async function sendMessage() {
-    if (!playerInput.trim() || !session || !scenario || !view) return;
-    // Block sending if the phase timer has already fired (hard stop)
-    const curPhase = scenario.phases[session.currentPhaseIndex] as any;
-    const curPhaseId = curPhase?.phase_id || `phase_${session.currentPhaseIndex}`;
-    if (phaseMaxDurationTriggeredRef.current === curPhaseId) return;
-    const text = playerInput;
-    setPlayerInput("");
-    // Re-focus immediately so player can keep typing
-    setTimeout(() => inputRef.current?.focus(), 0);
-
-    // Determine which AI actor will respond (resolve chosen_cto placeholder)
-    const rawTarget = selectedContact || scenario.phases[session.currentPhaseIndex]?.ai_actors?.[0] || "npc";
-    const targetActor = resolveActor(rawTarget);
-
-    // Block sending to actors not active in the current phase
-    if (!currentPhaseAiActors.includes(targetActor)) {
-      setPlayerInput(text); // restore the message
-      return;
-    }
-    // Block chat with mail-only actors (e.g. establishment contacts)
-    const targetActorDef = actors.find((a: any) => a.actor_id === targetActor);
-    if ((targetActorDef as any)?.mail_only) {
-      setPlayerInput(text);
-      return;
-    }
-
-    // Add player message to session immediately (optimistic)
-    const next = cloneSession(session);
-    addPlayerMessage(next, text, targetActor);
-    setSession(next);
-
-    // ── Passive logging: player_message ──
-    try { firePlayerMessage(authTokenRef.current || "", gameSessionIdRef.current, scenarioId as string, curPhaseId, targetActor, text); } catch { /* never break */ }
-
-    // Fire AI request in background — don't block input
-    setIsSending(true);
-    try {
-      // Use only messages from this conversation for context
-      const relevantConv = conversation.filter((m: any) => {
-        if (m.role === "player") return m.toActor === targetActor;
-        if (m.role === "npc") return m.actor === targetActor;
-        return false;
-      });
-      const recentConv = relevantConv.slice(-10).map((m: any) => ({
-        role: m.role === "player" ? "user" : "assistant",
-        content: m.content,
-      }));
-      // Player-only messages for evaluation (no NPC responses)
-      const playerOnlyMessages = relevantConv
-        .filter((m: any) => m.role === "player")
-        .slice(-6)
-        .map((m: any) => m.content);
-
-      // Pick the right prompt for the target actor
-      const activePrompt = aiPromptsMapRef.current[targetActor] || aiPromptRef.current;
-
-      // ── C3: chat context enrichment (cofounder/colleague awareness) ──
-      // Pure declarative wiring: scenario.json opts in via
-      // `phase.chat_context_enrichment[targetActor] = [...keys]`. The helper
-      // computes the corresponding blocks (sent mails, KOL profiles, …) or
-      // returns null when nothing to inject. No scenario-specific code here.
-      const chatContext = buildChatContext({
-        scenario: scenario as any,
-        currentPhase: scenario.phases[session.currentPhaseIndex] as any,
-        session,
-        contactId: targetActor,
-      });
-
-      const chatPayload = {
-          playerName: displayPlayerName,
-          message: text,
-          phaseTitle: view.phaseTitle,
-          phaseObjective: view.phaseObjective,
-          phaseFocus: view.phaseFocus,
-          phasePrompt: view.phasePrompt,
-          criteria: view.criteria,
-          mode: view.adaptiveMode,
-          narrative: scenario.narrative,
-          recentConversation: recentConv,
-          playerMessages: playerOnlyMessages,
-          roleplayPrompt: activePrompt,
-          ...(chatContext ? { chat_context: chatContext } : {}),
-      };
-
-      // ── Robust fetch (auto-retry on 401/429/5xx/network) — extracted ──
-      const { data, error: fetchError } = await fetchChatWithRetry(chatPayload, {
-        apiHeaders,
-        authTokenRef,
-      });
-
-      // If all retries failed, show error to the player in the chat
-      if (!data) {
-        const latestSession = sessionRef.current || next;
-        const errFinal = cloneSession(latestSession);
-        errFinal.chatMessages.push({
-          role: "system",
-          actor: "system",
-          content: `⚠️ Impossible d'obtenir une réponse. ${fetchError || "Vérifiez votre connexion et réessayez."}`,
-          type: "error",
-          phaseId: curPhaseId,
-          timestamp: Date.now(),
-        });
-        setSession(errFinal);
-        return;
-      }
-
-      // Discard AI response if timer has fired while waiting for the API
-      if (phaseMaxDurationTriggeredRef.current === curPhaseId) return;
-      playNotificationSound();
-
-      // Use sessionRef for latest state (player may have sent more messages since)
-      const latestSession = sessionRef.current || next;
-      const final = cloneSession(latestSession);
-      addAIMessage(final, data.reply, targetActor);
-
-      // ── Passive logging: ai_message ──
-      try { fireAIMessage(authTokenRef.current || "", gameSessionIdRef.current, scenarioId as string, curPhaseId, targetActor, data.reply); } catch { /* never break */ }
-      applyEvaluation(
-        final,
-        data.matched_criteria || [],
-        data.score_delta || 0,
-        data.flags_to_set || {}
-      );
-
-      // ── Success keywords: NPC positive response sets flags (e.g., KOL interested) ──
-      const successFlags = checkNpcSuccessKeywords(final, data.reply);
-      if (successFlags) {
-        for (const [key, value] of Object.entries(successFlags)) {
-          if (value === true) final.flags[key] = true;
-        }
-      }
-
-      // ── Failure loop-back: NPC refusal triggers return to previous phase ──
-      if (checkNpcFailureKeywords(final, data.reply)) {
-        const handled = handlePhaseFailure(final);
-        if (handled.applied) {
-          resolveDynamicActors(final);
-          resolveEstablishmentPlaceholders(final);
-          // Reset phase start time for the new phase
-          phaseStartRealTimeRef.current = Date.now();
-          phaseMaxDurationTriggeredRef.current = null;
-          updateAdaptiveMode(final);
-          setSession(final);
-          return;
-        }
-      }
-
-      // ── Scénario 3 Phase 3: detect pivot to clinique via chat with Alexandre ──
-      if (scenarioId?.startsWith("founder_03") && final.flags.switched_to_clinique && !final.flags.pivot_contract_sent) {
-        final.flags.pivot_contract_sent = true;
-        // Update choice flags
-        final.flags.chose_chu = false;
-        final.flags.chose_saint_martin = false;
-        final.flags.chose_clinique = true;
-        // Inject clinique contract mail after a delay
-        const curPhaseId2 = scenario.phases[final.currentPhaseIndex]?.phase_id || "phase_3_contract";
-        final.pendingTimedEvents.push({
-          id: `${curPhaseId2}::pivot_contrat_mail`,
-          actor: "contact_clinique",
-          content: "Suite à votre demande transmise par le Dr. Morel, veuillez trouver ci-joint la convention type pour le test pilote. Merci de retourner le document signé ou vos observations.",
-          dueAt: Date.now() + 5000,
-          phaseId: curPhaseId2,
-          type: "mail",
-          subject: "Convention de test — Clinique Saint-Augustin",
-          attachments: [{ id: "contrat_clinique", label: "Convention de test — Clinique Saint-Augustin" }],
-        });
-      }
-
-      updateAdaptiveMode(final);
-      scheduleInterruption(final);
-      setSession(final);
-    } catch (err) {
-      // Last resort: show error in chat so player is never left hanging
-      console.error("Erreur chat:", err);
-      try {
-        const latestSession = sessionRef.current || next;
-        const errFinal = cloneSession(latestSession);
-        errFinal.chatMessages.push({
-          role: "system",
-          actor: "system",
-          content: `⚠️ Une erreur inattendue s'est produite. Veuillez réessayer.`,
-          type: "error",
-          phaseId: curPhaseId,
-          timestamp: Date.now(),
-        });
-        setSession(errFinal);
-      } catch {}
-    } finally {
-      setIsSending(false);
-    }
-  }
 
   // ══════════════════════════════════════════════════════════════════
   // applyModuleActions — Execute ModuleAction[] from any module
@@ -1775,125 +1486,6 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
     return null;
   }
 
-  function handleSendMail() {
-    if (!session || !scenario || !view || !canActuallySendMail) return;
-    const phase = scenario.phases[session.currentPhaseIndex];
-    const mailKind = phase?.mail_config?.kind || "other";
-    const next = cloneSession(session);
-    // Clean up saved draft for this recipient since we're sending
-    const draftTo = next.mailDrafts[view.phaseId]?.to?.trim().toLowerCase();
-    if (draftTo && next.savedDrafts) {
-      delete next.savedDrafts[`${view.phaseId}::${draftTo}`];
-    }
-    sendCurrentPhaseMail(next, mailKind);
-    playNotificationSound();
-
-    // ── Passive logging: mail_sent ──
-    try {
-      const draft = currentMailDraft || { to: "", subject: "", body: "" };
-      fireMailSent(
-        authTokenRef.current || "", gameSessionIdRef.current, scenarioId as string,
-        view.phaseId, mailKind, draft.to || "", draft.subject || "",
-        (draft.body || "").length, !!(draft as any).attachments?.length,
-      );
-    } catch { /* never break */ }
-
-    // ══════════════════════════════════════════════════════════════════
-    // Module system — try MailModule BEFORE legacy code
-    // If modules are active and return actions, apply them and return.
-    // Otherwise, fall through to the legacy code below.
-    // ══════════════════════════════════════════════════════════════════
-    const mailModules = resolveModules(phase, scenario);
-    if (mailModules) {
-      const mailCtx = {
-        ...buildModuleContext({
-          session: next,
-          scenario,
-          phase,
-          playerName: displayPlayerName,
-          scenarioId: scenarioId || "",
-        }),
-        extra: {
-          mailBody: currentMailDraft?.body || "",
-          mailTo: currentMailDraft?.to || "",
-          mailKind,
-          isFounderScenario,
-          chosenCtoId: chosenCtoId || "sofia_renault",
-          actors,
-          conversation: view?.conversation || [],
-          scores: session.scores || {},
-          constraints: (scenario as any)?.constraints || {},
-          currentMailDraft: currentMailDraft || { to: "", subject: "", body: "" },
-          runtimeView: buildRuntimeView(next),
-          activePromptMap: aiPromptsMapRef.current,
-          defaultPrompt: aiPromptRef.current,
-          displayPlayerName,
-        } as MailModuleExtra,
-      };
-      const mailResult = dispatch(
-        { type: "mail_sent", mailKind, mailBody: currentMailDraft?.body || "" },
-        mailModules,
-        mailCtx,
-      );
-      if (mailResult.actions.length > 0) {
-        applyModuleActions(mailResult.actions, next);
-        setSession(next);
-        return; // Module handled it — skip legacy code
-      }
-      // No actions → fall through to legacy code
-    }
-
-    // ══════════════════════════════════════════════════════════════════
-    // LEGACY FALLBACK — generic send_advances_phase only.
-    //
-    // All specific mailKind branches (rupture_cto, scope_proposal,
-    // choice_confirmation, negotiation_proposal, analyse_rdv,
-    // pilot_pitch) are handled by MailModule and were removed here.
-    //
-    // This fallback only fires for phases that don't declare "mail"
-    // in their modules[] array. Currently:
-    //   - atterrissage/phase_3_execution (consulate_initial)
-    //   - atterrissage/phase_4_rebound (consulate_reply)
-    //   - client_qui_hesite/phase_2 (no kind)
-    //   - founder_01_incubator/phase_1_onepager (one_pager_submission)
-    //
-    // These only use the generic advance path (completion rules → advance).
-    // Safe to remove once these phases add "mail" to their modules[].
-    // ══════════════════════════════════════════════════════════════════
-
-    if (phase?.mail_config?.send_advances_phase) {
-      // ── Check completion rules BEFORE advancing — extracted to lib ──
-      const rulesPass = checkCompletionRules(
-        phase as any,
-        (view?.conversation || []) as any,
-        session.scores,
-      );
-
-      if (rulesPass) {
-        completeCurrentPhaseAndAdvance(next);
-        if (next.isFinished) {
-          notifyCheckpointClear();
-        } else {
-          resolveDynamicActors(next);
-          resolveEstablishmentPlaceholders(next);
-          injectPhaseEntryEvents(next);
-          dispatchEnterPhase(next); // Module system: run enter_phase on new phase
-          const newPhase = scenario.phases[next.currentPhaseIndex];
-          if (newPhase?.mail_config?.defaults) {
-            updateMailDraft(next, newPhase.phase_id, {
-              to: "",
-              cc: "",
-              subject: newPhase.mail_config.defaults.subject || "",
-              body: "", attachments: [],
-            });
-          }
-        }
-      }
-    }
-
-    setSession(next);
-    setShowCompose(false);
-  }
 
   function updateDraft(patch: any) {
     if (!session || !view) return;
@@ -2522,6 +2114,7 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
   })();
 
   return (
+   <PlayerContext.Provider value={playerCtx}>
     <div style={{ display: "flex", flexDirection: "column", height: "100vh", fontFamily: "'Segoe UI', system-ui, -apple-system, sans-serif", background: "#f3f2f1", overflow: "hidden" }}>
 
       {/* ═══════ TOAST NOTIFICATIONS ═══════ */}
@@ -3045,5 +2638,6 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
         }}
       />
     </div>
+   </PlayerContext.Provider>
   );
 }
