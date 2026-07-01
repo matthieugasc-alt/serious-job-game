@@ -240,7 +240,162 @@
         "usable_as_pj": true,
         "hidden_until_phase": "phase_3_contract"
       }
-    ]
+    ],
+    "clinical_contract_templates": {
+      "chu": [
+        {
+          "id": "article_1",
+          "title": "Article 1 — Objet",
+          "content": "Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans le service de chirurgie orthopédique du CHU, sur une durée de 8 semaines."
+        },
+        {
+          "id": "article_2",
+          "title": "Article 2 — Gratuité",
+          "content": "Le test est réalisé à titre gracieux. Aucune facturation n'est émise pendant la période de test."
+        },
+        {
+          "id": "article_3",
+          "title": "Article 3 — Données",
+          "content": "Orisio s'engage à héberger les données sur une infrastructure certifiée HDS. Aucune donnée patient nominative n'est traitée."
+        },
+        {
+          "id": "article_4",
+          "title": "Article 4 — Durée et renouvellement",
+          "content": "8 semaines à compter de la mise en service. Renouvelable une fois par accord des parties."
+        },
+        {
+          "id": "article_5",
+          "title": "Article 5 — Propriété intellectuelle",
+          "content": "Les développements, adaptations et améliorations réalisés pendant la période de test, y compris ceux réalisés sur les données et dans les locaux du CHU, sont la propriété conjointe du CHU et d'Orisio. Le CHU dispose d'une licence perpétuelle, gratuite et irrévocable sur le code source existant d'Orisio utilisé pendant le test.",
+          "toxic": true
+        },
+        {
+          "id": "article_6",
+          "title": "Article 6 — Intéressement",
+          "content": "En contrepartie de l'accès à l'infrastructure du CHU, Orisio versera au CHU : 5% des revenus générés par les ventes d'Orisio aux établissements publics de santé pendant 3 ans ; 1% du post-money en cas de levée de fonds réalisée dans les 24 mois suivant le test.",
+          "toxic": true
+        },
+        {
+          "id": "article_7",
+          "title": "Article 7 — Confidentialité",
+          "content": "Les parties s'engagent à maintenir la confidentialité des informations échangées."
+        },
+        {
+          "id": "article_8",
+          "title": "Article 8 — Référence commerciale",
+          "content": "L'utilisation du nom du CHU de Bordeaux à des fins commerciales ou promotionnelles est interdite sans validation préalable du service communication du CHU.",
+          "moderate": true
+        },
+        {
+          "id": "article_9",
+          "title": "Article 9 — Hébergement",
+          "content": "L'hébergement doit être certifié SecNumCloud (et pas uniquement HDS).",
+          "moderate": true
+        },
+        {
+          "id": "article_10",
+          "title": "Article 10 — Conformité",
+          "content": "Orisio s'engage à respecter l'ensemble des réglementations applicables (RGPD, HDS, etc.)."
+        },
+        {
+          "id": "article_11",
+          "title": "Article 11 — Résiliation",
+          "content": "Le CHU peut résilier la convention à tout moment, sans préavis et sans indemnité.",
+          "moderate": true
+        }
+      ],
+      "sm": [
+        {
+          "id": "article_1",
+          "title": "Article 1 — Objet",
+          "content": "Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans les blocs opératoires de l'Hôpital Saint-Martin, sur une durée de 8 semaines."
+        },
+        {
+          "id": "article_2",
+          "title": "Article 2 — Gratuité",
+          "content": "Le test est réalisé à titre gracieux."
+        },
+        {
+          "id": "article_3",
+          "title": "Article 3 — Propriété intellectuelle",
+          "content": "La propriété intellectuelle du logiciel Orisio reste la propriété exclusive d'Orisio SAS."
+        },
+        {
+          "id": "article_4",
+          "title": "Article 4 — Données",
+          "content": "Hébergement certifié HDS. Aucune donnée patient nominative n'est traitée."
+        },
+        {
+          "id": "article_5",
+          "title": "Article 5 — Durée",
+          "content": "8 semaines à compter de la mise en service."
+        },
+        {
+          "id": "article_6",
+          "title": "Article 6 — Résiliation",
+          "content": "Préavis de 15 jours par l'une ou l'autre des parties."
+        },
+        {
+          "id": "article_7",
+          "title": "Article 7 — Référence commerciale",
+          "content": "Référence anonymisée autorisée (« un hôpital privé de 8 salles »). Toute mention nommée requiert l'accord préalable de la direction de la communication du groupe.",
+          "moderate": true
+        },
+        {
+          "id": "article_8",
+          "title": "Article 8 — Non-sollicitation",
+          "content": "Orisio s'engage à ne pas solliciter le personnel de l'établissement pendant le test et les 6 mois suivant la fin du test."
+        },
+        {
+          "id": "article_9",
+          "title": "Article 9 — Validation groupe",
+          "content": "La signature définitive est soumise à la non-opposition du groupe Ramsay Santé. Délai indicatif : 15 jours ouvrés.",
+          "moderate": true
+        }
+      ],
+      "clinique": [
+        {
+          "id": "article_1",
+          "title": "Article 1 — Objet",
+          "content": "Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans les blocs opératoires de la Clinique Saint-Augustin, sur une durée de 8 semaines."
+        },
+        {
+          "id": "article_2",
+          "title": "Article 2 — Gratuité",
+          "content": "Le test est réalisé à titre gracieux. Aucune facturation n'est émise."
+        },
+        {
+          "id": "article_3",
+          "title": "Article 3 — Propriété intellectuelle",
+          "content": "La propriété intellectuelle du logiciel Orisio reste la propriété exclusive d'Orisio SAS."
+        },
+        {
+          "id": "article_4",
+          "title": "Article 4 — Données",
+          "content": "Hébergement certifié HDS. Aucune donnée patient nominative n'est traitée."
+        },
+        {
+          "id": "article_5",
+          "title": "Article 5 — Durée",
+          "content": "8 semaines à compter de la mise en service, renouvelable par accord des parties."
+        },
+        {
+          "id": "article_6",
+          "title": "Article 6 — Résiliation",
+          "content": "Préavis de 7 jours par l'une ou l'autre des parties."
+        },
+        {
+          "id": "article_7",
+          "title": "Article 7 — Référence commerciale",
+          "content": "Orisio est autorisée à mentionner la Clinique Saint-Augustin comme établissement pilote."
+        },
+        {
+          "id": "article_8",
+          "title": "Article 8 — Confidentialité",
+          "content": "Les parties s'engagent à maintenir la confidentialité des informations échangées."
+        }
+      ]
+    }
   },
   "constraints": {
     "test_must_be_free": true,

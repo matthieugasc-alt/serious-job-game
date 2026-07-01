@@ -1578,7 +1578,9 @@ export default function PlayPage({ params }: { params: Promise<{ scenarioId: str
 
   function handleOpenClinicalSign() {
     const type = session?.flags?.chose_chu ? "chu" as const : session?.flags?.chose_saint_martin ? "sm" as const : "clinique" as const;
-    setClinicalContractArticles(buildClinicalArticles(type));
+    // Data-first: reads scenario.resources.clinical_contract_templates
+    // if present, falls back to hardcoded constants otherwise.
+    setClinicalContractArticles(buildClinicalArticles(type, scenario));
     setClinicalNegThread([]); setClinicalContractRefused(false); setShowClinicalContract(true);
   }
 
@@ -2322,25 +2324,35 @@ Tu peux proposer un compromis (texte modifié qui protège aussi l'établissemen
           ) as any)?.file_path || ""
         }
         scenarioId={scenarioId as string}
+        config={(scenario?.narrative as any)?.one_pager}
         onClose={() => setShowOnePagerEditor(false)}
         onEditedFirst={() => setOnePagerEdited(true)}
         onSubmit={(onePagerText) => {
           // 1. Mark as submitted
           setOnePagerSubmitted(true);
-          // 2. Set flags and send mail
+          // 2. Set flags and send mail — text hérité de scenario.narrative.one_pager
+          //    avec fallback sur les valeurs Orisio historiques pour compat.
           if (session && scenario) {
             const next = cloneSession(session);
             next.flags.one_pager_submitted = true;
             const phase = scenario.phases[next.currentPhaseIndex];
             const phaseId = phase?.phase_id;
+            const opCfg = (scenario.narrative as any)?.one_pager || {};
+            const companyName = opCfg.company_name || "Orisio";
+            const opTitle = opCfg.title || `One-Pager — ${companyName}`;
+            const defaultRecipient = opCfg.recipient_email || "jury@technowest.fr";
+            const defaultSubject = opCfg.default_subject || `Candidature ${companyName} — One-pager`;
+            const bodyIntro = opCfg.body_intro
+              || `Bonjour,\n\nVeuillez trouver ci-dessous le one-pager de notre startup ${companyName}.`;
+            const bodySignature = opCfg.body_signature || "Cordialement";
             if (phaseId) {
               const defaults = (phase?.mail_config?.defaults || {}) as any;
               updateMailDraft(next, phaseId, {
-                to: defaults.to || "jury@technowest.fr",
+                to: defaults.to || defaultRecipient,
                 cc: defaults.cc || "",
-                subject: defaults.subject || "Candidature Orisio — One-pager",
-                body: `Bonjour,\n\nVeuillez trouver ci-dessous le one-pager de notre startup Orisio.\n\n---\n\n${onePagerText}\n\n---\n\nCordialement,\n${displayPlayerName || "CEO"}\nOrisio`,
-                attachments: [{ id: "one_pager_template", label: "One-Pager — Orisio" }],
+                subject: defaults.subject || defaultSubject,
+                body: `${bodyIntro}\n\n---\n\n${onePagerText}\n\n---\n\n${bodySignature},\n${displayPlayerName || "CEO"}\n${companyName}`,
+                attachments: [{ id: "one_pager_template", label: opTitle }],
               });
               const mailKind = phase?.mail_config?.kind || "one_pager_submission";
               sendCurrentPhaseMail(next, mailKind);

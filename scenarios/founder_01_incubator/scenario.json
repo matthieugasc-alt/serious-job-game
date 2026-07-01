@@ -9,7 +9,14 @@
     "job_family": "founder",
     "difficulty": "intermediate",
     "estimated_duration_min": 20,
-    "tags": ["incubateur", "pitch", "one-pager", "jury", "oral", "e-santé"],
+    "tags": [
+      "incubateur",
+      "pitch",
+      "one-pager",
+      "jury",
+      "oral",
+      "e-santé"
+    ],
     "show_objective": false,
     "show_background_fact": false
   },
@@ -47,7 +54,52 @@
     "context": "Orisio a maintenant un CTO. L'étape suivante est d'intégrer un incubateur pour bénéficier de mentorat, de réseau et de crédibilité. Bordeaux Technowest organise une session de sélection ce jeudi.",
     "mission": "Préparer un one-pager convaincant, délivrer un elevator pitch de 40 secondes et survivre à 5 minutes de questions du jury.",
     "initial_situation": "Tu as le template du one-pager et les infos du marché. Le format : 40 secondes de pitch puis 5 minutes de questions. C'est rapide et intense.",
-    "trigger": "Alexandre t'envoie la date du passage et le template à remplir."
+    "trigger": "Alexandre t'envoie la date du passage et le template à remplir.",
+    "one_pager": {
+      "title": "One-Pager — Orisio",
+      "subtitle": "Remplis chaque section puis soumets au jury",
+      "company_name": "Orisio",
+      "recipient_email": "jury@technowest.fr",
+      "recipient_label": "jury de Technowest",
+      "submit_button_label": "📤 Soumettre le one-pager",
+      "default_subject": "Candidature Orisio — One-pager",
+      "body_intro": "Bonjour,\n\nVeuillez trouver ci-dessous le one-pager de notre startup Orisio.",
+      "body_signature": "Cordialement",
+      "sections": [
+        {
+          "title": "Problème",
+          "placeholder": "[Décrivez le problème que vous résolvez. Soyez concret : qui souffre, pourquoi, combien ça coûte. 3-4 phrases max.]"
+        },
+        {
+          "title": "Solution",
+          "placeholder": "[Décrivez votre produit/service. Ce qu'il fait, comment il fonctionne, en quoi il est différent. Pas de jargon. 3-4 phrases max.]"
+        },
+        {
+          "title": "Marché",
+          "placeholder": "[Taille du marché cible. Nombre d'établissements/utilisateurs potentiels. Segment initial visé. Chiffrez.]"
+        },
+        {
+          "title": "Modèle économique",
+          "placeholder": "[Comment vous gagnez de l'argent. Prix, récurrence, panier moyen. Soyez précis.]"
+        },
+        {
+          "title": "Traction",
+          "placeholder": "[Ce que vous avez déjà accompli. Entretiens, pilotes, lettres d'intention, premiers revenus. Chiffres concrets uniquement.]"
+        },
+        {
+          "title": "Équipe",
+          "placeholder": "[Qui vous êtes. Noms, rôles, pourquoi vous êtes les bonnes personnes pour ce projet. 2-3 lignes par personne.]"
+        },
+        {
+          "title": "Demande",
+          "placeholder": "[Ce que vous attendez de l'incubateur. Soyez spécifique : mentorat, réseau, financement, locaux, introductions.]"
+        },
+        {
+          "title": "Contact",
+          "placeholder": "[Nom — email — téléphone]"
+        }
+      ]
+    }
   },
   "timeline": {
     "scenario_start": "2025-10-20T09:00:00",
@@ -149,7 +201,13 @@
         "doc_id": "one_pager_template",
         "label": "Template One-Pager — Orisio",
         "file_path": "/scenarios/founder_01_incubator/documents/one_pager_orisio.pdf",
-        "contains": ["one-pager", "template", "marché", "équipe", "modèle"],
+        "contains": [
+          "one-pager",
+          "template",
+          "marché",
+          "équipe",
+          "modèle"
+        ],
         "usable_as_pj": true
       }
     ]
@@ -175,7 +233,10 @@
       "actor": "alexandre_morel",
       "content": "Bonne nouvelle ! J'ai réussi à nous décrocher un passage devant le jury de Technowest jeudi matin. C'est un incubateur généraliste mais ils ont un bon réseau santé et ils ont accompagné 2-3 startups medtech. Le format : tu envoies un one-pager avant, puis 40 secondes d'elevator pitch à l'oral et 5 minutes de questions du jury. C'est court et intense. Je t'ai mis le template dans les documents. Remplis-le et envoie-le-moi, je te donne mon avis avant qu'on le soumette.",
       "attachments": [
-        { "id": "one_pager_template", "label": "Template One-Pager" }
+        {
+          "id": "one_pager_template",
+          "label": "Template One-Pager"
+        }
       ]
     }
   ],
@@ -187,8 +248,13 @@
       "phase_focus": "Le joueur remplit le one-pager. Il peut discuter avec Alexandre pour des conseils. Le one-pager doit couvrir : problème, solution, marché, modèle, traction, équipe, demande.",
       "duration_target_min": 7,
       "max_duration_sec": 600,
-      "active_channels": ["mail", "chat"],
-      "ai_actors": ["alexandre_morel"],
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "alexandre_morel"
+      ],
       "mail_config": {
         "enabled": true,
         "kind": "one_pager_submission",
@@ -198,7 +264,9 @@
           "subject": "Candidature Orisio — One-pager"
         },
         "require_attachments": false,
-        "on_send_flags": { "one_pager_submitted": true },
+        "on_send_flags": {
+          "one_pager_submitted": true
+        },
         "send_label": "Soumettre le one-pager",
         "send_advances_phase": true
       },
@@ -232,7 +300,9 @@
         ]
       },
       "completion_rules": {
-        "any_flags": ["one_pager_submitted"]
+        "any_flags": [
+          "one_pager_submitted"
+        ]
       },
       "auto_advance": true,
       "next_phase": "phase_2_pitch"
@@ -251,7 +321,9 @@
       },
       "duration_target_min": 1,
       "max_duration_sec": 50,
-      "active_channels": ["voice"],
+      "active_channels": [
+        "voice"
+      ],
       "ai_actors": [],
       "scoring": {
         "criteria": [
@@ -281,7 +353,9 @@
         "max_exchanges": 1
       },
       "on_complete": {
-        "set_flags": { "pitch_delivered": true }
+        "set_flags": {
+          "pitch_delivered": true
+        }
       },
       "auto_advance": true,
       "next_phase": "phase_3_qa"
@@ -299,8 +373,14 @@
       },
       "duration_target_min": 5,
       "max_duration_sec": 360,
-      "active_channels": ["voice"],
-      "ai_actors": ["claire_dumont", "thomas_vidal", "isabelle_morin"],
+      "active_channels": [
+        "voice"
+      ],
+      "ai_actors": [
+        "claire_dumont",
+        "thomas_vidal",
+        "isabelle_morin"
+      ],
       "entry_events": [
         {
           "event_id": "jury_starts",
@@ -338,7 +418,9 @@
         "max_exchanges": 12
       },
       "on_complete": {
-        "set_flags": { "qa_completed": true }
+        "set_flags": {
+          "qa_completed": true
+        }
       },
       "auto_advance": true
     }

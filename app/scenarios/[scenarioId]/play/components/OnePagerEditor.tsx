@@ -13,6 +13,21 @@
 
 import React, { useRef } from "react";
 
+export type OnePagerSection = { title: string; placeholder: string };
+
+export type OnePagerConfig = {
+  /** Overlay title (h2). Default: "One-Pager — <companyName>". */
+  title?: string;
+  /** Overlay subtitle (below title). Default: "Remplis chaque section puis soumets au jury". */
+  subtitle?: string;
+  /** Displayed "sera envoyé au <recipient_label>". Default: "jury de Technowest". */
+  recipient_label?: string;
+  /** CTA submit label. Default: "📤 Soumettre le one-pager". */
+  submit_button_label?: string;
+  /** Sections shown in the contentEditable. Default: the 8 canonical Orisio sections. */
+  sections?: OnePagerSection[];
+};
+
 export type OnePagerEditorProps = {
   visible: boolean;
   edited: boolean;
@@ -21,6 +36,10 @@ export type OnePagerEditorProps = {
   pdfPath: string;
   /** Scenario id, used for the secured download URL. */
   scenarioId: string;
+  /** Optional config from scenario.narrative.one_pager (data-first).
+   *  When absent, hardcoded defaults kick in (backward-compat for scenarios
+   *  that haven't migrated their one_pager block yet). */
+  config?: OnePagerConfig;
   onClose: () => void;
   onEditedFirst: () => void;
   /** Called with the contentEditable inner text on submit. */
@@ -33,11 +52,19 @@ export function OnePagerEditor({
   submitted,
   pdfPath,
   scenarioId,
+  config,
   onClose,
   onEditedFirst,
   onSubmit,
 }: OnePagerEditorProps) {
   const contentRef = useRef<HTMLDivElement>(null);
+
+  // Resolve config with hardcoded fallbacks (backward-compat).
+  const title = config?.title || "One-Pager — Orisio";
+  const subtitle = config?.subtitle || "Remplis chaque section puis soumets au jury";
+  const recipientLabel = config?.recipient_label || "jury de Technowest";
+  const submitLabel = config?.submit_button_label || "📤 Soumettre le one-pager";
+  const sections = config?.sections && config.sections.length > 0 ? config.sections : DEFAULT_SECTIONS;
 
   if (!visible) return null;
 
@@ -96,10 +123,10 @@ export function OnePagerEditor({
             </div>
             <div>
               <h2 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff" }}>
-                One-Pager — Orisio
+                {title}
               </h2>
               <p style={{ margin: 0, fontSize: 11, color: "rgba(255,255,255,0.6)" }}>
-                Remplis chaque section puis soumets au jury
+                {subtitle}
               </p>
             </div>
           </div>
@@ -230,7 +257,7 @@ export function OnePagerEditor({
             }}
           />
 
-          {SECTIONS.map((s) => (
+          {sections.map((s) => (
             <React.Fragment key={s.title}>
               <h2 style={{ fontSize: 16, fontWeight: 700, margin: "24px 0 8px", color: "#5b5fc7" }}>
                 {s.title}
@@ -290,7 +317,7 @@ export function OnePagerEditor({
                     : "Remplissez le document avant de soumettre."}
                 </div>
                 <div style={{ fontSize: 11, color: "#888" }}>
-                  Le one-pager sera envoyé au jury de Technowest.
+                  Le one-pager sera envoyé au {recipientLabel}.
                 </div>
               </div>
               <button
@@ -328,7 +355,7 @@ export function OnePagerEditor({
                     : "none";
                 }}
               >
-                📤 Soumettre le one-pager
+                {submitLabel}
               </button>
             </div>
           ) : (
@@ -368,7 +395,9 @@ export function OnePagerEditor({
 
 // Sections of the one-pager — kept as data so adding/reordering
 // requires no JSX surgery. Same content as the original inline JSX.
-const SECTIONS: { title: string; placeholder: string }[] = [
+// Fallback used when scenario.narrative.one_pager.sections is absent.
+// Kept for backward-compat with scenarios that haven't migrated yet.
+const DEFAULT_SECTIONS: OnePagerSection[] = [
   {
     title: "Problème",
     placeholder:

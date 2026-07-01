@@ -65,9 +65,36 @@ const CLINIQUE_ARTICLES: ClinicalArticle[] = [
   art("article_8", "Article 8 — Confidentialité", "Les parties s'engagent à maintenir la confidentialité des informations échangées."),
 ];
 
-export function buildClinicalArticles(type: ClinicalEstablishment): ClinicalArticle[] {
-  // Returns a fresh array each call so callers can safely mutate
-  // modifiedContent without leaking modifications into the template.
+/**
+ * Build the article list for a given establishment.
+ *
+ * Data-first policy: prefer scenario.resources.clinical_contract_templates
+ * when available. The hardcoded constants above are kept as fallback for
+ * (a) scenarios that haven't migrated their JSON yet, (b) unit tests that
+ * call this helper without a full scenario object.
+ *
+ * The scenario-provided articles may omit `modifiedContent`, `toxic` and
+ * `moderate` — they default to `null`, `false`, `false` respectively.
+ */
+export function buildClinicalArticles(
+  type: ClinicalEstablishment,
+  scenario?: any,
+): ClinicalArticle[] {
+  // ── Data-first: read from scenario JSON when present ──
+  const templates = scenario?.resources?.clinical_contract_templates;
+  const jsonList = templates?.[type];
+  if (Array.isArray(jsonList) && jsonList.length > 0) {
+    return jsonList.map((raw: any) => ({
+      id: String(raw.id),
+      title: String(raw.title),
+      content: String(raw.content),
+      modifiedContent: raw.modifiedContent ?? null,
+      toxic: !!raw.toxic,
+      moderate: !!raw.moderate,
+    }));
+  }
+
+  // ── Fallback: hardcoded constants (backward-compat) ──
   if (type === "chu") return CHU_ARTICLES.map((a) => ({ ...a }));
   if (type === "sm") return SAINT_MARTIN_ARTICLES.map((a) => ({ ...a }));
   return CLINIQUE_ARTICLES.map((a) => ({ ...a }));
