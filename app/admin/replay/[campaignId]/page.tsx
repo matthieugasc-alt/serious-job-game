@@ -36,6 +36,21 @@ interface EvaluationHistoryEntry {
     evidence?: Record<string, string>;
     meta?: { model?: string; at?: string };
   };
+  // VS-chantier
+  conditions?: {
+    scenario_version?: string;
+    engine_version?: string;
+    ai_model?: string;
+    prompt_version?: string;
+    criterion_snapshots?: Array<{
+      id: string;
+      description: string;
+      severity?: string;
+      expected?: boolean;
+      competencies?: string[];
+      error_type?: string;
+    }>;
+  };
 }
 
 type Severity = "critical" | "required" | "bonus" | "minor";
@@ -47,7 +62,9 @@ interface PhaseContract {
     id: string;
     description: string;
     expected?: boolean;
-    severity?: Severity;
+    severity?: Severity | string;
+    competencies?: string[];
+    error_type?: string;
   }>;
   required_criteria?: string[];
   min_criteria_count?: number;
@@ -167,8 +184,20 @@ export default function AdminReplayPage({
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
           {data.evaluation_history.map((entry, i) => {
             const lookup = findContract(entry.phaseId);
-            const contract = lookup?.contract ?? null;
-            const scenarioId = lookup?.scenarioId ?? null;
+            // VS-chantier: prefer snapshot from evaluation time; fall back to current contract.
+            let contract = lookup?.contract ?? null;
+            let scenarioId = lookup?.scenarioId ?? null;
+            const snapshots = entry.conditions?.criterion_snapshots;
+            if (snapshots && snapshots.length > 0) {
+              // Reconstitute contract from snapshot — the "git blame" replay.
+              contract = {
+                phase_id: entry.phaseId,
+                title: contract?.title ?? entry.phaseId,
+                observed_criteria: snapshots,
+                required_criteria: contract?.required_criteria,
+                critical_failure_criteria: contract?.critical_failure_criteria,
+              };
+            }
             const isOpen = expanded.has(i);
             return (
               <div key={i} style={cardStyle}>
@@ -247,7 +276,10 @@ export default function AdminReplayPage({
                             const isBonusMatched = entry.bonusMatched?.includes(c.id);
                             // Severity precedence: explicit > declared-as-critical-in-rules > default
                             const declaredCritical = contract.critical_failure_criteria?.includes(c.id);
-                            const sev: Severity = c.severity ?? (declaredCritical ? "critical" : "required");
+                            const rawSev = c.severity ?? (declaredCritical ? "critical" : "required");
+                            const sev: Severity = (["critical", "required", "bonus", "minor"] as const).includes(rawSev as Severity)
+                              ? (rawSev as Severity)
+                              : "required";
                             const style = SEVERITY_STYLES[sev];
                             return (
                               <tr key={c.id} style={isCriticalFired ? { background: "#fef2f2" } : undefined}>
@@ -283,14 +315,12 @@ export default function AdminReplayPage({
                                   {entry.observation.evidence?.[c.id] ?? ""}
                                   {scenarioId ? (
                                     <div style={{ marginTop: 4 }}>
-                                      <a
-                                        href={`/studio?scenario=${scenarioId}&phase=${entry.phaseId}&criterion=${c.id}`}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
+                                      <Link
+                                        href={`/admin/edit-criterion/${scenarioId}/${entry.phaseId}/${c.id}`}
                                         style={{ fontSize: 10, color: "#2563eb", textDecoration: "underline" }}
                                       >
                                         éditer ce critère →
-                                      </a>
+                                      </Link>
                                     </div>
                                   ) : null}
                                 </td>

@@ -1,0 +1,50 @@
+{
+  "version": "1.0.0",
+  "competencies": [
+    {
+      "id": "communication",
+      "label": "Communication",
+      "description": "Capacité à formuler clairement une idée, adapter le message au destinataire, écouter activement et reformuler."
+    },
+    {
+      "id": "priorisation",
+      "label": "Priorisation",
+      "description": "Capacité à hiérarchiser les tâches, arbitrer entre urgences et importances, et communiquer les choix."
+    },
+    {
+      "id": "negociation",
+      "label": "Négociation",
+      "description": "Capacité à défendre une position, identifier la valeur de l'autre partie, construire un accord équilibré."
+    },
+    {
+      "id": "analyse",
+      "label": "Analyse",
+      "description": "Capacité à décomposer un problème complexe, identifier les causes racines, cadrer les hypothèses."
+    },
+    {
+      "id": "decision",
+      "label": "Décision",
+      "description": "Capacité à trancher en information incomplète, assumer un choix, mesurer les conséquences."
+    },
+    {
+      "id": "leadership",
+      "label": "Leadership",
+      "description": "Capacité à embarquer une équipe, fixer un cap, soutenir face à l'adversité, développer les autres."
+    },
+    {
+      "id": "organisation",
+      "label": "Organisation",
+      "description": "Capacité à structurer un plan, tenir un rythme, orchestrer des dépendances et tenir les engagements."
+    },
+    {
+      "id": "gestion_stress",
+      "label": "Gestion du stress",
+      "description": "Capacité à maintenir un cap en situation de pression, gérer ses émotions et celles des autres."
+    },
+    {
+      "id": "relation_client",
+      "label": "Relation client",
+      "description": "Capacité à identifier les besoins du client, maintenir la confiance, transformer les insatisfactions en opportunités."
+    }
+  ]
+}

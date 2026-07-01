@@ -11,6 +11,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { validateSession } from "@/app/lib/auth";
 import { readAllEvents, computeAnalytics } from "@/app/lib/gameEvents/reader";
+import { computeSuggestions } from "@/app/lib/suggestions/rules";
 
 export async function GET(req: NextRequest) {
   const token = req.headers.get("authorization")?.replace("Bearer ", "");
@@ -25,5 +26,11 @@ export async function GET(req: NextRequest) {
   const events = readAllEvents();
   const analytics = computeAnalytics(events);
 
-  return NextResponse.json(analytics);
+  // AS-chantier — inject suggestions from metrics.
+  const suggestions = computeSuggestions({
+    phases: analytics.phases,
+    criteria: analytics.criteria,
+  });
+
+  return NextResponse.json({ ...analytics, suggestions });
 }

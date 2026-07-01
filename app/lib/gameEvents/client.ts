@@ -198,6 +198,13 @@ export function firePhaseEvaluated(
     missing: string[];
     criticalFailures: string[];
     criteriaObserved: Record<string, boolean>;
+    /** CF-chantier — per-criterion metadata (competencies, error_type, severity)
+     *  captured at observation time to enable transverse aggregation. */
+    criteriaMeta?: Record<string, {
+      competencies?: string[];
+      error_type?: string;
+      severity?: string;
+    }>;
   },
 ): void {
   fireEvent(token, "phase_evaluated", sessionId, scenarioId, phaseId, {
@@ -207,6 +214,7 @@ export function firePhaseEvaluated(
     missing: observation.missing,
     criticalFailures: observation.criticalFailures,
     criteriaObserved: observation.criteriaObserved,
+    ...(observation.criteriaMeta ? { criteriaMeta: observation.criteriaMeta } : {}),
   });
 }
 

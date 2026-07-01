@@ -164,6 +164,17 @@ export function useSendChatMessage(ctx: PlayerContextValue) {
           meta: rawObs.meta,
         });
         if (!Array.isArray(final.evaluation_history)) final.evaluation_history = [];
+        // VS-chantier: capture les conditions exactes de l'évaluation.
+        const criteriaSnapshots = Array.isArray(currentPhaseE.evaluation.observed_criteria)
+          ? currentPhaseE.evaluation.observed_criteria.map((c: any) => ({
+              id: c.id,
+              description: c.description,
+              severity: c.severity,
+              expected: c.expected,
+              competencies: c.competencies,
+              error_type: c.error_type,
+            }))
+          : undefined;
         final.evaluation_history.push({
           phaseId: result.phaseId,
           timestamp: result.timestamp,
@@ -176,12 +187,33 @@ export function useSendChatMessage(ctx: PlayerContextValue) {
           weightedThreshold: result.weightedThreshold,
           reason: result.reason,
           observation: result.observation,
+          conditions: {
+            scenario_version: (scenario as any).version,
+            engine_version: "1.1.0", // W+CF+VS baseline
+            ai_model: result.observation.meta?.model,
+            criterion_snapshots: criteriaSnapshots,
+          },
         });
         if (result.passed) {
           final.flags[`phase_evaluation_passed_${result.phaseId}`] = true;
         }
         // Y-chantier: fire telemetry event for analytics dashboard.
+        // CF: embed each criterion's competencies + error_type so the
+        // dashboard can aggregate by competency without re-reading scenarios.
         try {
+          const contract = (scenario.phases[final.currentPhaseIndex] as any)?.evaluation?.observed_criteria as any[] | undefined;
+          const criteriaMeta: Record<string, { competencies?: string[]; error_type?: string; severity?: string }> = {};
+          if (Array.isArray(contract)) {
+            for (const c of contract) {
+              if (c?.id) {
+                criteriaMeta[c.id] = {
+                  competencies: Array.isArray(c.competencies) ? c.competencies : undefined,
+                  error_type: c.error_type,
+                  severity: c.severity,
+                };
+              }
+            }
+          }
           firePhaseEvaluated(
             authTokenRef.current || "",
             gameSessionIdRef.current,
@@ -194,6 +226,7 @@ export function useSendChatMessage(ctx: PlayerContextValue) {
               missing: [...result.missing],
               criticalFailures: [...result.criticalFailures],
               criteriaObserved: result.observation.criteria,
+              criteriaMeta, // CF-chantier
             },
           );
         } catch { /* never break */ }

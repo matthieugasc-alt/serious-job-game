@@ -74,6 +74,20 @@ export interface HelpMetric {
   count: number;
 }
 
+export interface CompetencyMetric {
+  competencyId: string;
+  matched: number;
+  seen: number;
+  matchRate: number;
+}
+
+export interface ErrorTypeMetric {
+  errorType: string;
+  observed: number;
+  seen: number;
+  observedRate: number;
+}
+
 /**
  * Aggregate metrics from all events for the analytics dashboard.
  * Returns 6 top-level slices, one per question the PO wants answered.
@@ -174,11 +188,51 @@ export function computeAnalytics(events: GameEvent[]) {
     helpAcc.set(key, m);
   }
 
+  // ── CF-chantier: per-competency + per-error-type ──
+  const compAcc = new Map<string, CompetencyMetric>();
+  const errorAcc = new Map<string, ErrorTypeMetric>();
+  for (const e of events) {
+    if (e.type !== "phase_evaluated") continue;
+    const observed = (e.payload as any)?.criteriaObserved as Record<string, boolean> | undefined;
+    const matched = (e.payload as any)?.matched as string[] | undefined;
+    const meta = (e.payload as any)?.criteriaMeta as Record<string, { competencies?: string[]; error_type?: string }> | undefined;
+    if (!observed || !meta) continue;
+    for (const [cid, val] of Object.entries(observed)) {
+      const m = meta[cid];
+      if (!m) continue;
+      const isMatch = Array.isArray(matched) ? matched.includes(cid) : val === true;
+      // Aggregate per competency
+      if (Array.isArray(m.competencies)) {
+        for (const compId of m.competencies) {
+          const cm = compAcc.get(compId) ?? { competencyId: compId, matched: 0, seen: 0, matchRate: 0 };
+          cm.seen++;
+          if (isMatch) cm.matched++;
+          compAcc.set(compId, cm);
+        }
+      }
+      // Aggregate per error_type (only meaningful when NOT matched — that's an error)
+      if (m.error_type && !isMatch) {
+        const em = errorAcc.get(m.error_type) ?? { errorType: m.error_type, observed: 0, seen: 0, observedRate: 0 };
+        em.observed++;
+        em.seen++;
+        errorAcc.set(m.error_type, em);
+      } else if (m.error_type && isMatch) {
+        const em = errorAcc.get(m.error_type) ?? { errorType: m.error_type, observed: 0, seen: 0, observedRate: 0 };
+        em.seen++;
+        errorAcc.set(m.error_type, em);
+      }
+    }
+  }
+  for (const m of compAcc.values()) m.matchRate = m.seen > 0 ? m.matched / m.seen : 0;
+  for (const m of errorAcc.values()) m.observedRate = m.seen > 0 ? m.observed / m.seen : 0;
+
   return {
     phases: [...phaseAcc.values()],
     criteria: [...critAcc.values()],
     scenarios: [...scenAcc.values()],
     help: [...helpAcc.values()],
+    competencies: [...compAcc.values()],
+    errorTypes: [...errorAcc.values()],
     totalEvents: events.length,
   };
 }

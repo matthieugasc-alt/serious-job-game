@@ -698,7 +698,33 @@ export type PhaseEvaluationCriterion = {
    * Defaults to "required" when omitted (preserves E-chantier behavior).
    */
   severity?: CriterionSeverity;
+  /**
+   * CF-chantier — ids of competencies from data/competencies.json this
+   * criterion contributes to. Enables cross-scenario competency aggregation.
+   */
+  competencies?: string[];
+  /**
+   * CF-chantier — pedagogical family of the mistake when unmatched.
+   * Orthogonal to severity: two "critical" criteria may have different
+   * error_types (regulatory vs behavior for instance).
+   */
+  error_type?: CriterionErrorType;
 };
+
+export type CriterionErrorType =
+  | "knowledge"
+  | "reasoning"
+  | "behavior"
+  | "regulatory"
+  | "communication";
+
+export const CRITERION_ERROR_TYPES = [
+  "knowledge",
+  "reasoning",
+  "behavior",
+  "regulatory",
+  "communication",
+] as const satisfies readonly CriterionErrorType[];
 
 export type CriterionSeverity = "critical" | "required" | "bonus" | "minor";
 
@@ -1260,6 +1286,32 @@ export type EvaluationHistoryEntry = {
     readonly criteria: Record<string, boolean>;
     readonly evidence?: Record<string, string>;
     readonly meta?: { readonly model?: string; readonly at?: string };
+  };
+  /**
+   * VS-chantier — snapshot of the exact conditions at evaluation time.
+   * Enables "git blame" replay: 6 months later, we can reconstruct the
+   * exact scenario/criterion/prompt/engine used, even after the scenario
+   * has evolved. Optional for backward compat with pre-VS entries.
+   */
+  readonly conditions?: {
+    readonly scenario_version?: string;
+    readonly engine_version?: string;
+    readonly ai_model?: string;
+    readonly prompt_version?: string;
+    /**
+     * Frozen snapshot of the criterion at observation time — its id,
+     * description, severity, competencies, error_type. Lets us render
+     * the replay even if the current scenario no longer contains
+     * this criterion, or has changed its wording.
+     */
+    readonly criterion_snapshots?: ReadonlyArray<{
+      id: string;
+      description: string;
+      severity?: string;
+      expected?: boolean;
+      competencies?: readonly string[];
+      error_type?: string;
+    }>;
   };
 };
 

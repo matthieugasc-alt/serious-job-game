@@ -665,6 +665,16 @@
                 "type": "string",
                 "enum": ["critical", "required", "bonus", "minor"],
                 "description": "W-chantier — pedagogical severity of the criterion:\n- 'critical'  : missing this = immediate phase failure, no other rule evaluated (ex: 'a divulgué un secret industriel'). Referenced by completion_rules.critical_failure_criteria.\n- 'required'  : must be observed to pass (ex: 'a identifié le besoin client'). Referenced by completion_rules.required_criteria.\n- 'bonus'     : observing it adds to the score but is not mandatory (ex: 'a proposé une deadline précise').\n- 'minor'     : low-weight contribution to min_criteria_count (ex: 'a dit bonjour').\nDefaults to 'required' when omitted (preserves legacy behavior). Verrouillé par le garde-fou W5."
+              },
+              "competencies": {
+                "type": "array",
+                "items": { "type": "string" },
+                "description": "CF-chantier — ids de compétences du référentiel data/competencies.json auxquelles ce critère contribue. Un critère peut pointer vers plusieurs compétences. Permet l'agrégation transverse ('taux de matching en Communication'). Vérifié par le garde-fou EVAL_UNKNOWN_COMPETENCY."
+              },
+              "error_type": {
+                "type": "string",
+                "enum": ["knowledge", "reasoning", "behavior", "regulatory", "communication"],
+                "description": "CF-chantier — famille pédagogique de l'erreur si le critère n'est pas matché:\n- 'knowledge'      : connaissance factuelle manquante\n- 'reasoning'      : raisonnement défaillant sur des données correctes\n- 'behavior'       : comportement inapproprié (ton, gestion émotionnelle)\n- 'regulatory'     : violation d'un cadre réglementaire (RGPD, éthique)\n- 'communication'  : problème de formulation ou de canal\nOrthogonal à severity : deux critères 'critical' peuvent avoir des error_type différents."
               }
             }
           }

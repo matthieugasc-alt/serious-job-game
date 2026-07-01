@@ -238,6 +238,35 @@ describe("checkEvaluationCoverage — W5 EVAL_NO_FAIL_PATH", () => {
   });
 });
 
+describe("checkEvaluationCoverage — CF EVAL_UNKNOWN_COMPETENCY", () => {
+  it("critère avec competency inconnu → erreur", () => {
+    const phase = {
+      phase_id: "p1",
+      evaluation: {
+        observed_criteria: [
+          { id: "a", description: "", severity: "required", competencies: ["ghost_competency"] },
+        ],
+      },
+      completion_rules: { required_criteria: ["a"] },
+    };
+    const issues = issuesFor(phase);
+    expect(issues.some((i) => i.code === "EVAL_UNKNOWN_COMPETENCY")).toBe(true);
+  });
+
+  it("compétence valide (communication, dans le référentiel) → pas d'erreur", () => {
+    const phase = {
+      phase_id: "p1",
+      evaluation: {
+        observed_criteria: [
+          { id: "a", description: "", severity: "required", competencies: ["communication"] },
+        ],
+      },
+      completion_rules: { required_criteria: ["a"] },
+    };
+    expect(issuesFor(phase).filter((i) => i.code === "EVAL_UNKNOWN_COMPETENCY")).toEqual([]);
+  });
+});
+
 describe("checkEvaluationCoverage — robustesse", () => {
   it("null phase → aucune erreur (pas de crash)", () => {
     expect(issuesFor(null)).toEqual([]);

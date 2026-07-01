@@ -45,6 +45,16 @@ interface Analytics {
     completionRate: number;
   }>;
   help: Array<{ scenarioId: string; phaseId: string; source: string; count: number }>;
+  competencies?: Array<{ competencyId: string; matched: number; seen: number; matchRate: number }>;
+  errorTypes?: Array<{ errorType: string; observed: number; seen: number; observedRate: number }>;
+  suggestions?: Array<{
+    type: string;
+    severity: "critical" | "warning" | "info";
+    title: string;
+    evidence: Record<string, unknown>;
+    suggested_action: string;
+    editTarget?: { scenarioId: string; phaseId?: string; criterionId?: string };
+  }>;
   totalEvents: number;
 }
 
@@ -89,6 +99,37 @@ export default function AnalyticsPage() {
           {data.totalEvents.toLocaleString("fr-FR")} événements ingérés · agrégation live
         </div>
       </header>
+
+      {data.suggestions && data.suggestions.length > 0 ? (
+        <div style={{ ...cardStyle, marginBottom: 20, borderColor: "#f59e0b", background: "#fffbeb" }}>
+          <h2 style={{ fontSize: 16, fontWeight: 700, margin: "0 0 12px", color: "#78350f" }}>
+            💡 Suggestions d'amélioration ({data.suggestions.length})
+          </h2>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            {data.suggestions.slice(0, 10).map((s, i) => {
+              const sevBg: Record<string, string> = { critical: "#fee2e2", warning: "#fef3c7", info: "#dbeafe" };
+              const sevColor: Record<string, string> = { critical: "#7f1d1d", warning: "#78350f", info: "#1e3a8a" };
+              return (
+                <div key={i} style={{ padding: 12, background: sevBg[s.severity], borderRadius: 6 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                    <strong style={{ color: sevColor[s.severity], fontSize: 13 }}>{s.title}</strong>
+                    {s.editTarget?.criterionId && s.editTarget.phaseId ? (
+                      <Link href={`/admin/edit-criterion/${s.editTarget.scenarioId}/${s.editTarget.phaseId}/${s.editTarget.criterionId}`} style={{ fontSize: 11, color: "#2563eb" }}>
+                        éditer →
+                      </Link>
+                    ) : s.editTarget?.scenarioId ? (
+                      <Link href={`/admin/replay/scenario/${s.editTarget.scenarioId}`} style={{ fontSize: 11, color: "#2563eb" }}>
+                        voir →
+                      </Link>
+                    ) : null}
+                  </div>
+                  <div style={{ fontSize: 12, color: sevColor[s.severity], marginTop: 4 }}>{s.suggested_action}</div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
         <Section title="🚪 Où les joueurs abandonnent">
@@ -167,6 +208,41 @@ export default function AnalyticsPage() {
               String(h.count),
             ])}
             empty="Aucune demande d'aide instrumentée"
+          />
+        </Section>
+
+        <Section title="🎓 Match rate par compétence (transverse)">
+          <MetricTable
+            columns={["Compétence", "Match rate", "Observations"]}
+            rows={(data.competencies ?? [])
+              .filter((c) => c.seen >= 3)
+              .sort((a, b) => a.matchRate - b.matchRate)
+              .slice(0, 12)
+              .map((c) => [
+                <code key="c" style={{ fontSize: 11 }}>{c.competencyId}</code>,
+                <span key="r" style={{ color: c.matchRate < 0.3 ? "#b91c1c" : c.matchRate > 0.7 ? "#059669" : "#374151", fontWeight: 600 }}>
+                  {pct(c.matchRate)}
+                </span>,
+                <span key="s" style={{ color: "#6b7280" }}>{c.matched}/{c.seen}</span>,
+              ])}
+            empty="Aucun critère n'est encore lié à une compétence. Édite les critères pour les taguer."
+          />
+        </Section>
+
+        <Section title="🧩 Répartition par famille d'erreur">
+          <MetricTable
+            columns={["Type d'erreur", "Taux observation", "Occurrences"]}
+            rows={(data.errorTypes ?? [])
+              .filter((e) => e.seen >= 3)
+              .sort((a, b) => b.observedRate - a.observedRate)
+              .map((e) => [
+                <code key="c" style={{ fontSize: 11 }}>{e.errorType}</code>,
+                <span key="r" style={{ color: e.observedRate > 0.5 ? "#b91c1c" : "#374151", fontWeight: 600 }}>
+                  {pct(e.observedRate)}
+                </span>,
+                <span key="s" style={{ color: "#6b7280" }}>{e.observed}/{e.seen}</span>,
+              ])}
+            empty="Aucun error_type n'est encore renseigné sur les critères."
           />
         </Section>
       </div>

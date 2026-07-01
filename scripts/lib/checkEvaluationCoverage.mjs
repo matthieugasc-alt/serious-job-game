@@ -14,6 +14,24 @@
 //   EVAL_RULE_WITHOUT_CRITERIA           — rule declared but no evaluation block
 // ═══════════════════════════════════════════════════════════════════
 
+import fs from "node:fs";
+import path from "node:path";
+
+// CF-chantier: valid competency ids loaded from data/competencies.json.
+// Cached at module load.
+let cachedCompetencyIds = null;
+function loadValidCompetencyIds() {
+  if (cachedCompetencyIds) return cachedCompetencyIds;
+  try {
+    const raw = fs.readFileSync(path.resolve(process.cwd(), "data", "competencies.json"), "utf-8");
+    const ref = JSON.parse(raw);
+    cachedCompetencyIds = new Set((ref.competencies ?? []).map((c) => c.id));
+  } catch {
+    cachedCompetencyIds = new Set();
+  }
+  return cachedCompetencyIds;
+}
+
 /**
  * @param {object} phase          - the phase object
  * @param {string} phasePath      - JSON path prefix (e.g. "phases[0]")
@@ -120,6 +138,26 @@ export function checkEvaluationCoverage(phase, phasePath) {
         message: `Phase "${pid}" completion_rules.critical_failure_criteria contains "${cid}" but its severity is "${severityOf.get(cid)}", not "critical". Set severity: "critical" on the criterion or remove it from critical_failure_criteria.`,
         path: `${p}.evaluation.observed_criteria`,
       });
+    }
+  }
+
+  // CF-chantier — validate competency ids referenced by criteria.
+  const validCompetencies = loadValidCompetencyIds();
+  for (const c of observedCriteria) {
+    if (!c || typeof c.id !== "string") continue;
+    const competencies = Array.isArray(c.competencies) ? c.competencies : [];
+    for (const compId of competencies) {
+      if (typeof compId !== "string") continue;
+      // If referential is empty (fresh install), skip validation.
+      if (validCompetencies.size === 0) continue;
+      if (!validCompetencies.has(compId)) {
+        issues.push({
+          severity: "error",
+          code: "EVAL_UNKNOWN_COMPETENCY",
+          message: `Phase "${pid}" criterion "${c.id}" references unknown competency "${compId}" — add it to data/competencies.json or fix the reference`,
+          path: `${p}.evaluation.observed_criteria`,
+        });
+      }
     }
   }
 
