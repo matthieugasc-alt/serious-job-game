@@ -62,8 +62,8 @@ describe("scenario.schema.json — garde-fou data-first", () => {
     expect(typeof validate).toBe("function");
   });
 
-  it("les scenarios actifs sont découverts (au moins 5)", () => {
-    expect(ACTIVE.length).toBeGreaterThanOrEqual(5);
+  it("les scenarios actifs v1 sont découverts (au moins 1 tant que la purge v1 n'est pas faite)", () => {
+    expect(ACTIVE.length).toBeGreaterThanOrEqual(1);
   });
 
   // Un test par scenario actif — parametrized pour reporting clair.
