@@ -1,0 +1,95 @@
+{
+  "format": "v2",
+  "scenario_id": "cpo_production",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Annoncer la fin de la v1 de l'API",
+    "description": "Fluxboard arrête sa v1 d'API dans 6 mois. Une quarantaine de clients développeurs ont bâti des intégrations dessus. Yann vous a transmis ses notes techniques — à vous d'écrire LE mail d'annonce : clair, honnête, sans jargon, et sans promesse intenable.",
+    "difficulty": "intermediate",
+    "estimated_minutes": 7
+  },
+  "competencies": ["communication", "relation_client", "organisation", "decision"],
+  "actors": [
+    {
+      "actor_id": "clients_api",
+      "name": "Clients développeurs Fluxboard",
+      "role": "Liste de diffusion des ~40 clients ayant bâti des intégrations sur l'API v1",
+      "prompt": "Tu représentes collectivement les ~40 clients développeurs de Fluxboard : des CTO de PME, des développeurs intégrateurs et quelques agences, qui ont construit des intégrations métier sur l'API v1 (synchronisation de tâches, reporting, connecteurs internes). Certains ont du code en production depuis trois ans. Leur état d'esprit face à une annonce de dépréciation : pragmatique mais vigilant — ils acceptent qu'une API évolue, à condition d'avoir une date ferme, un délai réaliste, une raison compréhensible et un chemin de migration concret. Ils détestent le jargon juridique, les euphémismes marketing et les promesses vagues. Ce personnage collectif ne dialogue pas : il est le destinataire du mail."
+    }
+  ],
+  "documents": [
+    {
+      "id": "doc_notes_yann",
+      "title": "Notes techniques de Yann Kowalski — sunset API v1 (interne, ne pas diffuser telles quelles)",
+      "content": "# Sunset API v1 — notes pour le mail d'annonce\n**De : Yann Kowalski (Head of Engineering) — À : CPO — INTERNE**\n\nSalut, voilà tout ce qu'il te faut pour le mail d'annonce. Merci de vulgariser, mes notes sont brutes.\n\n## La décision\n- **Arrêt définitif de l'API v1 le 15 janvier 2027** (dans ~6 mois). Après cette date, tous les appels v1 renvoient une erreur `410 Gone`. **Aucune prolongation possible** : la v1 tourne sur notre stack legacy (Node 12, non maintenu), son authentification par clé statique est une faiblesse de sécurité structurelle, et son maintien nous coûte ~15 jours-homme par mois.\n- **IMPORTANT — à ne PAS promettre dans le mail** : il n'y aura NI couche de compatibilité, NI proxy v1→v2, NI « mode legacy » après le 15 janvier. J'ai vu la proposition de l'équipe sales de promettre une « continuité de service » : c'est NON, techniquement intenable. La v1 s'arrête vraiment.\n\n## Pourquoi la v2 (les vrais bénéfices, à mettre en avant)\n- Authentification **OAuth2** (fin des clés statiques qui traînent dans les repos).\n- **Webhooks signés et fiables** (livraison garantie avec retries — la plainte n°1 sur la v1).\n- Performances : temps de réponse médian divisé par 3 sur nos benchmarks.\n- Pagination par curseur (fin des timeouts sur les gros volumes).\n\n## Breaking changes (les 4 gros)\n1. Auth : clé statique → OAuth2 client credentials.\n2. Endpoints renommés : `/tasks` → `/work-items`, `/boards` → `/projects` (table de correspondance complète dans le guide).\n3. Identifiants numériques → **UUID** (un endpoint de correspondance ancien ID → UUID est fourni pendant toute la période de transition).\n4. Payload des webhooks au format v2, signé.\n\n## Ce qu'on met à disposition (le chemin de migration)\n- **Guide de migration pas-à-pas** publié dès aujourd'hui : docs.fluxboard.io/migration-v2.\n- **SDK v2** disponibles en JavaScript et Python.\n- **Sandbox de test** v2 accessible immédiatement, sans engagement.\n- **Double-run** : v1 ET v2 fonctionnent en parallèle jusqu'au 15 janvier 2027 — on migre endpoint par endpoint, pas de big bang.\n- **Script de vérification** qui analyse les logs d'appels v1 d'un compte et liste ce qui reste à migrer.\n- Accompagnement : **canal Slack dédié** (#migration-v2) + **2 webinars** (17 septembre et 12 novembre) + le support prioritaire pour les 40 comptes concernés.\n- Estimation d'effort constatée sur nos 3 comptes bêta : **2 à 5 jours de dev** pour une intégration typique.\n\n## Calendrier récapitulatif\n- Aujourd'hui : annonce + guide + sandbox + SDK.\n- 17 septembre : webinar 1.\n- 15 octobre : rappel à tous les comptes ayant encore du trafic v1.\n- 12 novembre : webinar 2.\n- 15 décembre : dernier rappel individuel.\n- **15 janvier 2027 : extinction de la v1 (410 Gone).**"
+    }
+  ],
+  "sequence": [
+    {
+      "step_id": "s1",
+      "mechanic": "production",
+      "title": "Mail d'annonce du sunset de l'API v1",
+      "params": {
+        "deliverable_type": "mail",
+        "recipient_actor": "clients_api",
+        "subject_hint": "Fin de vie de l'API v1 — ce qui change pour vous et comment migrer",
+        "instructions": "Rédigez le mail annonçant la dépréciation de l'API v1 aux ~40 clients développeurs concernés. Le mail doit annoncer la date d'arrêt (15 janvier 2027, soit 6 mois), expliquer pourquoi (les bénéfices de la v2, sans enrobage), donner un chemin de migration concret (ressources, étapes, accompagnement), et rester empathique — ces clients ont du code en production chez eux. Pas de jargon juridique, pas d'euphémisme… et surtout aucune promesse que les notes de Yann excluent.",
+        "document_ids": ["doc_notes_yann"]
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "date_et_delai",
+            "description": "Le mail communique clairement la date d'arrêt de l'API v1 (le 15 janvier 2027) et le délai dont disposent les clients (environ 6 mois), de manière visible et sans ambiguïté — pas une date noyée dans un paragraphe ni un délai flou (« prochainement », « dans les mois à venir »).",
+            "severity": "required",
+            "competencies": ["communication", "organisation"]
+          },
+          {
+            "id": "raison_expliquee",
+            "description": "Le mail explique POURQUOI la v1 s'arrête, en termes de bénéfices concrets pour le client (au moins un parmi : authentification OAuth2 plus sûre que les clés statiques, webhooks signés et fiables, performances multipliées, pagination robuste) — et non par une formule creuse (« amélioration continue de nos services ») ou du jargon juridique.",
+            "severity": "required",
+            "competencies": ["communication", "relation_client"]
+          },
+          {
+            "id": "chemin_migration",
+            "description": "Le mail donne un chemin de migration CONCRET, avec au moins deux ressources ou étapes précises issues des notes de Yann : guide de migration, SDK v2 (JS/Python), sandbox de test, période de double-run v1/v2 jusqu'à l'arrêt, script de vérification des appels restants, canal Slack dédié, webinars datés, estimation d'effort (2 à 5 jours).",
+            "severity": "required",
+            "competencies": ["organisation", "relation_client"]
+          },
+          {
+            "id": "retrocompatibilite_promise",
+            "description": "FAUTE À DÉTECTER : le mail promet une forme de rétrocompatibilité ou de continuité que les notes de Yann excluent explicitement — couche de compatibilité, proxy v1→v2, « mode legacy », prolongation possible de la v1, « continuité de service » après le 15 janvier 2027, ou toute formulation laissant entendre que la v1 continuera de fonctionner après cette date. True uniquement si une telle promesse intenable figure dans le mail.",
+            "severity": "critical",
+            "competencies": ["decision", "communication"],
+            "error_type": "promesse_intenable"
+          },
+          {
+            "id": "ton_empathique",
+            "description": "Le ton du mail est empathique et respectueux du travail des clients : il reconnaît que la migration représente un effort réel de leur côté, propose de l'aide de manière proactive, et évite le jargon juridique comme le ton purement administratif.",
+            "severity": "minor",
+            "competencies": ["relation_client", "communication"]
+          }
+        ]
+      },
+      "completion_rules": {
+        "required_criteria": ["date_et_delai", "raison_expliquee", "chemin_migration"]
+      },
+      "max_attempts": 2
+    }
+  ],
+  "endings": [
+    {
+      "id": "success",
+      "label": "Une dépréciation qui inspire confiance",
+      "requires_passed": ["s1"],
+      "content": "Yann valide le mail sans y toucher — « pour une fois qu'on n'a pas à corriger une promesse de sales ». Votre annonce fait exactement le travail d'une bonne communication de sunset : une date ferme qu'on peut mettre dans un calendrier, une raison qui parle au client (sécurité, fiabilité, performance) plutôt qu'à votre organisation interne, et un chemin de migration si concret qu'un développeur sait quoi faire dès la lecture. Retenez le principe : on ne fait pas passer une mauvaise nouvelle en l'adoucissant, on la fait passer en la rendant actionnable. Et la ligne rouge tient toujours : ne jamais promettre à l'écrit ce que l'ingénierie a exclu."
+    },
+    {
+      "id": "failure",
+      "label": "Un mail qui coûtera cher au support",
+      "default": true,
+      "content": "Ce mail-là aurait déclenché une vague de tickets — ou pire, un réveil brutal le 15 janvier. Une annonce de dépréciation réussie tient en quatre exigences : la DATE (15 janvier 2027) et le délai de 6 mois, visibles dès les premières lignes ; le POURQUOI exprimé en bénéfices client (OAuth2, webhooks fiables, performances) et non en langue administrative ; le COMMENT avec des ressources concrètes (guide, SDK, sandbox, double-run, webinars, estimation de 2 à 5 jours) ; et un ton qui reconnaît l'effort demandé. La faute impardonnable était de promettre une continuité ou une compatibilité que Yann excluait noir sur blanc — une promesse intenable rassure six mois et détruit la confiance pour des années. Rejouez en écrivant pour le développeur qui découvrira ce mail un lundi matin : que doit-il savoir, croire, et faire ?"
+    }
+  ]
+}

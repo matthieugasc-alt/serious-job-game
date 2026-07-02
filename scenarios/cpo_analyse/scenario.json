@@ -1,0 +1,107 @@
+{
+  "format": "v2",
+  "scenario_id": "cpo_analyse",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Le churn de janvier",
+    "description": "Douze comptes ont résilié Fluxboard en janvier. David Osei, votre Lead Data, vous a préparé l'export commenté et les verbatims. Presque tous invoquent le prix — mais les données racontent une autre histoire. À vous de la trouver avant le comité produit.",
+    "difficulty": "intermediate",
+    "estimated_minutes": 8
+  },
+  "competencies": ["analyse", "decision", "priorisation"],
+  "actors": [],
+  "documents": [
+    {
+      "id": "doc_churn_export",
+      "title": "Export churn janvier — annoté par David Osei (Lead Data)",
+      "content": "# Export churn — janvier\n**Fluxboard — data interne — annotations : David Osei (Lead Data)**\n\n12 comptes résiliés en janvier (base : 250 clients). MRR total perdu : **9 380 €**, dont **6 150 €** sur les 3 plus gros comptes.\n\n| # | Compte | Secteur | Licences | Canal d'acquisition | Ancienneté au churn | Utilisateurs onboardés à J30 | Raison invoquée (formulaire de résiliation) |\n|---|--------|---------|----------|--------------------|--------------------|------------------------------|--------------------------------------------|\n| 1 | Atelier Brizio | Menuiserie | 8 | Self-serve | 3 mois | 2 | « Prix trop élevé » |\n| 2 | Nomad Studio | Agence web | 6 | Self-serve | 3 mois | 3 | « On ne l'utilise pas assez » |\n| 3 | GreenPulse | Bureau d'études | 9 | Self-serve | 4 mois | 4 | « Trop compliqué à mettre en place » |\n| 4 | Fenix Events | Événementiel | 5 | Self-serve | 3 mois | 1 | « Prix » |\n| 5 | Cabinet Ravel | Architecture | 7 | Self-serve | 3 mois | 2 | « Passé à un concurrent » |\n| 6 | Bricodis | Distribution | 10 | Self-serve | 3 mois | 5 | « Manque d'intégrations » |\n| 7 | Studio Malt | Design | 4 | Self-serve | 2 mois | 2 | « Prix » |\n| 8 | Transd'Oc | Transport | 8 | Self-serve | 3 mois | 3 | « Jamais vraiment démarré » |\n| 9 | Hexafab | Industrie | 6 | Self-serve | 3 mois | 2 | « L'équipe n'a pas accroché » |\n| 10 | Groupe Vidal | BTP | 60 | Sales (AE : Léa Fontaine, avant-vente) | 22 mois | 48 | « Rachat par un groupe déjà équipé d'un autre outil » |\n| 11 | Mediapresse | Média | 35 | Sales | 14 mois | 30 | « Plan d'économies, réduction des outils » |\n| 12 | Coopalim | Coopérative agro | 25 | Sales | 11 mois | 22 | « Passés chez Strato après démarchage » |\n\n---\n\n## Annotations de David\n\n- **Sur les raisons invoquées** : « prix » apparaît dans 3 formulaires sur 12, et des variantes « valeur/usage » dans 4 autres. Prudence : dans un formulaire de résiliation, « prix » est la case la plus facile à cocher. Une raison DÉCLARÉE n'est pas une cause DÉMONTRÉE.\n- **Sur les dates** : j'ai ajouté la colonne « ancienneté au churn ». Regardez où se concentrent les résiliations des comptes self-serve. Ce n'est pas uniforme.\n- **Sur l'onboarding** : « utilisateurs onboardés à J30 » = utilisateurs ayant créé ou modifié au moins un projet dans les 30 premiers jours. Rappel : nos comptes self-serve n'ont AUCUN contact humain après la signature (séquence de 5 e-mails automatiques, taux d'ouverture : 19 %).\n- **Sur le revenu** : les 3 comptes sales (Vidal, Mediapresse, Coopalim) pèsent 66 % du MRR perdu mais leurs causes sont externes ou commerciales (rachat, plan d'économies, démarchage Strato) — trois histoires différentes, aucun pattern produit commun.\n- **Point de comparaison** : sur l'ensemble de la base, le taux moyen d'utilisateurs onboardés à J30 est de 61 % pour les comptes sales… et 24 % pour les comptes self-serve.\n- **Ce que ce fichier ne dit pas** : il montre des corrélations. Pour prouver une causalité, il faudrait suivre une cohorte ou interroger les comptes encore actifs qui présentent le même profil."
+    },
+    {
+      "id": "doc_verbatims",
+      "title": "Verbatims support & NPS — comptes churnés (extraits compilés par le support)",
+      "content": "# Verbatims — comptes résiliés en janvier\n**Compilation : équipe support Fluxboard, à la demande du CPO. Extraits bruts.**\n\n## Réponses aux enquêtes NPS (détracteurs, T4)\n- **Atelier Brizio** (NPS 2) : « L'outil a l'air bien, mais on n'a jamais pris le temps de s'y mettre. À ce prix-là, ce n'est pas justifiable pour deux personnes qui s'en servent. »\n- **GreenPulse** (NPS 3) : « Je n'ai jamais réussi à importer nos projets existants. J'ai laissé tomber au bout de deux essais. Personne ne nous a appelés. »\n- **Transd'Oc** (NPS 4) : « On a signé en octobre, j'ai créé trois comptes, et plus personne ne s'est connecté après la deuxième semaine. »\n- **Coopalim** (NPS 5) : « Votre produit tient la route, mais Strato est venu nous voir avec une offre de reprise et un interlocuteur dédié. Chez vous, on n'a jamais eu de contact après la signature du renouvellement. »\n\n## Tickets et échanges support (extraits)\n- **Fenix Events**, ticket unique (novembre) : « Comment ajouter mes collègues ? Ils ne reçoivent pas l'invitation. » — résolu en 48 h, aucune connexion des collègues constatée ensuite.\n- **Hexafab**, chat (décembre) : « Est-ce qu'il existe un guide de démarrage pour une équipe qui n'a jamais utilisé ce genre d'outil ? On est un peu perdus. » — lien vers la documentation envoyé, pas de réponse.\n- **Nomad Studio**, mail de résiliation : « Rien à reprocher au produit en soi. On payait 6 licences, 2 étaient utilisées. Le renouvellement est passé, on a arbitré. »\n- **Studio Malt** : aucun ticket, aucune connexion après la 3e semaine. Résiliation sans commentaire additionnel.\n\n## Note du support\nSur les 9 comptes self-serve résiliés, **7 n'avaient ouvert aucun ticket** au cours de leurs deux derniers mois. Le silence a précédé le départ : aucun signal de plainte, juste une désconnexion progressive. Les mails de la séquence d'onboarding automatique finissaient pour plusieurs d'entre eux dans les indésirables (retours obtenus a posteriori)."
+    }
+  ],
+  "sequence": [
+    {
+      "step_id": "s1",
+      "mechanic": "analyse",
+      "title": "Analyse du churn de janvier",
+      "params": {
+        "instructions": "Vous présentez vos conclusions au comité produit demain. Croisez l'export churn annoté par David et les verbatims support/NPS : dégagez le pattern principal derrière les 12 résiliations (méfiez-vous des raisons déclarées), le segment de clients actuellement à risque, et l'action immédiate à lancer. Vos conclusions doivent être défendables face aux données.",
+        "findings_prompts": [
+          {
+            "id": "pattern_principal",
+            "label": "Pattern principal",
+            "placeholder": "Qu'est-ce que les 12 résiliations ont (ou n'ont pas) en commun, preuves à l'appui ?"
+          },
+          {
+            "id": "segment_a_risque",
+            "label": "Segment à risque",
+            "placeholder": "Quels clients ENCORE actifs présentent le même profil, et pourquoi ?"
+          },
+          {
+            "id": "action_immediate",
+            "label": "Action immédiate",
+            "placeholder": "La première action à lancer cette semaine, cohérente avec le pattern…"
+          }
+        ],
+        "document_ids": ["doc_churn_export", "doc_verbatims"]
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "pattern_identifie",
+            "description": "Dans « pattern principal », le joueur identifie le vrai pattern : 9 des 12 comptes perdus sont des comptes SELF-SERVE avec moins de 10 utilisateurs onboardés à J30, qui résilient de façon concentrée autour du 3e mois — un échec d'onboarding/adoption (aucun contact humain, e-mails ignorés, désengagement silencieux), et non un problème de prix. Il s'appuie sur les données (colonne ancienneté, utilisateurs onboardés, verbatims).",
+            "severity": "required",
+            "competencies": ["analyse"]
+          },
+          {
+            "id": "action_coherente",
+            "description": "Dans « action immédiate », le joueur propose une action cohérente avec le pattern self-serve/onboarding : par exemple contacter proactivement les comptes self-serve dans leurs 3 premiers mois, mettre en place un onboarding assisté ou un parcours guidé, réviser la séquence d'e-mails, suivre l'activation à J30 comme signal d'alerte. Une action déconnectée du pattern (baisse de prix générale, campagne d'acquisition, refonte visuelle) ne suffit pas.",
+            "severity": "required",
+            "competencies": ["decision", "priorisation"]
+          },
+          {
+            "id": "segment_cible",
+            "description": "Dans « segment à risque », le joueur cible les comptes ENCORE actifs qui présentent le profil du pattern : comptes self-serve récents (dans leurs premiers mois) avec peu d'utilisateurs onboardés/actifs — en cohérence avec le taux d'onboarding à J30 de 24 % en self-serve relevé par David.",
+            "severity": "minor",
+            "competencies": ["analyse", "priorisation"]
+          },
+          {
+            "id": "correlation_causalite",
+            "description": "Le joueur distingue explicitement corrélation et causalité : il note que le « prix » déclaré dans les formulaires est un symptôme plausible de la non-adoption plutôt qu'une cause démontrée, et/ou propose un moyen de vérifier la causalité (suivi de cohorte, entretiens avec des comptes actifs au même profil) comme le suggère David.",
+            "severity": "bonus",
+            "competencies": ["analyse", "communication"]
+          },
+          {
+            "id": "contresens_donnees",
+            "description": "FAUTE À DÉTECTER : une conclusion du joueur est CONTREDITE par les données — par exemple affirmer que le prix est la cause principale du churn, que le churn touche d'abord les gros comptes gérés par les sales, qu'il n'y a pas de pattern temporel, ou proposer une baisse de prix généralisée comme réponse au problème. True uniquement si une conclusion contredit les documents.",
+            "severity": "critical",
+            "competencies": ["analyse", "decision"],
+            "error_type": "contresens_donnees"
+          }
+        ]
+      },
+      "completion_rules": {
+        "required_criteria": ["pattern_identifie", "action_coherente"]
+      },
+      "max_attempts": 2
+    }
+  ],
+  "endings": [
+    {
+      "id": "success",
+      "label": "Le comité produit a son diagnostic",
+      "requires_passed": ["s1"],
+      "content": "Votre analyse tient : 9 résiliations sur 12 racontent la même histoire — des comptes self-serve jamais vraiment onboardés, qui décrochent en silence et partent au 3e mois en cochant « prix » parce que c'est la case la plus simple. Vous avez fait ce qu'un CPO doit faire devant un tableau de churn : chercher le pattern derrière les raisons déclarées, séparer les 3 gros comptes aux causes externes du signal produit réel, et en tirer une action qui attaque la cause (l'onboarding des self-serve avant M3) plutôt que le symptôme. Gardez le réflexe de David : une raison déclarée n'est pas une cause démontrée — et un client silencieux est souvent plus en danger qu'un client qui se plaint."
+    },
+    {
+      "id": "failure",
+      "label": "Un diagnostic qui ne tient pas",
+      "default": true,
+      "content": "En comité, David aurait recroisé vos conclusions avec son export — et elles n'auraient pas tenu. Ce que les données montraient : 9 comptes sur 12 étaient des self-serve avec moins de 10 utilisateurs onboardés à J30, résiliant presque tous autour du 3e mois ; les verbatims confirmaient un décrochage silencieux (pas de connexions, pas de tickets, e-mails d'onboarding ignorés) — le « prix » coché dans les formulaires n'était que l'habillage d'un produit jamais adopté. Les 3 gros comptes sales, eux, partaient pour des raisons externes sans pattern produit. L'action attendue visait donc l'onboarding des self-serve avant M3, pas une remise ni une refonte. Rejouez en partant des colonnes, pas des raisons déclarées : canal, ancienneté au churn, utilisateurs onboardés — le pattern y est écrit noir sur blanc."
+    }
+  ]
+}

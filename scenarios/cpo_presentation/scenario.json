@@ -1,0 +1,81 @@
+{
+  "format": "v2",
+  "scenario_id": "cpo_presentation",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "3 minutes au all-hands",
+    "description": "Après un trimestre difficile chez Fluxboard (roadmap en retard, churn de janvier, moral en berne), Emma vous laisse 3 minutes au all-hands pour présenter la vision produit du semestre aux 25 personnes de la boîte. Trois minutes pour redonner un cap.",
+    "difficulty": "intermediate",
+    "estimated_minutes": 6
+  },
+  "competencies": ["communication", "leadership", "priorisation", "organisation"],
+  "actors": [],
+  "documents": [
+    {
+      "id": "doc_notes_cadrage",
+      "title": "Notes de cadrage — intervention produit au all-hands de juillet",
+      "content": "# Notes de cadrage — all-hands du 10 juillet (vos notes personnelles)\n\n**Format : 3 minutes, toute la boîte (25 personnes), après le bilan financier d'Emma. Le trimestre a été rude : roadmap Q2 décalée de 6 semaines (refonte notifications), 12 comptes perdus en janvier, activation bloquée à 22 %. Deux personnes du support ont évoqué leur inquiétude en 1:1. L'équipe n'attend pas un discours motivationnel : elle attend de savoir où on va et si quelqu'un tient la barre.**\n\n## Les 3 messages à faire passer (validés avec Emma)\n\n### 1. On dit la vérité sur le semestre écoulé\nPas d'euphémisme : la roadmap a glissé de six semaines, on a perdu 12 comptes en janvier, l'activation stagne à 22 %. L'équipe le sait déjà — le nier ou le minimiser détruirait la confiance. Assumer, sans s'auto-flageller ni chercher de coupable.\n\n### 2. Un seul combat au S2 : l'adoption\nLe cap du semestre : faire de Fluxboard un produit que les équipes de nos clients utilisent VRAIMENT. Deux priorités, et seulement deux :\n- **Parcours d'onboarding guidé** — cible : livraison **fin septembre** (attaque directe de l'activation à 22 % et du churn des petits comptes).\n- **Hub d'intégrations Slack / Teams / Drive** — cible : bêta **mi-novembre** (demande n°1 des clients).\n\nEt dire ce qu'on NE fera PAS ce semestre (nouveaux modules, refontes visuelles, expérimentations IA) — une priorité n'existe que si on nomme ce qu'on lui sacrifie.\n\n### 3. Chacun voit sa place et le prochain jalon\nSupport et sales nourrissent le parcours d'onboarding avec les retours clients ; design et data mesurent l'activation semaine par semaine ; point produit mensuel ouvert à tous pour suivre les deux chantiers. Terminer par un appel à l'action clair et une échéance : premier point d'étape **fin juillet**.\n\n---\n*Rappel à moi-même : parler cap et dates, pas features. Trois minutes, pas une de plus — Emma coupe le micro.*"
+    }
+  ],
+  "sequence": [
+    {
+      "step_id": "s1",
+      "mechanic": "presentation",
+      "title": "Vision produit du semestre — all-hands",
+      "time_limit_s": 180,
+      "params": {
+        "brief": "Vous avez 3 minutes devant les 25 personnes de Fluxboard, juste après le bilan d'Emma, pour présenter la vision produit du semestre. Le trimestre a été difficile et tout le monde le sait. Votre exposé doit : reconnaître honnêtement les difficultés passées, donner un cap clair pour le S2, nommer et dater les priorités (et ce qu'on ne fera pas), et terminer par un appel à l'action. Appuyez-vous sur vos notes de cadrage.",
+        "preparation_s": 90,
+        "lang": "fr-FR",
+        "document_ids": ["doc_notes_cadrage"]
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "cap_clair",
+            "description": "L'exposé donne un cap unique et mémorisable pour le semestre — faire de l'adoption/l'usage réel LE combat du S2 — formulé comme une direction claire et non comme une liste de chantiers juxtaposés. Idéalement, le joueur nomme aussi ce que l'équipe ne fera PAS ce semestre.",
+            "severity": "required",
+            "competencies": ["leadership", "priorisation"]
+          },
+          {
+            "id": "difficultes_reconnues",
+            "description": "L'exposé reconnaît explicitement et honnêtement les difficultés du trimestre écoulé — au moins un fait concret parmi : roadmap décalée de six semaines, 12 comptes perdus en janvier, activation bloquée à 22 % — sans euphémisme, sans minimiser et sans désigner de coupable.",
+            "severity": "required",
+            "competencies": ["communication", "leadership"]
+          },
+          {
+            "id": "priorites_datees",
+            "description": "Les priorités du semestre sont NOMMÉES et DATÉES : le parcours d'onboarding guidé (livraison fin septembre) et/ou le hub d'intégrations (bêta mi-novembre), avec des échéances explicites (mois ou jalons). Des priorités sans échéance ne suffisent pas.",
+            "severity": "required",
+            "competencies": ["priorisation", "organisation"]
+          },
+          {
+            "id": "appel_action",
+            "description": "L'exposé se conclut par un appel à l'action concret qui donne à chacun sa place (rôle du support, des sales, du design/data dans le plan) et/ou un prochain rendez-vous collectif daté (point d'étape fin juillet, point produit mensuel).",
+            "severity": "bonus",
+            "competencies": ["leadership", "communication"]
+          }
+        ]
+      },
+      "completion_rules": {
+        "required_criteria": ["cap_clair", "difficultes_reconnues", "priorites_datees"]
+      },
+      "max_attempts": 2
+    }
+  ],
+  "endings": [
+    {
+      "id": "success",
+      "label": "La barre est tenue",
+      "requires_passed": ["s1"],
+      "content": "Le silence à la fin n'était pas de la gêne : les gens notaient les dates. Emma vous glisse un « c'est exactement ça qu'il fallait dire ». Votre exposé a fait les trois choses qu'une équipe secouée attend de son CPO : la vérité sur ce qui s'est mal passé (sans coupable), un cap unique — l'adoption — plutôt qu'un catalogue, et des priorités datées qui rendent le cap vérifiable. Retenez la structure, elle resservira : reconnaître, orienter, dater, embarquer. Une vision sans dates est un vœu ; des dates sans cap sont une to-do list. Les deux ensemble, c'est une direction."
+    },
+    {
+      "id": "failure",
+      "label": "L'équipe repart comme elle est venue",
+      "default": true,
+      "content": "Applaudissements polis, regards vers les téléphones : le message n'a pas pris. Après un trimestre difficile, un all-hands attend trois choses dans l'ordre : la reconnaissance honnête de ce qui s'est mal passé (roadmap +6 semaines, 12 comptes perdus, activation à 22 % — tout le monde les connaît, les taire coûte plus cher que les dire), UN cap clair pour le semestre — ici l'adoption — avec le courage de nommer ce qu'on sacrifie, et des priorités datées (onboarding fin septembre, intégrations mi-novembre) qui prouvent que le cap n'est pas un slogan. Rejouez en vous imposant la discipline des trois minutes : un constat, un cap, deux dates, un appel à l'action."
+    }
+  ]
+}

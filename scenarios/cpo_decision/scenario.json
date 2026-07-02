@@ -1,0 +1,135 @@
+{
+  "format": "v2",
+  "scenario_id": "cpo_decision",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "2 slots pour 5 features",
+    "description": "Le Q3 de Fluxboard n'a que 2 slots de développement — et 5 features candidates, chacune avec son parrain. Le chouchou de la CEO, la dette déguisée de l'ingénierie, le pari stratégique… Tranchez, et justifiez avec la capacité et l'impact, pas avec la politique.",
+    "difficulty": "advanced",
+    "estimated_minutes": 7
+  },
+  "competencies": ["priorisation", "decision", "analyse", "leadership"],
+  "actors": [],
+  "documents": [
+    {
+      "id": "doc_capacite",
+      "title": "One-pager capacité Q3 — préparé par Léa Fontaine (PM senior)",
+      "content": "# Capacité produit Q3 — le cadre de l'arbitrage\n**Préparé par Léa Fontaine (PM senior), validé par Yann Kowalski (Head of Engineering)**\n\n## La contrainte\n- 2 squads produit (squad Core, squad Growth), vélocité stabilisée après le glissement du Q2.\n- **Q3 = 2 slots de build.** Un slot = une squad pendant le trimestre. Chaque feature candidate ci-dessous consomme exactement 1 slot.\n- Pas de troisième slot possible : la maintenance, le support niveau 2 et les opérations du sunset API v1 consomment déjà le reste de la capacité. Yann est formel : « au Q2 on a cru pouvoir en caser trois, on a livré avec six semaines de retard. Plus jamais. »\n\n## Le contexte dans lequel on décide\n- Activation des nouveaux comptes : **22 %**, stagnante depuis deux trimestres (objectif board : 35 % fin d'année).\n- Churn de janvier : 12 comptes, dont 9 self-serve jamais onboardés, partis autour du 3e mois.\n- Demandes clients (base : 250 comptes) : les **intégrations Slack/Teams/Drive sont la demande n°1 (68 % des comptes l'ont exprimée)**, loin devant tout le reste.\n- Strato (concurrent, 12 M€ levés) communique agressivement et démarche nos clients.\n\n## Règle du jeu de l'arbitrage\nChaque feature a un parrain qui la défendra en comité. Le rôle du CPO n'est pas de faire plaisir aux parrains : c'est de maximiser l'impact des 2 slots et d'assumer les « non ». Une décision de priorisation sans justification par la capacité et l'impact ne tiendra pas une semaine face aux parrains déçus."
+    }
+  ],
+  "sequence": [
+    {
+      "step_id": "s1",
+      "mechanic": "decision",
+      "title": "Arbitrage du Q3 : choisir 2 features sur 5",
+      "params": {
+        "instructions": "Choisissez les 2 features (au plus) qui occuperont les 2 slots de build du Q3, et justifiez votre arbitrage en vous appuyant sur la capacité (2 slots, pas un de plus) et l'impact attendu (activation, churn, demandes clients). Vos « non » doivent être aussi assumés que vos « oui » — les parrains liront votre justification.",
+        "options": [
+          {
+            "id": "onboarding_guide",
+            "label": "Parcours d'onboarding guidé",
+            "description": "Parcours guidé des 30 premiers jours pour les nouveaux comptes : import assisté des projets, invitation d'équipe simplifiée, jalons d'activation avec relances intelligentes. Reach : ~60 nouveaux comptes self-serve par mois, attaque frontale de l'activation à 22 % et du churn à M3 identifié en janvier. Effort : 1 slot (squad Growth), périmètre bien découpé. Risque : faible — les maquettes de Chloé Marchand sont prêtes et testées sur 8 clients. Parrain : Léa Fontaine (PM senior), dossier solidement chiffré."
+          },
+          {
+            "id": "hub_integrations",
+            "label": "Hub d'intégrations Slack / Teams / Drive",
+            "description": "Connecteurs natifs vers Slack, Microsoft Teams et Google Drive : notifications dans les canaux d'équipe, pièces jointes synchronisées. Reach : demande n°1 des clients — 68 % des 250 comptes l'ont exprimée, et son absence revient dans les pertes face à Strato (dont un compte churné en janvier : « manque d'intégrations »). Effort : 1 slot (squad Core), technologie maîtrisée. Risque : modéré — dépendance aux API tierces, mais l'équipe en a déjà l'expérience. Parrains : Inès Berrada (PM junior) qui porte le dossier, appuyée par les retours clients de Sophie Vandenberg (Logimat)."
+          },
+          {
+            "id": "studio_rapports",
+            "label": "Studio de rapports IA",
+            "description": "Génération automatique de rapports d'avancement en langage naturel (« résume-moi le projet pour le comité de direction »), avec graphiques auto-composés. Effet démo spectaculaire — Emma Ricci (CEO) l'adore et veut le montrer aux investisseurs et sur scène au SaaS Summit d'octobre. Reach réel : demandé spontanément par 4 comptes sur 250 ; aucune trace dans les enquêtes de churn ni dans les demandes clients prioritaires. Effort : 1 slot, mais périmètre flou (« l'IA, on découvre en creusant » — Yann). Risque : maintenance récurrente des modèles et coût d'inférence non budgété. Parraine : Emma Ricci, qui le mentionne à chaque comité."
+          },
+          {
+            "id": "notifications_v2",
+            "label": "Notifications 2.0",
+            "description": "Présenté comme une feature : « centre de notifications repensé, préférences fines, résumés quotidiens ». En réalité, l'essentiel du slot serait consommé par la réécriture du moteur de notifications legacy — celui-là même dont la refonte a fait glisser le Q2 de six semaines et qui reste fragile (2 incidents en mai). Bénéfice visible pour l'utilisateur à court terme : quasi nul ; bénéfice réel : dette technique résorbée, incidents en moins, vélocité future. Effort : 1 slot avec un historique de dépassement sur ce module précis. Parrain : Yann Kowalski, qui reconnaît en privé que « c'est 80 % de réécriture, 20 % de feature »."
+          },
+          {
+            "id": "api_publique",
+            "label": "API publique v2 + webhooks (ouverture écosystème)",
+            "description": "Transformer l'API v2 (aujourd'hui réservée aux 40 comptes intégrateurs) en véritable plateforme publique : portail développeur, webhooks self-service, premiers partenariats technologiques. Pari stratégique : c'est le socle d'un écosystème et une barrière défensive face à Strato, et le sunset de la v1 (janvier 2027) crée une fenêtre naturelle. Reach direct immédiat : faible (les 40 intégrateurs actuels) ; reach indirect potentiel : élevé mais non prouvé. Effort : 1 slot, mais risque technique élevé (sécurité, montée en charge, rate limiting) et retour sur investissement au-delà du Q4. Parrain : David Osei (Lead Data), vision long terme documentée mais sans chiffrage d'impact à 6 mois."
+          }
+        ],
+        "max_choices": 2,
+        "require_justification": true,
+        "min_justification_chars": 180,
+        "document_ids": ["doc_capacite"]
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "choice_onboarding_guide",
+            "description": "Observation déterministe : true si le joueur a choisi le Parcours d'onboarding guidé — l'un des deux choix objectivement défendables (activation à 22 %, churn self-serve à M3, risque faible).",
+            "severity": "required",
+            "weight": 2,
+            "competencies": ["priorisation", "decision"]
+          },
+          {
+            "id": "choice_hub_integrations",
+            "description": "Observation déterministe : true si le joueur a choisi le Hub d'intégrations Slack/Teams/Drive — l'autre choix objectivement défendable (demande n°1 de 68 % des comptes, pression concurrentielle de Strato).",
+            "severity": "required",
+            "weight": 2,
+            "competencies": ["priorisation", "decision"]
+          },
+          {
+            "id": "choice_studio_rapports",
+            "description": "Observation déterministe : true si le joueur a choisi le Studio de rapports IA, le chouchou de la CEO (reach réel : 4 comptes sur 250, périmètre flou). Attendu : NE PAS le choisir — un slot sur deux ne se dépense pas pour une démo d'investisseurs.",
+            "expected": false,
+            "severity": "minor",
+            "weight": 1,
+            "competencies": ["priorisation", "leadership"]
+          },
+          {
+            "id": "choice_notifications_v2",
+            "description": "Observation déterministe : true si le joueur a choisi Notifications 2.0, la réécriture technique déguisée en feature. La choisir n'est défendable que si la justification l'assume comme un investissement de dette technique (voir critère dette_non_assumee).",
+            "expected": false,
+            "severity": "minor",
+            "weight": 1,
+            "competencies": ["priorisation", "analyse"]
+          },
+          {
+            "id": "justification_capacite",
+            "description": "La justification s'appuie explicitement sur la contrainte de capacité (2 slots, pas de troisième possible, leçon du glissement du Q2) ET sur l'impact attendu des options retenues (activation à 22 %, churn self-serve à M3, demande n°1 des clients à 68 %, contexte concurrentiel) — et non sur des préférences personnelles, l'ancienneté des parrains ou des arguments d'autorité.",
+            "severity": "required",
+            "competencies": ["priorisation", "analyse", "communication"]
+          },
+          {
+            "id": "dette_non_assumee",
+            "description": "FAUTE À DÉTECTER : le joueur a choisi Notifications 2.0 SANS la nommer pour ce qu'elle est dans sa justification — c'est-à-dire sans reconnaître qu'il s'agit essentiellement d'une réécriture du moteur legacy / d'un remboursement de dette technique au bénéfice utilisateur quasi nul à court terme. True UNIQUEMENT si l'option notifications_v2 figure dans les choix ET que la justification la présente comme une simple feature utilisateur sans assumer sa nature de dette.",
+            "severity": "critical",
+            "competencies": ["analyse", "decision"],
+            "error_type": "dette_deguisee_non_identifiee"
+          },
+          {
+            "id": "non_assumes",
+            "description": "La justification assume explicitement au moins un « non » : le joueur explique pourquoi il écarte une option non retenue (par exemple le Studio de rapports IA malgré le parrainage de la CEO, ou l'API publique malgré son intérêt stratégique), avec un argument de reach, de risque ou de timing.",
+            "severity": "bonus",
+            "weight": 0,
+            "competencies": ["leadership", "communication"]
+          }
+        ]
+      },
+      "completion_rules": {
+        "required_criteria": ["justification_capacite"],
+        "min_criteria_count": 3
+      },
+      "max_attempts": 2
+    }
+  ],
+  "endings": [
+    {
+      "id": "success",
+      "label": "Un arbitrage qui tiendra le trimestre",
+      "requires_passed": ["s1"],
+      "content": "Votre arbitrage tient debout parce qu'il est adossé à des faits que personne ne peut contester : 2 slots, une activation à 22 %, une demande client à 68 %, un churn concentré sur les self-serve à M3. C'est exactement ce qui protège un CPO quand les parrains déçus reviennent à la charge — et ils reviendront, Emma la première. Retenez les trois réflexes de cet exercice : la capacité est une contrainte, pas une variable d'ajustement (le Q2 l'a assez prouvé) ; l'impact se mesure en reach et en métriques, pas en enthousiasme du parrain ; et un « non » explicite et argumenté coûte moins cher que dix « oui, plus tard ». Prioriser, c'est renoncer en public."
+    },
+    {
+      "id": "failure",
+      "label": "Un arbitrage qui ne survivra pas au comité",
+      "default": true,
+      "content": "Au premier comité, cet arbitrage se serait fait démonter — par les parrains déçus, ou pire, par la réalité du trimestre. Ce que l'exercice attendait : au moins un des deux choix objectivement défendables (le parcours d'onboarding, qui attaque l'activation à 22 % et le churn à M3, ou le hub d'intégrations, demandé par 68 % des comptes), et une justification bâtie sur la capacité (2 slots, la leçon du Q2) et l'impact mesurable — pas sur le prestige d'une démo ou le poids politique d'un parrain. Les deux pièges étaient nommés dans les dossiers : le Studio IA d'Emma (4 comptes demandeurs sur 250) et surtout Notifications 2.0, une réécriture de moteur legacy déguisée en feature — la choisir n'était défendable qu'en la nommant pour ce qu'elle est : de la dette. Rejouez en vous posant pour chaque option la même question : combien de clients, quel indicateur, quel risque — et qu'est-ce que je dis à ceux à qui je dis non ?"
+    }
+  ]
+}

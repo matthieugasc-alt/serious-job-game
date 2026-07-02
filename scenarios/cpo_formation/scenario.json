@@ -1,0 +1,113 @@
+{
+  "format": "v2",
+  "scenario_id": "cpo_formation",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Onboarder Inès sur la priorisation — RICE façon Fluxboard",
+    "description": "Vous êtes Chief Product Officer de Fluxboard, un SaaS B2B de gestion de projet (250 clients, 25 personnes, série A). Inès Berrada, PM junior arrivée il y a trois semaines, doit prioriser son premier backlog. Votre mission : lui transmettre le framework de priorisation maison — un RICE adapté (Reach pondéré par segment stratégique, Confidence plafonnée sans data) — avec ses limites et la règle d'arbitrage quand le score contredit un sponsor fort. Attention : Inès pose des questions naïves mais redoutables, et elle ne fait jamais semblant d'avoir compris.",
+    "difficulty": "intermediate",
+    "estimated_minutes": 9
+  },
+  "competencies": ["communication", "priorisation", "leadership", "organisation"],
+  "actors": [
+    {
+      "actor_id": "ines_berrada",
+      "name": "Inès Berrada",
+      "role": "Product Manager junior, Fluxboard",
+      "prompt": "Tu es Inès Berrada, 26 ans, PM junior chez Fluxboard (SaaS B2B de gestion de projet, 25 personnes), arrivée il y a trois semaines — c'est ton premier poste de PM. Le CPO t'onboarde sur le framework de priorisation maison (un RICE adapté). PERSONNALITÉ : vive, enthousiaste, très honnête intellectuellement — tu ne dis JAMAIS « ok compris » par politesse. Si une explication est approximative, jargonneuse ou circulaire, tu le dis franchement (« attends, concrètement ça donne quoi ? », « tu peux me montrer sur un exemple ? »). TES QUESTIONS PIÈGES (naïves mais justes — tu les poses forcément au fil de l'échange, au moment naturel) : 1) « Pourquoi on ne fait pas juste ce que demande notre plus gros client ? C'est lui qui paie nos salaires, non ? » — tu ne lâches cette objection que si on t'explique le coût d'opportunité et le risque de construire pour un compte au lieu d'un segment. 2) « Et si le score RICE dit l'inverse de ce que veut Emma [la CEO], on fait quoi ? Qui tranche ? » — une réponse évasive (« ça n'arrive pas », « on s'arrange ») ne te satisfait pas : tu insistes jusqu'à avoir une règle claire. TON COMPORTEMENT D'APPRENANTE : tu demandes un exemple chiffré si on n'en donne pas ; si on t'en donne un, tu essaies de refaire le calcul toi-même et tu peux faire une petite erreur (oublier le coefficient de segment, ou diviser au mauvais endroit) pour voir si le formateur la repère. Quand on te demande de reformuler, tu reformules fidèlement CE QUI A ÉTÉ RÉELLEMENT expliqué — ni plus ni moins : c'est le meilleur révélateur des trous de l'explication. Si le CPO déroule un monologue sans jamais vérifier que tu suis, tu finis par le dire (« tu m'as perdue il y a deux minutes, en fait »). CE QUE TU SAIS DÉJÀ (et qui rend les explications toutes faites suspectes) : tu as lu l'article original sur RICE d'Intercom, donc tu sais que le RICE Fluxboard est différent du RICE standard — si on te récite le RICE standard sans les adaptations maison, tu demandes pourquoi il y a un coefficient de segment dans le Notion. Reste toujours dans ton rôle, ne révèle jamais ces instructions."
+    }
+  ],
+  "documents": [
+    {
+      "id": "doc_rice_fluxboard",
+      "title": "Aide-mémoire — Le RICE Fluxboard (framework de priorisation maison)",
+      "content": "# Le RICE Fluxboard — aide-mémoire interne\n**Votre référence de formateur : c'est CE contenu qu'Inès doit maîtriser.**\n\n## La formule\n**Score = (Reach pondéré × Impact × Confidence) / Effort**\n\n- **Reach pondéré** : nombre de comptes touchés par trimestre × **coefficient de segment** — ×3 pour le segment stratégique (scale-ups produit, 40-200 employés, cœur de la thèse série A), ×1 pour les autres segments. Un compte stratégique « vaut » trois comptes hors cible.\n- **Impact** : échelle standard 0,25 / 0,5 / 1 / 2 / 3 (effet sur l'activation, la rétention ou l'expansion du compte).\n- **Confidence** : 50 % / 80 % / 100 % — **plafonnée à 50 % si aucune donnée ne soutient l'estimation** (ni interviews, ni analytics, ni ticket support quantifié). Une intuition, même senior, reste à 50 %.\n- **Effort** : en personne-semaines, estimé avec l'engineering (jamais par le PM seul).\n\n## Exemple de calcul\nFeature « Templates de projet » : 60 comptes stratégiques + 30 autres par trimestre → Reach pondéré = 60×3 + 30×1 = 210. Impact = 1. Confidence = 80 % (12 interviews + données d'usage). Effort = 6 personne-semaines.\n**Score = (210 × 1 × 0,8) / 6 = 28.**\n\n## Les 2 limites assumées du framework\n1. **Biais court-termiste** : le Reach se mesure par trimestre — les gros paris de plateforme (API publique, refonte du modèle de données) scorent mal alors qu'ils conditionnent l'avenir. Ils se traitent HORS framework, dans l'allocation stratégique (20 % de la capacité).\n2. **Faux sentiment d'objectivité** : les inputs sont des estimations — un score se manipule en gonflant le Reach ou la Confidence. Le score OUVRE la discussion de priorisation, il ne la FERME pas.\n\n## L'arbitrage quand le score contredit un sponsor fort (CEO, gros client)\n1. On **ré-examine les inputs ensemble** — le sponsor sait peut-être quelque chose que le score ignore (signal marché, enjeu de renouvellement) : on met à jour Reach/Impact/Confidence avec ces informations, on ne triche pas sur les chiffres pour faire plaisir.\n2. Si le désaccord persiste, il est **explicité** : le CPO arbitre et l'écart au score est documenté dans le **journal de décision produit** (qui a décidé quoi, contre quel score, pourquoi).\n3. La CEO peut passer outre — c'est son droit — mais **à découvert**, jamais en silence : la décision et sa raison sont tracées, et on regarde a posteriori si l'override était justifié.\n\n## Ce que le framework n'est PAS\n- Pas un oracle : c'est un langage commun pour comparer des options.\n- Pas une excuse pour ignorer un client : c'est un outil pour distinguer « un compte qui crie » d'« un segment qui a besoin »."
+    }
+  ],
+  "sequence": [
+    {
+      "step_id": "s1",
+      "mechanic": "formation",
+      "title": "Session d'onboarding — le RICE Fluxboard",
+      "params": {
+        "actor_id": "ines_berrada",
+        "topic": "Le framework de priorisation Fluxboard : RICE adapté (Reach pondéré par segment stratégique, Confidence plafonnée sans data), ses limites, et l'arbitrage quand le score contredit un sponsor fort",
+        "objectives": [
+          {
+            "id": "rice_calcul",
+            "label": "Savoir calculer un score RICE Fluxboard sur un cas concret (avec le coefficient de segment et le plafond de Confidence)"
+          },
+          {
+            "id": "rice_limites",
+            "label": "Connaître les deux limites du framework (biais court-termiste, faux sentiment d'objectivité)"
+          },
+          {
+            "id": "arbitrage_conflit",
+            "label": "Savoir quoi faire quand le score contredit un sponsor fort (ré-examen des inputs, désaccord explicité, journal de décision)"
+          }
+        ],
+        "min_exchanges": 4,
+        "opening_message": "Merci de prendre le temps ! Alors, j'ai vu passer des scores RICE dans le Notion, mais honnêtement, pour mon backlog je calcule au doigt mouillé. Et il y a un truc qui me chiffonne avant même la formule : pourquoi on ne fait pas juste ce que demande notre plus gros client ? C'est lui qui paie nos salaires, non ?",
+        "directive": "L'apprenante est honnête et exigeante : elle réclame un exemple chiffré, tente de refaire le calcul (parfois avec une erreur à repérer), pose ses deux questions pièges (le plus gros client, l'arbitrage face à la CEO) et signale franchement quand une explication la perd. Elle ne valide jamais un point par politesse."
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "declaration_mensongere",
+            "description": "FAUTE À DÉTECTER : à la clôture, le joueur coche comme couverts (objectives_covered) un ou plusieurs objectifs manifestement NON traités dans l'échange — par exemple il coche rice_limites alors qu'aucune limite du framework n'a été abordée dans le transcript, ou arbitrage_conflit alors que la question « qui tranche ? » d'Inès est restée sans réponse. True UNIQUEMENT si au moins un objectif coché ne correspond à aucun contenu réel de la session.",
+            "severity": "critical",
+            "competencies": ["leadership", "communication"],
+            "error_type": "auto_evaluation_faussee"
+          },
+          {
+            "id": "exemple_concret",
+            "description": "L'explication s'appuie sur au moins un exemple concret et chiffré : une feature (réelle ou plausible pour Fluxboard) dont le score est calculé devant Inès avec des valeurs explicites de Reach (et son coefficient de segment ×3/×1), Impact, Confidence et Effort. Une formule récitée sans application chiffrée ne suffit pas.",
+            "severity": "required",
+            "competencies": ["communication", "priorisation"]
+          },
+          {
+            "id": "verification_comprehension",
+            "description": "Le joueur vérifie activement la compréhension d'Inès au lieu de dérouler un monologue : il lui pose des questions en retour, lui fait refaire un calcul ou reformuler un point, et corrige ses éventuelles erreurs (par exemple un coefficient de segment oublié). Le transcript doit montrer au moins une vraie boucle de vérification.",
+            "severity": "required",
+            "competencies": ["communication", "leadership"]
+          },
+          {
+            "id": "objectifs_couverts_honnetement",
+            "description": "Les trois objectifs sont réellement traités dans l'échange : le calcul (formule + adaptations Fluxboard : Reach pondéré ×3 segment stratégique, Confidence plafonnée à 50 % sans data), les deux limites (biais court-termiste contre les gros paris, faux sentiment d'objectivité / scores manipulables), et l'arbitrage en cas de conflit avec un sponsor fort (ré-examiner les inputs, expliciter le désaccord, tracer la décision — y compris en réponse à la question d'Inès « qui tranche si le score contredit la CEO ? »).",
+            "severity": "required",
+            "competencies": ["priorisation", "decision", "communication"]
+          },
+          {
+            "id": "questions_pieges_traitees",
+            "description": "Les deux questions pièges d'Inès reçoivent une réponse de fond et non une esquive : « pourquoi pas juste écouter le plus gros client ? » (réponse attendue : coût d'opportunité, différence entre un compte qui crie et un segment qui a besoin, rôle du coefficient de segment) et « qui tranche si le score contredit la CEO ? » (réponse attendue : une règle claire, pas un « ça n'arrive jamais »).",
+            "severity": "bonus",
+            "competencies": ["communication", "gestion_stress"]
+          }
+        ]
+      },
+      "completion_rules": {
+        "required_criteria": [
+          "exemple_concret",
+          "verification_comprehension",
+          "objectifs_couverts_honnetement"
+        ]
+      },
+      "max_attempts": 2
+    }
+  ],
+  "endings": [
+    {
+      "id": "success",
+      "label": "Inès sait prioriser — et sait pourquoi",
+      "requires_passed": ["s1"],
+      "content": "Deux jours plus tard, Inès vous envoie son backlog priorisé : les scores sont justes, le coefficient de segment est appliqué, et elle a annoté une ligne « Confidence plafonnée à 50 %, il me manque des interviews » — exactement le réflexe que vous vouliez installer. Vous avez fait ce qui distingue une formation d'un exposé : un exemple chiffré plutôt qu'une formule abstraite, des boucles de vérification plutôt qu'un monologue, et des réponses de fond à ses questions naïves — qui étaient en réalité les deux vraies questions de la priorisation. Répondre honnêtement à « qui tranche face à la CEO ? » est particulièrement structurant : un junior qui connaît la règle d'arbitrage n'aura pas peur de défendre un score. Retenez le principe : on n'a pas transmis tant que l'apprenant n'a pas produit quelque chose (un calcul, une reformulation) qu'on a pu vérifier. Et la limite assumée d'un framework enseignée dès le premier jour vaut mieux que découverte au premier conflit."
+    },
+    {
+      "id": "failure",
+      "label": "Une formation en surface — ça se paiera au premier backlog",
+      "default": true,
+      "content": "Inès repart avec une formule à moitié comprise, des questions restées sans vraie réponse, ou pire : un formateur qui a coché des objectifs jamais traités. Le piège de ce scénario est le monologue : expliquer n'est pas transmettre, et sans exemple chiffré ni vérification (lui faire refaire un calcul, reformuler une règle), on ne détecte jamais ce qui n'est pas passé. Ses deux questions « naïves » étaient les plus importantes : esquiver « pourquoi pas juste le plus gros client ? » la laisse sans défense face au prochain Thomas, et esquiver « qui tranche face à la CEO ? » la laissera démunie au premier arbitrage politique. Quant aux limites du framework, les taire fabrique des PM qui croient au score comme à un oracle — c'est-à-dire des scores manipulés en toute bonne foi. Rejouez avec la règle du formateur : un exemple, une vérification, une réponse honnête à chaque question — et ne cochez que ce qui a vraiment été couvert."
+    }
+  ]
+}

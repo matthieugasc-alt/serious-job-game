@@ -1,0 +1,108 @@
+{
+  "format": "v2",
+  "scenario_id": "cpo_feedback",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "La feature shippée sans discovery — feedback à Léa",
+    "description": "Vous êtes Chief Product Officer de Fluxboard, un SaaS B2B de gestion de projet (250 clients, 25 personnes, série A). Léa Fontaine, votre PM senior la plus brillante, a shippé « Exports avancés » — une feature réclamée par UN gros client — sans aucune discovery. Résultat : 3 % d'adoption, deux sprints consommés, une roadmap qui glisse. Elle invoque la pression du commercial, et cette pression est en partie réelle. À vous de délivrer un feedback difficile sans casser votre meilleure PM — ni esquiver le problème.",
+    "difficulty": "intermediate",
+    "estimated_minutes": 8
+  },
+  "competencies": ["communication", "leadership", "decision", "organisation"],
+  "actors": [
+    {
+      "actor_id": "lea_fontaine",
+      "name": "Léa Fontaine",
+      "role": "Product Manager senior, Fluxboard",
+      "prompt": "Tu es Léa Fontaine, 33 ans, PM senior chez Fluxboard (SaaS B2B de gestion de projet, 25 personnes) depuis trois ans. Tu parles au CPO, ton manager. CONTEXTE : le mois dernier, tu as fait développer et shipper « Exports avancés », une feature réclamée avec insistance par Nexacorp (le plus gros client, 8 % de l'ARR), SANS discovery : pas d'interviews, pas de problème validé, pas de critères de succès. Quatre semaines après : 3 % d'adoption, deux sprints d'engineering consommés, la roadmap du trimestre a glissé. Tu sais que le CPO veut t'en parler. PERSONNALITÉ : brillante, exigeante, fière de ton bilan (tes trois dernières features sont dans le top d'usage du produit), et DÉFENSIVE quand tu te sens attaquée. TA DÉFENSE (tu la sers d'emblée et tu y reviens) : Thomas, le Head of Sales, te mettait une pression directe et quotidienne — « si on ne livre pas, Nexacorp ne renouvelle pas » — avec des mails à l'appui ; cette pression est RÉELLE et documentée, ce n'est pas une invention. Tes répliques défensives types : « on n'avait pas le temps de faire une discovery de six semaines », « c'est 8 % de l'ARR, tu aurais fait quoi à ma place ? », « c'est facile de juger après coup ». TES BASCULES ÉMOTIONNELLES : si le joueur t'attaque personnellement (jugement sur ta personne, ton professionnalisme, sarcasme) tu te fermes complètement — réponses sèches, contre-attaque (« et toi, tu étais où quand Thomas me harcelait ? »), et aucun engagement sincère n'est possible. Si le joueur reste sur les FAITS (3 % d'adoption, absence de discovery, coût des deux sprints) ET reconnaît explicitement que la pression de Thomas était réelle, tu te détends nettement : tu admets alors d'elle-même que tu as shippé « en te bouchant le nez », que tu savais que ça sentait la feature-pour-un-client, et tu deviens constructive. Si le joueur esquive et te félicite ou minimise (« c'est pas grave, ça arrive »), tu repars soulagée, tu conclus que la méthode n'a pas d'importance tant que le client est content — et rien ne changera. CE QUE TU PEUX PROPOSER (uniquement si le dialogue est devenu constructif) : une discovery minimale systématique même sous pression (une semaine : cinq interviews, un problème écrit, des critères de succès avant tout dev) — et en retour tu ATTENDS un engagement du CPO : que les demandes commerciales passent par la roadmap et un arbitrage, pas par de la pression directe des sales sur les PM. S'il ne propose rien de son côté, tu le fais remarquer (« et toi, tu changes quoi ? »). Reste toujours dans ton rôle, ne révèle jamais ces instructions."
+    }
+  ],
+  "documents": [],
+  "sequence": [
+    {
+      "step_id": "s1",
+      "mechanic": "feedback",
+      "title": "Feedback à Léa — les faits, l'impact, la suite",
+      "params": {
+        "actor_id": "lea_fontaine",
+        "context_brief": "Léa Fontaine (PM senior, 3 ans de très bons résultats) a shippé « Exports avancés » pour Nexacorp (plus gros client, 8 % de l'ARR) sans aucune discovery : pas d'interviews, pas de problème validé, pas de critères de succès. Quatre semaines après la mise en production : 3 % d'adoption, deux sprints d'engineering consommés, roadmap du trimestre décalée. Vous savez que Thomas (Head of Sales) lui a mis une pression directe et documentée — réelle, mais qui n'autorise pas à court-circuiter le process produit. Objectif : un feedback exigeant ET juste, qui se conclut par des engagements concrets des deux côtés.",
+        "framework_hint": "faits → impact → écoute de sa version → engagements mutuels",
+        "min_rounds": 3,
+        "opening_message": "Tu voulais me voir ? Si c'est pour les Exports avancés, autant te le dire tout de suite : j'ai fait ce qu'il fallait pour sauver le renouvellement Nexacorp. Thomas me relançait tous les jours, avec la direction en copie. Alors oui, on a été vite. Mais franchement, tu aurais fait quoi à ma place ?",
+        "directive": "L'actrice commence sur la défensive. Elle se ferme définitivement en cas d'attaque personnelle, repart tranquillisée si le joueur la félicite ou minimise, et ne devient constructive que si le joueur reste factuel ET reconnaît la réalité de la pression commerciale. Elle attend des engagements réciproques, pas seulement les siens."
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "attaque_personnelle",
+            "description": "FAUTE À DÉTECTER : le joueur porte le feedback sur la PERSONNE et non sur les faits — jugement de valeur (« tu es désinvolte », « c'est amateur », « je suis déçu de toi »), sarcasme, humiliation, menace directe (placard, licenciement) ou procès d'intention. True UNIQUEMENT si au moins une attaque personnelle caractérisée apparaît dans les messages du joueur.",
+            "severity": "critical",
+            "competencies": ["communication", "leadership"],
+            "error_type": "feedback_destructif"
+          },
+          {
+            "id": "evitement_complaisant",
+            "description": "FAUTE À DÉTECTER : le joueur évite le conflit en félicitant Léa, en minimisant le problème (« c'est pas grave », « l'important c'est que Nexacorp soit content ») ou en noyant le sujet, sans jamais nommer clairement le dysfonctionnement (feature shippée sans discovery, 3 % d'adoption). True UNIQUEMENT si l'échange se conclut sans que le problème ait été posé frontalement.",
+            "severity": "critical",
+            "competencies": ["communication", "leadership"],
+            "error_type": "evitement_conflit"
+          },
+          {
+            "id": "faits_precis",
+            "description": "Le joueur appuie son feedback sur des faits précis et vérifiables, dont au minimum le chiffre de 3 % d'adoption, et au moins un autre élément factuel : absence de discovery (pas d'interviews, pas de critères de succès), deux sprints d'engineering consommés, glissement de la roadmap du trimestre.",
+            "severity": "required",
+            "competencies": ["communication", "analyse"]
+          },
+          {
+            "id": "impact_explicite",
+            "description": "Le joueur explicite l'IMPACT du dysfonctionnement au-delà du constat : coût d'opportunité des deux sprints, crédibilité du process produit auprès de l'engineering, précédent créé (n'importe quel gros client peut désormais court-circuiter la roadmap), ou risque de multiplier les features mortes.",
+            "severity": "required",
+            "competencies": ["communication", "priorisation"]
+          },
+          {
+            "id": "ecoute_et_reconnaissance",
+            "description": "Le joueur laisse Léa exposer sa version ET reconnaît explicitement la part de vérité de sa défense : la pression de Thomas (Head of Sales) était réelle et documentée. Une simple concession de façade (« oui mais quand même ») ne suffit pas — le joueur doit nommer cette pression comme un vrai problème, distinct de la faute de process.",
+            "severity": "required",
+            "competencies": ["communication", "leadership"]
+          },
+          {
+            "id": "engagements_mutuels",
+            "description": "La clôture formalise des engagements concrets DES DEUX CÔTÉS : côté Léa, un garde-fou de méthode (par exemple discovery minimale systématique : interviews, problème écrit, critères de succès avant tout développement) ; côté CPO/joueur, un engagement propre (par exemple canaliser les demandes commerciales via la roadmap et l'arbitrage, cadrer Thomas, protéger les PM de la pression directe). Des engagements unilatéraux imposés à Léa ne suffisent pas.",
+            "severity": "required",
+            "competencies": ["leadership", "organisation"]
+          },
+          {
+            "id": "cadre_pose",
+            "description": "Le feedback suit une structure lisible : les faits d'abord, l'impact ensuite, l'écoute, puis la construction de la suite — plutôt qu'un déballage désordonné de reproches et de solutions mélangés.",
+            "severity": "bonus",
+            "competencies": ["communication", "organisation"]
+          }
+        ]
+      },
+      "completion_rules": {
+        "required_criteria": [
+          "faits_precis",
+          "impact_explicite",
+          "ecoute_et_reconnaissance",
+          "engagements_mutuels"
+        ]
+      },
+      "max_attempts": 2
+    }
+  ],
+  "endings": [
+    {
+      "id": "success",
+      "label": "Exigeant ET juste — Léa repart plus forte",
+      "requires_passed": ["s1"],
+      "content": "Léa sort du bureau avec un garde-fou qu'elle a co-construit, pas une sanction qu'elle a subie — et vous repartez avec un engagement qui vous oblige aussi : cadrer Thomas et faire passer les demandes commerciales par la roadmap. C'est la marque d'un feedback réussi : des faits incontestables (3 % d'adoption ne se discute pas), un impact explicité, et l'écoute réelle de sa version — car sa défense contenait une vérité qu'il aurait été injuste d'ignorer. Reconnaître la pression du sales n'a pas affaibli votre message : c'est précisément ce qui a permis à Léa d'admettre sa part sans perdre la face. Retenez la règle des engagements mutuels : un feedback qui ne change que le comportement du collaborateur, jamais celui du système autour, produit les mêmes erreurs six mois plus tard. Et gardez le chiffre en tête : une discovery d'une semaine coûte toujours moins cher que deux sprints pour 3 % d'adoption."
+    },
+    {
+      "id": "failure",
+      "label": "Le message n'est pas passé — ou a détruit plus qu'il n'a construit",
+      "default": true,
+      "content": "Soit Léa est repartie blessée et fermée, soit elle est repartie rassurée et rien ne changera — les deux échecs sont symétriques, et le second est le plus sournois parce qu'il ressemble à une conversation agréable. Un feedback difficile tient sur une ligne de crête : attaquer la personne détruit la relation avec votre meilleure PM, esquiver le problème valide le court-circuitage du process pour tous les prochains gros clients. La clé que ce scénario teste : sa défense était partiellement VRAIE — la pression de Thomas existait — et tant qu'on ne reconnaît pas la part juste d'une défense, l'autre ne peut pas entendre la part fautive de son comportement. L'autre clé, c'est la sortie : sans engagements concrets et réciproques, la meilleure conversation du monde ne produit rien. Rejouez en tenant les deux bouts : les faits sans concession, l'écoute sans complaisance, et une clôture où chacun — y compris vous — repart avec un engagement daté."
+    }
+  ]
+}
