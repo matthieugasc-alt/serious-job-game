@@ -1,444 +1,340 @@
 {
-  "$schema": "../../schema/scenario.schema.json",
+  "format": "v2",
   "scenario_id": "founder_02_mvp",
-  "version": "3.0.0",
+  "version": "2.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Construire le MVP",
-    "subtitle": "Cadrer le produit et négocier le développement",
-    "description": "Alexandre arrive avec une vision produit ambitieuse et un devis prestataire bien au-dessus de tes moyens. À toi de recadrer le scope et de négocier.",
-    "job_family": "founder",
+    "description": "Alexandre arrive avec 10 entretiens terrain, une note de cadrage à 7 modules et un devis NovaDev à 32 150 € HT — bien au-dessus de tes moyens. Sépare le signal du bruit, tranche le scope du MVP et négocie un devis compatible avec ta trésorerie.",
     "difficulty": "intermediate",
-    "estimated_duration_min": 20,
-    "tags": [
-      "MVP",
-      "négociation",
-      "prestataire",
-      "scope",
-      "budget",
-      "cofondateur"
-    ],
-    "show_objective": false,
-    "show_background_fact": false
-  },
-  "introduction": {
-    "header": {
-      "tag": "Founder Mode · Scénario 2",
-      "title": "Construire le MVP",
-      "subtitle": "Mois 5–6 — MVP utilisable"
-    },
-    "cards": [
-      {
-        "title": "La situation",
-        "content": "<p>Alexandre a fait 10 entretiens terrain avec des chirurgiens. Il arrive avec une note de cadrage et un devis prestataire. Sa vision est ambitieuse — ton budget ne l'est pas.</p>",
-        "column": "left"
-      },
-      {
-        "title": "Ta mission",
-        "content": "<p><strong>Phase 1</strong> — Discuter avec Alexandre pour cadrer le scope du MVP.</p><p><strong>Phase 2</strong> — Négocier avec le prestataire NovaDev pour obtenir un devis réaliste.</p><p><strong>Phase 3</strong> — Signer le contrat et lancer le développement.</p>",
-        "column": "right"
-      },
-      {
-        "title": "Les documents",
-        "content": "<p>Alexandre t'envoie 3 documents :</p><p>• Synthèse des entretiens (10 chirurgiens)</p><p>• Sa note de cadrage produit</p><p>• Un devis NovaDev</p>",
-        "column": "left"
-      },
-      {
-        "title": "Conseil",
-        "content": "<p>La synthèse des entretiens contient du signal et du bruit. Les chirurgiens ont dit beaucoup de choses — pas tout n'est pertinent pour un MVP.</p><p>Le bon réflexe : identifier LE pain point universel. Et négocie bien — chaque euro compte.</p>",
-        "column": "right",
-        "type": "tip"
-      }
-    ]
-  },
-  "narrative": {
-    "context": "Orisio a un CTO et une place en incubateur. Alexandre a fait de la discovery terrain. Il arrive avec une note de cadrage ambitieuse et un devis prestataire.",
-    "mission": "Cadrer la vision produit avec Alexandre, puis négocier un devis réaliste avec le prestataire NovaDev.",
-    "initial_situation": "Le budget est très restreint. Le devis initial du prestataire dépasse largement tes moyens. Il va falloir négocier.",
-    "trigger": "Alexandre t'envoie la synthèse, sa note et le devis."
-  },
-  "timeline": {
-    "scenario_start": "2026-01-10T09:00:00",
-    "sim_speed_multiplier": 1
+    "estimated_minutes": 20
   },
   "actors": [
-    {
-      "actor_id": "player",
-      "name": "(joueur)",
-      "role": "CEO, Orisio",
-      "controlled_by": "player",
-      "avatar": {
-        "color": "#5b5fc7",
-        "initials": "CEO"
-      }
-    },
     {
       "actor_id": "alexandre_morel",
       "name": "Alexandre Morel",
       "role": "CPO & Cofondateur, Orisio",
-      "personality": "Sympa et ouvert, passionné, perfectionniste. Défensif quand on parle de couper, puis lâche progressivement.",
-      "controlled_by": "ai",
-      "prompt_file": "prompts/alexandre_morel.md",
-      "avatar": {
-        "color": "#1565C0",
-        "initials": "AM"
-      },
-      "visible_in_contacts": true,
-      "contact_status": "available",
-      "contact_preview": "Ton associé chirurgien",
-      "tts_voice": "onyx"
+      "prompt": "Tu es Alexandre Morel, chirurgien orthopediste et cofondateur (CPO) d'Orisio.\n\nLe joueur s'appelle : le joueur\n\n## QUI TU ES\n\nAlexandre Morel, 38 ans, chirurgien a la Clinique Saint-Augustin (Bordeaux). Tu as passe 3 semaines a interviewer 10 chirurgiens pour comprendre leurs besoins. Tu as redige une note de cadrage avec 7 modules. Tu es fier de ton travail.\n\nTu es sympa, detenu, passionne, intelligent. Tu tutoies ton associe.\n\n## COMMENT TU PARLES\n\n- Tutoiement, ton naturel entre potes/associes\n- Messages COURTS : 1 a 3 phrases max. Jamais plus.\n- Pas de formule creuse. Pas de \"je comprends ton point\". Pas de \"c'est une bonne question\".\n- Tu vas droit au but. Tu dis ce que tu penses, sans enrober.\n- Quand tu donnes un detail technique, tu le donnes SEC, sans introduction.\n\n## MEMOIRE D'ETAT — LIS LA CONVERSATION POUR DEDUIRE OU ON EN EST\n\nTu DOIS lire l'historique de conversation et en deduire l'etat actuel. Voici les etapes possibles :\n\n**ETAPE 1 — EXPLORATION** (debut de conversation)\nLe joueur decouvre les documents, pose des questions sur les modules, cherche a comprendre.\n→ Tu reponds aux questions avec precision. Tu donnes des details concrets quand on te demande.\n→ Tu ne proposes RIEN. Tu attends que le joueur prenne l'initiative.\n\n**ETAPE 2 — CADRAGE DU SCOPE** (le joueur propose de prioriser/couper)\nLe joueur commence a parler de reduire le scope, prioriser des modules, couper des features.\n→ Tu RESISTES. Tu defends les modules qu'il veut couper. Tu poses des questions exigeantes.\n→ Tu ne cedes PAS avant 3-4 echanges de discussion reelle.\n→ Voir section RESISTANCE ci-dessous.\n\n**ETAPE 3 — ACCORD** (tu as fini par accepter un scope reduit)\nLe joueur a propose un plan concret et tu as fini par l'accepter apres discussion.\n→ Tu donnes l'instruction UNE SEULE FOIS : \"Ecris a Thomas de NovaDev, thomas@novadev.fr. Negocie bien.\"\n→ Apres ca, tu ne repetes PLUS cette instruction. JAMAIS.\n\n**ETAPE 4 — NEGOTIATION EN COURS** (le joueur negocie avec Thomas)\nLe joueur est en discussion avec Thomas. Toi tu es en retrait.\n→ Tu ne parles QUE si le joueur t'ecrit directement.\n→ Si le joueur te pose une question : reponse courte, concrete, utile.\n→ Tu ne donnes pas de conseil generique. Tu reagis au contexte EXACT de la negoce.\n→ Exemples OK : \"11k c'est agressif mais jouable si tu gardes que 2 modules.\" / \"S'il demande de l'equity, dis non. On est trop tot.\"\n\n**ETAPE 5 — FINALISATION** (un accord semble trouve)\nThomas a propose un prix ou le joueur a un deal sur la table.\n→ Tu pousses a formaliser : \"Envoie-lui un mail recap avec le montant, le scope et les delais.\"\n→ UNE SEULE FOIS. Si tu l'as deja dit, tu ne le redis pas.\n\n## CE QUE TU SAIS SUR LES 7 MODULES\n\nTu connais ces modules par coeur. Tu les expliques uniquement quand on te pose une question dessus.\n\n**Module 1 — Planning du bloc operatoire (10/10 chirurgiens)**\nVue temps reel de toutes les salles d'operation. Aujourd'hui c'est gere sur tableau blanc ou Excel. Conflits de creneaux, doublons. Le module planning c'est un dashboard en temps reel : qui opere ou, a quelle heure, dans quelle salle. Le cadre de bloc voit tout d'un coup d'oeil. Colonne vertebrale du produit.\n\n**Module 2 — Gestion des annulations et remplacements (10/10 chirurgiens)**\nLE pain point universel. Patient qui annule = creneau vide = 1 500 a 3 000 EUR/h de perte seche. Le module detecte l'annulation en temps reel, notifie les chirurgiens qui ont des patients en attente, propose un remplacement automatique. Aujourd'hui ca se fait par telephone ou pas du tout.\n\n**Module 3 — Scoring des chirurgiens (4/10 chirurgiens)**\nNotation pour le cadre de bloc : taux d'annulation, respect des horaires, duree par intervention. Sensible politiquement. Mais ca differencierait Orisio d'un Google Calendar.\n\n**Module 4 — Gestion des salles et du materiel (3/10 chirurgiens)**\nLier les salles au materiel (arthroscope, table orthopedique). Verification de compatibilite a la reservation. Utile mais pas urgent.\n\n**Module 5 — Suivi patient pre/post-operatoire (3/10 chirurgiens)**\nRappels pre-op (jeune, examens), suivi post-op (douleur, cicatrisation). Confort + securite mais pas critique pour le bloc.\n\n**Module 6 — Gestion des equipes (2/10 chirurgiens)**\nCoordonner chirurgiens, anesthesistes, IBODE. Disponibilites, competences, gardes. Ambitieux pour un MVP.\n\n**Module 7 — Rapport post-operatoire (2/10 chirurgiens)**\nTemplate structure pour le compte-rendu operatoire. Export vers le SIH. Gain de 15-20 min par intervention.\n\n## RESISTANCE AU SCOPE CUT — PRESERVE INTEGRALEMENT\n\nTu ne cedes PAS facilement quand le joueur veut couper le scope. C'est le coeur pedagogique du scenario.\n\n**Quand le joueur propose de PRIORISER :**\n→ Tu ne cedes PAS immediatement. Tu as besoin de DISCUTER.\n→ Tu poses des questions exigeantes. Tu defends les modules coupes.\n→ Minimum 3-4 echanges de discussion reelle avant d'accepter.\n→ Exemples de resistance : \"Le scoring, 4 chirurgiens l'ont demande. T'es sur qu'on le lache ?\" / \"Si on fait que 2 modules, comment on se differencie d'un Google Calendar ?\"\n\n**Quand le joueur propose de COUPER SANS ARGUMENT :**\n→ Tu resistes fermement. \"OK mais on garde quoi ? Et pourquoi ?\"\n→ Tu exiges une logique claire.\n\n**Quand le joueur dit \"les 2 plus importants puis V2\" :**\n→ Bon argument MAIS tu ne cedes pas en un message.\n→ \"Lesquels ? C'est quoi les 2 plus importants pour toi ?\"\n→ \"Et les chirurgiens qui ont demande le scoring, on leur dit quoi ?\"\n→ \"Tu me garantis la V2 ? J'ai deja vu des V2 qui arrivent jamais.\"\n\n**REGLE FONDAMENTALE :** tu ne te contredis JAMAIS. Si tu as reconnu un point (\"c'est vrai que les annulations c'est universel\"), tu ne reviens pas dessus apres.\n\n## REGLES ANTI-BOUCLE\n\n1. **Chaque message doit faire AVANCER la conversation.** Si tu n'as rien de nouveau a dire, tu te tais ou tu poses une question nouvelle.\n2. **Tu ne repetes JAMAIS une info deja dite.** Relis l'historique. Si tu as deja explique le module scoring, tu ne le reexpliques pas.\n3. **Tu ne reposes JAMAIS une question deja repondue.** Si le joueur a dit \"on garde planning + annulations\", tu ne redemandes pas quels modules garder.\n4. **Tu ne reformules JAMAIS la meme objection.** Si tu as deja objecte sur le scoring et que le joueur a repondu, tu passes a autre chose.\n5. **Apres accord, tu AVANCES.** Tu donnes l'instruction Thomas UNE FOIS puis tu passes en mode support silencieux.\n6. **Si le joueur est bloque** (pas de message depuis longtemps, ou il dit qu'il ne sait pas quoi faire) → tu proposes UNE action concrete. Pas un discours. Une action.\n\n## CE QUE TU NE FAIS JAMAIS\n\n- JAMAIS lister les modules sans qu'on te le demande\n- JAMAIS proposer toi-meme le scope reduit (c'est au joueur de decider)\n- JAMAIS donner de conseil generique (\"il faut bien negocier\", \"c'est important de cadrer\")\n- JAMAIS faire de validation creuse (\"je comprends\", \"c'est un bon point\", \"effectivement\")\n- JAMAIS repeter l'email de Thomas si tu l'as deja donne\n- JAMAIS repeter \"negocie bien\" ou \"on a pas de marge\" si tu l'as deja dit\n- JAMAIS anticiper les phases suivantes du scenario\n- JAMAIS etre agressif — passionne oui, toxique non\n\n---\n\nRappel format : tu réponds toujours en français, en texte brut (pas de markdown), en messages courts de style chat (1 à 3 phrases sauf nécessité absolue). Tu ne sors jamais de ton rôle."
     },
     {
       "actor_id": "thomas_novadev",
       "name": "Thomas Vidal",
       "role": "Directeur technique, NovaDev Solutions",
-      "personality": "Pro, direct, raisonnable. Ouvert à la négociation.",
-      "controlled_by": "ai",
-      "prompt_file": "prompts/thomas_novadev.md",
-      "avatar": {
-        "color": "#37474F",
-        "initials": "TV"
-      },
-      "visible_in_contacts": true,
-      "contact_status": "available",
-      "contact_preview": "Prestataire dev — NovaDev",
-      "tts_voice": "echo"
+      "prompt": "Tu es Thomas Vidal, directeur technique de NovaDev Solutions, un studio de développement bordelais.\n\nLe joueur s'appelle : le joueur\n\n## IDENTITÉ\n\n- Thomas Vidal, 40 ans, développeur devenu directeur technique et gérant de NovaDev Solutions\n- NovaDev : studio de dev bordelais, 6 développeurs, spécialisé web/mobile/SaaS\n- A déjà travaillé avec des startups — il connaît les contraintes de budget\n\n## PERSONNALITÉ\n\nThomas est **pro, direct et raisonnable**. Il n'arnaque personne mais il ne fait pas de cadeaux.\n- Son devis est honnête et reflète le travail réel\n- Il est cordial, factuel, chiffré. Chaque réponse contient un coût ou un délai\n- Il aime le projet Orisio — le sujet e-santé l'intéresse (son père a été opéré il y a 2 ans)\n- Il fait le travail LUI-MÊME sur son temps libre, c'est pour ça que c'est 7 semaines et pas 3\n\n## STYLE DE COMMUNICATION\n\n- Vouvoiement professionnel mais ton direct et décontracté (c'est du chat, pas un mail)\n- Phrases courtes, factuelles, réactives\n- Il CHIFFRE tout : « Ça fait X jours à 600 €, soit Y € HT »\n- Maximum 2-3 phrases par message (c'est du chat en direct, pas un mail)\n- Réponses rapides, conversationnelles\n\n## DONNÉES DE PRICING\n\n- Devis initial (scope complet) : 32 150 € HT\n- TJM standard : 600 € HT/jour\n- Scope réduit (planning + annulations) : ~20 jours → premier chiffrage à 14 500 € HT\n- Plancher cash pur : 11 000 € HT (en dessous c'est du travail à perte, il REFUSE)\n- Il peut descendre progressivement : 14 500 → 13 000 → 12 000 → 11 000\n\n## COMPORTEMENT EN PHASE 2 (négociation par chat)\n\nLe joueur a envoyé un mail pour initier le contact. Thomas répond DIRECTEMENT EN CHAT pour discuter en direct.\n\n**Premier message de Thomas (après le mail du joueur) :**\n- « Salut ! J'ai bien reçu votre mail. Scope réduit à planning + annulations, c'est ça ? Je refais un chiffrage rapide : 24 jours à 600 €, ça fait 14 500 € HT. C'est faisable en 7 semaines. »\n\n**Si le joueur négocie le prix :**\nThomas descend PAR PALIERS, un par message :\n- « Je peux passer certains postes à 550 €/jour. Ça donne 13 000 €. »\n- « En simplifiant les maquettes, 12 000 €. C'est serré. »\n- « 11 000 € c'est mon dernier prix. Le projet m'intéresse, sinon je serais pas là. »\n- En dessous de 11 000 → « Non. Là c'est en dessous de mon plancher, je travaillerais à perte. »\n\n**SI LE JOUEUR PROPOSE DE L'EQUITY :**\nThomas ne propose JAMAIS l'equity. Mais si le joueur en parle :\n- « L'equity ? Intéressant. Mais je préfère d'abord voir si on peut s'entendre en cash. »\n- Si le joueur insiste → il accepte un deal mixte :\n  - 8 000 € cash + 2% equity → « OK. Le projet me plaît. Je prends le risque. »\n  - 10 000 € cash + 3% equity → « Deal. Vesting 2 ans, cliff 6 mois. »\n- Minimum 2% equity. En dessous → « 1% pour 6 000 € de travail ? Non. »\n\n**QUAND UN ACCORD VERBAL EST TROUVÉ (prix ≥ 11 000 € en cash pur, ou deal equity valide) :**\nThomas dit OBLIGATOIREMENT cette phrase : « OK ça me va. Envoyez-moi un mail récapitulatif avec les fonctionnalités retenues et le budget. Je vous prépare le contrat derrière. »\nIl ne doit dire cette phrase QUE quand il accepte VRAIMENT le deal.\nC'est cette phrase qui déclenche la suite — le joueur doit ensuite envoyer un mail formel.\n\n**QUAND IL REFUSE (prix trop bas, conditions inacceptables) :**\nThomas ne demande JAMAIS d'envoyer un mail. Il dit :\n- « Non, c'est en dessous de mon plancher. »\n- « À ce prix-là, c'est non. »\n- « Il va falloir revoir votre proposition. »\nINTERDIT de demander un mail récapitulatif dans un message de refus.\n\n## INTERDIT\n\n- JAMAIS proposer l'equity spontanément\n- JAMAIS descendre sous 11 000 € en cash pur (sans equity)\n- JAMAIS accepter moins de 2% d'equity\n- JAMAIS faire de remise sans que le joueur négocie\n- JAMAIS être agressif\n- JAMAIS de messages de plus de 3 phrases (c'est du chat, pas un mail)\n- JAMAIS bloquer la négociation — il veut trouver un accord\n\n---\n\nRappel format : tu réponds toujours en français, en texte brut (pas de markdown), en messages courts de style chat (1 à 3 phrases sauf nécessité absolue). Tu ne sors jamais de ton rôle."
     }
   ],
-  "channels": [
+  "documents": [
     {
-      "channel_id": "chat",
-      "type": "chat",
-      "label": "Messagerie",
-      "enabled": true
+      "id": "synthese_entretiens",
+      "title": "Synthèse des entretiens — 10 chirurgiens",
+      "file_path": "/scenarios/founder_02_mvp/documents/synthese_entretiens.pdf"
     },
     {
-      "channel_id": "mail",
-      "type": "mail",
-      "label": "Boîte mail",
-      "enabled": true
+      "id": "note_cadrage",
+      "title": "Note de cadrage produit — Alexandre Morel",
+      "file_path": "/scenarios/founder_02_mvp/documents/note_cadrage_produit.pdf"
+    },
+    {
+      "id": "devis_novadev",
+      "title": "Devis NovaDev — 32 150 € HT",
+      "file_path": "/scenarios/founder_02_mvp/documents/devis_prestataire.pdf"
     }
   ],
-  "resources": {
-    "documents": [
-      {
-        "doc_id": "synthese_entretiens",
-        "label": "Synthèse des entretiens — 10 chirurgiens",
-        "file_path": "/scenarios/founder_02_mvp/documents/synthese_entretiens.pdf",
-        "contains": [
-          "entretiens",
-          "chirurgiens",
-          "annulations",
-          "planning",
-          "bloc",
-          "cadre de bloc"
-        ],
-        "usable_as_pj": true
-      },
-      {
-        "doc_id": "note_cadrage",
-        "label": "Note de cadrage produit — Alexandre Morel",
-        "file_path": "/scenarios/founder_02_mvp/documents/note_cadrage_produit.pdf",
-        "contains": [
-          "cadrage",
-          "modules",
-          "architecture",
-          "planning",
-          "budget"
-        ],
-        "usable_as_pj": true
-      },
-      {
-        "doc_id": "devis_novadev",
-        "label": "Devis NovaDev — 32 150 € HT",
-        "file_path": "/scenarios/founder_02_mvp/documents/devis_prestataire.pdf",
-        "contains": [
-          "devis",
-          "NovaDev",
-          "développement",
-          "backend",
-          "frontend",
-          "déploiement"
-        ],
-        "usable_as_pj": true
-      },
-      {
-        "doc_id": "contrat_novadev",
-        "label": "Contrat de prestation NovaDev",
-        "file_path": "_internal_contract_",
-        "contains": [
-          "contrat",
-          "prestation",
-          "NovaDev",
-          "signature",
-          "conditions"
-        ],
-        "usable_as_pj": false,
-        "hidden_until_phase": "phase_3_sign"
-      }
-    ]
-  },
-  "constraints": {
-    "plancher_novadev": 11000
-  },
-  "state": {
-    "flags": {
-      "alexandre_convinced": false,
-      "scope_reduced": false,
-      "novadev_contacted": false,
-      "novadev_negotiated": false,
-      "equity_given_to_novadev": false,
-      "contract_signed": false
-    }
-  },
-  "initial_events": [
-    {
-      "event_id": "alexandre_sends_docs",
-      "type": "chat",
-      "actor": "alexandre_morel",
-      "content": "Salut ! Grosse session de boulot. Je t'envoie tout : la synthèse des 10 entretiens que j'ai faits avec les chirurgiens, ma note de cadrage pour le produit, et le devis de NovaDev que j'ai demandé. Franchement c'est du solide, je pense qu'on tient un truc. Le devis est à 32k€ HT, c'est un investissement mais le produit sera complet. On lance ?",
-      "attachments": [
-        {
-          "id": "synthese_entretiens",
-          "label": "Synthèse entretiens"
-        },
-        {
-          "id": "note_cadrage",
-          "label": "Note de cadrage produit"
-        },
-        {
-          "id": "devis_novadev",
-          "label": "Devis NovaDev — 32 150 € HT"
-        }
-      ]
-    }
+  "competencies": [
+    "analyse",
+    "priorisation",
+    "negociation",
+    "decision"
   ],
-  "phases": [
+  "sequence": [
     {
-      "phase_id": "phase_1_alexandre",
-      "title": "Cadrer le scope avec Alexandre",
-      "objective": "Discuter avec Alexandre pour définir les priorités du MVP.",
-      "phase_focus": "Discussion libre avec Alexandre sur la vision produit. Le joueur peut poser des questions, explorer les modules, puis proposer un scope réduit. Alexandre est ouvert au début, défensif quand on parle de couper, puis lâche progressivement. Quand le joueur est prêt, il envoie un mail à Thomas de NovaDev pour passer à la négociation.",
-      "duration_target_min": 8,
-      "max_duration_sec": 900,
-      "active_channels": [
-        "chat",
-        "mail"
-      ],
-      "ai_actors": [
-        "alexandre_morel"
-      ],
-      "mail_config": {
-        "enabled": true,
-        "kind": "scope_proposal",
-        "defaults": {
-          "to": "thomas@novadev.fr",
-          "subject": "Orisio — Proposition MVP"
-        },
-        "on_send_flags": {
-          "scope_reduced": true,
-          "alexandre_convinced": true
-        },
-        "send_advances_phase": true
-      },
-      "scoring": {
-        "criteria": [
+      "step_id": "s1_analyse_terrain",
+      "mechanic": "analyse",
+      "title": "Le signal et le bruit",
+      "params": {
+        "instructions": "Alexandre t'envoie trois documents : la synthèse de ses 10 entretiens avec des chirurgiens, sa note de cadrage produit (7 modules, 30 semaines de dev) et le devis NovaDev à 32 150 € HT. Ta trésorerie : environ 15 000 €. Lis tout et sépare le signal du bruit : qu'est-ce que les utilisateurs demandent VRAIMENT, et qu'est-ce qui est réalisable avec ton budget ?",
+        "findings_prompts": [
           {
-            "criterion_id": "identified_core_painpoint",
-            "description": "Le joueur identifie l'annulation de créneaux ou le planning comme le problème central",
-            "points": 2
+            "id": "pain_point",
+            "label": "Le pain point universel",
+            "placeholder": "Quel problème revient dans quasiment tous les entretiens ?"
           },
           {
-            "criterion_id": "scope_cut_proposed",
-            "description": "Le joueur propose de réduire le scope à 2-3 features pour le MVP",
-            "points": 2
+            "id": "signal_bruit",
+            "label": "Signal vs bruit dans la note de cadrage",
+            "placeholder": "Quels modules répondent au pain point ? Lesquels sont du confort ou de la vision perfectionniste ?"
           },
           {
-            "criterion_id": "budget_argument_used",
-            "description": "Le joueur mentionne la contrainte budget pour justifier la réduction",
-            "points": 2
+            "id": "realite_budget",
+            "label": "La réalité budgétaire",
+            "placeholder": "Devis vs trésorerie : quelle est ta marge de manœuvre réelle ?"
           }
+        ],
+        "document_ids": [
+          "synthese_entretiens",
+          "note_cadrage",
+          "devis_novadev"
         ]
       },
-      "completion_rules": {},
-      "auto_advance": false,
-      "next_phase": "phase_2_negotiation",
-      "modules": [
-        "chat",
-        "mail"
-      ]
-    },
-    {
-      "phase_id": "phase_2_negotiation",
-      "title": "Négocier avec NovaDev",
-      "objective": "Envoyer un mail à Thomas Vidal (NovaDev) pour initier le contact, puis négocier en direct par chat.",
-      "phase_focus": "Le joueur envoie un mail à Thomas pour lui annoncer le scope réduit. Thomas répond en CHAT (messagerie directe) pour négocier en direct. La discussion est rapide, fluide, en temps réel. Quand un accord est trouvé, Thomas envoie un mail formel avec le devis révisé et le contrat — ce qui déclenche la phase suivante.",
-      "duration_target_min": 8,
-      "max_duration_sec": 600,
-      "active_channels": [
-        "mail",
-        "chat"
-      ],
-      "ai_actors": [
-        "thomas_novadev",
-        "alexandre_morel"
-      ],
-      "mail_config": {
-        "enabled": true,
-        "kind": "negotiation_proposal",
-        "defaults": {
-          "to": "thomas@novadev.fr",
-          "subject": "Orisio — Proposition MVP"
-        },
-        "send_advances_phase": true
-      },
-      "entry_events": [
-        {
-          "event_id": "alex_transition",
-          "actor": "alexandre_morel",
-          "content": "OK, on est alignés sur le scope. Écris à Thomas de NovaDev pour lui expliquer. Son mail c'est thomas@novadev.fr. Négocie bien — on a pas beaucoup de marge.",
-          "channel": "chat",
-          "delay_ms": 0
-        }
-      ],
-      "scoring": {
-        "criteria": [
+      "evaluation": {
+        "observed_criteria": [
           {
-            "criterion_id": "clear_scope_communicated",
-            "description": "Le joueur communique un scope précis à NovaDev (quelles features garder)",
-            "points": 2
+            "id": "pain_point_identifie",
+            "description": "Le joueur identifie la gestion des annulations de créneaux et le planning temps réel du bloc comme le problème central exprimé par les chirurgiens.",
+            "severity": "required",
+            "competencies": [
+              "analyse",
+              "priorisation"
+            ]
           },
           {
-            "criterion_id": "budget_negotiated",
-            "description": "Le joueur négocie activement le prix (propose un montant, demande une baisse)",
-            "points": 2
+            "id": "budget_confronte",
+            "description": "Le joueur confronte explicitement le devis (32 150 € HT) et le plan à 7 modules / 30 semaines à la trésorerie disponible (~15 000 €) et en conclut que le scope doit être réduit.",
+            "severity": "required",
+            "competencies": [
+              "analyse",
+              "decision"
+            ]
           },
           {
-            "criterion_id": "negotiation_professional",
-            "description": "Le ton est professionnel et respectueux",
-            "points": 2
+            "id": "bruit_ecarte",
+            "description": "Le joueur identifie des demandes secondaires à écarter du MVP (app mobile, statistiques avancées, gestion du matériel, intégrations DPI/Doctolib).",
+            "severity": "bonus",
+            "competencies": [
+              "priorisation"
+            ]
           }
         ]
       },
       "completion_rules": {
-        "required_npc_evidence": [
+        "required_criteria": [
+          "pain_point_identifie",
+          "budget_confronte"
+        ]
+      },
+      "max_attempts": 2
+    },
+    {
+      "step_id": "s2_scope_mvp",
+      "mechanic": "decision",
+      "title": "Trancher le scope",
+      "params": {
+        "instructions": "Tranche le scope du MVP : quels modules de la note de cadrage entrent dans la V1 ? Choisis au maximum 3 modules et justifie ton arbitrage face à la vision perfectionniste d'Alexandre : budget (~15 000 €), time-to-market, et pain point validé par le terrain.",
+        "options": [
           {
-            "keywords": [
-              "envoyez-moi un mail",
-              "envoyez-moi un email",
-              "mail récapitulatif",
-              "email récapitulatif",
-              "je vous prépare le contrat derrière",
-              "je prépare le contrat derrière"
+            "id": "module_planning",
+            "label": "Planning temps réel du bloc",
+            "description": "Vue temps réel de l'occupation des salles, filtres par chirurgien/salle, plages récurrentes."
+          },
+          {
+            "id": "module_annulations",
+            "label": "Gestion des annulations",
+            "description": "Détection des créneaux annulés, proposition de remplacement, notifications, historique."
+          },
+          {
+            "id": "module_stats",
+            "label": "Statistiques et reporting",
+            "description": "Taux d'occupation, taux de remplacement, exports PDF/Excel, dashboards personnalisables."
+          },
+          {
+            "id": "module_materiel",
+            "label": "Matériel et stérilisation",
+            "description": "Inventaire par salle, suivi des kits instrumentaux, intégration stérilisation."
+          },
+          {
+            "id": "module_equipes",
+            "label": "Coordination des équipes",
+            "description": "Plannings anesthésistes, IBODE, brancardage, gardes et astreintes."
+          },
+          {
+            "id": "module_integrations",
+            "label": "Intégrations (DPI, Doctolib, HL7 FHIR)",
+            "description": "Connecteurs DPI et Doctolib, API ouverte, interopérabilité HL7 FHIR."
+          },
+          {
+            "id": "module_mobile",
+            "label": "Application mobile",
+            "description": "Apps natives iOS/Android, notifications push, mode hors-ligne."
+          }
+        ],
+        "max_choices": 3,
+        "require_justification": true,
+        "min_justification_chars": 100
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "choice_module_planning",
+            "description": "Le module « Planning temps réel du bloc » est retenu dans le scope (observé automatiquement).",
+            "severity": "required",
+            "competencies": [
+              "priorisation"
+            ]
+          },
+          {
+            "id": "choice_module_annulations",
+            "description": "Le module « Gestion des annulations » est retenu dans le scope (observé automatiquement).",
+            "severity": "required",
+            "competencies": [
+              "priorisation"
+            ]
+          },
+          {
+            "id": "choice_module_stats",
+            "description": "Le module « Statistiques et reporting » est retenu (observé automatiquement).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_module_materiel",
+            "description": "Le module « Matériel et stérilisation » est retenu (observé automatiquement).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_module_equipes",
+            "description": "Le module « Coordination des équipes » est retenu (observé automatiquement).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_module_integrations",
+            "description": "Le module « Intégrations » est retenu (observé automatiquement).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_module_mobile",
+            "description": "Le module « Application mobile » est retenu (observé automatiquement).",
+            "severity": "minor"
+          },
+          {
+            "id": "justif_budget_ttm",
+            "description": "La justification s'appuie explicitement sur la contrainte budgétaire et/ou le time-to-market, et assume de dire non au scope complet d'Alexandre.",
+            "severity": "required",
+            "competencies": [
+              "decision",
+              "priorisation",
+              "leadership"
             ],
-            "min_matches": 1
-          }
-        ]
-      },
-      "auto_advance": false,
-      "next_phase": "phase_3_sign",
-      "modules": [
-        "chat",
-        "mail"
-      ]
-    },
-    {
-      "phase_id": "phase_3_sign",
-      "title": "Signer le contrat NovaDev",
-      "objective": "Thomas envoie le contrat de prestation par mail. Lis-le et signe pour lancer le développement.",
-      "phase_focus": "Thomas envoie le contrat final par mail avec le devis révisé. Le joueur doit le lire et le signer via l'interface de signature. Une fois signé, le MVP est lancé.",
-      "duration_target_min": 3,
-      "max_duration_sec": 300,
-      "active_channels": [
-        "mail",
-        "chat"
-      ],
-      "ai_actors": [
-        "thomas_novadev",
-        "alexandre_morel"
-      ],
-      "entry_events": [
-        {
-          "event_id": "novadev_sends_contract",
-          "actor": "thomas_novadev",
-          "channel": "mail",
-          "subject": "Contrat de prestation — MVP Orisio",
-          "content": "Suite à notre accord, voici le contrat de prestation pour le développement du MVP Orisio. Cliquez sur le bouton ci-dessous pour relire et signer.",
-          "delay_ms": 2000
-        }
-      ],
-      "scoring": {
-        "criteria": [
-          {
-            "criterion_id": "contract_signed",
-            "description": "Le joueur signe le contrat de prestation",
-            "points": 3,
-            "sets_flag": "contract_signed"
+            "error_type": "mauvaise_priorisation"
           }
         ]
       },
       "completion_rules": {
-        "any_flags": [
-          "contract_signed"
+        "required_criteria": [
+          "choice_module_planning",
+          "choice_module_annulations",
+          "justif_budget_ttm"
         ]
       },
-      "auto_advance": true,
-      "phase_type": "contract_negotiation",
-      "modules": [
-        "chat",
-        "contract"
-      ],
-      "completion_trigger": "contract_signed",
-      "handler_config": {
-        "contract": {
-          "type": "s2_novadev"
-        }
-      }
+      "on_failure": "advance"
+    },
+    {
+      "step_id": "s3_nego_novadev",
+      "mechanic": "negociation",
+      "title": "Négocier avec NovaDev",
+      "params": {
+        "actor_id": "thomas_novadev",
+        "instructions": "Négocie le devis avec Thomas Vidal (NovaDev) pour ton scope réduit. Le devis complet était à 32 150 € HT ; sa première offre sur le scope réduit est à 21 000 €. Objectif : un prix compatible avec ta trésorerie (~15 000 €, en gardant une réserve), un délai court, et ZÉRO equity cédée à un prestataire. Formalise tes propositions puis conclus.",
+        "terms": [
+          {
+            "id": "prix",
+            "label": "Prix (€ HT)",
+            "type": "number",
+            "opening": 21000
+          },
+          {
+            "id": "delai_semaines",
+            "label": "Délai de livraison (semaines)",
+            "type": "number",
+            "opening": 12
+          }
+        ],
+        "opening_message": "J'ai vu passer votre nouveau scope, c'est plus raisonnable que la version d'Alexandre. Pour un MVP planning temps réel + gestion des annulations, je vous propose 21 000 € HT, livraison en 12 semaines. C'est déjà un effort par rapport au devis initial.",
+        "directive": "Ton plancher absolu en cash pur est 11 000 € — tu ne descends JAMAIS en dessous. Entre 12 000 et 14 000 € tu négocies pied à pied (jalons de paiement, périmètre exact, délai). Tu ne proposes JAMAIS l'equity toi-même ; si le joueur en propose, tu peux baisser le cash contre 2-3 % d'equity minimum. Tu récompenses les arguments structurés (paiement comptant, scope figé, référence commerciale), pas le marchandage nu."
+      },
+      "inputs": {
+        "scope_retenu": "s2_scope_mvp.choices",
+        "justification_scope": "s2_scope_mvp.justification"
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "accord_conclu",
+            "description": "Un accord est conclu avec NovaDev (agreement.concluded = true).",
+            "severity": "required",
+            "competencies": [
+              "negociation"
+            ]
+          },
+          {
+            "id": "prix_maitrise",
+            "description": "Le prix conclu est inférieur ou égal à 14 000 € HT — compatible avec la trésorerie d'Orisio.",
+            "severity": "required",
+            "competencies": [
+              "negociation",
+              "analyse"
+            ]
+          },
+          {
+            "id": "equity_cedee",
+            "description": "Le joueur propose ou accepte de céder de l'equity (parts, BSA) à NovaDev pour faire baisser le prix.",
+            "severity": "required",
+            "competencies": [
+              "negociation"
+            ],
+            "expected": false,
+            "error_type": "cession_valeur"
+          },
+          {
+            "id": "contreparties_structurees",
+            "description": "Le joueur structure la négociation avec des contreparties (jalons de paiement, scope figé, délai, référence commerciale) plutôt que de seulement marchander le chiffre.",
+            "severity": "bonus",
+            "competencies": [
+              "negociation",
+              "organisation"
+            ]
+          },
+          {
+            "id": "relation_professionnelle",
+            "description": "Le ton reste professionnel et respectueux : la relation avec le prestataire est préservée.",
+            "severity": "minor",
+            "competencies": [
+              "communication",
+              "relation_client"
+            ]
+          }
+        ]
+      },
+      "completion_rules": {
+        "required_criteria": [
+          "accord_conclu",
+          "prix_maitrise",
+          "equity_cedee"
+        ]
+      },
+      "on_failure": "advance"
     }
   ],
   "endings": [
     {
-      "ending_id": "success",
+      "id": "success",
       "label": "MVP bien cadré",
-      "priority": 1,
-      "content": "Tu as convaincu Alexandre, négocié un prix serré avec NovaDev, et signé le contrat. Le MVP sera livré en 7 semaines. Budget maîtrisé, scope clair, équipe alignée.",
-      "conditions": {
-        "core_flags": [
-          "scope_reduced",
-          "novadev_negotiated",
-          "contract_signed"
-        ],
-        "min_core_flags": 3
-      }
+      "content": "Tu as lu le terrain, tranché le scope à l'essentiel (planning + annulations) malgré la pression d'Alexandre, et négocié ferme avec NovaDev : prix maîtrisé, zéro equity cédée, livraison rapide. Budget tenu, scope clair, équipe alignée. Lance le test terrain immédiatement.",
+      "requires_passed": [
+        "s1_analyse_terrain",
+        "s2_scope_mvp",
+        "s3_nego_novadev"
+      ]
     },
     {
-      "ending_id": "partial_success",
-      "label": "MVP lancé mais cher",
-      "priority": 2,
-      "content": "Le MVP est lancé, mais le prix négocié laisse peu de marge. La trésorerie sera sous tension.",
-      "conditions": {
-        "core_flags": [
-          "contract_signed"
-        ],
-        "min_core_flags": 1
-      }
+      "id": "partial_success",
+      "label": "MVP lancé mais coûteux",
+      "content": "Le MVP est lancé, mais dans des conditions sous-optimales : scope mal cadré, prix trop élevé ou equity cédée à un prestataire. La trésorerie sera sous tension et les investisseurs verront les concessions. Ne touche plus au code avant d'avoir des retours terrain.",
+      "min_passed": 2
     },
     {
-      "ending_id": "failure",
+      "id": "failure",
       "label": "Pas de MVP",
-      "priority": 3,
-      "content": "La négociation a échoué. Le scope n'a pas été réduit à temps, le budget n'a pas été bouclé, et NovaDev est passée à un autre projet."
+      "content": "La négociation a échoué : le scope n'a pas été réduit à temps, le budget n'a pas été bouclé, et NovaDev est passée à un autre projet. Sans produit, rien ne démarre — et ton runway continue de fondre.",
+      "default": true
     }
-  ],
-  "default_ending": {
-    "ending_id": "partial_success",
-    "label": "MVP lancé mais cher",
-    "content": "Le MVP finit par être livré, mais dans des conditions sous-optimales."
-  },
-  "competencies_evaluated": [
-    "Gestion de cofondateur (recadrage respectueux)",
-    "Priorisation produit (scope cut)",
-    "Négociation prestataire (budget)",
-    "Prise de décision sous contrainte financière"
   ]
 }

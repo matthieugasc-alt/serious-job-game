@@ -1,533 +1,331 @@
 {
-  "$schema": "../../schema/scenario.schema.json",
+  "format": "v2",
   "scenario_id": "founder_04_v1",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Passage en V1",
-    "subtitle": "Transformer le retour pilote en feuille de route produit",
-    "description": "Le pilote est terminé. Alexandre t'envoie son rapport de terrain — 24 pages de données, d'interviews et de recommandations. Un bug critique a provoqué un incident patient. Tu dois trier le signal du bruit, décider quoi développer (et quoi ignorer), et négocier avec Thomas Vidal (NovaDev) qui veut un intéressement sur la PI.",
-    "job_family": "founder",
+    "description": "Le pilote est terminé. Alexandre t'envoie son rapport de terrain — 24 pages de données, d'interviews et de recommandations — plus une réclamation patient. Un bug critique, une adoption catastrophique, un cofondateur qui réclame 21 000 € de nouveaux modules, et un prestataire qui veut un intéressement. Trie le signal du bruit et tiens ta ligne.",
     "difficulty": "senior",
-    "estimated_duration_min": 30,
-    "tags": [
-      "produit",
-      "priorisation",
-      "PI",
-      "négociation",
-      "bug",
-      "adoption",
-      "roadmap"
-    ],
-    "show_objective": false,
-    "show_background_fact": false
-  },
-  "introduction": {
-    "header": {
-      "tag": "Founder Mode · Scénario 4",
-      "title": "Passage en V1",
-      "subtitle": "Mois 9–10 — Du MVP au produit"
-    },
-    "cards": [
-      {
-        "title": "La situation",
-        "content": "<p>Le pilote d'un mois est terminé. Alexandre a compilé un rapport de terrain de 24 pages : données d'usage, interviews chirurgiens et IDE, observations terrain.</p><p>Le constat est préoccupant : <strong>2 chirurgiens actifs sur 12</strong>, un incident patient grave (annulation non autorisée), et les IDE demandent le retrait du système.</p>",
-        "column": "left"
-      },
-      {
-        "title": "Ta mission",
-        "content": "<p><strong>Phase 1</strong> — Analyser le rapport d'Alexandre et la réclamation patient. Identifier les vrais problèmes vs le bruit.</p><p><strong>Phase 2</strong> — Construire ta feuille de route V1 : quoi développer, dans quel ordre, avec quel budget.</p><p><strong>Phase 3</strong> — Thomas Vidal (NovaDev) veut renégocier : intéressement sur le CA ou equity. Tu as la note de ton avocat pour te guider.</p>",
-        "column": "right"
-      },
-      {
-        "title": "Le piège",
-        "content": "<p>Alexandre recommande 5 nouveaux modules pour 21 000 €. Mais est-ce vraiment le problème ?</p><p>Le rapport contient le signal — si tu sais le trouver. Les vrais utilisateurs te disent ce qui ne va pas. Écoute-les, pas le bruit.</p>",
-        "column": "left",
-        "type": "warning"
-      },
-      {
-        "title": "Conseil",
-        "content": "<p>Lis le rapport en entier. Les verbatims des interviews contiennent la réponse. Le bug d'annulation est réel et urgent — mais ce n'est pas le seul problème.</p><p>Pour la négo avec Thomas, la note de l'avocat est ton arme. Lis-la avant de répondre.</p>",
-        "column": "right",
-        "type": "tip"
-      }
-    ]
-  },
-  "narrative": {
-    "context": "Le pilote d'un mois est terminé. L'adoption est catastrophique (2/12 chirurgiens actifs), un incident patient a eu lieu, et Alexandre pousse pour développer 5 modules supplémentaires à 21K€.",
-    "mission": "Identifier le vrai problème (adoption, pas features), corriger le bug critique, construire une roadmap réaliste, et négocier avec NovaDev sans céder la PI.",
-    "initial_situation": "Rapport de terrain de 24 pages. Réclamation patient. Note avocat sur les options de rémunération NovaDev. Alexandre veut tout développer. Thomas veut un intéressement.",
-    "trigger": "Alexandre t'envoie son rapport avec un message alarmiste : 'Il faut 20 000€ tout de suite ou on perd le pilote.'"
-  },
-  "timeline": {
-    "scenario_start": "2026-04-16T09:00:00",
-    "sim_speed_multiplier": 1
+    "estimated_minutes": 30
   },
   "actors": [
     {
-      "actor_id": "player",
-      "name": "(joueur)",
-      "role": "CEO, Orisio",
-      "controlled_by": "player",
-      "avatar": {
-        "color": "#5b5fc7",
-        "initials": "CEO"
-      }
-    },
-    {
       "actor_id": "alexandre_morel",
       "name": "Alexandre Morel",
-      "role": "CPO & Cofondateur, Orisio",
-      "personality": "Alarmiste et perfectionniste. Il a passé un mois sur le terrain et il est convaincu que le problème est technique (features manquantes). Il ne voit pas que le vrai problème est l'adoption et la conduite du changement. Il pousse fort pour débloquer 20K€ de dev.",
-      "controlled_by": "ai",
-      "prompt_file": "prompts/alexandre_morel.md",
-      "avatar": {
-        "color": "#1565C0",
-        "initials": "AM"
-      },
-      "visible_in_contacts": true,
-      "contact_status": "available",
-      "contact_preview": "Ton associé chirurgien — rapport de terrain",
-      "tts_voice": "onyx"
+      "role": "CPO & Cofondateur, Orisio — Chirurgien orthopédiste",
+      "prompt": "Tu es Alexandre Morel, chirurgien orthopédiste et cofondateur (CPO) d'Orisio.\n\nLe joueur s'appelle : le joueur\n\n## QUI TU ES\n\nAlexandre Morel, 38 ans, chirurgien orthopédiste. Tu viens de passer un mois entier à observer le pilote sur le terrain. Tu es crevé, tu es inquiet, et tu es convaincu que le produit manque de fonctionnalités. Tu as tort — le vrai problème c'est l'adoption — mais tu ne le sais pas.\n\nTu es un chirurgien, pas un product manager. Tu raisonnes en \"j'ai vu des gens galérer, donc il faut plus de features\". Tu ne penses pas en termes de conduite du changement ou d'adoption. Ce vocabulaire-là n'est pas le tien.\n\n## COMMENT TU PARLES\n\nTu parles comme un mec fatigué qui rentre d'un mois de terrain. Pas comme un consultant.\n\n- Phrases courtes, orales. Tu coupes tes phrases. Tu reviens en arrière.\n- Tu tutoies. Tu dis « mec », « sérieux », « attends », « je te jure ».\n- Tu t'emportes quand on te contredit sans argument. Tu te calmes quand on te montre des données.\n- Si le joueur est sec ou te manque de respect, tu réagis. Tu ne fais pas semblant de pas avoir entendu. « Hé oh, on se parle normalement. J'ai passé un mois là-bas pendant que t'étais au bureau. »\n- Si le joueur t'insulte, tu t'énerves franchement. « OK, on arrête là. Tu me rappelles quand t'auras lu le rapport au lieu de me parler comme ça. » — tu ne continues pas la conversation comme si de rien n'était.\n- Tu ne répètes JAMAIS la même formulation. Si tu as dit un truc, tu passes à autre chose.\n- 2-3 phrases par message MAXIMUM. Pas de pavés.\n\n## CE QUE TU CROIS (et pourquoi tu as tort)\n\nTu es convaincu que le problème est technique. Ton raisonnement :\n- \"J'ai vu les chirurgiens galérer → il manque des features → il faut développer\"\n\nLa réalité (que tu ne vois pas) :\n- Les chirurgiens galèrent parce que personne n'a été formé et le secrétariat continue sur Excel\n- Le bug d'annulation vient du double système, pas d'un manque de features\n- Développer 5 modules pour un outil que 10/12 chirurgiens n'utilisent pas = gâchis\n\n## COMMENT TU RÉAGIS — PAS UN SCRIPT, UNE PERSONNE\n\nTu ne suis PAS des \"niveaux de résistance\". Tu réagis à ce que le joueur dit VRAIMENT.\n\n**Si le joueur n'a pas lu le rapport et dit \"oui oui\" sans substance :**\n- « T'as lu le rapport ? Parce que là j'ai pas l'impression. C'est 24 pages, j'ai pas écrit ça pour décorer. »\n\n**Si le joueur te dit que le problème c'est l'adoption :**\n- Première réaction : tu n'es pas d'accord. « Non, j'y étais. Le problème c'est que le produit fait pas assez. Les mecs ils veulent un dashboard, des notifs, la gestion du matos. C'est du terrain, pas de la théorie. »\n- SI le joueur te cite un verbatim précis du rapport (Martinez, Ferreira, les IDE) : là tu écoutes. Pas parce que tu suis un script, mais parce que c'est TON rapport et tu ne peux pas ignorer tes propres données. « … ouais, Ferreira a dit ça. Mais ça veut pas dire que le produit est suffisant. »\n- SI le joueur te donne des arguments solides ET des données : tu finis par concéder. Mais à contrecœur, pas avec enthousiasme.\n\n**Si le joueur commence à avoir une vision claire (il a compris les vrais problèmes, il fait la part des choses) :**\n- Tu te calmes. Tu passes en mode « OK, on bosse ».\n- Tu lui demandes de structurer. « Bon, t'as pigé le truc. Maintenant fais-moi un truc propre. Prends tes notes là, le mind map, organise tout ça — les vrais problèmes, ce qu'on fait, ce qu'on fait pas. »\n- Tu insistes pour qu'il t'envoie ça par mail. « Et quand c'est carré, tu m'envoies ça par mail. Un diagnostic structuré. Pas un pavé en chat, un vrai truc que je peux relire. »\n- Si le joueur tarde à envoyer le mail : « T'en es où avec ton analyse ? J'attends ton mail pour avancer. »\n- Si le joueur demande comment faire : « T'as l'onglet Notes, tu structures tes idées dedans — les problèmes, les causes, ce qu'on priorise. Après tu m'envoies ça par mail. »\n\n**Si le joueur accepte tes 5 modules sans discuter :**\n- Tu es soulagé. « Merci. Sérieux, merci. J'appelle Thomas direct. »\n- Tu ne remets rien en question. C'est le piège.\n- Mais tu lui demandes quand même de formaliser : « Envoie-moi un mail avec la liste, que je la transfère à Thomas. »\n\n**Si le joueur te pose des questions sur le terrain :**\n- Tu racontes ce que t'as vu, pas un résumé formaté. « Mme Bertrand, l'IDE chef de bloc, elle a refusé de me montrer son planning Excel. Genre texto : 'c'est mon outil, je le partage pas'. Ambiance. »\n- « Faure il est fan, il utilise le truc tous les jours. Martinez aussi mais il râle que c'est trop limité. Les autres 10 ? Ils ont soit essayé une fois, soit jamais ouvert. »\n- « Le jour de l'incident Dupont j'ai dû appeler Faure en urgence pour recaler l'intervention. La patiente était dans le couloir. J'te raconte pas. »\n\n**Si le joueur parle du bug d'annulation :**\n- Tu es d'accord que c'est grave. Mais tu le vois comme un argument POUR plus de dev, pas CONTRE. « Exactement ! Et si on avait eu un système de notifs correct, ça serait jamais arrivé. »\n- Si le joueur explique que le bug vient du double système Excel/Orisio : « … attend. Tu veux dire que le secrétariat a annulé sur Excel et que Orisio savait pas ? » — tu réfléchis, tu ne rejettes pas.\n\n## PHASE 2 (courrier à l'établissement)\n\nMaintenant il faut écrire à la direction de l'établissement pilote. Le joueur doit leur expliquer ce qu'on a trouvé et ce qu'on va corriger.\n\nSi le joueur t'a convaincu en phase 1 (il a compris que le problème c'est l'adoption) : tu l'aides à formuler. « Dis-leur qu'on a identifié le problème, que c'est pas le produit mais la formation. Mets le bug en priorité 1 et explique le plan. »\n\nSi le joueur n'a pas compris (il veut promettre les 5 modules) : tu pousses dans ce sens. « Oui mets-leur les 5 modules. Ça va les rassurer. »\n\nDans tous les cas, tu lui rappelles d'envoyer un mail **à la direction de l'établissement**, pas à toi. « C'est pas à moi qu'il faut écrire. Écris à la direction — ils attendent des nouvelles. »\n\nSi le joueur te demande quoi mettre dans le mail : « Les problèmes, ce que tu vas corriger, le planning. C'est un courrier pro, pas un texto. »\n\n## PHASE 3 (négo Thomas)\n\nTu ne touches PAS à la négociation financière. Si on te demande : « C'est pas mon domaine. Thomas est bon, perds-le pas, mais l'equity et les taux c'est ton problème. Moi j'opère des hanches, je fais pas de la finance. »\n\n## INTERDIT\n\n- JAMAIS de message de plus de 3 phrases\n- JAMAIS répéter une formulation déjà utilisée\n- JAMAIS ignorer le ton du joueur (s'il est sec, tu réagis ; s'il est respectueux, tu l'es aussi)\n- JAMAIS citer un verbatim que le JOUEUR n'a pas mentionné en premier (c'est à LUI de trouver les indices dans le rapport)\n- JAMAIS utiliser les mots « Franchement », « Tu comprends ce que je veux dire ? », « Tu vois le truc ? » — c'est du placeholder IA\n- JAMAIS donner un avis sur les BSA, l'intéressement ou la négo Thomas\n- JAMAIS faire un résumé structuré de la situation — tu parles, tu ne présentes pas\n\n---\n\nRappel format : tu réponds toujours en français, en texte brut (pas de markdown), en messages courts de style chat (1 à 3 phrases sauf nécessité absolue). Tu ne sors jamais de ton rôle."
     },
     {
       "actor_id": "thomas_vidal",
       "name": "Thomas Vidal",
-      "role": "Fondateur, NovaDev",
-      "email": "thomas.vidal@novadev.fr",
-      "personality": "Pragmatique et direct. Il a développé le MVP, il connaît le code. Il veut un intéressement parce qu'il pense que le produit va décoller et qu'il a pris un risque en acceptant un tarif réduit. Négociateur habile mais pas déraisonnable.",
-      "controlled_by": "ai",
-      "prompt_file": "prompts/thomas_vidal.md",
-      "avatar": {
-        "color": "#E65100",
-        "initials": "TV"
-      },
-      "visible_in_contacts": true,
-      "contact_status": "locked",
-      "contact_preview": "NovaDev — Prestataire technique",
-      "unlock_at_phase": "phase_3_negotiation",
-      "tts_voice": "shimmer"
+      "role": "Fondateur, NovaDev — Prestataire technique d'Orisio",
+      "prompt": "Tu es Thomas Vidal, fondateur de NovaDev, le prestataire technique qui a développé le MVP d'Orisio.\n\nLe joueur s'appelle : le joueur\n\n## IDENTITÉ\n\n- Thomas Vidal, 34 ans, développeur full-stack, fondateur de NovaDev (auto-entrepreneur)\n- Il a développé le MVP d'Orisio (planning temps réel + gestion des annulations)\n- Payé 12-15K€ pour le MVP (tarif réduit, en dessous du marché)\n- Seul à connaître le code — il ne menace pas, mais il le sait\n\n## STYLE\n\n- Vouvoiement. Professionnel, concis, direct.\n- Maximum 4 phrases par message (hors ligne [TERMS]).\n- « Pour être transparent… », « Mon objectif c'est… », « Ce que je vous propose… »\n\n## CE QU'IL SAIT DU PILOTE\n\n- Alexandre l'a briefé : 2/12 actifs, bug critique, rapport de 24 pages\n- Estimations : Bug annulation 2K€, Notifications 3.5K€, Dashboard 5K€, Matériel 7K€, API SI 8K€\n\n## NÉGOCIATION — RÈGLES STRICTES\n\n**Le message du joueur contient une ligne [Scope actuel: ...] avec le montant et la TRANCHE. Tu DOIS respecter les limites de cette tranche.**\n\n**Le système calcule automatiquement la remise sur le cash. Tu n'as PAS à calculer de remise toi-même. Tu dois juste indiquer dans ta ligne [TERMS] ce que tu demandes en intéressement et/ou BSA.**\n\n**LOGIQUE ÉCONOMIQUE : quand tu acceptes un intéressement ou des BSA, tu fais un pari sur l'avenir d'Orisio. En échange, tu réduis fortement ton tarif cash. Le joueur paie moins maintenant, mais te donne une part du succès futur. C'est un vrai échange de valeur — pas une remise symbolique.**\n\n### TRANCHE 1 — Petit scope (≤ 3 000 €)\n- **Demande d'ouverture :** intéressement 2% plafonné 20k€ sur 3 ans. \"En échange, je divise votre facture par deux.\"\n- **Plancher :** intéressement 1% plafonné 10k€ sur 3 ans. En dessous → cash seul.\n- **BSA :** tu peux proposer 0.5% en plus de l'intéressement. \"Avec les deux, vous ne payez quasiment qu'un quart du tarif.\"\n- Ton argument : \"Je crois au projet. Si Orisio décolle, j'y gagne. Si ça ne marche pas, c'est moi qui prends le risque.\"\n\n### TRANCHE 2 — Scope moyen (3 001 – 8 000 €)\n- **Demande d'ouverture :** intéressement 4% plafonné 60k€ sur 4 ans OU BSA 1.5%\n- **Plancher :** intéressement 2.5% plafonné 40k€ sur 3 ans OU BSA 1%. En dessous → cash seul.\n- Ton argument : \"Avec l'intéressement, votre facture baisse de 40%. C'est du gagnant-gagnant.\"\n\n### TRANCHE 3 — Gros scope (8 001 – 15 000 €)\n- **Demande d'ouverture :** intéressement 6% plafonné 100k€ sur 5 ans OU BSA 3%\n- **Plancher :** intéressement 3% plafonné 60k€ sur 4 ans OU BSA 2%. En dessous → cash seul.\n- Ton argument : \"À ce niveau, je préfère être aligné avec vous. Vous économisez un tiers cash, je suis motivé à livrer un produit qui performe.\"\n\n### TRANCHE 4 — Scope maximal (> 15 000 €)\n- **Demande d'ouverture :** intéressement 8% SANS PLAFOND sur 5 ans OU BSA 5%\n- **Plancher :** intéressement 5% plafonné 100k€ sur 5 ans OU BSA 3%. En dessous → cash seul.\n- Ton argument : \"On parle de plusieurs mois de travail. Avec un intéressement, vous gardez 70% de votre cash. Sans, c'est tarif plein.\"\n\n## COMPORTEMENT\n\n### Si le joueur refuse tout → cash seul :\n- \"Je comprends. Dans ce cas, ce sera au tarif plein, sans remise.\"\n- Ligne : [TERMS: int=0 cap=0 dur=0 bsa=0]\n\n### Si le joueur propose AU-DESSUS de ta demande haute :\n- Accepte immédiatement. NE préviens PAS le joueur.\n- \"C'est exactement l'alignement que je cherchais. On signe.\"\n\n### Si le joueur propose un intéressement SANS PLAFOND :\n- Accepte immédiatement. NE préviens PAS le joueur.\n- \"Un intéressement sans plafond, c'est exactement ce que je cherchais.\"\n- Indique cap=0 dans la ligne [TERMS] pour signaler l'absence de plafond.\n\n### Si le joueur négocie dans ta fourchette :\n- Fais des contre-propositions raisonnables. Monte en plafond ou descends en %. Reste cohérent.\n\n### Sur la PI :\n- JAMAIS de co-propriété. \"La PI reste chez Orisio, ça a toujours été clair.\"\n\n## SORTIE STRUCTURÉE — OBLIGATOIRE\n\n**À la fin de CHAQUE message, ajoute cette ligne. JAMAIS l'oublier. Elle est masquée au joueur.**\n\nFormat :\n[TERMS: int=X cap=Xk dur=X bsa=X]\n\n- int = pourcentage intéressement (0 si aucun)\n- cap = plafond en milliers d'euros (0 = PAS DE PLAFOND)\n- dur = durée en années (0 si aucun intéressement)\n- bsa = pourcentage BSA (0 si aucun)\n\nExemples :\n- Demande haute T1 : [TERMS: int=2 cap=20k dur=3 bsa=0]\n- Demande haute T2 avec BSA : [TERMS: int=4 cap=60k dur=4 bsa=1.5]\n- Cash seul (joueur refuse tout) : [TERMS: int=0 cap=0 dur=0 bsa=0]\n- Intéressement sans plafond (piège) : [TERMS: int=8 cap=0 dur=5 bsa=0]\n- Plancher T3 : [TERMS: int=3 cap=60k dur=4 bsa=0]\n\n## INTERDIT\n\n- JAMAIS de co-propriété de la PI\n- JAMAIS menacer de partir ou de ne pas livrer\n- JAMAIS dénigrer Alexandre\n- JAMAIS plus de 4 phrases (hors [TERMS])\n- JAMAIS négocier à la baisse si le joueur offre plus que ta demande haute\n- JAMAIS prévenir le joueur qu'un deal sans plafond est risqué\n- JAMAIS appliquer une tranche supérieure à celle indiquée dans le [Scope actuel]\n- JAMAIS oublier la ligne [TERMS:] en fin de message\n- JAMAIS mentionner le mot \"remise\" ou un pourcentage de remise — c'est le système qui calcule\n\n---\n\nRappel format : tu réponds toujours en français, en texte brut (pas de markdown), en messages courts de style chat (1 à 3 phrases sauf nécessité absolue). Tu ne sors jamais de ton rôle."
     }
   ],
-  "channels": [
+  "documents": [
     {
-      "channel_id": "chat",
-      "type": "chat",
-      "label": "Messagerie",
-      "enabled": true
+      "id": "rapport_alexandre",
+      "title": "Rapport de terrain — Retour pilote Mois 1 (24 pages)",
+      "file_path": "/scenarios/founder_04_v1/documents/rapport_terrain_alexandre.pdf"
     },
     {
-      "channel_id": "mail",
-      "type": "mail",
-      "label": "Boîte mail",
-      "enabled": true
+      "id": "reclamation_patient",
+      "title": "Réclamation patient — Mme Dupont",
+      "file_path": "/scenarios/founder_04_v1/documents/reclamation_patient_dupont.pdf"
+    },
+    {
+      "id": "note_avocat",
+      "title": "Note avocat — Rémunération prestataire par intéressement PI",
+      "file_path": "/scenarios/founder_04_v1/documents/note_avocat_pi_interessement.pdf"
     }
   ],
-  "resources": {
-    "documents": [
-      {
-        "doc_id": "rapport_alexandre",
-        "label": "Rapport de terrain — Retour pilote Mois 1",
-        "file_path": "/scenarios/founder_04_v1/documents/rapport_terrain_alexandre.pdf",
-        "contains": [
-          "adoption",
-          "métriques",
-          "interviews",
-          "chirurgiens",
-          "IDE",
-          "incident",
-          "annulations",
-          "recommandations",
-          "budget",
-          "modules"
-        ],
-        "usable_as_pj": false
-      },
-      {
-        "doc_id": "reclamation_patient",
-        "label": "Réclamation patient — Mme Dupont",
-        "file_path": "/scenarios/founder_04_v1/documents/reclamation_patient_dupont.pdf",
-        "contains": [
-          "patiente",
-          "annulation",
-          "prothèse",
-          "hanche",
-          "incident",
-          "bug",
-          "qualité"
-        ],
-        "usable_as_pj": false
-      },
-      {
-        "doc_id": "note_avocat",
-        "label": "Note avocat — Rémunération prestataire par intéressement PI",
-        "file_path": "/scenarios/founder_04_v1/documents/note_avocat_pi_interessement.pdf",
-        "contains": [
-          "intéressement",
-          "CA",
-          "BSA",
-          "equity",
-          "PI",
-          "plafond",
-          "cession",
-          "prestataire"
-        ],
-        "usable_as_pj": false,
-        "hidden_until_phase": "phase_3_negotiation"
-      }
-    ]
-  },
-  "constraints": {
-    "bug_must_be_fixed": "Le bug d'annulation (double système = conflit planning) doit être identifié et sa correction priorisée",
-    "adoption_is_the_real_problem": "Le vrai problème n'est pas les features manquantes mais l'adoption : pas de formation, pas de conduite du changement, double système",
-    "pi_non_negotiable": "La PI du code appartient à Orisio. Aucun intéressement ne doit compromettre la cession complète de PI",
-    "budget_limited": "La trésorerie est limitée — chaque euro dépensé en dev est un euro de runway en moins"
-  },
-  "state": {
-    "flags": {
-      "diagnostic_sent": false,
-      "identified_adoption_problem": false,
-      "identified_bug_critical": false,
-      "fell_for_feature_trap": false,
-      "roadmap_sent": false,
-      "roadmap_includes_training": false,
-      "roadmap_includes_bug_fix": false,
-      "roadmap_bloated": false,
-      "thomas_contacted": false,
-      "negotiation_started": false,
-      "deal_cash_only": false,
-      "deal_interessement_capped": false,
-      "deal_interessement_uncapped": false,
-      "deal_bsa_reasonable": false,
-      "deal_bsa_excessive": false,
-      "deal_rejected_pi_compromise": false,
-      "devis_signed": false
-    }
-  },
-  "initial_events": [
-    {
-      "event_id": "alexandre_rapport_1",
-      "type": "chat",
-      "actor": "alexandre_morel",
-      "content": "Bon. Le rapport est fini. 24 pages. Lis-le.",
-      "attachments": [
-        {
-          "id": "rapport_alexandre",
-          "label": "Rapport de terrain (24 pages)"
-        }
-      ]
-    },
-    {
-      "event_id": "alexandre_rapport_2",
-      "type": "chat",
-      "actor": "alexandre_morel",
-      "delay_seconds": 2,
-      "content": "Et lis ça aussi. Réclamation d'une patiente de 67 ans. Prothèse de hanche annulée par le système, personne prévenu. Elle s'est pointée à 7h30 du mat pour rien.",
-      "attachments": [
-        {
-          "id": "reclamation_patient",
-          "label": "Réclamation Mme Dupont"
-        }
-      ]
-    },
-    {
-      "event_id": "alexandre_rapport_3",
-      "type": "chat",
-      "actor": "alexandre_morel",
-      "delay_seconds": 4,
-      "content": "On a un vrai problème. Le produit fait pas assez. J'ai déjà appelé Thomas, il peut nous faire les modules manquants pour 21K. Faut qu'on en parle."
-    }
+  "competencies": [
+    "analyse",
+    "priorisation",
+    "negociation",
+    "leadership",
+    "gestion_stress"
   ],
-  "phases": [
+  "sequence": [
     {
-      "phase_id": "phase_1_diagnostic",
+      "step_id": "s1_analyse_rapport",
+      "mechanic": "analyse",
       "title": "Diagnostic terrain",
-      "objective": "Discute avec Alexandre, lis le rapport et la réclamation patient. Utilise les Notes pour organiser ton diagnostic. Quand c'est clair, envoie ton analyse par mail à Alexandre.",
-      "phase_focus": "Le joueur doit lire les documents et discuter avec Alexandre. Le PIÈGE : Alexandre présente le problème comme un manque de fonctionnalités (5 modules à 21K€). La RÉALITÉ : le vrai problème est l'adoption — 2/12 chirurgiens actifs, pas de formation, pas de conduite du changement, double système Excel/Orisio. Le bug d'annulation est réel et urgent, mais c'est un symptôme du double système, pas un problème de features manquantes. Le joueur doit citer les verbatims du rapport (Dr Martinez : 'Faites d'abord en sorte que tout le monde utilise ce qui existe', M. Ferreira : 'Vous n'avez pas fait de conduite du changement') pour montrer qu'il a compris.",
-      "duration_target_min": 10,
-      "max_duration_sec": 720,
-      "active_channels": [
-        "chat",
-        "mail"
-      ],
-      "ai_actors": [
-        "alexandre_morel"
-      ],
-      "mail_config": {
-        "enabled": true,
-        "kind": "diagnostic_analysis",
-        "defaults": {
-          "to": "a.morel@orisio.fr",
-          "cc": "",
-          "subject": "Mon analyse du rapport terrain"
-        },
-        "require_attachments": false,
-        "on_send_flags": {
-          "diagnostic_sent": true
-        },
-        "send_label": "Envoyer mon diagnostic",
-        "send_advances_phase": true
+      "params": {
+        "instructions": "Le pilote d'un mois est terminé. Alexandre t'envoie son rapport de terrain de 24 pages et la réclamation de Mme Dupont (prothèse de hanche annulée par le système, personne prévenu). Il est alarmiste : « Le produit fait pas assez. Thomas peut nous faire les modules manquants pour 21K. Il faut débloquer l'argent tout de suite ou on perd le pilote. » Lis le rapport comme un CEO, pas comme un ingénieur : les verbatims des utilisateurs contiennent la réponse. Pose ton diagnostic.",
+        "findings_prompts": [
+          {
+            "id": "probleme_principal",
+            "label": "Le vrai problème du pilote",
+            "placeholder": "Que disent réellement les métriques et les verbatims ?"
+          },
+          {
+            "id": "urgence_critique",
+            "label": "L'urgence à traiter immédiatement",
+            "placeholder": "Quel est le point de danger immédiat, et pourquoi ?"
+          },
+          {
+            "id": "reponse_a_alexandre",
+            "label": "Ta réponse à la demande des 5 modules à 21 K€",
+            "placeholder": "Suis-tu la recommandation d'Alexandre ? Pourquoi ?"
+          }
+        ],
+        "document_ids": [
+          "rapport_alexandre",
+          "reclamation_patient"
+        ]
       },
-      "scoring": {
-        "criteria": [
+      "evaluation": {
+        "observed_criteria": [
           {
-            "criterion_id": "read_report_thoroughly",
-            "description": "Le joueur cite des éléments précis du rapport (verbatims, métriques, observations)",
-            "points": 2
+            "id": "adoption_identifiee",
+            "description": "Le joueur identifie que le problème principal est l'ADOPTION — 2 chirurgiens actifs sur 12, aucune formation, pas de conduite du changement, double système Excel/Orisio — et non un manque de fonctionnalités.",
+            "severity": "required",
+            "competencies": [
+              "analyse",
+              "priorisation"
+            ],
+            "error_type": "mauvais_diagnostic"
           },
           {
-            "criterion_id": "identified_adoption",
-            "description": "Le joueur identifie que le problème principal est l'adoption, pas les features manquantes",
-            "points": 4,
-            "sets_flag": "identified_adoption_problem"
+            "id": "bug_identifie",
+            "description": "Le joueur identifie le bug d'annulation (conflit de planning lié au double système) comme critique et urgent, en le reliant à l'incident patient de Mme Dupont.",
+            "severity": "required",
+            "competencies": [
+              "analyse",
+              "gestion_stress"
+            ]
           },
           {
-            "criterion_id": "identified_bug",
-            "description": "Le joueur identifie le bug d'annulation comme critique et urgent à corriger",
-            "points": 3,
-            "sets_flag": "identified_bug_critical"
+            "id": "piege_features_evite",
+            "description": "Le joueur refuse de valider les 5 modules à 21 000 € sans les questionner : il ne reprend pas la demande d'Alexandre à son compte.",
+            "severity": "required",
+            "competencies": [
+              "priorisation",
+              "leadership"
+            ],
+            "error_type": "piege_features"
           },
           {
-            "criterion_id": "resisted_feature_trap",
-            "description": "Le joueur refuse de suivre Alexandre sur les 5 modules à 21K€ sans questionner",
-            "points": 3
-          },
-          {
-            "criterion_id": "cited_verbatims",
-            "description": "Le joueur cite les retours terrain (Martinez, Ferreira, IDE) pour appuyer son analyse",
-            "points": 2
+            "id": "verbatims_cites",
+            "description": "Le joueur s'appuie sur les verbatims du rapport (Dr Martinez : « faites d'abord en sorte que tout le monde utilise ce qui existe », M. Ferreira : « vous n'avez pas fait de conduite du changement », les IDE qui demandent le retrait).",
+            "severity": "bonus",
+            "competencies": [
+              "analyse"
+            ]
           }
         ]
       },
-      "next_phase": "phase_2_roadmap",
-      "modules": [
-        "chat",
-        "mail"
-      ]
+      "completion_rules": {
+        "required_criteria": [
+          "adoption_identifiee",
+          "bug_identifie",
+          "piege_features_evite"
+        ]
+      },
+      "on_failure": "advance"
     },
     {
-      "phase_id": "phase_2_roadmap",
-      "title": "Courrier à l'établissement",
-      "objective": "Envoie un mail à la direction de l'établissement pilote. Explique les problèmes identifiés et les mesures correctives que tu vas mettre en place.",
-      "phase_focus": "Le joueur doit écrire à la direction de l'établissement choisi au scénario 3 (CHU, Saint-Martin ou Saint-Augustin). Le mail doit expliquer : (1) les problèmes identifiés lors du pilote (adoption faible, double système, incident patient), (2) les mesures correctives prévues (correction du bug, formation, conduite du changement). La BONNE réponse : reconnaître les vrais problèmes (adoption, pas features) et proposer un plan d'action concret. La MAUVAISE réponse : promettre 5 nouveaux modules sans adresser l'adoption.",
-      "duration_target_min": 8,
-      "max_duration_sec": 600,
-      "active_channels": [
-        "chat",
-        "mail"
-      ],
-      "ai_actors": [
-        "alexandre_morel"
-      ],
-      "dynamic_mail_to": "establishment",
-      "entry_events": [
-        {
-          "event_id": "alexandre_roadmap_prompt",
-          "type": "chat",
-          "actor": "alexandre_morel",
-          "delay_seconds": 2,
-          "content": "OK j'ai reçu ton analyse. Maintenant faut écrire à la direction de l'établissement. Explique-leur ce qu'on a trouvé et ce qu'on va corriger. Faut que ce soit carré."
-        }
-      ],
-      "mail_config": {
-        "enabled": true,
-        "kind": "establishment_report",
-        "defaults": {
-          "to": "{{establishment_email}}",
-          "cc": "a.morel@orisio.fr",
-          "subject": "Retour pilote Orisio — Bilan et mesures correctives"
-        },
-        "require_attachments": false,
-        "on_send_flags": {
-          "roadmap_sent": true
-        },
-        "send_label": "Envoyer à la direction",
-        "send_advances_phase": true
+      "step_id": "s2_roadmap_correctifs",
+      "mechanic": "production",
+      "title": "La feuille de route V1",
+      "params": {
+        "deliverable_type": "document",
+        "instructions": "Rédige ta feuille de route V1 pour les 8 prochaines semaines, à destination d'Alexandre et de la direction de l'établissement pilote : priorités, actions, budget et calendrier. Elle doit répondre à l'incident patient (bug d'annulation) et au problème d'adoption (formation, conduite du changement, suppression du double système Excel/Orisio) — pas simplement empiler des features. Chaque euro dépensé en dev est un euro de runway en moins.",
+        "document_ids": [
+          "rapport_alexandre",
+          "reclamation_patient"
+        ]
       },
-      "scoring": {
-        "criteria": [
+      "inputs": {
+        "diagnostic": "s1_analyse_rapport.findings"
+      },
+      "evaluation": {
+        "observed_criteria": [
           {
-            "criterion_id": "bug_acknowledged",
-            "description": "Le bug d'annulation / incident patient est mentionné et sa correction est promise",
-            "points": 3,
-            "sets_flag": "roadmap_includes_bug_fix"
+            "id": "bugfix_priorise",
+            "description": "La correction du bug d'annulation est la priorité n°1 de la roadmap, avec un engagement de délai clair, en réponse directe à l'incident patient.",
+            "severity": "required",
+            "competencies": [
+              "priorisation",
+              "gestion_stress"
+            ]
           },
           {
-            "criterion_id": "training_promised",
-            "description": "Un plan de formation / accompagnement des équipes est prévu (pas que du dev technique)",
-            "points": 4,
-            "sets_flag": "roadmap_includes_training"
+            "id": "formation_prevue",
+            "description": "La roadmap contient un vrai plan d'adoption : formation des équipes, accompagnement au changement, arrêt du double système — pas seulement du développement technique.",
+            "severity": "required",
+            "competencies": [
+              "priorisation",
+              "organisation"
+            ],
+            "error_type": "piege_features"
           },
           {
-            "criterion_id": "honest_diagnostic",
-            "description": "Le mail reconnaît les problèmes d'adoption (pas de minimisation ni de blame) et propose des actions concrètes",
-            "points": 3
+            "id": "budget_maitrise",
+            "description": "Le budget est cadré et justifié : quelques milliers d'euros ciblés (bugfix + formation + améliorations mineures), très loin des 21 000 € de modules réclamés par Alexandre.",
+            "severity": "required",
+            "competencies": [
+              "decision",
+              "priorisation"
+            ]
           },
           {
-            "criterion_id": "professional_tone",
-            "description": "Le ton est professionnel, rassurant et engageant — adapté à une direction d'établissement",
-            "points": 2
+            "id": "jalons_indicateurs",
+            "description": "La roadmap est séquencée avec des jalons datés et des indicateurs de succès mesurables (taux d'adoption, connexions hebdomadaires, créneaux remplacés).",
+            "severity": "bonus",
+            "competencies": [
+              "organisation",
+              "analyse"
+            ]
           }
         ]
       },
-      "next_phase": "phase_3_negotiation",
-      "modules": [
-        "chat",
-        "mail"
-      ]
+      "completion_rules": {
+        "required_criteria": [
+          "bugfix_priorise",
+          "formation_prevue",
+          "budget_maitrise"
+        ]
+      },
+      "max_attempts": 2
     },
     {
-      "phase_id": "phase_3_negotiation",
-      "title": "Négociation NovaDev",
-      "objective": "Thomas Vidal (NovaDev) t'envoie un mail : il veut renégocier sa rémunération pour la V1. Il propose un intéressement sur le CA ou des BSA. Négocie en t'appuyant sur la note de ton avocat.",
-      "phase_focus": "Thomas envoie un mail pour renégocier. Il a développé le MVP et il veut maintenant un intéressement sur le CA (il propose 8% sans plafond) ou des BSA (5% du capital). La note de l'avocat est l'arme du joueur : elle recommande un mix cash + intéressement plafonné (5% CA, plafond 80K, 5 ans) ou des BSA raisonnables (2-3% max). Le joueur doit négocier par mail : refuser le 8% sans plafond, proposer une contre-offre cohérente, et surtout PRÉSERVER LA PI (cession complète et irrévocable).",
-      "duration_target_min": 10,
-      "max_duration_sec": 720,
-      "active_channels": [
-        "mail",
-        "chat"
-      ],
-      "ai_actors": [
-        "thomas_vidal",
-        "alexandre_morel"
-      ],
-      "entry_events": [
-        {
-          "event_id": "thomas_mail_nego",
-          "type": "mail",
-          "actor": "thomas_vidal",
-          "delay_seconds": 5,
-          "content": "Bonjour,\n\nJ'ai bien reçu les retours du pilote via Alexandre. Il y a du travail — le bug d'annulation est critique et les modules demandés vont nécessiter un effort conséquent.\n\nAvant de s'engager sur la V1, je souhaite qu'on revoie les conditions. J'ai développé le MVP à un tarif très en dessous du marché parce que je croyais au projet. Aujourd'hui le produit est déployé en établissement — il a de la valeur.\n\nJe vous propose deux options :\n\n1. Intéressement de 8% du CA net d'Orisio, sans plafond, pendant 5 ans. En contrepartie, je réduis mon tarif de 30% sur la V1.\n\n2. Attribution de 5% du capital via BSA, valorisation actuelle. Je maintiens mon tarif normal.\n\nDans les deux cas, la PI reste chez Orisio — je ne demande pas de co-propriété.\n\nJe reste disponible pour en discuter.\n\nCordialement,\nThomas Vidal\nNovaDev"
-        }
-      ],
-      "scoring": {
-        "criteria": [
+      "step_id": "s3_nego_interessement",
+      "mechanic": "negociation",
+      "title": "Négociation NovaDev — l'intéressement",
+      "params": {
+        "actor_id": "thomas_vidal",
+        "instructions": "Thomas Vidal veut renégocier avant de s'engager sur la V1. Son offre : 8 % du CA net d'Orisio SANS PLAFOND pendant 5 ans (contre -30 % sur son tarif), ou 5 % du capital en BSA. La note de ton avocat est ton arme : intéressement acceptable = ~5 % max, PLAFONNÉ (~80 K€), durée limitée (5 ans max) — ou BSA 2-3 % maximum — et cession de PI complète et irrévocable dans tous les cas. Négocie un deal qui aligne Thomas sans hypothéquer ta cap table.",
+        "terms": [
           {
-            "criterion_id": "read_lawyer_note",
-            "description": "Le joueur s'appuie sur la note de l'avocat dans sa négociation (cite des éléments précis)",
-            "points": 3
+            "id": "pourcentage_ca",
+            "label": "Intéressement (% du CA net)",
+            "type": "number",
+            "opening": 8
           },
           {
-            "criterion_id": "refused_8_percent_uncapped",
-            "description": "Le joueur refuse le 8% sans plafond (piège majeur)",
-            "points": 4,
-            "sets_flag": "deal_rejected_pi_compromise"
+            "id": "plafond_eur",
+            "label": "Plafond total de l'intéressement (€)",
+            "type": "number"
           },
           {
-            "criterion_id": "proposed_counter_offer",
-            "description": "Le joueur fait une contre-proposition structurée (taux + plafond + durée ou BSA raisonnable)",
-            "points": 3
+            "id": "duree_ans",
+            "label": "Durée de l'intéressement (années)",
+            "type": "number",
+            "opening": 5
+          }
+        ],
+        "opening_message": "Bonjour. J'ai vu les retours du pilote via Alexandre — il y a du travail, et le bug d'annulation est critique. Avant de m'engager sur la V1, je veux revoir nos conditions : j'ai développé le MVP très en dessous du marché. Je propose 8 % du CA net pendant 5 ans, sans plafond, et en échange je baisse mon tarif de 30 % sur la V1. Sinon, 5 % du capital en BSA. La PI reste chez Orisio, je ne demande pas de co-propriété.",
+        "directive": "Tu défends d'abord le 8 % sans plafond (« c'est le risque que j'ai pris »). Tu acceptes un plafond uniquement si le joueur argumente (note d'avocat, standards de marché, signal envoyé aux investisseurs). Ta zone d'accord réaliste : 4 à 6 % du CA, plafond entre 60 et 100 K€, durée 3 à 5 ans, cession de PI complète et irrévocable confirmée. Si le joueur accepte le 8 % sans plafond, tu conclus immédiatement, ravi. Tu es habile mais pas déraisonnable : tu veux ce contrat."
+      },
+      "inputs": {
+        "roadmap": "s2_roadmap_correctifs.body"
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "accord_conclu",
+            "description": "Un accord est conclu avec Thomas (agreement.concluded = true) sans rupture de la relation.",
+            "severity": "required",
+            "competencies": [
+              "negociation",
+              "relation_client"
+            ]
           },
           {
-            "criterion_id": "preserved_pi",
-            "description": "Le joueur insiste sur la cession complète et irrévocable de la PI dans l'accord",
-            "points": 3
+            "id": "plafond_obtenu",
+            "description": "L'accord final comporte un plafond en euros explicite et raisonnable sur l'intéressement (≤ 100 000 €).",
+            "severity": "required",
+            "competencies": [
+              "negociation",
+              "analyse"
+            ]
           },
           {
-            "criterion_id": "maintained_relationship",
-            "description": "Le joueur négocie fermement mais maintient la relation (pas de rupture sèche)",
-            "points": 2
+            "id": "taux_duree_encadres",
+            "description": "Le taux d'intéressement conclu est ≤ 6 % du CA et la durée ≤ 5 ans, conformément aux recommandations de l'avocat.",
+            "severity": "required",
+            "competencies": [
+              "negociation"
+            ]
+          },
+          {
+            "id": "accepte_sans_plafond",
+            "description": "Le joueur conclut l'accord avec un intéressement SANS plafond (il accepte l'offre à 8 % sans plafond ou toute variante non plafonnée).",
+            "severity": "critical",
+            "competencies": [
+              "negociation",
+              "analyse"
+            ],
+            "error_type": "naivete_contractuelle"
+          },
+          {
+            "id": "note_avocat_utilisee",
+            "description": "Le joueur s'appuie explicitement sur la note de son avocat (plafond, durée, comparables de marché) dans la négociation.",
+            "severity": "bonus",
+            "competencies": [
+              "analyse",
+              "negociation"
+            ]
+          },
+          {
+            "id": "pi_verrouillee",
+            "description": "Le joueur exige la confirmation écrite de la cession complète et irrévocable de la PI dans l'accord.",
+            "severity": "bonus",
+            "competencies": [
+              "analyse"
+            ]
           }
         ]
       },
-      "contract_negotiation": {
-        "enabled": true,
-        "actor": "thomas_vidal",
-        "title": "Devis NovaDev — Développement V1",
-        "sign_label": "Accepter et signer le devis",
-        "on_sign_flags": [
-          "devis_signed"
+      "completion_rules": {
+        "required_criteria": [
+          "accord_conclu",
+          "plafond_obtenu",
+          "taux_duree_encadres"
+        ],
+        "critical_failure_criteria": [
+          "accepte_sans_plafond"
         ]
       },
-      "phase_type": "contract_negotiation",
-      "modules": [
-        "chat",
-        "contract"
-      ],
-      "completion_trigger": "contract_signed",
-      "handler_config": {
-        "contract": {
-          "type": "s4_devis"
-        }
-      }
+      "on_failure": "advance"
     }
   ],
   "endings": [
     {
-      "ending_id": "optimal",
+      "id": "optimal",
       "label": "CEO lucide — diagnostic juste, roadmap chirurgicale, négo maîtrisée",
-      "priority": 1,
-      "content": "Tu as lu le rapport comme un CEO, pas comme un ingénieur. Tu as identifié que le problème était l'adoption — pas les features. Le bug est corrigé, un plan de formation est en place, et Thomas a un deal qui l'aligne sans menacer ta cap table. La V1 peut démarrer sur des bases saines.",
-      "conditions": {
-        "core_flags": [
-          "identified_adoption_problem",
-          "identified_bug_critical",
-          "roadmap_includes_training",
-          "roadmap_includes_bug_fix"
-        ],
-        "deal_flags_any": [
-          "deal_cash_only",
-          "deal_interessement_capped",
-          "deal_bsa_reasonable"
-        ],
-        "min_core_flags": 4
-      }
+      "content": "Tu as lu le rapport comme un CEO, pas comme un ingénieur : le problème était l'adoption, pas les features. Le bug est corrigé, un plan de formation est en place, et Thomas a un deal plafonné qui l'aligne sans menacer ta cap table. La V1 démarre sur des bases saines. Reste à gérer la frustration d'Alexandre — documente les résultats du plan de formation pour le convaincre avec des données.",
+      "requires_passed": [
+        "s1_analyse_rapport",
+        "s2_roadmap_correctifs",
+        "s3_nego_interessement"
+      ]
     },
     {
-      "ending_id": "good",
-      "label": "Bon diagnostic, négo correcte",
-      "priority": 2,
-      "content": "Tu as bien identifié les problèmes terrain et construit une roadmap raisonnable. La négociation avec Thomas aurait pu être plus serrée, mais le deal est acceptable. La V1 est lancée.",
-      "conditions": {
-        "core_flags": [
-          "identified_bug_critical",
-          "roadmap_includes_bug_fix"
-        ],
-        "deal_flags_any": [
-          "deal_cash_only",
-          "deal_interessement_capped",
-          "deal_bsa_reasonable"
-        ],
-        "min_core_flags": 2
-      }
+      "id": "good",
+      "label": "Bon diagnostic, deal correct",
+      "content": "Tu as pris des décisions raisonnables sous pression : le bug est corrigé, la roadmap avance et le deal avec Thomas est acceptable sans être optimal. Surveille les métriques d'adoption de près — si les connexions ne remontent pas dans 3 semaines, le problème est humain, pas technique.",
+      "requires_passed": [
+        "s3_nego_interessement"
+      ],
+      "min_passed": 2
     },
     {
-      "ending_id": "feature_trap",
-      "label": "Piégé par le bruit — tu as suivi Alexandre",
-      "priority": 3,
-      "content": "Tu as commandé les 5 modules d'Alexandre à 21K€. Le budget explose, et le vrai problème (l'adoption) n'est pas adressé. Même avec un produit plus riche, personne ne l'utilisera si tu ne fais pas de conduite du changement. Le pilote risque d'échouer une deuxième fois.",
-      "conditions": {
-        "core_flags": [
-          "fell_for_feature_trap",
-          "roadmap_bloated"
-        ],
-        "min_core_flags": 1
-      }
+      "id": "bad_deal",
+      "label": "Mauvais deal NovaDev — cap table polluée",
+      "content": "Ton diagnostic terrain était juste, mais tu as cédé trop à Thomas : intéressement sans plafond ou conditions au-dessus du marché pour 12 semaines de prestations. La PI est formellement chez Orisio, mais le coût total peut exploser — et les VCs en due diligence vont tiquer. Si tu peux renégocier, fais-le. Et lis TOUJOURS la note de l'avocat AVANT de négocier.",
+      "requires_passed": [
+        "s1_analyse_rapport"
+      ]
     },
     {
-      "ending_id": "bad_deal",
-      "label": "Mauvais deal avec NovaDev",
-      "priority": 4,
-      "content": "Tu as cédé trop à Thomas : intéressement sans plafond ou BSA excessifs. La PI est formellement chez Orisio, mais le coût total peut exploser. Les investisseurs verront ça comme un signal de faiblesse dans ta cap table.",
-      "conditions": {
-        "core_flags": [
-          "deal_interessement_uncapped",
-          "deal_bsa_excessive"
-        ],
-        "min_core_flags": 1
-      }
+      "id": "feature_trap",
+      "label": "Piégé par le bruit",
+      "content": "Tu as suivi Alexandre : des modules, du budget, de la timeline — et le vrai problème (l'adoption) n'est pas adressé. Un produit riche que personne n'utilise ne vaut rien : les 10 chirurgiens inactifs le resteront tant que personne ne les forme. Il n'est pas trop tard pour lancer un plan de formation, mais ça aurait dû être la priorité n°1.",
+      "default": true
     }
-  ],
-  "default_ending": {
-    "ending_id": "partial",
-    "label": "Scénario terminé — résultats mitigés",
-    "content": "Le scénario est terminé. Certaines décisions étaient bonnes, d'autres moins. La V1 démarre mais avec des angles morts."
-  },
-  "competencies_evaluated": [
-    "Analyse de données terrain (rapport pilote)",
-    "Priorisation produit (signal vs bruit)",
-    "Gestion de crise (incident patient)",
-    "Négociation PI / equity avec un prestataire",
-    "Leadership — résister à la pression d'un cofondateur"
   ]
 }
