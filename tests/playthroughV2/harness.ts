@@ -90,6 +90,33 @@ import {
   buildAgreement,
   buildOutput as buildNegociationOutput,
 } from "@/app/mechanics/negociation/Runtime";
+import {
+  resolveMinExchanges as resolveDiagnosticMinExchanges,
+  parseHypotheses,
+  validateDiagnosis,
+  buildDiagnosis,
+  buildSummary as buildDiagnosticSummary,
+  buildOutput as buildDiagnosticOutput,
+} from "@/app/mechanics/diagnostic/Runtime";
+import {
+  resolveMinRounds,
+  validateCommitments,
+  buildOutput as buildFeedbackOutput,
+} from "@/app/mechanics/feedback/Runtime";
+import {
+  resolveMinExchanges as resolveFormationMinExchanges,
+  parseObjectives,
+  normalizeCovered,
+  buildSummary as buildFormationSummary,
+  buildOutput as buildFormationOutput,
+} from "@/app/mechanics/formation/Runtime";
+import {
+  resolveMinExchanges as resolveMediationMinExchanges,
+  formatAddressedMessage,
+  validateResolution,
+  buildResolution,
+  buildOutput as buildMediationOutput,
+} from "@/app/mechanics/mediation/Runtime";
 
 import {
   resolveOutcome,
@@ -398,6 +425,125 @@ function playNegociation(
   return buildNegociationOutput(agreement, 1);
 }
 
+function playDiagnostic(session: SessionV2State, step: StepInvocation): JsonObject {
+  const min = resolveDiagnosticMinExchanges(step.params);
+  const transcript = synthChatTranscript(session, step, min, "player");
+  const hypotheses = parseHypotheses(step.params);
+  const diagnosis = buildDiagnosis(
+    hypotheses[0]?.id ?? "(synthétique) cause identifiée par l'investigation",
+    `(synthétique) Éléments recueillis auprès du témoin pour ${step.step_id}.`,
+    "(synthétique) Autres pistes écartées après vérification.",
+  );
+  const errors = validateDiagnosis(hypotheses, diagnosis);
+  if (errors.length > 0) {
+    throw new Error(`Step ${step.step_id} : diagnostic synthétique invalide : ${errors.join(" ; ")}`);
+  }
+  recordTranscriptEvent(session, step.step_id, {
+    at: Date.now(),
+    channel: "editor",
+    role: "player",
+    content: buildDiagnosticSummary(diagnosis, hypotheses),
+  });
+  return buildDiagnosticOutput(transcript, session.scenario.actors, diagnosis);
+}
+
+function playFeedback(session: SessionV2State, step: StepInvocation): JsonObject {
+  const rounds = resolveMinRounds(step.params);
+  const transcript = synthChatTranscript(session, step, rounds, "player");
+  const commitments = `(synthétique) Engagements convenus à l'issue du feedback pour ${step.step_id}.`;
+  const errors = validateCommitments(commitments);
+  if (errors.length > 0) {
+    throw new Error(`Step ${step.step_id} : engagements synthétiques invalides : ${errors.join(" ; ")}`);
+  }
+  recordTranscriptEvent(session, step.step_id, {
+    at: Date.now(),
+    channel: "editor",
+    role: "player",
+    content: `Engagements convenus :\n${commitments}`,
+  });
+  return buildFeedbackOutput(transcript, session.scenario.actors, commitments);
+}
+
+function playFormation(session: SessionV2State, step: StepInvocation): JsonObject {
+  const objectives = parseObjectives(step.params);
+  if (objectives.length === 0) {
+    throw new Error(`Step ${step.step_id} : params.objectives vide ou invalide.`);
+  }
+  const min = resolveFormationMinExchanges(step.params);
+  const transcript = synthChatTranscript(session, step, min, "player");
+  // Joueur synthétique appliqué : il estime avoir couvert tous les objectifs.
+  const covered = normalizeCovered(objectives, objectives.map((o) => o.id));
+  recordTranscriptEvent(session, step.step_id, {
+    at: Date.now(),
+    channel: "editor",
+    role: "player",
+    content: `Objectifs déclarés couverts :\n${buildFormationSummary(objectives, covered)}`,
+  });
+  return buildFormationOutput(transcript, session.scenario.actors, objectives, covered);
+}
+
+function playMediation(
+  session: SessionV2State,
+  step: StepInvocation,
+  opts: PlayOptions,
+): JsonObject {
+  const partyA =
+    typeof step.params.party_a_actor === "string" ? step.params.party_a_actor : "";
+  const partyB =
+    typeof step.params.party_b_actor === "string" ? step.params.party_b_actor : "";
+  if (!partyA || !partyB) {
+    throw new Error(`Step ${step.step_id} : party_a_actor / party_b_actor invalides.`);
+  }
+  const min = resolveMediationMinExchanges(step.params);
+  const names = [
+    actorName(session.scenario.actors, partyA),
+    actorName(session.scenario.actors, partyB),
+  ];
+  const transcript: TranscriptEvent[] = [];
+  const base = Date.now();
+  for (let i = 0; i < min; i++) {
+    transcript.push({
+      at: base + i * 3000,
+      channel: "chat",
+      role: "player",
+      content: formatAddressedMessage(
+        `(synthétique) Message de médiation ${i + 1}/${min} — step ${step.step_id}.`,
+        names,
+      ),
+    });
+    transcript.push({
+      at: base + i * 3000 + 1000,
+      channel: "chat",
+      role: "actor",
+      actor_id: partyA,
+      content: `(synthétique) Réponse de la partie A ${i + 1}/${min}.`,
+    });
+    transcript.push({
+      at: base + i * 3000 + 2000,
+      channel: "chat",
+      role: "actor",
+      actor_id: partyB,
+      content: `(synthétique) Réponse de la partie B ${i + 1}/${min}.`,
+    });
+  }
+  for (const e of transcript) recordTranscriptEvent(session, step.step_id, e);
+  // Heuristique documentée (miroir de negociation) : si le run force
+  // l'échec d'un critère d'accord/résolution, le médiateur synthétique
+  // conclut sur un constat de désaccord.
+  const reached = !(opts.failCriteria ?? []).some((id) => /accord|resolu/i.test(id));
+  const resolution = buildResolution(
+    reached,
+    reached
+      ? "(synthétique) Termes de l'accord trouvé en médiation."
+      : "(synthétique) Constat de désaccord motivé.",
+  );
+  const errors = validateResolution(resolution);
+  if (errors.length > 0) {
+    throw new Error(`Step ${step.step_id} : résolution synthétique invalide : ${errors.join(" ; ")}`);
+  }
+  return buildMediationOutput(transcript, session.scenario.actors, resolution);
+}
+
 /**
  * Génère un MechanicResult réaliste pour le step courant, via les
  * fonctions pures du Runtime de sa mécanique. Vérifie que l'output
@@ -471,6 +617,30 @@ export function playMechanicStep(
       result = {
         observation: buildSyntheticObservation(step, criteria, opts),
         output: playNegociation(session, step, opts),
+      };
+      break;
+    case "diagnostic":
+      result = {
+        observation: buildSyntheticObservation(step, criteria, opts),
+        output: playDiagnostic(session, step),
+      };
+      break;
+    case "feedback":
+      result = {
+        observation: buildSyntheticObservation(step, criteria, opts),
+        output: playFeedback(session, step),
+      };
+      break;
+    case "formation":
+      result = {
+        observation: buildSyntheticObservation(step, criteria, opts),
+        output: playFormation(session, step),
+      };
+      break;
+    case "mediation":
+      result = {
+        observation: buildSyntheticObservation(step, criteria, opts),
+        output: playMediation(session, step, opts),
       };
       break;
     default:

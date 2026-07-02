@@ -16,6 +16,10 @@ import { manifest as analyse } from "./analyse/manifest";
 import { manifest as production } from "./production/manifest";
 import { manifest as decision } from "./decision/manifest";
 import { manifest as negociation } from "./negociation/manifest";
+import { manifest as diagnostic } from "./diagnostic/manifest";
+import { manifest as feedback } from "./feedback/manifest";
+import { manifest as formation } from "./formation/manifest";
+import { manifest as mediation } from "./mediation/manifest";
 
 export const MECHANIC_MANIFESTS: Record<string, MechanicManifest> = {
   [noop.id]: noop,
@@ -26,4 +30,8 @@ export const MECHANIC_MANIFESTS: Record<string, MechanicManifest> = {
   [production.id]: production,
   [decision.id]: decision,
   [negociation.id]: negociation,
+  [diagnostic.id]: diagnostic,
+  [feedback.id]: feedback,
+  [formation.id]: formation,
+  [mediation.id]: mediation,
 };

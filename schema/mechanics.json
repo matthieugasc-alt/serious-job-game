@@ -48,6 +48,30 @@
       "version": "1.0.0",
       "output_keys": ["agreement", "proposals_count"],
       "required_params": ["actor_id", "instructions", "terms"]
+    },
+    {
+      "id": "diagnostic",
+      "version": "1.0.0",
+      "output_keys": ["diagnosis", "dialogue"],
+      "required_params": ["situation", "actor_id"]
+    },
+    {
+      "id": "feedback",
+      "version": "1.0.0",
+      "output_keys": ["dialogue", "commitments"],
+      "required_params": ["actor_id", "context_brief"]
+    },
+    {
+      "id": "formation",
+      "version": "1.0.0",
+      "output_keys": ["dialogue", "objectives_covered"],
+      "required_params": ["actor_id", "topic", "objectives"]
+    },
+    {
+      "id": "mediation",
+      "version": "1.0.0",
+      "output_keys": ["dialogue", "resolution"],
+      "required_params": ["party_a_actor", "party_b_actor", "conflict_brief"]
     }
   ]
 }

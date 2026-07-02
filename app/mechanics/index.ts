@@ -13,6 +13,10 @@ import AnalyseMechanic from "./analyse";
 import ProductionMechanic from "./production";
 import DecisionMechanic from "./decision";
 import NegociationMechanic from "./negociation";
+import DiagnosticMechanic from "./diagnostic";
+import FeedbackMechanic from "./feedback";
+import FormationMechanic from "./formation";
+import MediationMechanic from "./mediation";
 
 export const MECHANIC_MODULES: Record<string, MechanicModule> = {
   [NoopMechanic.manifest.id]: NoopMechanic,
@@ -23,6 +27,10 @@ export const MECHANIC_MODULES: Record<string, MechanicModule> = {
   [ProductionMechanic.manifest.id]: ProductionMechanic,
   [DecisionMechanic.manifest.id]: DecisionMechanic,
   [NegociationMechanic.manifest.id]: NegociationMechanic,
+  [DiagnosticMechanic.manifest.id]: DiagnosticMechanic,
+  [FeedbackMechanic.manifest.id]: FeedbackMechanic,
+  [FormationMechanic.manifest.id]: FormationMechanic,
+  [MediationMechanic.manifest.id]: MediationMechanic,
 };
 
 export { MECHANIC_MANIFESTS } from "./manifests";
