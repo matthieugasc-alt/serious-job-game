@@ -41,6 +41,9 @@ function listScenarios(): { id: string; scenario: any; isMaintenance: boolean }[
     } catch {
       continue;
     }
+    // Les scenarios v2 (format mécaniques) sont hors périmètre de ce
+    // schéma v1 — ils sont validés par scripts/validate-scenarios-v2.mjs.
+    if (s.format === "v2") continue;
     // Maintenance = scenarios legacy dont on tolère les divergences pour l'instant.
     const isMaintenance = !!(s.meta?.maintenance || s.meta?.status === "maintenance");
     rows.push({ id: dir, scenario: s, isMaintenance });
