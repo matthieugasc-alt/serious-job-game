@@ -210,16 +210,11 @@ export default function FounderDashboardPage() {
       const campData = await campRes.json();
       setCampaign(campData.campaign);
 
-      // Apply outcome if there's a pending scenario.
-      // Previously we skipped when a checkpoint was still active, but this caused
-      // a race condition: the play page calls notifyCheckpointClear() but the
-      // dashboard can load before the clear propagates, causing the scenario to
-      // appear as "still in progress" instead of triggering debrief.
-      // The apply-outcome endpoint is safe to call regardless — it validates
-      // against the game record (which is saved before the redirect).
-      if (campData.campaign.pendingScenarioId) {
-        await checkAndApplyOutcome(campData.campaign);
-      }
+      // v2 : l'outcome économique est appliqué par POST /api/v2/complete
+      // (déclenché par le PlayerClient à la fin du scénario), plus par le
+      // legacy /api/founder/apply-outcome qui lisait les GameRecords du
+      // player legacy. Un pendingScenarioId non nul signifie désormais
+      // simplement "scénario en cours" → bouton Reprendre.
     } catch (err: any) {
       setError(err.message || "Erreur de chargement");
     } finally {
@@ -228,31 +223,6 @@ export default function FounderDashboardPage() {
   }, [campaignId, token]);
 
   useEffect(() => { loadData(); }, [loadData]);
-
-  async function checkAndApplyOutcome(camp: Campaign) {
-    if (!camp.pendingScenarioId || !token) return;
-    setApplyingOutcome(true);
-    try {
-      const res = await fetch("/api/founder/apply-outcome", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ campaignId: camp.id }),
-      });
-      if (res.ok) {
-        const data: OutcomeResult = await res.json();
-        setOutcomeResult(data);
-        setCampaign(data.campaign);
-        setShowDebrief(true);
-      }
-    } catch {
-      // Silent — outcome applied on next load
-    } finally {
-      setApplyingOutcome(false);
-    }
-  }
 
   async function launchScenario(scenarioId: string) {
     if (!token || !campaign) return;
@@ -267,7 +237,9 @@ export default function FounderDashboardPage() {
         pendingScenarioId: scenarioId,
       }),
     });
-    router.push(`/scenarios/${scenarioId}/play`);
+    // v2 : le Shell générique joue le scénario ; ?campaign= alimente le
+    // deep-save localStorage et le POST /api/v2/complete.
+    router.push(`/play/${scenarioId}?campaign=${campaign.id}`);
   }
 
   function dismissDebrief() {
@@ -318,7 +290,7 @@ export default function FounderDashboardPage() {
   useEffect(() => {
     if (loading || error || !campaign) return;
     if (!hasCompletedS0 && campaign.status !== "completed") {
-      router.replace(`/scenarios/founder_00_cto/play`);
+      router.replace(`/play/founder_00_cto?campaign=${campaignId}`);
     }
   }, [loading, error, campaign, hasCompletedS0]);
 
@@ -677,8 +649,16 @@ export default function FounderDashboardPage() {
                     </button>
                   )}
                   {isCurrent && hasPending && (
+                    /* v2 : le Shell reprend seul la partie (deep-save
+                       localStorage, clé `${campaignId}::${scenarioId}`) —
+                       plus d'appel au checkpoint legacy /api/founder/checkpoint.
+                       TODO-DEBT(abandon-penalty) : les pénalités d'abandon
+                       legacy (handleScenarioEntry : +0,5 mois, -125 € par
+                       reprise, reset campagne sur abandon du S0) sont
+                       inopérantes avec le Shell v2. À re-spécifier côté
+                       moteur v2 si on veut les conserver. */
                     <button
-                      onClick={() => router.push(`/scenarios/${entry.scenarioId}/play`)}
+                      onClick={() => router.push(`/play/${entry.scenarioId}?campaign=${campaign.id}`)}
                       style={S.resumeBtn}
                     >
                       Reprendre

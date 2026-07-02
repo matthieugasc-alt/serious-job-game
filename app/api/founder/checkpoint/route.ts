@@ -16,6 +16,14 @@ import * as path from 'path';
 /**
  * POST /api/founder/checkpoint
  *
+ * LEGACY — appelé uniquement par l'ancien player app/scenarios/[scenarioId]/play
+ * (à purger). Le parcours founder v2 passe par /play/[scenarioId]?campaign=…,
+ * où le Shell gère seul sa reprise (deep-save localStorage) : aucune de ces
+ * actions n'est invoquée par le flow v2.
+ * TODO-DEBT(abandon-penalty) : les pénalités d'abandon (enter → +0,5 mois,
+ * -125 €, reset campagne si abandon du scénario 0) deviennent donc
+ * inopérantes. Ne pas les réimplémenter ici — à re-spécifier côté moteur v2.
+ *
  * Actions:
  *  - "enter"   → Player enters a scenario play page. Detects first entry vs resume.
  *  - "advance" → Player completed a phase. Update checkpoint.

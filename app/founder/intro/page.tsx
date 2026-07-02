@@ -74,7 +74,8 @@ export default function FounderIntroPage() {
             }),
           });
         }
-        router.push(`/scenarios/founder_00_cto/play`);
+        // v2 : Shell générique (?campaign= → deep-save + apply outcome)
+        router.push(`/play/founder_00_cto?campaign=${campaign.id}`);
         return;
       }
 
@@ -91,8 +92,8 @@ export default function FounderIntroPage() {
         }),
       });
 
-      // 3. Launch directly into scenario 0
-      router.push(`/scenarios/founder_00_cto/play`);
+      // 3. Launch directly into scenario 0 (Shell v2)
+      router.push(`/play/founder_00_cto?campaign=${campaign.id}`);
     } catch (err) {
       console.error("Failed to create campaign:", err);
       setCreating(false);

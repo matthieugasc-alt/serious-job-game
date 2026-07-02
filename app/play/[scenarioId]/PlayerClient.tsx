@@ -4,8 +4,12 @@
  * PlayerClient — monte le Shell générique v2 pour un scénario donné.
  *
  * Ne connaît aucune mécanique : il branche uniquement la persistence
- * de fin de partie (POST /api/v2/complete, fire-and-forget) et le
- * bouton "Retour à l'accueil" une fois l'ending affiché par le Shell.
+ * de fin de partie (POST /api/v2/complete) et l'écran post-ending.
+ *
+ * Sans campagne : POST fire-and-forget + bouton "Retour à l'accueil".
+ * Avec campagne founder : le POST est attendu — la réponse contient
+ * { microDebrief, campaign } (outcome économique appliqué côté serveur)
+ * qu'on affiche avant le retour au tableau de bord.
  */
 
 import { useCallback, useState } from "react";
@@ -19,8 +23,40 @@ interface Props {
   campaignId?: string;
 }
 
+/** Copie locale de FounderMicroDebrief — ne pas importer app/lib/founder
+ *  (module node:fs) dans un client component. */
+interface MicroDebrief {
+  decision: string;
+  impact: string;
+  strength: string;
+  risk: string;
+  advice?: string;
+}
+
+function parseMicroDebrief(value: unknown): MicroDebrief | null {
+  if (!value || typeof value !== "object") return null;
+  const d = value as Record<string, unknown>;
+  if (
+    typeof d.decision !== "string" ||
+    typeof d.impact !== "string" ||
+    typeof d.strength !== "string" ||
+    typeof d.risk !== "string"
+  ) {
+    return null;
+  }
+  return {
+    decision: d.decision,
+    impact: d.impact,
+    strength: d.strength,
+    risk: d.risk,
+    advice: typeof d.advice === "string" ? d.advice : undefined,
+  };
+}
+
 export function PlayerClient({ scenario, campaignId }: Props) {
   const [finished, setFinished] = useState(false);
+  const [microDebrief, setMicroDebrief] = useState<MicroDebrief | null>(null);
+  const [savingOutcome, setSavingOutcome] = useState(false);
 
   const handleFinished = useCallback(
     (session: SessionV2State) => {
@@ -45,19 +81,41 @@ export function PlayerClient({ scenario, campaignId }: Props) {
           missing: r.evaluation.missing,
           critical_failures: r.evaluation.criticalFailures,
           bonus_matched: r.evaluation.bonusMatched,
+          // Output brut de la mécanique — exploité côté serveur pour les
+          // deltas founder dynamiques (ex : agreement de `negociation`).
+          output: r.output,
         })),
       };
 
-      // Fire-and-forget : l'ending est déjà rendu par le Shell, un échec
-      // du POST ne doit jamais bloquer le joueur.
-      void fetch("/api/v2/complete", {
+      const request = fetch("/api/v2/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
         keepalive: true,
-      }).catch(() => {
-        /* fire-and-forget */
       });
+
+      if (!campaignId) {
+        // Fire-and-forget : l'ending est déjà rendu par le Shell, un échec
+        // du POST ne doit jamais bloquer le joueur.
+        void request.catch(() => {
+          /* fire-and-forget */
+        });
+        return;
+      }
+
+      // Campagne founder : la réponse contient le microDebrief interpolé
+      // et la campagne mise à jour. Un échec n'est pas bloquant — le
+      // joueur garde le bouton "Retour au tableau de bord".
+      setSavingOutcome(true);
+      void request
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (data) setMicroDebrief(parseMicroDebrief(data.microDebrief));
+        })
+        .catch(() => {
+          /* non bloquant */
+        })
+        .finally(() => setSavingOutcome(false));
     },
     [scenario.scenario_id, campaignId],
   );
@@ -71,7 +129,7 @@ export function PlayerClient({ scenario, campaignId }: Props) {
         }
         onFinished={handleFinished}
       />
-      {finished && (
+      {finished && !campaignId && (
         <div className="mx-auto max-w-2xl px-8 pb-12 text-center">
           <Link
             href="/"
@@ -79,6 +137,54 @@ export function PlayerClient({ scenario, campaignId }: Props) {
           >
             Retour à l&apos;accueil
           </Link>
+        </div>
+      )}
+      {finished && campaignId && (
+        <div className="mx-auto max-w-2xl px-8 pb-12">
+          {savingOutcome && (
+            <p className="text-center text-sm opacity-60">
+              Application des résultats à ta startup…
+            </p>
+          )}
+          {microDebrief && (
+            <div className="mb-8 rounded-xl border border-current/15 p-6 text-left text-sm leading-relaxed">
+              <p className="mb-3 text-xs font-bold uppercase tracking-widest opacity-50">
+                Debrief fondateur
+              </p>
+              <p className="mb-2">
+                <span className="font-semibold">Décision — </span>
+                {microDebrief.decision}
+              </p>
+              <p className="mb-2">
+                <span className="font-semibold">Impact — </span>
+                {microDebrief.impact}
+              </p>
+              <p className="mb-2">
+                <span className="font-semibold">Point fort — </span>
+                {microDebrief.strength}
+              </p>
+              <p className="mb-2">
+                <span className="font-semibold">Risque — </span>
+                {microDebrief.risk}
+              </p>
+              {microDebrief.advice && (
+                <p className="opacity-80">
+                  <span className="font-semibold">Conseil — </span>
+                  {microDebrief.advice}
+                </p>
+              )}
+            </div>
+          )}
+          {!savingOutcome && (
+            <div className="text-center">
+              <Link
+                href={`/founder/${campaignId}`}
+                className="inline-block rounded-lg border border-current/20 px-6 py-2 text-sm font-medium transition-opacity hover:opacity-70"
+              >
+                Retour au tableau de bord
+              </Link>
+            </div>
+          )}
         </div>
       )}
     </div>
