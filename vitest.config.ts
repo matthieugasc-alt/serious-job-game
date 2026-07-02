@@ -23,9 +23,9 @@ export default defineConfig({
     coverage: {
       provider: "v8",
       include: [
-        "app/scenarios/**/lib/**/*.ts",
-        "app/scenarios/**/handlers/**/*.ts",
-        "app/scenarios/**/hooks/**/*.ts",
+        "app/lib/engine/**/*.ts",
+        "app/mechanics/**/*.ts",
+        "app/player/**/*.ts",
         "app/lib/founder.ts",
       ],
       exclude: ["**/*.test.ts", "**/__tests__/**", "**/node_modules/**"],

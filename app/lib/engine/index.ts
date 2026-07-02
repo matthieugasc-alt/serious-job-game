@@ -1,241 +1,125 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * @revealio/engine — Public API surface
+ * @revealio/engine — Public API surface (moteur v2, format mécaniques)
  * ═════════════════════════════════════════════════════════════════════
  *
- * Point d'entrée unique et stable pour tout ce qu'un dev interne OU
- * externe a besoin de savoir pour écrire, jouer ou étendre un scenario
- * Revealio. Toute évolution de cette API doit être documentée en
- * changelog + versionnée dans package.json.
+ * Point d'entrée unique et stable du moteur v2. Un scénario v2 est une
+ * **séquence de mécaniques** (`sequence[]` de `StepInvocation`) — plus
+ * de phases, plus de PhaseModule, plus de mail_config. L'architecture
+ * est documentée dans docs/MECANIQUES.md ; le legacy v1 est archivé
+ * dans archive/legacy-v1/ (voir ARCHIVE.md pour le mapping v1→v2).
  *
  * ─── Que trouve-t-on ici ? ────────────────────────────────────────
  *
- *  1. **Types** — ce à quoi ressemble un Scenario, une Session, une
- *     ModuleAction, etc. Aligne avec schema/scenario.schema.json.
+ *  1. **mechanics** — le contrat d'une mécanique : `MechanicModule`
+ *     (Component + evaluate), `MechanicManifest` (params/outputs),
+ *     `ScenarioV2`, `StepInvocation`, `StepResult`, `EndingRule`,
+ *     `MechanicIO`/`TranscriptEvent` (I/O vivant du player).
  *
- *  2. **Runtime pur** — fonctions sans état React qui manipulent la
- *     session (initializeSession, applyEvaluation, cloneSession, …).
- *     C'est LA source de vérité — tout code qui teste ou avance une
- *     phase doit passer par là.
+ *  2. **criteria** — le moteur d'évaluation par critères observés :
+ *     `applyStepObservation(criteria, rules, observation)` (successeur
+ *     de applyPhaseObservation v1), sévérités, poids effectifs.
  *
- *  3. **Handlers & modules** — mécaniques réutilisables (Mail,
- *     Contract, Interview) invoquées par PhaseOrchestrator. Un
- *     module = un ensemble de lifecycle hooks (enter_phase,
- *     mail_sent, contract_signed) qui retourne des ModuleAction[].
+ *  3. **sessionV2** — l'état de partie pur (sans React) :
+ *     initialisation, avancement de step, transcript, sérialisation,
+ *     calcul de l'ending (`computeEndingV2`).
  *
- *  4. **React hooks** — les hooks qui composent le player :
- *     useSendChatMessage, useSendMail, useEndPresentation,
- *     useScenarioInit, useDeepSave, etc. Ils consomment le
- *     PlayerContext.
+ *  4. **composer** — validation statique d'un scénario v2
+ *     (`validateScenarioV2`) et résolution des `inputs` inter-steps
+ *     (`resolveStepInputs`). Parité CLI : scripts/validate-scenarios-v2.mjs.
  *
- *  5. **Lib helpers** — utilities pures (fetchChatWithRetry,
- *     phaseEventTracker, getActorInfo).
- *
- *  6. **Guarded constants** — listes exhaustives verrouillées par
- *     TypeScript `satisfies` (COMPLETION_RULES_KEYS).
+ *  5. **MECHANIC_MANIFESTS** — le registre des mécaniques disponibles
+ *     (app/mechanics/manifests.ts), garde-fou testé contre
+ *     schema/mechanics.json.
  *
  * ─── Ce qui N'EST PAS ici ─────────────────────────────────────────
  *
- *  - Les composants UI du player (MailView, ChatView, etc.). Ils sont
- *    importables directement via leur path. Ils ne font pas partie de
- *    l'API "engine" au sens strict (le "moteur de jeu") — c'est la
- *    couche présentation qui les orchestre.
+ *  - Les composants React des mécaniques (app/mechanics/<id>/Component)
+ *    et le player (app/player/Shell, MechanicRunner) : couche
+ *    présentation, importable directement.
+ *  - Le mode founder (app/lib/founder.ts) : économie de campagne,
+ *    branchée sur le moteur via /api/v2/complete.
  *
- *  - Les modules d'un scenario spécifique (S0..S5 hooks). Ceux-ci
- *    vivent avec leur composant scenario.
- *
- * ─── Exemple minimal d'utilisation ────────────────────────────────
+ * ─── Exemple minimal ──────────────────────────────────────────────
  *
  * ```ts
  * import {
- *   initializeSession,
- *   isCurrentPhaseValidatedByRules,
- *   addPlayerMessage,
- *   completeCurrentPhaseAndAdvance,
+ *   validateScenarioV2,
+ *   initializeSessionV2,
+ *   getCurrentStep,
+ *   completeCurrentStep,
+ *   computeEndingV2,
  * } from "@/app/lib/engine";
  *
- * const scenario = await loadScenario("founder_01_incubator");
- * const session = initializeSession(scenario);
- * addPlayerMessage(session, "Bonjour", "npc_example");
- *
- * if (isCurrentPhaseValidatedByRules(session)) {
- *   completeCurrentPhaseAndAdvance(session);
- * }
+ * const issues = validateScenarioV2(scenario, MECHANIC_MANIFESTS);
+ * const session = initializeSessionV2(scenario);
+ * const step = getCurrentStep(session);
+ * // … la mécanique produit un StepResult …
+ * completeCurrentStep(session, result);
+ * const ending = computeEndingV2(session);
  * ```
  *
  * ─── Convention d'évolution ───────────────────────────────────────
  *
- * Ajouter un nouvel export ici = ajouter à ENGINE_PUBLIC_API dans
- * `__tests__/engine.publicApi.test.ts`. Le test type-check plantera
- * si tu oublies. Symétriquement, retirer un export requiert une
- * bump de version majeure de package.json.
+ * Ajouter un export ici = l'ajouter à ENGINE_PUBLIC_API dans
+ * `__tests__/engine.publicApi.test.ts` (le garde-fou échoue sinon).
+ * Retirer un export = bump majeur de version.
  */
 
-// ─── Types (schema-aligned) ──────────────────────────────────────
+// ─── criteria — moteur d'évaluation par critères ──────────────────
 
 export type {
-  ScenarioDefinition,
-  SessionState,
-  CompletionRules,
-  PhaseMailConfig,
-} from "@/app/lib/types";
-export { COMPLETION_RULES_KEYS } from "@/app/lib/types";
-
-// ─── Runtime pur (source de vérité de la logique de jeu) ─────────
-
+  CriterionSeverity,
+  StepCriterion,
+  StepCompletionRules,
+  StepObservation,
+  StepEvaluationResult,
+} from "./criteria";
 export {
-  // Session lifecycle
-  initializeSession,
-  buildRuntimeView,
+  CRITERION_SEVERITIES,
+  applyStepObservation,
+  effectiveWeight,
+} from "./criteria";
 
-  // Message manipulation
-  addPlayerMessage,
-  addAIMessage,
-  addSystemMessage,
-  addInboxMail,
-
-  // Phase advancement
-  completeCurrentPhaseAndAdvance,
-  finishScenario,
-  handlePhaseFailure,
-  isCurrentPhaseValidatedByRules,
-  isCurrentPhaseValidated,
-  markCurrentPhaseCompleted,
-  unlockCurrentPhase,
-
-  // Phase queries
-  getCurrentPhase,
-  getCurrentPhaseId,
-  getCurrentPhaseCriteria,
-  getNextPhaseIndex,
-  getPhaseIndexById,
-  filterDocumentsByPhase,
-
-  // Events + mails
-  injectPhaseEntryEvents,
-  sendCurrentPhaseMail,
-  updateMailDraft,
-  toggleMailAttachment,
-
-  // Scoring + evaluation + interruptions
-  applyEvaluation,
-  updateAdaptiveMode,
-  scheduleInterruption,
-  checkNpcSuccessKeywords,
-  checkNpcFailureKeywords,
-} from "@/app/lib/runtime";
-
-// ─── Handlers & modules (mécaniques déclaratives) ────────────────
-
-export {
-  // Phase-level handlers (interview, mail, contract)
-  resolvePhaseHandler,
-  InterviewHandler,
-  ContractHandler,
-  MailHandler,
-} from "@/app/scenarios/[scenarioId]/play/handlers";
+// ─── mechanics — contrat des mécaniques + format scénario v2 ─────
 
 export type {
-  PhaseHandler,
-  InterviewPhaseHandler,
-  ContractPhaseHandler,
-  MailPhaseHandler,
-  ContractType,
-  SignResult,
-  NegotiationConfig,
-  AutoReplyContext,
-  AutoReplyEffect,
-  ModuleAction,
-  ContractModuleContext,
-  MailModuleExtra,
-} from "@/app/scenarios/[scenarioId]/play/handlers";
+  Json,
+  JsonObject,
+  MechanicManifest,
+  MechanicModule,
+  MechanicContext,
+  MechanicResult,
+  MechanicProps,
+  MechanicIO,
+  TranscriptEvent,
+  ActorDef,
+  DocumentDef,
+  ScenarioV2,
+  StepInvocation,
+  StepResult,
+  EndingRule,
+} from "./mechanics";
 
-// Module system (PhaseOrchestrator + registry)
+// ─── sessionV2 — état de partie pur ───────────────────────────────
+
+export type { SessionV2State } from "./sessionV2";
 export {
-  resolveModules,
-  dispatch,
-  buildModuleContext,
-} from "@/app/scenarios/[scenarioId]/play/handlers";
+  initializeSessionV2,
+  cloneSessionV2,
+  getCurrentStep,
+  recordTranscriptEvent,
+  completeCurrentStep,
+  computeEndingV2,
+  serializeSessionV2,
+  restoreSessionV2,
+} from "./sessionV2";
 
-// Central dispatcher for module actions (exhaustive switch — see F5)
-export { applyModuleActions } from "@/app/scenarios/[scenarioId]/play/handlers/applyModuleActions";
-export type { ApplyModuleActionsDeps } from "@/app/scenarios/[scenarioId]/play/handlers/applyModuleActions";
+// ─── composer — validation statique + câblage des inputs ─────────
 
-// Async mail effects (HARD_REJECT, pivot Clinique, etc.)
-export { executeMailAsyncEffect } from "@/app/scenarios/[scenarioId]/play/handlers/executeMailAsyncEffect";
+export type { ComposerIssue } from "./composer";
+export { validateScenarioV2, resolveStepInputs } from "./composer";
 
-// Standardized contract negotiation runner (S0 / S2 / S5)
-export { runContractNegotiation, detectsExclusivity } from "@/app/scenarios/[scenarioId]/play/handlers/contractNegotiationSenders";
-export type { RunContractNegotiationOpts } from "@/app/scenarios/[scenarioId]/play/handlers/contractNegotiationSenders";
+// ─── Registre des mécaniques ──────────────────────────────────────
 
-// Dynamic actor resolution (chosen_cto / chosen_kol / establishment)
-export {
-  resolveDynamicActors,
-  resolveEstablishmentPlaceholders,
-} from "@/app/scenarios/[scenarioId]/play/handlers/dynamicActorResolution";
-
-// ─── React hooks (couche player) ─────────────────────────────────
-
-export {
-  PlayerContext,
-  usePlayerContext,
-} from "@/app/scenarios/[scenarioId]/play/contexts/PlayerContext";
-export type { PlayerContextValue } from "@/app/scenarios/[scenarioId]/play/contexts/PlayerContext";
-
-export { useScenarioInit } from "@/app/scenarios/[scenarioId]/play/hooks/useScenarioInit";
-export { useSendChatMessage } from "@/app/scenarios/[scenarioId]/play/hooks/useSendChatMessage";
-export { useSendMail } from "@/app/scenarios/[scenarioId]/play/hooks/useSendMail";
-export { useEndPresentation } from "@/app/scenarios/[scenarioId]/play/hooks/useEndPresentation";
-export { useDeepSave } from "@/app/scenarios/[scenarioId]/play/hooks/useDeepSave";
-export {
-  useFounderCheckpoint,
-} from "@/app/scenarios/[scenarioId]/play/hooks/useFounderCheckpoint";
-export type {
-  DeepSaveSnapshot,
-  FounderCheckpointAPI,
-} from "@/app/scenarios/[scenarioId]/play/hooks/useFounderCheckpoint";
-export { useTTS } from "@/app/scenarios/[scenarioId]/play/hooks/useTTS";
-export { useToasts } from "@/app/scenarios/[scenarioId]/play/hooks/useToasts";
-export { useMailSendValidation } from "@/app/scenarios/[scenarioId]/play/hooks/useMailSendValidation";
-export { useNewItemNotifications } from "@/app/scenarios/[scenarioId]/play/hooks/useNewItemNotifications";
-
-// ─── Lib helpers (utilities pures) ───────────────────────────────
-
-export { fetchChatWithRetry } from "@/app/scenarios/[scenarioId]/play/lib/fetchChatWithRetry";
-export type { ChatRetryResult, ChatRetryDeps } from "@/app/scenarios/[scenarioId]/play/lib/fetchChatWithRetry";
-
-export {
-  resolveEventId,
-  computeEntryEventKey,
-  buildEntryEventKey,
-  hasInjectedKey,
-  markInjectedKey,
-} from "@/app/scenarios/[scenarioId]/play/lib/phaseEventTracker";
-export type { PhaseEventLike } from "@/app/scenarios/[scenarioId]/play/lib/phaseEventTracker";
-
-export { getActorInfo } from "@/app/scenarios/[scenarioId]/play/lib/getActorInfo";
-export type { ResolvedActorInfo } from "@/app/scenarios/[scenarioId]/play/lib/getActorInfo";
-
-export { buildClinicalArticles } from "@/app/scenarios/[scenarioId]/play/lib/clinicalContractTemplates";
-export type { ClinicalEstablishment } from "@/app/scenarios/[scenarioId]/play/lib/clinicalContractTemplates";
-
-export { buildChatContext } from "@/app/lib/chatContextEnrichment";
-
-// cloneSession vit dans playerUtils (utilité UI-side, pas dans runtime)
-export { cloneSession, playNotificationSound, fmtTime, getInitials, STATUS_COLORS } from "@/app/scenarios/[scenarioId]/play/lib/playerUtils";
-
-// ─── Founder mode (checkpoint API) ───────────────────────────────
-
-export {
-  deepSaveCheckpoint,
-  advanceCheckpoint,
-  rollbackCheckpoint,
-  clearCheckpoint,
-  findActiveCampaign,
-  handleScenarioEntry,
-} from "@/app/lib/founder";
-export type {
-  FounderCampaign,
-  FounderCheckpoint,
-  FounderState,
-} from "@/app/lib/founder";
+export { MECHANIC_MANIFESTS } from "@/app/mechanics/manifests";

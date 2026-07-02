@@ -1,4 +1,13 @@
 /**
+ * ⚠ STUDIO GELÉ (décision PO — purge du legacy v1, voir archive/legacy-v1/ARCHIVE.md).
+ *
+ * Ce compilateur produit des scénarios au FORMAT V1 (par phases), qui n'est
+ * plus exécutable : le player v1 (app/scenarios/[scenarioId]/play) a été
+ * supprimé et le moteur v2 (app/lib/engine + app/mechanics) ne lit que le
+ * format "v2" (séquences de mécaniques). Le studio reste dans le repo pour
+ * préserver les brouillons data/studio/ et l'UX d'édition en attendant sa
+ * migration vers le format v2. Ne pas étendre ce fichier.
+ *
  * Studio Compiler & Validator
  *
  * Transforms editorial data (StudioScenario, StudioPhase, etc.) into the runtime

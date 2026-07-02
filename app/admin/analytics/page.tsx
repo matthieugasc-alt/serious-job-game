@@ -113,14 +113,11 @@ export default function AnalyticsPage() {
                 <div key={i} style={{ padding: 12, background: sevBg[s.severity], borderRadius: 6 }}>
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
                     <strong style={{ color: sevColor[s.severity], fontSize: 13 }}>{s.title}</strong>
-                    {s.editTarget?.criterionId && s.editTarget.phaseId ? (
-                      <Link href={`/admin/edit-criterion/${s.editTarget.scenarioId}/${s.editTarget.phaseId}/${s.editTarget.criterionId}`} style={{ fontSize: 11, color: "#2563eb" }}>
-                        éditer →
-                      </Link>
-                    ) : s.editTarget?.scenarioId ? (
-                      <Link href={`/admin/replay/scenario/${s.editTarget.scenarioId}`} style={{ fontSize: 11, color: "#2563eb" }}>
-                        voir →
-                      </Link>
+                    {/* Liens edit-criterion / replay supprimés avec le
+                        legacy v1 — à reconstruire sur le format v2
+                        (voir archive/legacy-v1/ARCHIVE.md). */}
+                    {s.editTarget?.scenarioId ? (
+                      <code style={{ fontSize: 11, color: "#6b7280" }}>{s.editTarget.scenarioId}</code>
                     ) : null}
                   </div>
                   <div style={{ fontSize: 12, color: sevColor[s.severity], marginTop: 4 }}>{s.suggested_action}</div>
@@ -250,12 +247,10 @@ export default function AnalyticsPage() {
   );
 }
 
+// Le replay admin (sessions v1 par phases) a été supprimé avec le legacy —
+// à reconstruire sur les complétions v2 (data/v2_completions/).
 function scenarioLink(scenarioId: string) {
-  return (
-    <Link href={`/admin/replay/scenario/${scenarioId}`} style={{ color: "#2563eb" }}>
-      {scenarioId}
-    </Link>
-  );
+  return <code style={{ fontSize: 12, color: "#374151" }}>{scenarioId}</code>;
 }
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {

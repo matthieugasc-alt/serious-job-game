@@ -512,8 +512,10 @@ export default function ScenarioSelectionPage() {
     setUserRole(null);
   };
 
+  // Moteur v2 : lancement direct du player /play/<id> (les pages
+  // detail/debrief du player legacy v1 ont été supprimées).
   const handleSelectScenario = (scenarioId: string) => {
-    router.push(`/scenarios/${scenarioId}`);
+    router.push(`/play/${scenarioId}`);
   };
 
   return (

@@ -1,132 +1,89 @@
-# `@revealio/engine` — API publique du moteur de jeu
+# `@revealio/engine` — API publique du moteur v2 (mécaniques)
 
-Point d'entrée unique et stable pour tout ce qu'un dev interne ou externe a besoin de savoir pour écrire, jouer ou étendre un scenario Revealio.
+Point d'entrée unique et stable du moteur de jeu. Un scénario v2
+(`format: "v2"`) est une **séquence de mécaniques** : chaque step invoque
+une mécanique universelle (entretien, qa, presentation, analyse,
+production, decision, negociation) avec des `params`, des `inputs` câblés
+sur les outputs des steps précédents, des critères observés et des
+completion_rules.
 
-Toute évolution de cette API est verrouillée par un test dans `__tests__/engine.publicApi.test.ts` — retirer un export ou renommer une fonction fait échouer le build.
+Toute évolution de cette API est verrouillée par
+`__tests__/engine.publicApi.test.ts` — retirer ou renommer un export fait
+échouer le test.
+
+> Le moteur v1 (phases, PhaseModule, runtime.ts) a été supprimé — voir
+> `archive/legacy-v1/ARCHIVE.md` pour le mapping conceptuel v1→v2 et le
+> sha git du dernier commit le contenant.
 
 ## Import minimal
 
 ```ts
 import {
-  initializeSession,
-  isCurrentPhaseValidatedByRules,
-  addPlayerMessage,
-  completeCurrentPhaseAndAdvance,
-  cloneSession,
+  validateScenarioV2,
+  initializeSessionV2,
+  getCurrentStep,
+  completeCurrentStep,
+  computeEndingV2,
+  MECHANIC_MANIFESTS,
 } from "@/app/lib/engine";
 
-const scenario = /* scenario.json chargé */;
-const session = initializeSession(scenario);
-addPlayerMessage(session, "Bonjour", "npc_example");
-
-if (isCurrentPhaseValidatedByRules(session)) {
-  const next = cloneSession(session);
-  completeCurrentPhaseAndAdvance(next);
-}
+const issues = validateScenarioV2(scenario, MECHANIC_MANIFESTS);
+const session = initializeSessionV2(scenario);
+const step = getCurrentStep(session);
+// … la mécanique joue, produit un StepResult …
+completeCurrentStep(session, result);
+const ending = computeEndingV2(session);
 ```
 
 ## Catégories d'exports
 
-### 1. Types (aligne avec `schema/scenario.schema.json`)
-
-- `ScenarioDefinition`, `SessionState`, `CompletionRules`, `PhaseMailConfig`
-- `PhaseHandler`, `ModuleAction`, `PlayerContextValue`
-- `DeepSaveSnapshot`, `FounderCampaign`, `FounderCheckpoint`
-
-### 2. Runtime pur (source de vérité de la logique de jeu)
-
-Toutes ces fonctions ne dépendent PAS de React. Utilisables depuis un test, un script CI, un job serveur.
-
-| Fonction | Rôle |
-|---|---|
-| `initializeSession(scenario)` | Crée une session neuve pour un scenario |
-| `cloneSession(s)` | Deep clone (avant mutation) |
-| `buildRuntimeView(session)` | Snapshot dérivé (phase courante, criteria, etc.) |
-| `addPlayerMessage`, `addAIMessage`, `addSystemMessage`, `addInboxMail` | Manipulation atomique des messages |
-| `applyEvaluation(s, matches, delta, flags)` | Applique le retour d'évaluation IA |
-| `isCurrentPhaseValidatedByRules(s)` | ⚠ SOURCE DE VÉRITÉ — évalue les 6 completion_rules |
-| `completeCurrentPhaseAndAdvance(s)` | Marque + avance |
-| `handlePhaseFailure(s)` | Loop-back sur failure_rules |
-| `finishScenario(s)` | Marque fini |
-| `checkNpcSuccessKeywords`, `checkNpcFailureKeywords` | Détection d'événements par keywords |
-| `sendCurrentPhaseMail`, `updateMailDraft`, `toggleMailAttachment` | Manipulation mail |
-| `injectPhaseEntryEvents` | Injection idempotente (via phaseEventTracker) |
-| `updateAdaptiveMode`, `scheduleInterruption` | Micro-mécaniques temporelles |
-
-### 3. Handlers & modules (mécaniques déclaratives)
+### 1. `criteria` — évaluation par critères observés
 
 | Export | Rôle |
 |---|---|
-| `resolvePhaseHandler(phase)` | Trouve le handler (Interview seul aujourd'hui) |
-| `InterviewHandler`, `ContractHandler`, `MailHandler` | Handlers phase-level |
-| `resolveModules(phase, scenario)` | Trouve les PhaseModule pour une phase |
-| `dispatch(event, modules, ctx)` | Fait tourner les lifecycle hooks |
-| `buildModuleContext(...)` | Construit le context read-only pour modules |
-| `applyModuleActions(actions, next, deps)` | ⚠ Dispatch central 30+ types (exhaustive switch) |
-| `executeMailAsyncEffect(effect, next)` | 4 kinds mail (HARD_REJECT, pivot Clinique, ...) |
-| `runContractNegotiation(opts)` | 1 mécanique async pour S0/S2/S5 |
-| `resolveDynamicActors`, `resolveEstablishmentPlaceholders` | Placeholder resolution scenario |
+| `applyStepObservation(criteria, rules, observation)` | ⚠ SOURCE DE VÉRITÉ pass/fail d'un step (successeur de applyPhaseObservation v1) |
+| `CRITERION_SEVERITIES`, `CriterionSeverity` | `critical` / `required` / `bonus` / `minor` |
+| `effectiveWeight(c)` | Poids effectif d'un critère |
+| `StepCriterion`, `StepCompletionRules`, `StepObservation`, `StepEvaluationResult` | Types |
 
-### 4. React hooks (couche player)
-
-Consomment `PlayerContextValue` — utilisables uniquement dans le player. `usePlayerContext()` throw hors provider.
-
-| Hook | Rôle |
-|---|---|
-| `useScenarioInit(deps)` | Boot sequence complète (auth + fetch + resume + entry_events) |
-| `useSendChatMessage(ctx)` | Envoi chat + retry + success/failure keywords |
-| `useSendMail(ctx)` | Envoi mail + MailModule dispatch + legacy fallback |
-| `useEndPresentation(ctx)` | Fin de présentation vocale + eval API |
-| `useDeepSave(deps)` | Deep snapshot founder toutes les 10s + on unload |
-| `useFounderCheckpoint(deps)` | 4 notifiers checkpoint (advance/clear/rollback/deep_save) |
-| `useTTS(deps)` | OpenAI TTS + Web Speech API fallback |
-| `useToasts()` | Queue de toasts |
-| `useMailSendValidation(opts)` | canActuallySendMail + reason |
-| `useNewItemNotifications(opts)` | Trigger toast sur new mail / new chat |
-
-### 5. Lib helpers
-
-| Helper | Rôle |
-|---|---|
-| `fetchChatWithRetry(payload, deps)` | POST /api/chat avec 401/429/5xx/network retry |
-| `phaseEventTracker` helpers | Clés idempotence `${phaseId}::${eventId}` |
-| `getActorInfo(id, actors, chosenCtoId)` | Résout name/color/initials/status + placeholders |
-| `buildClinicalArticles(type, scenario?)` | S3 : lit JSON puis fallback constantes |
-| `buildChatContext(opts)` | C3 : enrichissement contextuel des chats |
-| `cloneSession`, `playNotificationSound`, `fmtTime`, `getInitials`, `STATUS_COLORS` | Utilities |
-
-### 6. Founder mode (checkpoint API)
+### 2. `mechanics` — contrat des mécaniques + format scénario
 
 | Export | Rôle |
 |---|---|
-| `deepSaveCheckpoint(campaign, snapshot)` | Persist deep snapshot (fix #70) |
-| `advanceCheckpoint`, `rollbackCheckpoint`, `clearCheckpoint` | Server sync |
-| `findActiveCampaign(userId)` | Query campaign en cours |
-| `handleScenarioEntry(campaign, scenarioId)` | Détection first entry vs resume |
+| `MechanicModule` | Une mécanique = `Component` React + `evaluate` |
+| `MechanicManifest` | Params requis / output_keys déclarés |
+| `MechanicIO`, `TranscriptEvent` | I/O vivant entre Shell et mécanique |
+| `ScenarioV2`, `StepInvocation`, `StepResult`, `EndingRule` | Format scénario v2 |
+| `ActorDef`, `DocumentDef`, `Json`, `JsonObject` | Briques partagées |
 
-### 7. Guarded constants (verrouillées par TypeScript)
+### 3. `sessionV2` — état de partie pur (sans React)
 
-- `COMPLETION_RULES_KEYS` — liste exhaustive des completion_rules (satisfies keyof)
+| Export | Rôle |
+|---|---|
+| `initializeSessionV2(scenario)` | Session neuve |
+| `getCurrentStep(s)` / `completeCurrentStep(s, result)` | Avancement |
+| `recordTranscriptEvent(s, ev)` | Journal de step |
+| `computeEndingV2(s)` | Résout l'ending (requires_passed, sinon default) |
+| `cloneSessionV2`, `serializeSessionV2`, `restoreSessionV2` | Persistance |
 
-## Convention d'évolution
+### 4. `composer` — validation statique + câblage
 
-**Ajouter un export ici** :
-1. Ajouter au barrel
-2. Ajouter au tableau `ENGINE_PUBLIC_API` dans `__tests__/engine.publicApi.test.ts`
-3. Le test type-check + runtime plantera si les 2 divergent
+| Export | Rôle |
+|---|---|
+| `validateScenarioV2(scenario, manifests)` | Garde-fou structurel (parité CLI : `scripts/validate-scenarios-v2.mjs`) |
+| `resolveStepInputs(step, session)` | Résout `inputs` (`step_id.output_key`) |
+| `ComposerIssue` | Type d'issue |
 
-**Retirer un export** :
-1. Bump majeur de package.json
-2. Communiquer aux consommateurs
+### 5. Registre
 
-**Renommer un export** :
-1. Ajouter un alias qui re-export l'ancien nom (compat)
-2. Bump mineur
-3. Deprecation warning au bout de N versions
+| Export | Rôle |
+|---|---|
+| `MECHANIC_MANIFESTS` | Registre des mécaniques (app/mechanics/manifests.ts), garde-fou testé contre `schema/mechanics.json` |
 
-## Voir aussi
+## Ce qui n'est PAS ici
 
-- `app/scenarios/[scenarioId]/play/ARCHITECTURE.md` — architecture du player
-- `app/scenarios/[scenarioId]/play/ARCHITECTURE_DEBRIEF.md` — état + risques
-- `schema/scenario.schema.json` — schéma data-first des scenarios
-- `scripts/scaffold-scenario.mjs` — CLI pour créer un scenario
+- Les composants React des mécaniques (`app/mechanics/<id>/Component.tsx`)
+  et le player (`app/player/Shell.tsx`, `MechanicRunner`) : couche
+  présentation, importable directement.
+- Le mode founder (`app/lib/founder.ts`) : économie de campagne, branchée
+  sur le moteur via `/api/v2/complete`.

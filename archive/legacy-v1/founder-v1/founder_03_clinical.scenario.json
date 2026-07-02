@@ -1,0 +1,708 @@
+{
+  "$schema": "../../schema/scenario.schema.json",
+  "scenario_id": "founder_03_clinical",
+  "version": "1.0.0",
+  "locale": "fr-FR",
+  "meta": {
+    "title": "Test clinique",
+    "subtitle": "Placer un pilote gratuit dans un établissement de santé",
+    "description": "Le MVP est prêt. Tu dois choisir ton premier établissement de test, convaincre la direction d'accepter un pilote gratuit, et négocier un contrat de partenariat qui ne te mange pas alive.",
+    "job_family": "founder",
+    "difficulty": "senior",
+    "estimated_duration_min": 25,
+    "tags": [
+      "B2B",
+      "santé",
+      "pilote",
+      "contrat",
+      "négociation",
+      "CHU",
+      "clinique"
+    ],
+    "show_objective": false,
+    "show_background_fact": false
+  },
+  "introduction": {
+    "header": {
+      "tag": "Founder Mode · Scénario 3",
+      "title": "Test clinique",
+      "subtitle": "Mois 7–8 — Test terrain"
+    },
+    "cards": [
+      {
+        "title": "La situation",
+        "content": "<p>Le MVP d'Orisio est livré : planning temps réel + gestion des annulations. Alexandre a identifié 3 établissements potentiellement intéressés pour un pilote.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Ta mission",
+        "content": "<p><strong>Phase 1</strong> — Discuter avec Alexandre et formaliser ton choix d'établissement par mail.</p><p><strong>Phase 2</strong> — Rédiger un mail de prospection pour proposer un test gratuit.</p><p><strong>Phase 3</strong> — L'établissement t'envoie un contrat. Identifie les clauses toxiques et négocie.</p>",
+        "column": "right"
+      },
+      {
+        "title": "Les 3 options",
+        "content": "<p><strong>CHU de Bordeaux (Pellegrin)</strong> — 32 salles de bloc. Public. Très prestigieux.</p><p><strong>Hôpital Privé Saint-Martin</strong> — 8 salles. Groupe Ramsay Santé. Réputé.</p><p><strong>Clinique Saint-Augustin</strong> — 5 salles. Privé indépendant. La clinique d'Alexandre.</p>",
+        "column": "left"
+      },
+      {
+        "title": "Conseil",
+        "content": "<p>Chaque établissement a ses avantages et ses pièges. Le prestige ne vaut rien si tu mets 8 mois à signer.</p><p>Lis bien le contrat qu'on t'enverra — certains établissements ont des conditions… créatives.</p>",
+        "column": "right",
+        "type": "tip"
+      }
+    ]
+  },
+  "narrative": {
+    "context": "Le MVP d'Orisio fonctionne. Il faut maintenant le tester en conditions réelles dans un vrai bloc opératoire. Alexandre a 3 contacts chauds via son réseau.",
+    "mission": "Choisir le bon établissement, proposer un test gratuit et négocier un contrat de partenariat acceptable.",
+    "initial_situation": "MVP livré. 3 établissements identifiés. Il faut en choisir un, pitcher le test et signer un contrat qui ne détruit pas ta PI ou ton business.",
+    "trigger": "Alexandre t'envoie les fiches des 3 établissements et te demande lequel tu vises."
+  },
+  "timeline": {
+    "scenario_start": "2026-03-15T09:00:00",
+    "sim_speed_multiplier": 1
+  },
+  "actors": [
+    {
+      "actor_id": "player",
+      "name": "(joueur)",
+      "role": "CEO, Orisio",
+      "controlled_by": "player",
+      "avatar": {
+        "color": "#5b5fc7",
+        "initials": "CEO"
+      }
+    },
+    {
+      "actor_id": "alexandre_morel",
+      "name": "Alexandre Morel",
+      "role": "CPO & Cofondateur, Orisio",
+      "personality": "Perfectionniste. Il est contre la clinique Saint-Augustin (trop petit, c'est sa clinique, pas assez 'classe'). Il préfère l'hôpital privé ou le CHU. Il insiste aussi : le test DOIT être gratuit.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/alexandre_morel.md",
+      "avatar": {
+        "color": "#1565C0",
+        "initials": "AM"
+      },
+      "visible_in_contacts": true,
+      "contact_status": "available",
+      "contact_preview": "Ton associé chirurgien",
+      "tts_voice": "onyx"
+    },
+    {
+      "actor_id": "contact_chu",
+      "name": "Dr. Pierre Lemaire",
+      "role": "Directeur du pôle chirurgical, CHU de Bordeaux",
+      "email": "p.lemaire@chu-bordeaux.fr",
+      "personality": "Sec, procédurier, peu communiquant. Met des clauses inacceptables comme si c'était standard. Très rigide sur la PI et l'intéressement.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/contact_etablissement.md",
+      "avatar": {
+        "color": "#4E342E",
+        "initials": "PL"
+      },
+      "visible_in_contacts": true,
+      "mail_only": true,
+      "contact_status": "available",
+      "contact_preview": "CHU de Bordeaux — Direction",
+      "tts_voice": "shimmer"
+    },
+    {
+      "actor_id": "contact_saint_martin",
+      "name": "Laurent Castex",
+      "role": "DSI, Hôpital Privé Saint-Martin",
+      "email": "l.castex@hp-saintmartin.fr",
+      "personality": "Sec mais pragmatique. Moyennement flexible. Clause groupe Ramsay non négociable.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/contact_etablissement.md",
+      "avatar": {
+        "color": "#33691E",
+        "initials": "LC"
+      },
+      "visible_in_contacts": true,
+      "mail_only": true,
+      "contact_status": "available",
+      "contact_preview": "Hôpital Saint-Martin — DSI",
+      "tts_voice": "shimmer"
+    },
+    {
+      "actor_id": "contact_clinique",
+      "name": "Dr. Claire Renaud-Picard",
+      "role": "Directrice, Clinique Saint-Augustin",
+      "email": "c.renaud-picard@clinique-saint-augustin.fr",
+      "personality": "Sèche mais souple. Contrat simple, peu de friction.",
+      "controlled_by": "ai",
+      "prompt_file": "prompts/contact_etablissement.md",
+      "avatar": {
+        "color": "#BF360C",
+        "initials": "CR"
+      },
+      "visible_in_contacts": true,
+      "mail_only": true,
+      "contact_status": "available",
+      "contact_preview": "Clinique Saint-Augustin — Direction",
+      "tts_voice": "shimmer"
+    }
+  ],
+  "channels": [
+    {
+      "channel_id": "chat",
+      "type": "chat",
+      "label": "Messagerie",
+      "enabled": true
+    },
+    {
+      "channel_id": "mail",
+      "type": "mail",
+      "label": "Boîte mail",
+      "enabled": true
+    }
+  ],
+  "resources": {
+    "documents": [
+      {
+        "doc_id": "fiche_chu",
+        "label": "Fiche — CHU de Bordeaux (Pellegrin)",
+        "file_path": "/scenarios/founder_03_clinical/documents/fiche_chu_bordeaux.pdf",
+        "contains": [
+          "CHU",
+          "Pellegrin",
+          "32 salles",
+          "public",
+          "DxPlanning",
+          "Lemaire"
+        ],
+        "usable_as_pj": false
+      },
+      {
+        "doc_id": "fiche_saint_martin",
+        "label": "Fiche — Hôpital Privé Saint-Martin",
+        "file_path": "/scenarios/founder_03_clinical/documents/fiche_hopital_prive_saint_martin.pdf",
+        "contains": [
+          "Saint-Martin",
+          "Ramsay",
+          "8 salles",
+          "Castex",
+          "Girard"
+        ],
+        "usable_as_pj": false
+      },
+      {
+        "doc_id": "fiche_clinique",
+        "label": "Fiche — Clinique Saint-Augustin",
+        "file_path": "/scenarios/founder_03_clinical/documents/fiche_clinique_saint_augustin.pdf",
+        "contains": [
+          "Saint-Augustin",
+          "5 salles",
+          "Alexandre",
+          "Laroche",
+          "indépendant"
+        ],
+        "usable_as_pj": false
+      },
+      {
+        "doc_id": "contrat_chu",
+        "label": "Contrat de test — CHU de Bordeaux",
+        "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_chu_bordeaux.pdf",
+        "contains": [
+          "contrat",
+          "PI",
+          "intéressement",
+          "CHU",
+          "données",
+          "SecNumCloud"
+        ],
+        "usable_as_pj": true,
+        "hidden_until_phase": "phase_3_contract"
+      },
+      {
+        "doc_id": "contrat_saint_martin",
+        "label": "Contrat de test — Hôpital Saint-Martin",
+        "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_hopital_saint_martin.pdf",
+        "contains": [
+          "contrat",
+          "Ramsay",
+          "référencement",
+          "pilote"
+        ],
+        "usable_as_pj": true,
+        "hidden_until_phase": "phase_3_contract"
+      },
+      {
+        "doc_id": "contrat_clinique",
+        "label": "Contrat de test — Clinique Saint-Augustin",
+        "file_path": "/scenarios/founder_03_clinical/documents/contrat_test_clinique_saint_augustin.pdf",
+        "contains": [
+          "contrat",
+          "test",
+          "8 semaines",
+          "simple"
+        ],
+        "usable_as_pj": true,
+        "hidden_until_phase": "phase_3_contract"
+      }
+    ],
+    "clinical_contract_templates": {
+      "chu": [
+        {
+          "id": "article_1",
+          "title": "Article 1 — Objet",
+          "content": "Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans le service de chirurgie orthopédique du CHU, sur une durée de 8 semaines."
+        },
+        {
+          "id": "article_2",
+          "title": "Article 2 — Gratuité",
+          "content": "Le test est réalisé à titre gracieux. Aucune facturation n'est émise pendant la période de test."
+        },
+        {
+          "id": "article_3",
+          "title": "Article 3 — Données",
+          "content": "Orisio s'engage à héberger les données sur une infrastructure certifiée HDS. Aucune donnée patient nominative n'est traitée."
+        },
+        {
+          "id": "article_4",
+          "title": "Article 4 — Durée et renouvellement",
+          "content": "8 semaines à compter de la mise en service. Renouvelable une fois par accord des parties."
+        },
+        {
+          "id": "article_5",
+          "title": "Article 5 — Propriété intellectuelle",
+          "content": "Les développements, adaptations et améliorations réalisés pendant la période de test, y compris ceux réalisés sur les données et dans les locaux du CHU, sont la propriété conjointe du CHU et d'Orisio. Le CHU dispose d'une licence perpétuelle, gratuite et irrévocable sur le code source existant d'Orisio utilisé pendant le test.",
+          "toxic": true
+        },
+        {
+          "id": "article_6",
+          "title": "Article 6 — Intéressement",
+          "content": "En contrepartie de l'accès à l'infrastructure du CHU, Orisio versera au CHU : 5% des revenus générés par les ventes d'Orisio aux établissements publics de santé pendant 3 ans ; 1% du post-money en cas de levée de fonds réalisée dans les 24 mois suivant le test.",
+          "toxic": true
+        },
+        {
+          "id": "article_7",
+          "title": "Article 7 — Confidentialité",
+          "content": "Les parties s'engagent à maintenir la confidentialité des informations échangées."
+        },
+        {
+          "id": "article_8",
+          "title": "Article 8 — Référence commerciale",
+          "content": "L'utilisation du nom du CHU de Bordeaux à des fins commerciales ou promotionnelles est interdite sans validation préalable du service communication du CHU.",
+          "moderate": true
+        },
+        {
+          "id": "article_9",
+          "title": "Article 9 — Hébergement",
+          "content": "L'hébergement doit être certifié SecNumCloud (et pas uniquement HDS).",
+          "moderate": true
+        },
+        {
+          "id": "article_10",
+          "title": "Article 10 — Conformité",
+          "content": "Orisio s'engage à respecter l'ensemble des réglementations applicables (RGPD, HDS, etc.)."
+        },
+        {
+          "id": "article_11",
+          "title": "Article 11 — Résiliation",
+          "content": "Le CHU peut résilier la convention à tout moment, sans préavis et sans indemnité.",
+          "moderate": true
+        }
+      ],
+      "sm": [
+        {
+          "id": "article_1",
+          "title": "Article 1 — Objet",
+          "content": "Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans les blocs opératoires de l'Hôpital Saint-Martin, sur une durée de 8 semaines."
+        },
+        {
+          "id": "article_2",
+          "title": "Article 2 — Gratuité",
+          "content": "Le test est réalisé à titre gracieux."
+        },
+        {
+          "id": "article_3",
+          "title": "Article 3 — Propriété intellectuelle",
+          "content": "La propriété intellectuelle du logiciel Orisio reste la propriété exclusive d'Orisio SAS."
+        },
+        {
+          "id": "article_4",
+          "title": "Article 4 — Données",
+          "content": "Hébergement certifié HDS. Aucune donnée patient nominative n'est traitée."
+        },
+        {
+          "id": "article_5",
+          "title": "Article 5 — Durée",
+          "content": "8 semaines à compter de la mise en service."
+        },
+        {
+          "id": "article_6",
+          "title": "Article 6 — Résiliation",
+          "content": "Préavis de 15 jours par l'une ou l'autre des parties."
+        },
+        {
+          "id": "article_7",
+          "title": "Article 7 — Référence commerciale",
+          "content": "Référence anonymisée autorisée (« un hôpital privé de 8 salles »). Toute mention nommée requiert l'accord préalable de la direction de la communication du groupe.",
+          "moderate": true
+        },
+        {
+          "id": "article_8",
+          "title": "Article 8 — Non-sollicitation",
+          "content": "Orisio s'engage à ne pas solliciter le personnel de l'établissement pendant le test et les 6 mois suivant la fin du test."
+        },
+        {
+          "id": "article_9",
+          "title": "Article 9 — Validation groupe",
+          "content": "La signature définitive est soumise à la non-opposition du groupe Ramsay Santé. Délai indicatif : 15 jours ouvrés.",
+          "moderate": true
+        }
+      ],
+      "clinique": [
+        {
+          "id": "article_1",
+          "title": "Article 1 — Objet",
+          "content": "Test pilote du logiciel Orisio (planning temps réel + gestion annulations) dans les blocs opératoires de la Clinique Saint-Augustin, sur une durée de 8 semaines."
+        },
+        {
+          "id": "article_2",
+          "title": "Article 2 — Gratuité",
+          "content": "Le test est réalisé à titre gracieux. Aucune facturation n'est émise."
+        },
+        {
+          "id": "article_3",
+          "title": "Article 3 — Propriété intellectuelle",
+          "content": "La propriété intellectuelle du logiciel Orisio reste la propriété exclusive d'Orisio SAS."
+        },
+        {
+          "id": "article_4",
+          "title": "Article 4 — Données",
+          "content": "Hébergement certifié HDS. Aucune donnée patient nominative n'est traitée."
+        },
+        {
+          "id": "article_5",
+          "title": "Article 5 — Durée",
+          "content": "8 semaines à compter de la mise en service, renouvelable par accord des parties."
+        },
+        {
+          "id": "article_6",
+          "title": "Article 6 — Résiliation",
+          "content": "Préavis de 7 jours par l'une ou l'autre des parties."
+        },
+        {
+          "id": "article_7",
+          "title": "Article 7 — Référence commerciale",
+          "content": "Orisio est autorisée à mentionner la Clinique Saint-Augustin comme établissement pilote."
+        },
+        {
+          "id": "article_8",
+          "title": "Article 8 — Confidentialité",
+          "content": "Les parties s'engagent à maintenir la confidentialité des informations échangées."
+        }
+      ]
+    }
+  },
+  "constraints": {
+    "test_must_be_free": true,
+    "pi_non_negotiable": "La PI du produit appartient à Orisio et ne doit pas être cédée",
+    "no_revenue_share": "Aucun intéressement sur les futurs revenus ne doit être accepté"
+  },
+  "state": {
+    "flags": {
+      "chose_chu": false,
+      "chose_saint_martin": false,
+      "chose_clinique": false,
+      "choice_confirmed": false,
+      "pitch_mail_sent": false,
+      "pitch_accepted": false,
+      "pitch_rejected": false,
+      "switched_to_clinique": false,
+      "contrat_received": false,
+      "contrat_amended": false,
+      "contrat_signed_clean": false,
+      "contrat_signed_toxic": false,
+      "pivot_contract_sent": false
+    }
+  },
+  "initial_events": [
+    {
+      "event_id": "alexandre_fiches",
+      "type": "chat",
+      "actor": "alexandre_morel",
+      "content": "Le MVP est prêt, bravo à l'équipe. Maintenant faut qu'on le teste en vrai. J'ai 3 pistes via mon réseau. Je t'envoie les fiches. Le CHU de Bordeaux ce serait une référence incroyable. Saint-Martin c'est un bon compromis — privé, réputé, taille correcte. Et il y a ma clinique, Saint-Augustin, mais franchement pour un premier test je trouve que c'est trop petit et pas assez crédible. À toi de voir, mais je pense qu'on devrait viser haut. Ah et quoi qu'il arrive : le test DOIT être gratuit. C'est notre premier client, c'est son réseau, on offre.",
+      "attachments": [
+        {
+          "id": "fiche_chu",
+          "label": "Fiche CHU Bordeaux"
+        },
+        {
+          "id": "fiche_saint_martin",
+          "label": "Fiche Hôpital Saint-Martin"
+        },
+        {
+          "id": "fiche_clinique",
+          "label": "Fiche Clinique Saint-Augustin"
+        }
+      ]
+    }
+  ],
+  "phases": [
+    {
+      "phase_id": "phase_1_choose",
+      "title": "Choisir l'établissement",
+      "objective": "Discuter avec Alexandre et choisir le premier établissement de test. Puis formaliser ton choix par mail.",
+      "phase_focus": "Discussion avec Alexandre sur le choix d'établissement. Alexandre est contre la clinique (trop petit, c'est sa clinique, pas crédible) et pousse pour le CHU ou Saint-Martin. Le joueur peut argumenter. Quand il est prêt, il envoie un mail à Alexandre pour formaliser son choix.",
+      "duration_target_min": 5,
+      "max_duration_sec": 420,
+      "active_channels": [
+        "chat",
+        "mail"
+      ],
+      "ai_actors": [
+        "alexandre_morel"
+      ],
+      "mail_config": {
+        "enabled": true,
+        "kind": "choice_confirmation",
+        "defaults": {
+          "to": "a.morel@orisio.fr",
+          "cc": "",
+          "subject": "Décision établissement pilote"
+        },
+        "require_attachments": false,
+        "on_send_flags": {
+          "choice_confirmed": true
+        },
+        "send_label": "Confirmer mon choix",
+        "send_advances_phase": true
+      },
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "weighed_pros_cons",
+            "description": "Le joueur argumente son choix avec des avantages/inconvénients concrets",
+            "points": 3
+          },
+          {
+            "criterion_id": "considered_timeline",
+            "description": "Le joueur prend en compte le temps de signature dans sa décision",
+            "points": 2
+          },
+          {
+            "criterion_id": "made_clear_choice",
+            "description": "Le joueur annonce clairement son choix à Alexandre",
+            "points": 2,
+            "sets_flag": "choice_made"
+          }
+        ]
+      },
+      "next_phase": "phase_2_pitch_mail",
+      "modules": [
+        "chat",
+        "mail"
+      ]
+    },
+    {
+      "phase_id": "phase_2_pitch_mail",
+      "title": "Proposer le test gratuit",
+      "objective": "Rédiger un mail au contact de l'établissement choisi pour proposer un test pilote gratuit d'Orisio.",
+      "phase_focus": "Le joueur rédige un mail de prospection. Il doit vendre le test gratuit, rassurer sur les données, et donner envie. Alexandre rappelle : test gratuit, pas de bla-bla, aller droit au but. IMPORTANT : l'envoi du mail ne fait PAS avancer la phase. L'établissement va répondre (acceptation ou refus selon la qualité du mail). C'est la réponse qui débloque la suite.",
+      "duration_target_min": 5,
+      "max_duration_sec": 420,
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "alexandre_morel"
+      ],
+      "entry_events": [],
+      "mail_config": {
+        "enabled": true,
+        "kind": "pilot_pitch",
+        "defaults": {
+          "to": "",
+          "cc": "a.morel@orisio.fr",
+          "subject": "Orisio — Proposition de test pilote gratuit"
+        },
+        "require_attachments": false,
+        "on_send_flags": {
+          "pitch_mail_sent": true
+        },
+        "send_label": "Envoyer la proposition",
+        "send_advances_phase": false
+      },
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "free_test_clear",
+            "description": "Le mail mentionne clairement que le test est gratuit et sans engagement",
+            "points": 2
+          },
+          {
+            "criterion_id": "value_proposition_clear",
+            "description": "Le mail explique concrètement ce qu'Orisio fait : optimisation planning, gestion annulations bloc opératoire",
+            "points": 2
+          },
+          {
+            "criterion_id": "data_reassurance",
+            "description": "Le mail rassure sur les données : pas de données patient nominatives, hébergement HDS",
+            "points": 2
+          },
+          {
+            "criterion_id": "duration_mentioned",
+            "description": "Le mail mentionne une durée concrète (8 semaines, 2 mois, etc.)",
+            "points": 1
+          },
+          {
+            "criterion_id": "professional_tone",
+            "description": "Le mail est professionnel et adapté au destinataire (directeur/DSI), pas de jargon marketing creux",
+            "points": 1
+          }
+        ]
+      },
+      "completion_rules": {
+        "any_flags": [
+          "pitch_accepted"
+        ]
+      },
+      "auto_advance": true,
+      "next_phase": "phase_3_contract",
+      "modules": [
+        "chat",
+        "mail"
+      ]
+    },
+    {
+      "phase_id": "phase_3_contract",
+      "title": "Négocier le contrat",
+      "objective": "L'établissement accepte le principe du test et t'envoie son contrat de partenariat. Certaines clauses sont problématiques — négocie avant de signer.",
+      "phase_focus": "L'établissement envoie un contrat. Selon le choix du joueur : le CHU envoie un contrat très agressif (PI, intéressement, asymétrie), Saint-Martin envoie un contrat intermédiaire (clause groupe), la clinique envoie un contrat souple. Le joueur doit identifier les clauses problématiques et négocier par mail.",
+      "duration_target_min": 10,
+      "max_duration_sec": 720,
+      "active_channels": [
+        "mail",
+        "chat"
+      ],
+      "ai_actors": [
+        "contact_chu",
+        "contact_saint_martin",
+        "contact_clinique",
+        "alexandre_morel"
+      ],
+      "entry_events": [],
+      "scoring": {
+        "criteria": [
+          {
+            "criterion_id": "identified_pi_clause",
+            "description": "Le joueur repère la clause de cession de PI et la refuse",
+            "points": 4,
+            "sets_flag": "pi_clause_spotted"
+          },
+          {
+            "criterion_id": "identified_revenue_share",
+            "description": "Le joueur repère l'intéressement sur les revenus et le refuse",
+            "points": 3,
+            "sets_flag": "revenue_share_spotted"
+          },
+          {
+            "criterion_id": "proposed_amendments",
+            "description": "Le joueur propose des modifications concrètes et argumentées",
+            "points": 3,
+            "sets_flag": "contrat_amended"
+          },
+          {
+            "criterion_id": "maintained_relationship",
+            "description": "Le joueur négocie fermement sans braquer l'interlocuteur",
+            "points": 2
+          },
+          {
+            "criterion_id": "signed_acceptable_version",
+            "description": "Un contrat acceptable est signé (PI préservée, pas d'intéressement toxique)",
+            "points": 3,
+            "sets_flag": "contrat_signed_clean"
+          }
+        ]
+      },
+      "completion_rules": {
+        "any_flags": [
+          "contrat_signed_clean",
+          "contrat_signed_toxic"
+        ],
+        "max_exchanges": 12
+      },
+      "auto_advance": true
+    }
+  ],
+  "endings": [
+    {
+      "ending_id": "total_failure",
+      "label": "Game over — pilote impossible",
+      "priority": 10,
+      "content": "Tu as grillé tous tes établissements. Le CHU/Saint-Martin t'a recalé, Alexandre t'a rabattu sur sa clinique, et tu as réussi à griller la clinique aussi avec un mail inacceptable. Plus aucun établissement à prospecter. Tu vas devoir tout reprendre — du temps perdu, du cash en moins, et une réputation entamée dans le milieu hospitalier bordelais.",
+      "conditions": {
+        "core_flags": [
+          "pilot_total_failure"
+        ],
+        "min_core_flags": 1
+      }
+    },
+    {
+      "ending_id": "switched_success",
+      "label": "Pilote par défaut — échec initial puis clinique",
+      "priority": 4,
+      "content": "Tu as visé trop haut et tu t'es fait recaler. Alexandre a dû te rabattre sur sa clinique. Le contrat est propre mais tu as perdu du temps et de la crédibilité. Le pilote démarre avec 2 mois de retard.",
+      "conditions": {
+        "core_flags": [
+          "switched_to_clinique",
+          "contrat_signed_clean"
+        ],
+        "min_core_flags": 2
+      }
+    },
+    {
+      "ending_id": "failure",
+      "label": "Pilote toxique",
+      "priority": 3,
+      "content": "Tu as signé un contrat qui cède ta PI ou qui donne un intéressement délirant à l'établissement. Le pilote démarre, mais le prix payé est trop élevé — ça hypothèque l'avenir commercial d'Orisio.",
+      "conditions": {
+        "core_flags": [
+          "contrat_signed_toxic"
+        ],
+        "min_core_flags": 1
+      }
+    },
+    {
+      "ending_id": "success",
+      "label": "Pilote bien négocié",
+      "priority": 2,
+      "content": "Tu as choisi un établissement adapté, proposé un test convaincant et négocié un contrat qui protège Orisio. Le pilote démarre dans 2 semaines. Première étape vers un vrai client.",
+      "conditions": {
+        "core_flags": [
+          "pitch_mail_sent",
+          "contrat_signed_clean"
+        ],
+        "min_core_flags": 2
+      }
+    },
+    {
+      "ending_id": "partial_success",
+      "label": "Pilote signé avec concessions",
+      "priority": 1,
+      "content": "Le pilote est signé mais tu as accepté des conditions qui pourraient poser problème plus tard (clause groupe, référence commerciale limitée, ou timing serré). Le test démarre, mais tu n'as pas le contrôle total.",
+      "conditions": {
+        "core_flags": [
+          "pitch_mail_sent"
+        ],
+        "min_core_flags": 1
+      }
+    }
+  ],
+  "default_ending": {
+    "ending_id": "partial_success",
+    "label": "Pilote signé avec concessions",
+    "content": "Le test démarre dans des conditions imparfaites mais acceptables."
+  },
+  "competencies_evaluated": [
+    "Choix stratégique (établissement cible)",
+    "Communication commerciale B2B (mail de pitch)",
+    "Lecture et négociation de contrat",
+    "Protection de la propriété intellectuelle"
+  ]
+}

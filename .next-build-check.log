@@ -1,0 +1,85 @@
+▲ Next.js 16.2.2 (Turbopack)
+- Environments: .env.local
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 4.2s
+  Running TypeScript ...
+  Finished TypeScript in 4.2s ...
+  Collecting page data using 3 workers ...
+  Generating static pages using 3 workers (0/40) ...
+  Generating static pages using 3 workers (10/40) 
+  Generating static pages using 3 workers (20/40) 
+  Generating static pages using 3 workers (30/40) 
+✓ Generating static pages using 3 workers (40/40) in 323ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /admin
+├ ○ /admin/analytics
+├ ○ /admin/competencies
+├ ƒ /api/admin/analytics
+├ ƒ /api/admin/competencies
+├ ƒ /api/admin/convert
+├ ƒ /api/admin/save-scenario
+├ ƒ /api/admin/scenario-config
+├ ƒ /api/admin/scenario-editor
+├ ƒ /api/auth/login
+├ ƒ /api/auth/register
+├ ƒ /api/auth/session
+├ ƒ /api/auth/users
+├ ƒ /api/auth/users/founder-access
+├ ƒ /api/capabilities
+├ ƒ /api/debrief/pdf
+├ ƒ /api/founder/campaigns
+├ ƒ /api/game-events
+├ ƒ /api/job-families
+├ ƒ /api/job-families/[familyId]
+├ ƒ /api/organizations
+├ ƒ /api/organizations/[orgId]
+├ ƒ /api/organizations/[orgId]/assignments
+├ ƒ /api/organizations/[orgId]/features
+├ ƒ /api/organizations/[orgId]/members
+├ ƒ /api/profile/download-pdf/[recordId]
+├ ƒ /api/profile/extract-skills
+├ ƒ /api/profile/history
+├ ƒ /api/profile/preferences
+├ ƒ /api/profile/save-game
+├ ƒ /api/profile/stats
+├ ƒ /api/scenarios
+├ ƒ /api/studio
+├ ƒ /api/studio/[studioId]
+├ ƒ /api/studio/[studioId]/actor-generate
+├ ƒ /api/studio/[studioId]/ai-patch
+├ ƒ /api/studio/[studioId]/ai-review
+├ ƒ /api/studio/[studioId]/assistant
+├ ƒ /api/studio/[studioId]/compile
+├ ƒ /api/studio/[studioId]/import-extract
+├ ƒ /api/studio/[studioId]/upload
+├ ƒ /api/studio/[studioId]/validate
+├ ƒ /api/transcribe
+├ ƒ /api/v2/actor
+├ ƒ /api/v2/complete
+├ ƒ /api/v2/observe
+├ ƒ /coach/[orgId]
+├ ƒ /coach/[orgId]/assign
+├ ƒ /coach/[orgId]/coachees
+├ ƒ /coach/[orgId]/progress
+├ ƒ /enterprise/[orgId]
+├ ƒ /enterprise/[orgId]/assign
+├ ƒ /enterprise/[orgId]/results
+├ ƒ /enterprise/[orgId]/users
+├ ƒ /founder/[campaignId]
+├ ○ /founder/intro
+├ ○ /history
+├ ○ /login
+├ ƒ /play/[scenarioId]
+├ ○ /profile
+├ ○ /studio
+└ ƒ /studio/[studioId]
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

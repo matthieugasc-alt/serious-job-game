@@ -474,6 +474,29 @@ export default function StudioEditorPage({ params }: { params: Promise<{ studioI
         fontFamily: 'system-ui, -apple-system, sans-serif',
       }}
     >
+      {/* ⚠ Studio gelé (décision PO) — produit du format v1 (phases),
+          incompatible avec le moteur v2 (mécaniques). Bandeau permanent
+          tant que la migration studio→v2 n'est pas faite. */}
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 9999,
+          background: 'linear-gradient(90deg, #7c2d12, #b45309)',
+          color: '#fff',
+          textAlign: 'center',
+          padding: '8px 16px',
+          fontSize: 13,
+          fontWeight: 700,
+          letterSpacing: 0.3,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.4)',
+        }}
+      >
+        🧊 Studio gelé — cet éditeur produit des scénarios au format v1 (phases),
+        incompatible avec le moteur v2 (mécaniques). Migration à venir.
+      </div>
       {/* Sidebar */}
       <div
         style={{

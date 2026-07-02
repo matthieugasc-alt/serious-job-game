@@ -72,104 +72,10 @@ export const registerSchema = z.object({
   password: nonEmptyString.min(8, "doit contenir au moins 8 caractères"),
 });
 
-// ─── Chat Schema ──────────────────────────────────────────────
-
-export const chatSchema = z.object({
-  playerName: trimmedString.default("Player"),
-  message: trimmedString.default(""),
-  phaseTitle: trimmedString.default(""),
-  phaseObjective: trimmedString.default(""),
-  phaseFocus: trimmedString.default(""),
-  phasePrompt: trimmedString.default(""),
-  mode: z.enum(["guided", "standard", "autonomy"]).default("guided"),
-  roleplayPrompt: trimmedString.default(""),
-  narrative: z.record(z.string(), z.unknown()).default({}),
-  recentConversation: z.array(z.unknown()).default([]),
-  criteria: z.array(z.unknown()).default([]),
-  playerMessages: z.array(z.string()).default([]),
-  // ── Optional: structured evaluation modes ──────────────────────
-  // When set, the API computes an additional `phase_evaluation`
-  // block in the response (used for score-based phase advancement).
-  // "prospection" also emits `prospection_evaluation` for legacy compat.
-  eval_mode: z.enum(["prospection", "dsi_validation"]).optional(),
-  // Phase advancement configuration (mirrors PhaseDefinition.advancement
-  // in app/lib/types.ts). Only consumed when eval_mode is set.
-  advancement_config: z
-    .object({
-      mode: z.enum(["prospection_evaluation", "dsi_validation"]),
-      min_score: z.number(),
-      required_criteria: z.array(z.string()),
-      set_flag: z.string(),
-      set_actor_flag: z.string().optional(),
-      hard_reject_criteria: z.array(z.string()).optional(),
-      failure_phase: z.string().optional(),
-      failure_reset_flags: z.array(z.string()).optional(),
-      failure_message: z.string().optional(),
-    })
-    .optional(),
-  // Actor id targeted by the player's action (e.g. cold email recipient).
-  // Echoed back in prospection_evaluation.actorId.
-  target_actor_id: trimmedString.optional(),
-  // 0..1 jaccard similarity vs previous mails to the same recipient.
-  // When >= SIMILARITY_REJECT_THRESHOLD the API forces interested = false
-  // and adapts the NPC reply.
-  similarity_to_previous: z.number().min(0).max(1).optional(),
-  // True when the targeted NPC has already replied at least once during
-  // the current phase. Encodes the "1 KOL = 1 chance" gameplay rule:
-  // once the NPC has taken a position, follow-ups cannot flip him to
-  // interested = true. Forwarded by page.tsx for cold-email retries.
-  previously_replied: z.boolean().optional(),
-  // Optional context blocks (sent_mails, kol_profiles, phase_state, …)
-  // injected into the system prompt. Provided by chatContextEnrichment helper.
-  chat_context: z.record(z.string(), z.unknown()).optional(),
-  // E-chantier E2: declarative evaluation criteria from
-  // phase.evaluation.observed_criteria. When present, the API emits a
-  // `phase_observation` block with `{criteria: {[id]: boolean},
-  // evidence?: {[id]: string}}` in addition to the legacy fields.
-  // Consumed client-side by applyPhaseObservation().
-  observed_criteria: z
-    .array(
-      z.object({
-        id: z.string().regex(/^[a-z0-9_]+$/),
-        description: z.string(),
-        expected: z.boolean().optional(),
-        weight: z.number().optional(),
-      }),
-    )
-    .optional(),
-});
-
-// ─── Debrief Schema ───────────────────────────────────────────
-
-export const debriefSchema = z.object({
-  scenarioTitle: nonEmptyString,
-  playerName: trimmedString.default("Joueur"),
-  // phases come from scenario.phases — passthrough to keep all fields (title, objective, scoring, etc.)
-  phases: z.array(z.record(z.string(), z.unknown())).min(1, "au moins une phase requise"),
-  // Extra fields sent by frontend: conversation, sentMails, inboxMails, endings, defaultEnding
-}).passthrough();
-
-// ─── Evaluate Presentation Schema ─────────────────────────────
-
-export const evaluatePresentationSchema = z.object({
-  transcript: nonEmptyString,
-  phaseTitle: trimmedString.default(""),
-  phaseObjective: trimmedString.default(""),
-  criteria: z.array(z.unknown()).default([]),
-});
-
-// ─── TTS Schema ───────────────────────────────────────────────
-
-const VALID_VOICES = [
-  "alloy", "ash", "ballad", "coral", "echo",
-  "fable", "nova", "onyx", "sage", "shimmer",
-] as const;
-
-export const ttsSchema = z.object({
-  text: nonEmptyString.max(4096, "max 4096 caractères"),
-  voice: z.enum(VALID_VOICES).default("nova"),
-  speed: z.number().min(0.25).max(4.0).default(1.0),
-});
+// NB : les schémas du player v1 (chatSchema, debriefSchema,
+// evaluatePresentationSchema, ttsSchema) ont été supprimés avec leurs
+// routes (/api/chat, /api/debrief, /api/evaluate-presentation, /api/tts)
+// lors de la purge du legacy — voir archive/legacy-v1/ARCHIVE.md.
 
 // ─── Organization Schemas ─────────────────────────────────────
 

@@ -361,7 +361,7 @@ export default function ProfilePage() {
                   {suggestedScenarios.map((s) => {
                     const dc = getDifficultyLabel(s.difficulty);
                     return (
-                      <div key={s.id} onClick={() => router.push(`/scenarios/${s.id}`)} style={{
+                      <div key={s.id} onClick={() => router.push(`/play/${s.id}`)} style={{
                         background: "#fff", borderRadius: 14, padding: "18px 22px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
                         cursor: "pointer", transition: "all 0.2s", border: "2px solid transparent",
                       }}
