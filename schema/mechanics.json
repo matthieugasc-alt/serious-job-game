@@ -1,0 +1,11 @@
+{
+  "$comment": "Liste canonique des mécaniques — consommée par scripts/validate-scenarios-v2.mjs (qui ne peut pas importer du TS). Le test app/mechanics/__tests__/registry.gardefou.test.ts garantit la synchro avec MECHANIC_MANIFESTS.",
+  "mechanics": [
+    {
+      "id": "_noop",
+      "version": "1.0.0",
+      "output_keys": ["echo", "received_inputs"],
+      "required_params": ["echo"]
+    }
+  ]
+}

@@ -13,7 +13,8 @@
     "scaffold:scenario": "node scripts/scaffold-scenario.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:coverage": "vitest run --coverage"
+    "test:coverage": "vitest run --coverage",
+    "validate:scenarios:v2": "node scripts/validate-scenarios-v2.mjs"
   },
   "dependencies": {
     "next": "16.2.2",
