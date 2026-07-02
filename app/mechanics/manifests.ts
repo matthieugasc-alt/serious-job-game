@@ -9,7 +9,21 @@
 
 import type { MechanicManifest } from "@/app/lib/engine/mechanics";
 import { manifest as noop } from "./_noop/manifest";
+import { manifest as entretien } from "./entretien/manifest";
+import { manifest as qa } from "./qa/manifest";
+import { manifest as presentation } from "./presentation/manifest";
+import { manifest as analyse } from "./analyse/manifest";
+import { manifest as production } from "./production/manifest";
+import { manifest as decision } from "./decision/manifest";
+import { manifest as negociation } from "./negociation/manifest";
 
 export const MECHANIC_MANIFESTS: Record<string, MechanicManifest> = {
   [noop.id]: noop,
+  [entretien.id]: entretien,
+  [qa.id]: qa,
+  [presentation.id]: presentation,
+  [analyse.id]: analyse,
+  [production.id]: production,
+  [decision.id]: decision,
+  [negociation.id]: negociation,
 };

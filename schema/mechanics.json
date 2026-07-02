@@ -6,6 +6,48 @@
       "version": "1.0.0",
       "output_keys": ["echo", "received_inputs"],
       "required_params": ["echo"]
+    },
+    {
+      "id": "entretien",
+      "version": "1.0.0",
+      "output_keys": ["dialogue", "exchange_count"],
+      "required_params": ["actor_id", "objective"]
+    },
+    {
+      "id": "qa",
+      "version": "1.0.0",
+      "output_keys": ["dialogue", "answers_count"],
+      "required_params": ["actor_id", "question_count"]
+    },
+    {
+      "id": "presentation",
+      "version": "1.0.0",
+      "output_keys": ["speech", "duration_s"],
+      "required_params": ["brief"]
+    },
+    {
+      "id": "analyse",
+      "version": "1.0.0",
+      "output_keys": ["findings"],
+      "required_params": ["instructions", "findings_prompts"]
+    },
+    {
+      "id": "production",
+      "version": "1.0.0",
+      "output_keys": ["deliverable", "body"],
+      "required_params": ["deliverable_type", "instructions"]
+    },
+    {
+      "id": "decision",
+      "version": "1.0.0",
+      "output_keys": ["choice", "choices", "justification"],
+      "required_params": ["instructions", "options"]
+    },
+    {
+      "id": "negociation",
+      "version": "1.0.0",
+      "output_keys": ["agreement", "proposals_count"],
+      "required_params": ["actor_id", "instructions", "terms"]
     }
   ]
 }
