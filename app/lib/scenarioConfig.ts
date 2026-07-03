@@ -9,9 +9,7 @@ export interface ScenarioConfig {
   adminLocked: boolean; // true = "working on it", players see it but can't play
   lockMessage?: string; // Custom message shown to players
   prerequisites?: string[]; // Array of scenario IDs that must be completed first
-  category?: string; // Override category (defaults to job_family from scenario.json)
-  order?: number; // Sort order within category
-  featured?: boolean; // Show on top
+  category?: string; // Display category override (falls back to scenario.job_family)
 }
 
 /**

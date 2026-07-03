@@ -68,8 +68,6 @@ export async function POST(request: NextRequest) {
       lockMessage: parsed.data.lockMessage || undefined,
       prerequisites: parsed.data.prerequisites || undefined,
       category: parsed.data.category || undefined,
-      order: parsed.data.order,
-      featured: parsed.data.featured,
     };
 
     // Save scenario config

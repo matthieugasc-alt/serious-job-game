@@ -23,6 +23,7 @@ interface ScenarioConfig {
   adminLocked?: boolean;
   lockMessage?: string;
   prerequisites?: string[];
+  category?: string;
 }
 
 interface UserPreference {
@@ -83,6 +84,19 @@ function normalizeJobFamily(raw: string): string {
   if (s.includes("immobilier")) return "immobilier";
 
   return s;
+}
+
+/** Display category of a scenario: admin override (config.category) if set,
+ *  else the scenario's job_family, else "autre". */
+function effectiveCategory(
+  scenario: Scenario,
+  configs: Record<string, ScenarioConfig>,
+): string {
+  return (
+    configs[scenario.scenario_id]?.category?.trim() ||
+    scenario.job_family ||
+    "autre"
+  );
 }
 
 /** Format job_family slug into readable label */
@@ -384,23 +398,13 @@ export default function ScenarioSelectionPage() {
         const loadedScenarios = scenariosData.scenarios || [];
         setScenarios(loadedScenarios);
 
-        // Extract unique categories (normalized)
-        const categories: string[] = Array.from(
-          new Set<string>(
-            loadedScenarios
-              .map((s: Scenario) => normalizeJobFamily(s.job_family || "autre"))
-              .filter((f: string) => Boolean(f))
-          )
-        ).sort();
-        setAllCategories(categories);
-        setSelectedCategories(new Set<string>(categories));
-
-        // Fetch scenario configs
+        // Fetch scenario configs BEFORE computing categories — the admin can
+        // override the display category per scenario (config.category).
+        const configMap: Record<string, ScenarioConfig> = {};
         try {
           const configsRes = await fetch("/api/admin/scenario-config", { cache: "no-store" });
           if (configsRes.ok) {
             const configsData = await configsRes.json();
-            const configMap: Record<string, ScenarioConfig> = {};
             (configsData.configs || []).forEach((cfg: ScenarioConfig) => {
               configMap[cfg.scenarioId] = cfg;
             });
@@ -409,6 +413,18 @@ export default function ScenarioSelectionPage() {
         } catch (err) {
           console.error("Failed to fetch configs:", err);
         }
+
+        // Extract unique categories (normalized), using the admin override
+        // when present, otherwise the scenario's job_family.
+        const categories: string[] = Array.from(
+          new Set<string>(
+            loadedScenarios
+              .map((s: Scenario) => normalizeJobFamily(effectiveCategory(s, configMap)))
+              .filter((f: string) => Boolean(f))
+          )
+        ).sort();
+        setAllCategories(categories);
+        setSelectedCategories(new Set<string>(categories));
 
         // If logged in, fetch user preferences and completed scenarios
         if (userToken) {
@@ -698,7 +714,7 @@ export default function ScenarioSelectionPage() {
               <div>
                 <div style={{ fontSize: 15, fontWeight: 700 }}>Espace Administrateur</div>
                 <div style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginTop: 2 }}>
-                  Creer et gerer vos scenarios
+                  Utilisateurs, organisations et catalogue de scenarios
                 </div>
               </div>
             </div>
@@ -914,15 +930,16 @@ export default function ScenarioSelectionPage() {
           </div>
         ) : (
           (() => {
-            // Filter scenarios by selected categories (normalized)
+            // Filter scenarios by selected categories (normalized,
+            // config.category override first, then job_family)
             const filteredScenarios = scenarios.filter((s) =>
-              selectedCategories.has(normalizeJobFamily(s.job_family || "autre"))
+              selectedCategories.has(normalizeJobFamily(effectiveCategory(s, configs)))
             );
 
-            // Group scenarios by normalized job_family
+            // Group scenarios by normalized display category
             const groups: Record<string, Scenario[]> = {};
             for (const s of filteredScenarios) {
-              const key = normalizeJobFamily(s.job_family || "autre");
+              const key = normalizeJobFamily(effectiveCategory(s, configs));
               if (!groups[key]) groups[key] = [];
               groups[key].push(s);
             }

@@ -53,6 +53,7 @@ interface AggregatedSkill {
 
 interface Scenario {
   id: string;
+  scenario_id?: string;
   job_family?: string;
   title: string;
   difficulty?: string;
@@ -360,6 +361,12 @@ export default function ProfilePage() {
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 14 }}>
                   {suggestedScenarios.map((s) => {
                     const dc = getDifficultyLabel(s.difficulty);
+                    // Display category: admin override (config.category) first,
+                    // then job_family — same logic as the home catalogue.
+                    const sConfig = scenarioConfigs.find(
+                      (c) => c.scenarioId === s.scenario_id || c.scenarioId === s.id
+                    );
+                    const displayCategory = sConfig?.category?.trim() || s.job_family || "";
                     return (
                       <div key={s.id} onClick={() => router.push(`/play/${s.id}`)} style={{
                         background: "#fff", borderRadius: 14, padding: "18px 22px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)",
@@ -372,7 +379,7 @@ export default function ProfilePage() {
                           <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: "#111" }}>{s.title}</h3>
                           <span style={{ fontSize: 11, padding: "2px 8px", borderRadius: 10, background: dc.bg, color: dc.color, fontWeight: 600 }}>{dc.label}</span>
                         </div>
-                        <div style={{ fontSize: 12, color: "#888" }}>{formatJobFamily(s.job_family || "")}</div>
+                        <div style={{ fontSize: 12, color: "#888" }}>{formatJobFamily(displayCategory)}</div>
                         <div style={{ marginTop: 10, fontSize: 12, color: "#5b5fc7", fontWeight: 600 }}>Commencer →</div>
                       </div>
                     );

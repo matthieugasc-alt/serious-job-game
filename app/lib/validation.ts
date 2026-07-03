@@ -138,20 +138,12 @@ export const updateFeaturesSchema = z.object({
 
 // ─── Admin Schemas ────────────────────────────────────────────
 
-export const saveScenarioSchema = z.object({
-  scenario: z.object({
-    scenario_id: nonEmptyString,
-  }).passthrough(),
-});
-
 export const scenarioConfigSchema = z.object({
   scenarioId: nonEmptyString,
   adminLocked: z.boolean(),
   lockMessage: trimmedString.optional(),
   prerequisites: z.array(z.string()).optional(),
   category: trimmedString.optional(),
-  order: z.number().int().min(0).optional(),
-  featured: z.boolean().optional(),
 });
 
 // ─── Job Families Schema ──────────────────────────────────────
