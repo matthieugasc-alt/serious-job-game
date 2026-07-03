@@ -47,16 +47,29 @@ interface Scenario {
   title: string;
   subtitle: string;
   difficulty: string;
+  estimated_duration_min?: number;
+  tags?: string[];
   job_family?: string;
 }
 
 interface ScenarioConfig {
   scenario_id: string;
   adminLocked?: boolean;
-  lockMessage?: string;
-  prerequisites?: string[];
-  category?: string;
+  category?: string; // ID de catégorie du référentiel (data/categories.json)
+  level?: string; // Override du niveau : debutant | intermediaire | avance | expert
 }
+
+interface Category {
+  id: string;
+  label: string;
+}
+
+const LEVEL_OPTIONS: { value: string; label: string }[] = [
+  { value: "debutant", label: "Débutant" },
+  { value: "intermediaire", label: "Intermédiaire" },
+  { value: "avance", label: "Avancé" },
+  { value: "expert", label: "Expert" },
+];
 
 // ── Styles ───────────────────────────────────────────────────────
 
@@ -911,37 +924,50 @@ function OrganizationsTab({ token }: { token: string }) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// TAB 3: SCÉNARIOS — gestion de catalogue pure
+// TAB 3: SCÉNARIOS — catalogue minimal
 //
-// Source : /api/scenarios (même lib que la home : app/lib/scenarios.ts).
-// Contrôles par scénario, tous branchés sur /api/admin/scenario-config
-// (app/lib/scenarioConfig.ts → data/scenario_config.json) :
-//   - Verrouiller / Déverrouiller (+ message de verrouillage)
-//   - Prérequis (IDs de scénarios à compléter d'abord)
-// La création/édition de scénarios ne se fait PAS ici (studio gelé,
-// un vrai studio viendra plus tard).
+// Deux blocs :
+//   1. Référentiel de catégories (data/categories.json via
+//      /api/admin/categories) : créer, renommer (l'id ne bouge jamais,
+//      les assignations survivent), supprimer (refusé si des scénarios
+//      sont assignés, sauf confirmation → force=true qui purge leurs
+//      overrides : ils retombent sur job_family / « Autre »).
+//   2. Cartes scénarios avec exactement 3 contrôles : Catégorie (select
+//      sur le référentiel), Niveau (select, override du meta.difficulty
+//      du scenario.json), Bloqué/Débloqué (toggle). Sauvegarde immédiate
+//      à chaque changement via POST /api/admin/scenario-config —
+//      pas de bouton Enregistrer.
 // ═══════════════════════════════════════════════════════════════════
+
+type SaveState = { state: "saving" | "saved" | "error"; message?: string };
 
 function ScenariosTab({ token }: { token: string }) {
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [configs, setConfigs] = useState<Record<string, ScenarioConfig>>({});
-  const [editingConfigs, setEditingConfigs] = useState<Record<string, ScenarioConfig>>({});
-  const [savingConfigs, setSavingConfigs] = useState<Record<string, boolean>>({});
-  const [feedback, setFeedback] = useState<Record<string, { type: "success" | "error"; text: string }>>({});
+  const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
+  const [saveStatus, setSaveStatus] = useState<Record<string, SaveState>>({});
+
+  // Gestion du référentiel de catégories
+  const [newCategoryLabel, setNewCategoryLabel] = useState("");
+  const [editingCategoryId, setEditingCategoryId] = useState<string | null>(null);
+  const [editingCategoryLabel, setEditingCategoryLabel] = useState("");
+  const [catBusy, setCatBusy] = useState(false);
+  const [catError, setCatError] = useState("");
 
   useEffect(() => {
-    loadScenarios();
+    loadAll();
   }, []);
 
-  async function loadScenarios() {
+  async function loadAll() {
     try {
       setLoading(true);
       setLoadError("");
-      const [scenariosRes, configsRes] = await Promise.all([
+      const [scenariosRes, configsRes, categoriesRes] = await Promise.all([
         fetch("/api/scenarios", { cache: "no-store" }),
         fetch("/api/admin/scenario-config", { cache: "no-store" }),
+        fetch("/api/admin/categories", { cache: "no-store" }),
       ]);
 
       if (!scenariosRes.ok) throw new Error(`Chargement des scénarios impossible (${scenariosRes.status})`);
@@ -950,18 +976,11 @@ function ScenariosTab({ token }: { token: string }) {
 
       if (!configsRes.ok) throw new Error(`Chargement de la configuration impossible (${configsRes.status})`);
       const configsData = await configsRes.json();
-      const configMap: Record<string, ScenarioConfig> = {};
-      (configsData.configs || []).forEach((cfg: any) => {
-        const sid = cfg.scenarioId || cfg.scenario_id;
-        configMap[sid] = {
-          scenario_id: sid,
-          adminLocked: cfg.adminLocked,
-          lockMessage: cfg.lockMessage,
-          prerequisites: cfg.prerequisites,
-          category: cfg.category,
-        };
-      });
-      setConfigs(configMap);
+      setConfigs(toConfigMap(configsData.configs || []));
+
+      if (!categoriesRes.ok) throw new Error(`Chargement des catégories impossible (${categoriesRes.status})`);
+      const categoriesData = await categoriesRes.json();
+      setCategories(categoriesData.categories || []);
     } catch (err) {
       setLoadError(err instanceof Error ? err.message : "Erreur de chargement");
     } finally {
@@ -969,39 +988,40 @@ function ScenariosTab({ token }: { token: string }) {
     }
   }
 
-  function getEditingConfig(scenarioId: string): ScenarioConfig {
-    if (editingConfigs[scenarioId]) return editingConfigs[scenarioId];
-    if (configs[scenarioId]) return configs[scenarioId];
-    return { scenario_id: scenarioId, adminLocked: false, lockMessage: "", prerequisites: [], category: "" };
-  }
-
-  function handleConfigChange(scenarioId: string, field: keyof ScenarioConfig, value: any) {
-    const current = getEditingConfig(scenarioId);
-    setEditingConfigs((prev) => ({ ...prev, [scenarioId]: { ...current, [field]: value } }));
-    setFeedback((prev) => {
-      const next = { ...prev };
-      delete next[scenarioId];
-      return next;
-    });
-  }
-
-  async function handleSaveConfig(scenarioId: string) {
-    if (!token) return;
-    setSavingConfigs((prev) => ({ ...prev, [scenarioId]: true }));
-    setFeedback((prev) => {
-      const next = { ...prev };
-      delete next[scenarioId];
-      return next;
-    });
-    try {
-      const config = getEditingConfig(scenarioId);
-      const payload = {
-        scenarioId: config.scenario_id,
-        adminLocked: config.adminLocked === true,
-        lockMessage: config.lockMessage ?? "",
-        prerequisites: Array.isArray(config.prerequisites) ? config.prerequisites : [],
-        category: config.category ?? "",
+  function toConfigMap(rawConfigs: any[]): Record<string, ScenarioConfig> {
+    const configMap: Record<string, ScenarioConfig> = {};
+    rawConfigs.forEach((cfg: any) => {
+      const sid = cfg.scenarioId || cfg.scenario_id;
+      if (!sid) return;
+      configMap[sid] = {
+        scenario_id: sid,
+        adminLocked: cfg.adminLocked,
+        category: cfg.category,
+        level: cfg.level,
       };
+    });
+    return configMap;
+  }
+
+  function getConfig(scenarioId: string): ScenarioConfig {
+    return configs[scenarioId] || { scenario_id: scenarioId, adminLocked: false, category: "", level: "" };
+  }
+
+  // ── Sauvegarde immédiate (à chaque onChange, pas de bouton) ──────
+  async function saveConfig(scenarioId: string, patch: Partial<ScenarioConfig>) {
+    const previous = getConfig(scenarioId);
+    const next: ScenarioConfig = { ...previous, ...patch, scenario_id: scenarioId };
+    // Optimiste : l'UI reflète le changement tout de suite
+    setConfigs((prev) => ({ ...prev, [scenarioId]: next }));
+    setSaveStatus((prev) => ({ ...prev, [scenarioId]: { state: "saving" } }));
+
+    try {
+      const payload: Record<string, unknown> = {
+        scenarioId,
+        adminLocked: next.adminLocked === true,
+        category: next.category || "", // "" = auto (job_family)
+      };
+      if (next.level) payload.level = next.level; // absent = auto (scenario.json)
 
       const res = await fetch("/api/admin/scenario-config", {
         method: "POST",
@@ -1011,31 +1031,126 @@ function ScenariosTab({ token }: { token: string }) {
 
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data?.error || `Erreur serveur (${res.status})`);
+        throw new Error(data?.message || data?.error || `Erreur serveur (${res.status})`);
       }
 
-      setConfigs((prev) => ({ ...prev, [scenarioId]: config }));
-      setEditingConfigs((prev) => {
-        const next = { ...prev };
-        delete next[scenarioId];
+      setSaveStatus((prev) => ({ ...prev, [scenarioId]: { state: "saved" } }));
+      setTimeout(() => {
+        setSaveStatus((prev) => {
+          if (prev[scenarioId]?.state !== "saved") return prev;
+          const nextStatus = { ...prev };
+          delete nextStatus[scenarioId];
+          return nextStatus;
+        });
+      }, 2500);
+    } catch (err) {
+      // Rollback : on rétablit la valeur d'avant l'échec
+      setConfigs((prev) => ({ ...prev, [scenarioId]: previous }));
+      setSaveStatus((prev) => ({
+        ...prev,
+        [scenarioId]: { state: "error", message: err instanceof Error ? err.message : "Erreur de sauvegarde" },
+      }));
+    }
+  }
+
+  // ── CRUD du référentiel de catégories ────────────────────────────
+  function assignedCount(categoryId: string): number {
+    return Object.values(configs).filter((c) => (c.category || "").trim() === categoryId).length;
+  }
+
+  async function handleAddCategory() {
+    const label = newCategoryLabel.trim();
+    if (!label || catBusy) return;
+    setCatBusy(true);
+    setCatError("");
+    try {
+      const res = await fetch("/api/admin/categories", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ label }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || `Erreur serveur (${res.status})`);
+      setCategories((prev) => [...prev, data.category]);
+      setNewCategoryLabel("");
+    } catch (err) {
+      setCatError(err instanceof Error ? err.message : "Erreur lors de la création");
+    } finally {
+      setCatBusy(false);
+    }
+  }
+
+  async function handleRenameCategory(id: string) {
+    const label = editingCategoryLabel.trim();
+    const current = categories.find((c) => c.id === id);
+    if (!label || !current || label === current.label) {
+      setEditingCategoryId(null);
+      return;
+    }
+    setCatBusy(true);
+    setCatError("");
+    try {
+      const res = await fetch("/api/admin/categories", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ id, label }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.message || data?.error || `Erreur serveur (${res.status})`);
+      setCategories((prev) => prev.map((c) => (c.id === id ? data.category : c)));
+      setEditingCategoryId(null);
+    } catch (err) {
+      setCatError(err instanceof Error ? err.message : "Erreur lors du renommage");
+    } finally {
+      setCatBusy(false);
+    }
+  }
+
+  async function handleDeleteCategory(category: Category) {
+    if (catBusy) return;
+    if (!window.confirm(`Supprimer la catégorie « ${category.label} » ?`)) return;
+    setCatBusy(true);
+    setCatError("");
+    try {
+      let res = await fetch(`/api/admin/categories?id=${encodeURIComponent(category.id)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      if (res.status === 409) {
+        // Des scénarios sont assignés → seconde confirmation avec le compte,
+        // puis suppression forcée (purge des overrides côté serveur).
+        const data = await res.json().catch(() => ({}));
+        const count = (data.assignedScenarioIds || []).length;
+        const ok = window.confirm(
+          `${count} scénario${count > 1 ? "s" : ""} utilise${count > 1 ? "nt" : ""} la catégorie « ${category.label} ».\n\n` +
+          `Supprimer quand même ? Ces scénarios retomberont sur leur catégorie automatique (job_family / « Autre »).`
+        );
+        if (!ok) return;
+        res = await fetch(`/api/admin/categories?id=${encodeURIComponent(category.id)}&force=true`, {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      }
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.message || data?.error || `Erreur serveur (${res.status})`);
+      }
+
+      setCategories((prev) => prev.filter((c) => c.id !== category.id));
+      // Le serveur a purgé les overrides — on aligne l'état local
+      setConfigs((prev) => {
+        const next: Record<string, ScenarioConfig> = {};
+        for (const [sid, cfg] of Object.entries(prev)) {
+          next[sid] = (cfg.category || "").trim() === category.id ? { ...cfg, category: "" } : cfg;
+        }
         return next;
       });
-      setFeedback((prev) => ({ ...prev, [scenarioId]: { type: "success", text: "Enregistré ✓" } }));
-      setTimeout(() => {
-        setFeedback((prev) => {
-          if (prev[scenarioId]?.type !== "success") return prev;
-          const next = { ...prev };
-          delete next[scenarioId];
-          return next;
-        });
-      }, 3000);
     } catch (err) {
-      setFeedback((prev) => ({
-        ...prev,
-        [scenarioId]: { type: "error", text: err instanceof Error ? err.message : "Erreur lors de la sauvegarde" },
-      }));
+      setCatError(err instanceof Error ? err.message : "Erreur lors de la suppression");
     } finally {
-      setSavingConfigs((prev) => ({ ...prev, [scenarioId]: false }));
+      setCatBusy(false);
     }
   }
 
@@ -1043,16 +1158,8 @@ function ScenariosTab({ token }: { token: string }) {
     return <div style={{ textAlign: "center", padding: "60px 20px", color: COLORS.textMuted }}>Chargement des scénarios...</div>;
   }
 
-  // Categories already in use (config overrides + job_family fallbacks) for the datalist
-  const knownCategories = Array.from(
-    new Set<string>(
-      [
-        ...Object.values(configs).map((c) => c.category || ""),
-        ...Object.values(editingConfigs).map((c) => c.category || ""),
-        ...scenarios.map((s) => s.job_family || ""),
-      ].map((c) => c.trim()).filter(Boolean)
-    )
-  ).sort((a, b) => a.localeCompare(b, "fr"));
+  const categoryLabelById: Record<string, string> = {};
+  categories.forEach((c) => { categoryLabelById[c.id] = c.label; });
 
   return (
     <div>
@@ -1063,20 +1170,13 @@ function ScenariosTab({ token }: { token: string }) {
             Catalogue ({scenarios.length} scénario{scenarios.length > 1 ? "s" : ""})
           </h2>
           <p style={{ margin: 0, fontSize: 13, color: COLORS.textMuted }}>
-            Verrouillage et prérequis des scénarios déployés. La création de scénarios ne se fait pas ici.
+            Catégorie, niveau et verrouillage des scénarios déployés. La création de scénarios ne se fait pas ici.
           </p>
         </div>
-        <button onClick={loadScenarios} style={btnSecondary}>
+        <button onClick={loadAll} style={btnSecondary}>
           Rafraîchir
         </button>
       </div>
-
-      {/* Shared datalist for the per-card "Catégorie" inputs */}
-      <datalist id="admin-scenario-categories">
-        {knownCategories.map((cat) => (
-          <option key={cat} value={cat} />
-        ))}
-      </datalist>
 
       {loadError && (
         <div style={{ background: COLORS.errorBg, border: "1px solid rgba(220,38,38,0.4)", color: COLORS.errorText, padding: 14, borderRadius: 10, marginBottom: 20, fontSize: 13 }}>
@@ -1084,101 +1184,236 @@ function ScenariosTab({ token }: { token: string }) {
         </div>
       )}
 
+      {/* ── Bloc Catégories : référentiel dynamique ── */}
+      <div style={{ ...card, marginBottom: 28 }}>
+        <h3 style={{ margin: "0 0 4px", fontSize: 16, fontWeight: 700 }}>Catégories</h3>
+        <p style={{ margin: "0 0 14px", fontSize: 12, color: COLORS.textMuted }}>
+          Référentiel utilisé par le select « Catégorie » des scénarios et par le catalogue joueur.
+          Renommer ne casse pas les assignations (l'identifiant reste stable).
+        </p>
+
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+          {categories.length === 0 && (
+            <span style={{ fontSize: 13, color: COLORS.textDim }}>Aucune catégorie — ajoutez-en une ci-dessous.</span>
+          )}
+          {categories.map((category) => {
+            const count = assignedCount(category.id);
+            const isEditing = editingCategoryId === category.id;
+            return (
+              <span
+                key={category.id}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "6px 10px 6px 14px",
+                  borderRadius: 20,
+                  background: "rgba(91,95,199,0.2)",
+                  border: "1px solid rgba(91,95,199,0.4)",
+                  fontSize: 13,
+                }}
+              >
+                {isEditing ? (
+                  <input
+                    autoFocus
+                    value={editingCategoryLabel}
+                    onChange={(e) => setEditingCategoryLabel(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleRenameCategory(category.id);
+                      if (e.key === "Escape") setEditingCategoryId(null);
+                    }}
+                    onBlur={() => handleRenameCategory(category.id)}
+                    style={{ ...inputStyle, width: 180, padding: "3px 8px", fontSize: 13 }}
+                  />
+                ) : (
+                  <>
+                    <span style={{ color: COLORS.accent, fontWeight: 600 }}>{category.label}</span>
+                    <span style={{ fontSize: 11, color: COLORS.textDim }} title="Scénarios assignés">
+                      {count}
+                    </span>
+                    <button
+                      onClick={() => {
+                        setEditingCategoryId(category.id);
+                        setEditingCategoryLabel(category.label);
+                        setCatError("");
+                      }}
+                      title="Renommer"
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 12, padding: 0, color: COLORS.textMuted }}
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategory(category)}
+                      title="Supprimer"
+                      style={{ background: "none", border: "none", cursor: "pointer", fontSize: 13, padding: 0, color: COLORS.errorText }}
+                    >
+                      ✕
+                    </button>
+                  </>
+                )}
+              </span>
+            );
+          })}
+        </div>
+
+        <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
+          <input
+            type="text"
+            placeholder="Nouvelle catégorie (ex : Ressources humaines)"
+            value={newCategoryLabel}
+            onChange={(e) => setNewCategoryLabel(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAddCategory(); }}
+            style={{ ...inputStyle, maxWidth: 340, padding: "8px 12px", fontSize: 13 }}
+          />
+          <button
+            onClick={handleAddCategory}
+            disabled={catBusy || !newCategoryLabel.trim()}
+            style={{ ...btnPrimary, padding: "8px 18px", fontSize: 13, opacity: catBusy || !newCategoryLabel.trim() ? 0.5 : 1 }}
+          >
+            Ajouter
+          </button>
+        </div>
+
+        {catError && (
+          <div style={{ marginTop: 10, fontSize: 12, color: COLORS.errorText }}>{catError}</div>
+        )}
+      </div>
+
+      {/* ── Grille des scénarios : 3 contrôles par carte ── */}
       {!loadError && scenarios.length === 0 ? (
         <div style={{ textAlign: "center", padding: "40px 20px", color: COLORS.textDim }}>Aucun scénario déployé</div>
       ) : (
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(360px, 1fr))", gap: 20 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))", gap: 20 }}>
           {scenarios.map((scenario) => {
-            const config = getEditingConfig(scenario.scenario_id);
-            const isSaving = savingConfigs[scenario.scenario_id];
-            const cardFeedback = feedback[scenario.scenario_id];
-            const isDirty = !!editingConfigs[scenario.scenario_id];
+            const config = getConfig(scenario.scenario_id);
+            const status = saveStatus[scenario.scenario_id];
+            const isLocked = config.adminLocked === true;
+            const categoryValue = (config.category || "").trim();
+            const isOrphanCategory = !!categoryValue && !categoryLabelById[categoryValue];
 
             return (
               <div key={scenario.scenario_id} style={{ ...card, display: "flex", flexDirection: "column", gap: 14 }}>
-                {/* Title & meta */}
+                {/* Titre + infos */}
                 <div>
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
                     <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700 }}>{scenario.title}</h3>
-                    {config.adminLocked && <span style={{ fontSize: 14 }} title="Verrouillé">🔒</span>}
+                    {isLocked && <span style={{ fontSize: 14 }} title="Bloqué">🔒</span>}
                   </div>
-                  <p style={{ margin: 0, fontSize: 13, color: COLORS.textMuted }}>{scenario.subtitle}</p>
+                  {scenario.subtitle && (
+                    <p style={{ margin: 0, fontSize: 13, color: COLORS.textMuted }}>{scenario.subtitle}</p>
+                  )}
                   <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 12, padding: "3px 8px", background: "rgba(91,95,199,0.2)", color: COLORS.accent, borderRadius: 4 }}>
-                      {config.category?.trim() || scenario.job_family || "Autre"}
-                    </span>
-                    <span style={{ fontSize: 12, padding: "3px 8px", background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", borderRadius: 4 }}>
-                      {scenario.difficulty}
-                    </span>
                     <span style={{ fontSize: 12, padding: "3px 8px", background: "rgba(255,255,255,0.06)", color: COLORS.textDim, borderRadius: 4, fontFamily: "monospace" }}>
                       {scenario.scenario_id}
                     </span>
+                    {(scenario.estimated_duration_min || 0) > 0 && (
+                      <span style={{ fontSize: 12, padding: "3px 8px", background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", borderRadius: 4 }}>
+                        ⏱ {scenario.estimated_duration_min} min
+                      </span>
+                    )}
+                    {(scenario.tags || []).slice(0, 3).map((tag) => (
+                      <span key={tag} style={{ fontSize: 12, padding: "3px 8px", background: "rgba(255,255,255,0.06)", color: COLORS.textMuted, borderRadius: 4 }}>
+                        {tag}
+                      </span>
+                    ))}
                   </div>
                 </div>
 
-                {/* Config controls */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12, background: "rgba(0,0,0,0.15)", borderRadius: 10, fontSize: 13 }}>
+                {/* Les 3 contrôles — sauvegarde immédiate à chaque changement */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 12, background: "rgba(0,0,0,0.15)", borderRadius: 10, fontSize: 13 }}>
                   <div>
-                    <label style={{ display: "block", fontSize: 11, color: COLORS.textDim, marginBottom: 2 }}>
-                      Catégorie (affichage catalogue — vide = famille métier du scénario)
+                    <label style={{ display: "block", fontSize: 11, color: COLORS.textDim, marginBottom: 3 }}>
+                      Catégorie
                     </label>
-                    <input
-                      type="text"
-                      list="admin-scenario-categories"
-                      placeholder={scenario.job_family || "Autre"}
-                      value={config.category || ""}
-                      onChange={(e) => handleConfigChange(scenario.scenario_id, "category", e.target.value)}
-                      style={{ ...inputStyle, padding: "6px 10px", fontSize: 12 }}
-                    />
+                    <select
+                      value={categoryValue}
+                      onChange={(e) => saveConfig(scenario.scenario_id, { category: e.target.value })}
+                      style={{ ...inputStyle, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}
+                    >
+                      <option value="" style={{ color: "#111" }}>— (auto : job_family)</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id} style={{ color: "#111" }}>
+                          {category.label}
+                        </option>
+                      ))}
+                      {isOrphanCategory && (
+                        <option value={categoryValue} style={{ color: "#111" }}>
+                          {categoryValue} (catégorie supprimée)
+                        </option>
+                      )}
+                    </select>
                   </div>
-                  <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
-                    <input
-                      type="checkbox"
-                      checked={config.adminLocked || false}
-                      onChange={(e) => handleConfigChange(scenario.scenario_id, "adminLocked", e.target.checked)}
-                      style={{ width: 16, height: 16, cursor: "pointer", accentColor: COLORS.primary }}
-                    />
-                    Verrouiller (visible sur le catalogue, mais non jouable)
-                  </label>
-                  {config.adminLocked && (
-                    <input
-                      type="text"
-                      placeholder="Message de verrouillage (optionnel)"
-                      value={config.lockMessage || ""}
-                      onChange={(e) => handleConfigChange(scenario.scenario_id, "lockMessage", e.target.value)}
-                      style={{ ...inputStyle, padding: "6px 10px", fontSize: 12 }}
-                    />
-                  )}
-                  <div>
-                    <label style={{ display: "block", fontSize: 11, color: COLORS.textDim, marginBottom: 2 }}>
-                      Prérequis (IDs de scénarios, séparés par des virgules)
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ex : cpo_diagnostic, cpo_decision"
-                      value={(config.prerequisites || []).join(", ")}
-                      onChange={(e) => handleConfigChange(scenario.scenario_id, "prerequisites", e.target.value.split(",").map((s) => s.trim()).filter(Boolean))}
-                      style={{ ...inputStyle, padding: "6px 10px", fontSize: 12 }}
-                    />
-                  </div>
-                </div>
 
-                {/* Save + feedback */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: COLORS.textDim, marginBottom: 3 }}>
+                      Niveau
+                    </label>
+                    <select
+                      value={config.level || ""}
+                      onChange={(e) => saveConfig(scenario.scenario_id, { level: e.target.value })}
+                      style={{ ...inputStyle, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}
+                    >
+                      <option value="" style={{ color: "#111" }}>Auto ({scenario.difficulty})</option>
+                      {LEVEL_OPTIONS.map((level) => (
+                        <option key={level.value} value={level.value} style={{ color: "#111" }}>
+                          {level.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Toggle Bloqué / Débloqué */}
                   <button
-                    onClick={() => handleSaveConfig(scenario.scenario_id)}
-                    disabled={isSaving}
-                    style={{ ...btnPrimary, padding: "8px 16px", fontSize: 12, opacity: isSaving ? 0.6 : 1, cursor: isSaving ? "wait" : "pointer" }}
+                    onClick={() => saveConfig(scenario.scenario_id, { adminLocked: !isLocked })}
+                    title={isLocked ? "Le scénario est visible au catalogue mais non jouable" : "Le scénario est jouable"}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: 10,
+                      padding: "7px 10px",
+                      background: isLocked ? "rgba(220,38,38,0.12)" : "rgba(22,163,74,0.12)",
+                      border: `1px solid ${isLocked ? "rgba(220,38,38,0.4)" : "rgba(22,163,74,0.4)"}`,
+                      borderRadius: 8,
+                      cursor: "pointer",
+                      color: isLocked ? COLORS.errorText : COLORS.successText,
+                      fontSize: 13,
+                      fontWeight: 600,
+                    }}
                   >
-                    {isSaving ? "Sauvegarde..." : "Enregistrer"}
-                  </button>
-                  {cardFeedback && (
-                    <span style={{ fontSize: 12, fontWeight: 600, color: cardFeedback.type === "success" ? COLORS.successText : COLORS.errorText }}>
-                      {cardFeedback.text}
+                    <span
+                      style={{
+                        width: 34,
+                        height: 18,
+                        borderRadius: 9,
+                        background: isLocked ? COLORS.error : COLORS.success,
+                        position: "relative",
+                        flexShrink: 0,
+                        transition: "background 0.2s",
+                      }}
+                    >
+                      <span
+                        style={{
+                          position: "absolute",
+                          top: 2,
+                          left: isLocked ? 2 : 18,
+                          width: 14,
+                          height: 14,
+                          borderRadius: "50%",
+                          background: "#fff",
+                          transition: "left 0.2s",
+                        }}
+                      />
                     </span>
-                  )}
-                  {!cardFeedback && isDirty && (
-                    <span style={{ fontSize: 12, color: COLORS.textDim }}>Modifications non enregistrées</span>
+                    {isLocked ? "🔒 Bloqué" : "🟢 Débloqué"}
+                  </button>
+                </div>
+
+                {/* Indicateur discret enregistré / erreur */}
+                <div style={{ minHeight: 16, fontSize: 12 }}>
+                  {status?.state === "saving" && <span style={{ color: COLORS.textDim }}>Enregistrement…</span>}
+                  {status?.state === "saved" && <span style={{ color: COLORS.successText, fontWeight: 600 }}>Enregistré ✓</span>}
+                  {status?.state === "error" && (
+                    <span style={{ color: COLORS.errorText, fontWeight: 600 }}>{status.message || "Erreur"}</span>
                   )}
                 </div>
               </div>

@@ -3,6 +3,7 @@ import { validateSession } from '@/app/lib/auth';
 import { isAdminRole } from '@/app/lib/permissions';
 import {
   getAllScenarioConfigs,
+  getScenarioConfig,
   saveScenarioConfig,
   ScenarioConfig,
 } from '@/app/lib/scenarioConfig';
@@ -61,13 +62,26 @@ export async function POST(request: NextRequest) {
     const parsed = parseBody(body, scenarioConfigSchema);
     if (parsed.error) return NextResponse.json(parsed.error, { status: 400 });
 
-    // Build config object
+    // Build config object.
+    // lockMessage / prerequisites ne sont plus édités par l'admin : quand ils
+    // sont absents du payload, on préserve les valeurs existantes (lecture
+    // tolérante des anciennes configs) au lieu de les écraser.
+    const existing = getScenarioConfig(parsed.data.scenarioId);
     const config: ScenarioConfig = {
       scenarioId: parsed.data.scenarioId,
       adminLocked: parsed.data.adminLocked,
-      lockMessage: parsed.data.lockMessage || undefined,
-      prerequisites: parsed.data.prerequisites || undefined,
+      lockMessage:
+        parsed.data.lockMessage !== undefined
+          ? parsed.data.lockMessage || undefined
+          : existing?.lockMessage,
+      prerequisites:
+        parsed.data.prerequisites !== undefined
+          ? parsed.data.prerequisites
+          : existing?.prerequisites,
+      // "" = auto (retour au job_family) → on retire l'override
       category: parsed.data.category || undefined,
+      // absent = auto (valeur du scenario.json)
+      level: parsed.data.level || undefined,
     };
 
     // Save scenario config

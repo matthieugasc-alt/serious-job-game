@@ -4,12 +4,23 @@ import * as path from 'path';
 const DATA_DIR = path.join(process.cwd(), 'data');
 const SCENARIO_CONFIG_FILE = path.join(DATA_DIR, 'scenario_config.json');
 
+/** Niveau override (admin) — remplace meta.difficulty du scenario.json à l'affichage */
+export type ScenarioLevel = 'debutant' | 'intermediaire' | 'avance' | 'expert';
+
+export const SCENARIO_LEVELS: ScenarioLevel[] = [
+  'debutant',
+  'intermediaire',
+  'avance',
+  'expert',
+];
+
 export interface ScenarioConfig {
   scenarioId: string;
   adminLocked: boolean; // true = "working on it", players see it but can't play
-  lockMessage?: string; // Custom message shown to players
-  prerequisites?: string[]; // Array of scenario IDs that must be completed first
-  category?: string; // Display category override (falls back to scenario.job_family)
+  lockMessage?: string; // Legacy — plus édité par l'admin, lecture tolérante côté home
+  prerequisites?: string[]; // Legacy — plus édité par l'admin, lecture tolérante côté home
+  category?: string; // ID de catégorie du référentiel (data/categories.json) — fallback job_family
+  level?: ScenarioLevel; // Override du meta.difficulty du scenario.json
 }
 
 /**

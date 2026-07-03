@@ -63,7 +63,13 @@ interface ScenarioConfig {
   scenarioId: string;
   adminLocked?: boolean;
   prerequisites?: string[];
-  category?: string;
+  category?: string; // ID de catégorie du référentiel (data/categories.json)
+  level?: string;
+}
+
+interface Category {
+  id: string;
+  label: string;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -125,6 +131,7 @@ export default function ProfilePage() {
   const [gameHistory, setGameHistory] = useState<GameRecord[]>([]);
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
   const [scenarioConfigs, setScenarioConfigs] = useState<ScenarioConfig[]>([]);
+  const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [expandedRecordId, setExpandedRecordId] = useState<string | null>(null);
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
@@ -152,12 +159,13 @@ export default function ProfilePage() {
         const headers = { Authorization: `Bearer ${token}` };
 
         // Parallel fetches
-        const [sessionRes, historyRes, statsRes, scenariosRes, configsRes] = await Promise.all([
+        const [sessionRes, historyRes, statsRes, scenariosRes, configsRes, categoriesRes] = await Promise.all([
           fetch("/api/auth/session", { headers }),
           fetch("/api/profile/history", { headers }),
           fetch("/api/profile/stats", { headers }),
           fetch("/api/scenarios"),
           fetch("/api/admin/scenario-config"),
+          fetch("/api/admin/categories"),
         ]);
 
         if (sessionRes.ok) setSessionData(await sessionRes.json());
@@ -175,6 +183,12 @@ export default function ProfilePage() {
         }
         if (scenariosRes.ok) { const d = await scenariosRes.json(); setScenarios(d.scenarios || []); }
         if (configsRes.ok) { const d = await configsRes.json(); setScenarioConfigs(d.configs || []); }
+        if (categoriesRes.ok) {
+          const d = await categoriesRes.json();
+          const labels: Record<string, string> = {};
+          (d.categories || []).forEach((c: Category) => { if (c?.id) labels[c.id] = c.label; });
+          setCategoryLabels(labels);
+        }
       } catch (err) {
         console.error("Error loading profile:", err);
       } finally {
@@ -366,7 +380,12 @@ export default function ProfilePage() {
                     const sConfig = scenarioConfigs.find(
                       (c) => c.scenarioId === s.scenario_id || c.scenarioId === s.id
                     );
-                    const displayCategory = sConfig?.category?.trim() || s.job_family || "";
+                    // Résolution id → label via le référentiel de catégories ;
+                    // fallback : job_family formaté, sinon « Autre ».
+                    const categoryId = sConfig?.category?.trim() || "";
+                    const displayCategory = categoryId
+                      ? (categoryLabels[categoryId] || formatJobFamily(categoryId))
+                      : (s.job_family ? formatJobFamily(s.job_family) : "Autre");
                     return (
                       <div key={s.id} onClick={() => router.push(`/play/${s.id}`)} style={{
                         background: "#fff", borderRadius: 14, padding: "18px 22px", boxShadow: "0 2px 12px rgba(0,0,0,0.05)",

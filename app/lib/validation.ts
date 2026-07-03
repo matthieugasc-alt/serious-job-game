@@ -138,12 +138,34 @@ export const updateFeaturesSchema = z.object({
 
 // ─── Admin Schemas ────────────────────────────────────────────
 
+export const scenarioLevelSchema = z.enum([
+  "debutant",
+  "intermediaire",
+  "avance",
+  "expert",
+]);
+
 export const scenarioConfigSchema = z.object({
   scenarioId: nonEmptyString,
   adminLocked: z.boolean(),
+  // Legacy (plus édités par l'admin, tolérés pour compat)
   lockMessage: trimmedString.optional(),
   prerequisites: z.array(z.string()).optional(),
+  // ID de catégorie du référentiel (data/categories.json), "" = auto (job_family)
   category: trimmedString.optional(),
+  // Override du niveau affiché ; absent = valeur du scenario.json
+  level: scenarioLevelSchema.optional(),
+});
+
+// ─── Categories Referential Schemas ──────────────────────────
+
+export const createCategorySchema = z.object({
+  label: nonEmptyString.min(2, "doit contenir au moins 2 caractères").max(60),
+});
+
+export const renameCategorySchema = z.object({
+  id: nonEmptyString,
+  label: nonEmptyString.min(2, "doit contenir au moins 2 caractères").max(60),
 });
 
 // ─── Job Families Schema ──────────────────────────────────────

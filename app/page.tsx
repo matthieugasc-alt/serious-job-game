@@ -21,9 +21,17 @@ interface Scenario {
 interface ScenarioConfig {
   scenarioId: string;
   adminLocked?: boolean;
+  // lockMessage / prerequisites : plus édités par l'admin, mais lecture
+  // tolérante pour les configs existantes.
   lockMessage?: string;
   prerequisites?: string[];
-  category?: string;
+  category?: string; // ID de catégorie du référentiel (data/categories.json)
+  level?: string; // Override admin du niveau affiché (debutant|intermediaire|avance|expert)
+}
+
+interface Category {
+  id: string;
+  label: string;
 }
 
 interface UserPreference {
@@ -31,15 +39,28 @@ interface UserPreference {
   followed: boolean;
 }
 
+/** Affichage des niveaux override admin (config.level) */
+const LEVEL_DISPLAY: Record<string, { label: string; bg: string; text: string }> = {
+  debutant: { label: "Débutant", bg: "#e0f2fe", text: "#0369a1" },
+  intermediaire: { label: "Intermédiaire", bg: "#fef3c7", text: "#b45309" },
+  avance: { label: "Avancé", bg: "#fecaca", text: "#991b1b" },
+  expert: { label: "Expert", bg: "#f3e8ff", text: "#6b21a8" },
+};
+
 function DifficultyBadge({ difficulty }: { difficulty: string }) {
-  const bgColor =
-    difficulty === "junior"
+  // Niveau override admin → label français dédié ; sinon valeur brute
+  // du scenario.json (junior/intermediate/…) comme avant.
+  const levelDisplay = LEVEL_DISPLAY[difficulty];
+  const bgColor = levelDisplay
+    ? levelDisplay.bg
+    : difficulty === "junior"
       ? "#e0f2fe"
       : difficulty === "intermediate"
         ? "#fef3c7"
         : "#fecaca";
-  const textColor =
-    difficulty === "junior"
+  const textColor = levelDisplay
+    ? levelDisplay.text
+    : difficulty === "junior"
       ? "#0369a1"
       : difficulty === "intermediate"
         ? "#b45309"
@@ -55,10 +76,10 @@ function DifficultyBadge({ difficulty }: { difficulty: string }) {
         fontWeight: 600,
         backgroundColor: bgColor,
         color: textColor,
-        textTransform: "capitalize",
+        textTransform: levelDisplay ? "none" : "capitalize",
       }}
     >
-      {difficulty}
+      {levelDisplay ? levelDisplay.label : difficulty}
     </span>
   );
 }
@@ -86,17 +107,20 @@ function normalizeJobFamily(raw: string): string {
   return s;
 }
 
-/** Display category of a scenario: admin override (config.category) if set,
- *  else the scenario's job_family, else "autre". */
+/** Category KEY of a scenario for grouping/filtering:
+ *  - admin override (config.category) = ID de catégorie du référentiel,
+ *    utilisé tel quel (les ids sont déjà des slugs stables) ;
+ *  - sinon job_family normalisé ;
+ *  - sinon "autre".
+ *  La résolution key → label se fait via le référentiel (voir labelFor). */
 function effectiveCategory(
   scenario: Scenario,
   configs: Record<string, ScenarioConfig>,
 ): string {
-  return (
-    configs[scenario.scenario_id]?.category?.trim() ||
-    scenario.job_family ||
-    "autre"
-  );
+  const overrideId = configs[scenario.scenario_id]?.category?.trim();
+  if (overrideId) return overrideId;
+  const jobFamily = (scenario.job_family || "").trim();
+  return jobFamily ? normalizeJobFamily(jobFamily) : "autre";
 }
 
 /** Format job_family slug into readable label */
@@ -128,12 +152,15 @@ function ScenarioCard({
   isLocked,
   lockReason,
   isCompleted,
+  levelOverride,
 }: {
   scenario: Scenario;
   onClick: () => void;
   isLocked?: boolean;
   lockReason?: string;
   isCompleted?: boolean;
+  /** Niveau override admin (config.level) — prioritaire sur scenario.difficulty */
+  levelOverride?: string;
 }) {
   const isTeaser = !!scenario.is_teaser;
   return (
@@ -252,7 +279,7 @@ function ScenarioCard({
       </div>
 
       <div style={{ marginBottom: 16, display: "flex", gap: 12, flexWrap: "wrap" }}>
-        <DifficultyBadge difficulty={scenario.difficulty} />
+        <DifficultyBadge difficulty={levelOverride || scenario.difficulty} />
         <span
           style={{
             display: "inline-block",
@@ -321,6 +348,8 @@ export default function ScenarioSelectionPage() {
   const [founderAccess, setFounderAccess] = useState(false);
   const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
   const [allCategories, setAllCategories] = useState<string[]>([]);
+  // Référentiel de catégories (data/categories.json) : id → label
+  const [categoryLabels, setCategoryLabels] = useState<Record<string, string>>({});
   const [mySpaces, setMySpaces] = useState<Array<{
     organizationId: string;
     organizationName: string;
@@ -414,12 +443,28 @@ export default function ScenarioSelectionPage() {
           console.error("Failed to fetch configs:", err);
         }
 
-        // Extract unique categories (normalized), using the admin override
-        // when present, otherwise the scenario's job_family.
+        // Fetch the categories referential (id → label) managed by the admin.
+        // Non-blocking: without it, labels fall back to formatJobFamily.
+        try {
+          const categoriesRes = await fetch("/api/admin/categories", { cache: "no-store" });
+          if (categoriesRes.ok) {
+            const categoriesData = await categoriesRes.json();
+            const labels: Record<string, string> = {};
+            (categoriesData.categories || []).forEach((c: Category) => {
+              if (c?.id) labels[c.id] = c.label;
+            });
+            setCategoryLabels(labels);
+          }
+        } catch (err) {
+          console.error("Failed to fetch categories:", err);
+        }
+
+        // Extract unique category keys: admin override (category id) when
+        // present, otherwise the scenario's normalized job_family.
         const categories: string[] = Array.from(
           new Set<string>(
             loadedScenarios
-              .map((s: Scenario) => normalizeJobFamily(effectiveCategory(s, configMap)))
+              .map((s: Scenario) => effectiveCategory(s, configMap))
               .filter((f: string) => Boolean(f))
           )
         ).sort();
@@ -533,6 +578,11 @@ export default function ScenarioSelectionPage() {
   const handleSelectScenario = (scenarioId: string) => {
     router.push(`/play/${scenarioId}`);
   };
+
+  /** Résout une clé de catégorie en label : référentiel admin d'abord
+   *  (id → label), sinon formatJobFamily (fallback : job_family, « Autre »). */
+  const labelFor = (categoryKey: string): string =>
+    categoryLabels[categoryKey] || formatJobFamily(categoryKey);
 
   return (
     <main
@@ -899,7 +949,7 @@ export default function ScenarioSelectionPage() {
                     }
                   }}
                 >
-                  {formatJobFamily(category)}
+                  {labelFor(category)}
                 </button>
               ))}
             </div>
@@ -930,20 +980,22 @@ export default function ScenarioSelectionPage() {
           </div>
         ) : (
           (() => {
-            // Filter scenarios by selected categories (normalized,
-            // config.category override first, then job_family)
+            // Filter scenarios by selected category keys (admin override id
+            // first, then normalized job_family)
             const filteredScenarios = scenarios.filter((s) =>
-              selectedCategories.has(normalizeJobFamily(effectiveCategory(s, configs)))
+              selectedCategories.has(effectiveCategory(s, configs))
             );
 
-            // Group scenarios by normalized display category
+            // Group scenarios by display category key
             const groups: Record<string, Scenario[]> = {};
             for (const s of filteredScenarios) {
-              const key = normalizeJobFamily(effectiveCategory(s, configs));
+              const key = effectiveCategory(s, configs);
               if (!groups[key]) groups[key] = [];
               groups[key].push(s);
             }
-            const sortedKeys = Object.keys(groups).sort();
+            const sortedKeys = Object.keys(groups).sort((a, b) =>
+              labelFor(a).localeCompare(labelFor(b), "fr")
+            );
 
             if (sortedKeys.length === 0) {
               return (
@@ -973,7 +1025,7 @@ export default function ScenarioSelectionPage() {
                           color: "#1a3c6e",
                         }}
                       >
-                        {formatJobFamily(familyKey)}
+                        {labelFor(familyKey)}
                       </h2>
                       <span
                         style={{
@@ -1049,6 +1101,7 @@ export default function ScenarioSelectionPage() {
                             isLocked={isLocked}
                             lockReason={lockReason}
                             isCompleted={completedScenarios.has(scenario.scenario_id)}
+                            levelOverride={config?.level}
                           />
                         );
                       })}
