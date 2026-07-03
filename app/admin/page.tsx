@@ -57,6 +57,7 @@ interface ScenarioConfig {
   adminLocked?: boolean;
   category?: string; // ID de catégorie du référentiel (data/categories.json)
   level?: string; // Override du niveau : debutant | intermediaire | avance | expert
+  prerequisites?: string[]; // scenario_id à terminer avant de jouer (séries)
 }
 
 interface Category {
@@ -73,23 +74,35 @@ const LEVEL_OPTIONS: { value: string; label: string }[] = [
 
 // ── Styles ───────────────────────────────────────────────────────
 
+// Thème clair : fond gris très clair, cartes blanches bordées gray-200,
+// texte gray-900/gray-600, accents indigo pour les actions primaires.
 const COLORS = {
-  primary: "#5b5fc7",
-  primaryHover: "#4949a8",
-  accent: "#a5a8ff",
-  bg: "rgba(255,255,255,0.06)",
-  bgHover: "rgba(255,255,255,0.1)",
-  border: "rgba(255,255,255,0.1)",
-  borderHover: "rgba(255,255,255,0.2)",
-  text: "#fff",
-  textMuted: "rgba(255,255,255,0.6)",
-  textDim: "rgba(255,255,255,0.4)",
+  primary: "#4f46e5", // indigo-600
+  primaryHover: "#4338ca", // indigo-700
+  accent: "#4f46e5",
+  accentBg: "#eef2ff", // indigo-50
+  pageBg: "#f9fafb", // gray-50
+  bg: "#ffffff",
+  bgHover: "#f9fafb",
+  bgSubtle: "#f9fafb",
+  chipBg: "#f3f4f6", // gray-100
+  border: "#e5e7eb", // gray-200
+  borderHover: "#d1d5db", // gray-300
+  text: "#111827", // gray-900
+  textMuted: "#4b5563", // gray-600
+  textDim: "#9ca3af", // gray-400
   success: "#16a34a",
-  successBg: "rgba(22,163,74,0.15)",
-  successText: "#86efac",
+  successBg: "#f0fdf4", // green-50
+  successBorder: "#bbf7d0",
+  successText: "#15803d", // green-700
   error: "#dc2626",
-  errorBg: "rgba(220,38,38,0.15)",
-  errorText: "#fca5a5",
+  errorBg: "#fef2f2", // red-50
+  errorBorder: "#fecaca",
+  errorText: "#b91c1c", // red-700
+  amber: "#d97706", // amber-600
+  amberBg: "#fffbeb", // amber-50
+  amberBorder: "#fde68a",
+  amberText: "#b45309", // amber-700
 };
 
 const card = {
@@ -97,13 +110,14 @@ const card = {
   borderRadius: 16,
   padding: 24,
   border: `1px solid ${COLORS.border}`,
+  boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
 };
 
 const inputStyle = {
   width: "100%",
   padding: "10px 14px",
-  background: "rgba(255,255,255,0.08)",
-  border: `1px solid rgba(255,255,255,0.15)`,
+  background: "#fff",
+  border: `1px solid ${COLORS.borderHover}`,
   borderRadius: 8,
   color: COLORS.text,
   fontSize: 14,
@@ -114,7 +128,7 @@ const inputStyle = {
 const btnPrimary = {
   padding: "10px 20px",
   background: COLORS.primary,
-  color: COLORS.text,
+  color: "#fff",
   border: "none",
   borderRadius: 8,
   fontWeight: 600 as const,
@@ -125,8 +139,8 @@ const btnPrimary = {
 
 const btnSecondary = {
   padding: "10px 20px",
-  background: "rgba(255,255,255,0.1)",
-  color: COLORS.text,
+  background: "#fff",
+  color: COLORS.textMuted,
   border: `1px solid ${COLORS.borderHover}`,
   borderRadius: 8,
   fontWeight: 600 as const,
@@ -165,7 +179,7 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Segoe UI, sans-serif", background: "#1a1a2e", color: "#fff" }}>
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "Segoe UI, sans-serif", background: COLORS.pageBg, color: COLORS.textMuted }}>
         Chargement...
       </div>
     );
@@ -183,10 +197,10 @@ export default function AdminPage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)",
+        background: COLORS.pageBg,
         padding: "28px 20px 40px",
         fontFamily: "Segoe UI, sans-serif",
-        color: "#fff",
+        color: COLORS.text,
       }}
     >
       <div style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -200,7 +214,7 @@ export default function AdminPage() {
                   borderRadius: 4,
                   fontSize: 11,
                   fontWeight: 700,
-                  background: "rgba(91, 95, 199, 0.3)",
+                  background: COLORS.accentBg,
                   color: COLORS.accent,
                   textTransform: "uppercase",
                   letterSpacing: 1,
@@ -394,14 +408,14 @@ function UsersTab({ token }: { token: string }) {
           gridTemplateColumns: "1.5fr 2fr 1fr 1.5fr 0.8fr 0.8fr",
           gap: 12,
           padding: "14px 16px",
-          background: "rgba(255,255,255,0.03)",
+          background: COLORS.bgSubtle,
           borderRadius: 10,
           alignItems: "center",
           fontSize: 13,
           transition: "background 0.15s",
         }}
-        onMouseEnter={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.06)"; }}
-        onMouseLeave={(e) => { e.currentTarget.style.background = "rgba(255,255,255,0.03)"; }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = COLORS.chipBg; }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = COLORS.bgSubtle; }}
       >
         <div style={{ fontWeight: 600, color: COLORS.text }}>{user.name}</div>
         <div style={{ color: COLORS.textMuted, fontSize: 12 }}>{user.email}</div>
@@ -433,7 +447,7 @@ function UsersTab({ token }: { token: string }) {
         </div>
         <div style={{ color: COLORS.textDim, fontSize: 11 }}>
           {user.status === "pending" ? (
-            <span style={{ color: "#eab308" }}>En attente</span>
+            <span style={{ color: COLORS.amberText }}>En attente</span>
           ) : user.status === "disabled" ? (
             <span style={{ color: COLORS.errorText }}>Desactive</span>
           ) : (
@@ -471,7 +485,7 @@ function UsersTab({ token }: { token: string }) {
               borderRadius: 999,
               fontSize: 13,
               fontWeight: 700,
-              background: "rgba(91,95,199,0.2)",
+              background: COLORS.accentBg,
               color: COLORS.accent,
             }}
           >
@@ -540,9 +554,9 @@ function UsersTab({ token }: { token: string }) {
       >
         {[
           { label: "Total", value: filtered.length, color: COLORS.accent },
-          { label: "Solo", value: soloUsers.length, color: "#60a5fa" },
-          { label: "Entreprise", value: enterpriseUsers.length, color: "#34d399" },
-          { label: "Coach", value: coachUsers.length, color: "#f472b6" },
+          { label: "Solo", value: soloUsers.length, color: "#2563eb" },
+          { label: "Entreprise", value: enterpriseUsers.length, color: "#059669" },
+          { label: "Coach", value: coachUsers.length, color: "#db2777" },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -551,6 +565,7 @@ function UsersTab({ token }: { token: string }) {
               borderRadius: 12,
               padding: "16px 20px",
               border: `1px solid ${COLORS.border}`,
+              boxShadow: "0 1px 3px rgba(0,0,0,0.06)",
               textAlign: "center",
             }}
           >
@@ -570,11 +585,11 @@ function UsersTab({ token }: { token: string }) {
 function getRoleBadge(role: string): { bg: string; color: string; label: string } {
   switch (role) {
     case "super_admin":
-      return { bg: "rgba(239,68,68,0.2)", color: "#fca5a5", label: "Super Admin" };
+      return { bg: "#fee2e2", color: "#b91c1c", label: "Super Admin" };
     case "admin":
-      return { bg: "rgba(234,179,8,0.2)", color: "#eab308", label: "Admin" };
+      return { bg: "#fef3c7", color: "#b45309", label: "Admin" };
     default:
-      return { bg: "rgba(91,95,199,0.15)", color: "#a5a8ff", label: "Utilisateur" };
+      return { bg: "#eef2ff", color: "#4f46e5", label: "Utilisateur" };
   }
 }
 
@@ -740,7 +755,7 @@ function OrganizationsTab({ token }: { token: string }) {
             fontSize: 13,
             marginBottom: 16,
             background: message.type === "success" ? COLORS.successBg : COLORS.errorBg,
-            border: `1px solid ${message.type === "success" ? "rgba(22,163,74,0.3)" : "rgba(220,38,38,0.3)"}`,
+            border: `1px solid ${message.type === "success" ? COLORS.successBorder : COLORS.errorBorder}`,
             color: message.type === "success" ? COLORS.successText : COLORS.errorText,
           }}
         >
@@ -790,8 +805,8 @@ function OrganizationsTab({ token }: { token: string }) {
                         fontSize: 13,
                         fontWeight: 600,
                         cursor: "pointer",
-                        background: formType === t ? COLORS.primary : "rgba(255,255,255,0.1)",
-                        color: formType === t ? COLORS.text : COLORS.textMuted,
+                        background: formType === t ? COLORS.primary : COLORS.chipBg,
+                        color: formType === t ? "#fff" : COLORS.textMuted,
                       }}
                     >
                       {t === "enterprise" ? "🏢 Entreprise" : "🎓 Coach"}
@@ -834,7 +849,7 @@ function OrganizationsTab({ token }: { token: string }) {
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.background = COLORS.bgHover;
-              e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)";
+              e.currentTarget.style.borderColor = COLORS.borderHover;
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.background = COLORS.bg;
@@ -857,7 +872,7 @@ function OrganizationsTab({ token }: { token: string }) {
                   borderRadius: 6,
                   fontSize: 11,
                   fontWeight: 600,
-                  background: org.status === "active" ? "rgba(22,163,74,0.2)" : "rgba(220,38,38,0.2)",
+                  background: org.status === "active" ? "#dcfce7" : "#fee2e2",
                   color: org.status === "active" ? COLORS.successText : COLORS.errorText,
                 }}
               >
@@ -876,7 +891,8 @@ function OrganizationsTab({ token }: { token: string }) {
                 display: "flex",
                 gap: 16,
                 padding: "10px 14px",
-                background: "rgba(0,0,0,0.15)",
+                background: COLORS.bgSubtle,
+                border: `1px solid ${COLORS.border}`,
                 borderRadius: 10,
                 fontSize: 12,
                 color: COLORS.textMuted,
@@ -885,7 +901,7 @@ function OrganizationsTab({ token }: { token: string }) {
               <div>
                 <span style={{ fontWeight: 600, color: COLORS.text }}>{orgMemberCounts[org.id] ?? "..."}</span> membre{(orgMemberCounts[org.id] ?? 0) > 1 ? "s" : ""}
               </div>
-              <div style={{ borderLeft: "1px solid rgba(255,255,255,0.1)", paddingLeft: 16 }}>
+              <div style={{ borderLeft: `1px solid ${COLORS.border}`, paddingLeft: 16 }}>
                 Admin : <span style={{ fontWeight: 600, color: COLORS.text }}>{orgAdminNames[org.id] || "..."}</span>
               </div>
             </div>
@@ -897,7 +913,7 @@ function OrganizationsTab({ token }: { token: string }) {
                 alignItems: "center",
                 justifyContent: "center",
                 padding: "10px 16px",
-                background: "rgba(91,95,199,0.15)",
+                background: COLORS.accentBg,
                 border: "none",
                 borderRadius: 8,
                 color: COLORS.accent,
@@ -932,11 +948,13 @@ function OrganizationsTab({ token }: { token: string }) {
 //      les assignations survivent), supprimer (refusé si des scénarios
 //      sont assignés, sauf confirmation → force=true qui purge leurs
 //      overrides : ils retombent sur job_family / « Autre »).
-//   2. Cartes scénarios avec exactement 3 contrôles : Catégorie (select
-//      sur le référentiel), Niveau (select, override du meta.difficulty
-//      du scenario.json), Bloqué/Débloqué (toggle). Sauvegarde immédiate
-//      à chaque changement via POST /api/admin/scenario-config —
-//      pas de bouton Enregistrer.
+//   2. Cartes scénarios avec 4 contrôles : Catégorie (select sur le
+//      référentiel), Niveau (select, override du meta.difficulty du
+//      scenario.json), Bloqué/Débloqué (toggle) et Prérequis (select
+//      d'ajout + chips supprimables — permet de construire des séries
+//      de scénarios ; garde-fou UI contre les boucles directes A→B→A).
+//      Sauvegarde immédiate à chaque changement via
+//      POST /api/admin/scenario-config — pas de bouton Enregistrer.
 // ═══════════════════════════════════════════════════════════════════
 
 type SaveState = { state: "saving" | "saved" | "error"; message?: string };
@@ -998,13 +1016,22 @@ function ScenariosTab({ token }: { token: string }) {
         adminLocked: cfg.adminLocked,
         category: cfg.category,
         level: cfg.level,
+        prerequisites: Array.isArray(cfg.prerequisites) ? cfg.prerequisites : [],
       };
     });
     return configMap;
   }
 
   function getConfig(scenarioId: string): ScenarioConfig {
-    return configs[scenarioId] || { scenario_id: scenarioId, adminLocked: false, category: "", level: "" };
+    return (
+      configs[scenarioId] || {
+        scenario_id: scenarioId,
+        adminLocked: false,
+        category: "",
+        level: "",
+        prerequisites: [],
+      }
+    );
   }
 
   // ── Sauvegarde immédiate (à chaque onChange, pas de bouton) ──────
@@ -1020,6 +1047,9 @@ function ScenariosTab({ token }: { token: string }) {
         scenarioId,
         adminLocked: next.adminLocked === true,
         category: next.category || "", // "" = auto (job_family)
+        // Explicite (jamais absent) : l'admin est la source de vérité des
+        // prérequis — [] = aucun prérequis.
+        prerequisites: Array.isArray(next.prerequisites) ? next.prerequisites : [],
       };
       if (next.level) payload.level = next.level; // absent = auto (scenario.json)
 
@@ -1179,7 +1209,7 @@ function ScenariosTab({ token }: { token: string }) {
       </div>
 
       {loadError && (
-        <div style={{ background: COLORS.errorBg, border: "1px solid rgba(220,38,38,0.4)", color: COLORS.errorText, padding: 14, borderRadius: 10, marginBottom: 20, fontSize: 13 }}>
+        <div style={{ background: COLORS.errorBg, border: `1px solid ${COLORS.errorBorder}`, color: COLORS.errorText, padding: 14, borderRadius: 10, marginBottom: 20, fontSize: 13 }}>
           {loadError}
         </div>
       )}
@@ -1208,8 +1238,8 @@ function ScenariosTab({ token }: { token: string }) {
                   gap: 8,
                   padding: "6px 10px 6px 14px",
                   borderRadius: 20,
-                  background: "rgba(91,95,199,0.2)",
-                  border: "1px solid rgba(91,95,199,0.4)",
+                  background: COLORS.accentBg,
+                  border: "1px solid #c7d2fe",
                   fontSize: 13,
                 }}
               >
@@ -1290,6 +1320,7 @@ function ScenariosTab({ token }: { token: string }) {
             const isLocked = config.adminLocked === true;
             const categoryValue = (config.category || "").trim();
             const isOrphanCategory = !!categoryValue && !categoryLabelById[categoryValue];
+            const prerequisites = config.prerequisites || [];
 
             return (
               <div key={scenario.scenario_id} style={{ ...card, display: "flex", flexDirection: "column", gap: 14 }}>
@@ -1303,24 +1334,24 @@ function ScenariosTab({ token }: { token: string }) {
                     <p style={{ margin: 0, fontSize: 13, color: COLORS.textMuted }}>{scenario.subtitle}</p>
                   )}
                   <div style={{ display: "flex", gap: 6, marginTop: 8, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 12, padding: "3px 8px", background: "rgba(255,255,255,0.06)", color: COLORS.textDim, borderRadius: 4, fontFamily: "monospace" }}>
+                    <span style={{ fontSize: 12, padding: "3px 8px", background: COLORS.chipBg, color: COLORS.textDim, borderRadius: 4, fontFamily: "monospace" }}>
                       {scenario.scenario_id}
                     </span>
                     {(scenario.estimated_duration_min || 0) > 0 && (
-                      <span style={{ fontSize: 12, padding: "3px 8px", background: "rgba(255,255,255,0.1)", color: "rgba(255,255,255,0.7)", borderRadius: 4 }}>
+                      <span style={{ fontSize: 12, padding: "3px 8px", background: COLORS.chipBg, color: COLORS.textMuted, borderRadius: 4 }}>
                         ⏱ {scenario.estimated_duration_min} min
                       </span>
                     )}
                     {(scenario.tags || []).slice(0, 3).map((tag) => (
-                      <span key={tag} style={{ fontSize: 12, padding: "3px 8px", background: "rgba(255,255,255,0.06)", color: COLORS.textMuted, borderRadius: 4 }}>
+                      <span key={tag} style={{ fontSize: 12, padding: "3px 8px", background: COLORS.chipBg, color: COLORS.textMuted, borderRadius: 4 }}>
                         {tag}
                       </span>
                     ))}
                   </div>
                 </div>
 
-                {/* Les 3 contrôles — sauvegarde immédiate à chaque changement */}
-                <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 12, background: "rgba(0,0,0,0.15)", borderRadius: 10, fontSize: 13 }}>
+                {/* Les 4 contrôles — sauvegarde immédiate à chaque changement */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: 12, background: COLORS.bgSubtle, border: `1px solid ${COLORS.border}`, borderRadius: 10, fontSize: 13 }}>
                   <div>
                     <label style={{ display: "block", fontSize: 11, color: COLORS.textDim, marginBottom: 3 }}>
                       Catégorie
@@ -1330,14 +1361,14 @@ function ScenariosTab({ token }: { token: string }) {
                       onChange={(e) => saveConfig(scenario.scenario_id, { category: e.target.value })}
                       style={{ ...inputStyle, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}
                     >
-                      <option value="" style={{ color: "#111" }}>— (auto : job_family)</option>
+                      <option value="">— (auto : job_family)</option>
                       {categories.map((category) => (
-                        <option key={category.id} value={category.id} style={{ color: "#111" }}>
+                        <option key={category.id} value={category.id}>
                           {category.label}
                         </option>
                       ))}
                       {isOrphanCategory && (
-                        <option value={categoryValue} style={{ color: "#111" }}>
+                        <option value={categoryValue}>
                           {categoryValue} (catégorie supprimée)
                         </option>
                       )}
@@ -1353,16 +1384,91 @@ function ScenariosTab({ token }: { token: string }) {
                       onChange={(e) => saveConfig(scenario.scenario_id, { level: e.target.value })}
                       style={{ ...inputStyle, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}
                     >
-                      <option value="" style={{ color: "#111" }}>Auto ({scenario.difficulty})</option>
+                      <option value="">Auto ({scenario.difficulty})</option>
                       {LEVEL_OPTIONS.map((level) => (
-                        <option key={level.value} value={level.value} style={{ color: "#111" }}>
+                        <option key={level.value} value={level.value}>
                           {level.label}
                         </option>
                       ))}
                     </select>
                   </div>
 
-                  {/* Toggle Bloqué / Débloqué */}
+                  {/* Prérequis — construit des séries de scénarios */}
+                  <div>
+                    <label style={{ display: "block", fontSize: 11, color: COLORS.textDim, marginBottom: 3 }}>
+                      Prérequis
+                    </label>
+                    {prerequisites.length > 0 && (
+                      <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+                        {prerequisites.map((prereqId) => {
+                          const prereq = scenarios.find((s) => s.scenario_id === prereqId);
+                          return (
+                            <span
+                              key={prereqId}
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 6,
+                                padding: "3px 8px 3px 10px",
+                                borderRadius: 12,
+                                background: COLORS.accentBg,
+                                border: "1px solid #c7d2fe",
+                                fontSize: 12,
+                                color: COLORS.accent,
+                                fontWeight: 600,
+                              }}
+                              title={prereq ? prereqId : "Scénario introuvable (id orphelin)"}
+                            >
+                              {prereq?.title || `${prereqId} (introuvable)`}
+                              <button
+                                onClick={() =>
+                                  saveConfig(scenario.scenario_id, {
+                                    prerequisites: prerequisites.filter((id) => id !== prereqId),
+                                  })
+                                }
+                                title="Retirer ce prérequis"
+                                style={{ background: "none", border: "none", cursor: "pointer", padding: 0, fontSize: 12, color: COLORS.errorText, lineHeight: 1 }}
+                              >
+                                ✕
+                              </button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                    <select
+                      value=""
+                      onChange={(e) => {
+                        const selected = e.target.value;
+                        if (!selected || prerequisites.includes(selected)) return;
+                        saveConfig(scenario.scenario_id, { prerequisites: [...prerequisites, selected] });
+                      }}
+                      style={{ ...inputStyle, padding: "7px 10px", fontSize: 13, cursor: "pointer" }}
+                    >
+                      <option value="">+ Ajouter un prérequis…</option>
+                      {scenarios
+                        .filter(
+                          (candidate) =>
+                            candidate.scenario_id !== scenario.scenario_id &&
+                            !prerequisites.includes(candidate.scenario_id)
+                        )
+                        .map((candidate) => {
+                          // Garde-fou : si le candidat a déjà ce scénario en
+                          // prérequis, l'ajouter créerait une boucle directe A→B→A.
+                          const wouldLoop = (
+                            configs[candidate.scenario_id]?.prerequisites || []
+                          ).includes(scenario.scenario_id);
+                          return (
+                            <option key={candidate.scenario_id} value={candidate.scenario_id} disabled={wouldLoop}>
+                              {candidate.title}
+                              {wouldLoop ? " (créerait une boucle)" : ""}
+                            </option>
+                          );
+                        })}
+                    </select>
+                  </div>
+
+                  {/* Toggle Bloqué / Débloqué — verrouillé = amber clair */}
                   <button
                     onClick={() => saveConfig(scenario.scenario_id, { adminLocked: !isLocked })}
                     title={isLocked ? "Le scénario est visible au catalogue mais non jouable" : "Le scénario est jouable"}
@@ -1371,11 +1477,11 @@ function ScenariosTab({ token }: { token: string }) {
                       alignItems: "center",
                       gap: 10,
                       padding: "7px 10px",
-                      background: isLocked ? "rgba(220,38,38,0.12)" : "rgba(22,163,74,0.12)",
-                      border: `1px solid ${isLocked ? "rgba(220,38,38,0.4)" : "rgba(22,163,74,0.4)"}`,
+                      background: isLocked ? COLORS.amberBg : COLORS.successBg,
+                      border: `1px solid ${isLocked ? COLORS.amberBorder : COLORS.successBorder}`,
                       borderRadius: 8,
                       cursor: "pointer",
-                      color: isLocked ? COLORS.errorText : COLORS.successText,
+                      color: isLocked ? COLORS.amberText : COLORS.successText,
                       fontSize: 13,
                       fontWeight: 600,
                     }}
@@ -1385,7 +1491,7 @@ function ScenariosTab({ token }: { token: string }) {
                         width: 34,
                         height: 18,
                         borderRadius: 9,
-                        background: isLocked ? COLORS.error : COLORS.success,
+                        background: isLocked ? COLORS.amber : COLORS.success,
                         position: "relative",
                         flexShrink: 0,
                         transition: "background 0.2s",

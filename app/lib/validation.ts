@@ -148,9 +148,10 @@ export const scenarioLevelSchema = z.enum([
 export const scenarioConfigSchema = z.object({
   scenarioId: nonEmptyString,
   adminLocked: z.boolean(),
-  // Legacy (plus édités par l'admin, tolérés pour compat)
+  // Legacy (plus édité par l'admin, toléré pour compat)
   lockMessage: trimmedString.optional(),
-  prerequisites: z.array(z.string()).optional(),
+  // Prérequis (séries de scénarios) — édité par l'admin ; [] = aucun.
+  prerequisites: z.array(nonEmptyString).optional(),
   // ID de catégorie du référentiel (data/categories.json), "" = auto (job_family)
   category: trimmedString.optional(),
   // Override du niveau affiché ; absent = valeur du scenario.json

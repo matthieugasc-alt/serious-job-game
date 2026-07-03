@@ -334,6 +334,22 @@ function ScenarioCard({
   );
 }
 
+/**
+ * Complétions v2 stockées côté navigateur par le player
+ * (app/play/[scenarioId]/PlayerClient.tsx, clé "v2_completed_scenarios").
+ * Sert au déverrouillage progressif via config.prerequisites.
+ */
+function readLocalV2Completions(): string[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem("v2_completed_scenarios");
+    const ids = raw ? JSON.parse(raw) : [];
+    return Array.isArray(ids) ? ids.filter((id) => typeof id === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function ScenarioSelectionPage() {
   const router = useRouter();
   const [scenarios, setScenarios] = useState<Scenario[]>([]);
@@ -471,6 +487,15 @@ export default function ScenarioSelectionPage() {
         setAllCategories(categories);
         setSelectedCategories(new Set<string>(categories));
 
+        // Complétions v2 locales (clé écrite par le player /play/[scenarioId]).
+        // Le POST /api/v2/complete étant anonyme, /api/profile/history ne voit
+        // pas les parties v2 : ce marqueur localStorage est ce qui fait vivre
+        // le déverrouillage progressif (prerequisites) avec les ids v2.
+        const localV2Completed = readLocalV2Completions();
+        if (localV2Completed.length > 0) {
+          setCompletedScenarios(new Set<string>(localV2Completed));
+        }
+
         // If logged in, fetch user preferences and completed scenarios
         if (userToken) {
           try {
@@ -512,9 +537,12 @@ export default function ScenarioSelectionPage() {
             });
             if (historyRes.ok) {
               const historyData = await historyRes.json();
-              const completed = new Set<string>(
-                (historyData.records || []).map((r: any) => r.scenarioId as string)
-              );
+              // Union : historique serveur (legacy gameRecords) + complétions
+              // v2 locales — les deux référencent des scenario_id.
+              const completed = new Set<string>([
+                ...localV2Completed,
+                ...(historyData.records || []).map((r: any) => r.scenarioId as string),
+              ]);
               setCompletedScenarios(completed);
             }
           } catch (err) {

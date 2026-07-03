@@ -63,9 +63,10 @@ export async function POST(request: NextRequest) {
     if (parsed.error) return NextResponse.json(parsed.error, { status: 400 });
 
     // Build config object.
-    // lockMessage / prerequisites ne sont plus édités par l'admin : quand ils
-    // sont absents du payload, on préserve les valeurs existantes (lecture
-    // tolérante des anciennes configs) au lieu de les écraser.
+    // prerequisites est de nouveau édité explicitement par l'admin (séries de
+    // scénarios) : quand le payload le fournit (y compris []), il fait foi ;
+    // absent, on préserve la valeur existante (lecture tolérante des anciens
+    // clients). lockMessage reste legacy : préservé quand absent.
     const existing = getScenarioConfig(parsed.data.scenarioId);
     const config: ScenarioConfig = {
       scenarioId: parsed.data.scenarioId,

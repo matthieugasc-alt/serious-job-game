@@ -18,7 +18,7 @@ export interface ScenarioConfig {
   scenarioId: string;
   adminLocked: boolean; // true = "working on it", players see it but can't play
   lockMessage?: string; // Legacy — plus édité par l'admin, lecture tolérante côté home
-  prerequisites?: string[]; // Legacy — plus édité par l'admin, lecture tolérante côté home
+  prerequisites?: string[]; // scenario_id (v2) à terminer avant de jouer — édité par l'admin (séries)
   category?: string; // ID de catégorie du référentiel (data/categories.json) — fallback job_family
   level?: ScenarioLevel; // Override du meta.difficulty du scenario.json
 }

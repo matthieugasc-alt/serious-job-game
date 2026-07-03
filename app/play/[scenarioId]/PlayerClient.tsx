@@ -53,6 +53,34 @@ function parseMicroDebrief(value: unknown): MicroDebrief | null {
   };
 }
 
+/**
+ * Complétions v2 côté navigateur — clé lue par la home (app/page.tsx) pour
+ * le déverrouillage progressif (prerequisites de scenario_config.json).
+ * Le POST /api/v2/complete est anonyme (pas de Bearer token, cf.
+ * TODO-DEBT(founder-auth)) : ce marqueur local est la seule source
+ * par-joueur en attendant une session authentifiée du player v2.
+ */
+const V2_COMPLETED_KEY = "v2_completed_scenarios";
+
+function markScenarioCompletedLocally(scenarioId: string): void {
+  try {
+    const raw = localStorage.getItem(V2_COMPLETED_KEY);
+    const ids: string[] = raw ? JSON.parse(raw) : [];
+    if (!Array.isArray(ids)) throw new Error("corrupted");
+    if (!ids.includes(scenarioId)) {
+      ids.push(scenarioId);
+      localStorage.setItem(V2_COMPLETED_KEY, JSON.stringify(ids));
+    }
+  } catch {
+    // Stockage corrompu ou indisponible : on repart d'une liste saine.
+    try {
+      localStorage.setItem(V2_COMPLETED_KEY, JSON.stringify([scenarioId]));
+    } catch {
+      /* non bloquant */
+    }
+  }
+}
+
 export function PlayerClient({ scenario, campaignId }: Props) {
   const [finished, setFinished] = useState(false);
   const [microDebrief, setMicroDebrief] = useState<MicroDebrief | null>(null);
@@ -61,6 +89,7 @@ export function PlayerClient({ scenario, campaignId }: Props) {
   const handleFinished = useCallback(
     (session: SessionV2State) => {
       setFinished(true);
+      markScenarioCompletedLocally(scenario.scenario_id);
 
       const payload = {
         scenario_id: scenario.scenario_id,
