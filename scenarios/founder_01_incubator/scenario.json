@@ -5,7 +5,7 @@
   "locale": "fr-FR",
   "meta": {
     "title": "Entrée en incubateur",
-    "description": "Tu vises l'incubateur Bordeaux Technowest. Prépare ton one-pager, délivre un elevator pitch de 40 secondes chrono face au jury, puis survis à leurs questions. Le jury voit 8 startups aujourd'hui — sois concis, chiffré et honnête.",
+    "description": "Mois 2–4 — Construction du MVP.\n\nAlexandre a décroché un créneau devant le comité de sélection de Bordeaux Technowest, un incubateur généraliste bien connecté dans l'écosystème bordelais, qui a déjà accompagné 2-3 startups medtech : « Le format : tu envoies un one-pager avant, puis 40 secondes d'elevator pitch à l'oral et 5 minutes de questions du jury. C'est court et intense. Je t'ai mis le template dans les documents. »\n\nLe jury :\n• Claire Dumont — Directrice de Technowest. Profil business, 15 ans dans l'accompagnement startup.\n• Thomas Vidal — Mentor technique. CTO expérimenté, ex-startup fintech.\n• Dr. Isabelle Morin — Experte santé. Ancienne directrice d'hôpital, consultante e-santé.\n\nTa mission : remplir le one-pager d'Orisio, délivrer un elevator pitch de 40 secondes chrono — pas une de plus — puis survivre à 5 minutes de questions sans temps mort.\n\nUn bon one-pager est concis, chiffré et honnête : le jury voit 8 startups aujourd'hui. Et l'elevator pitch, c'est court : problème, solution, pourquoi toi, en 3 phrases. Prépare-le.",
     "difficulty": "intermediate",
     "estimated_minutes": 20
   },
@@ -27,7 +27,8 @@
     {
       "id": "one_pager_template",
       "title": "Template One-Pager — Orisio",
-      "file_path": "/scenarios/founder_01_incubator/documents/one_pager_orisio.pdf"
+      "file_path": "/scenarios/founder_01_incubator/documents/one_pager_orisio.pdf",
+      "content": "# [NOM DE LA STARTUP]\n\n**[Tagline — une phrase qui résume ce que vous faites]**\n\n---\n\n## Problème\n\n[Décrivez le problème que vous résolvez. Soyez concret : qui souffre, pourquoi, combien ça coûte. 3-4 phrases max.]\n\n## Solution\n\n[Décrivez votre produit/service. Ce qu'il fait, comment il fonctionne, en quoi il est différent. Pas de jargon. 3-4 phrases max.]\n\n## Marché\n\n[Taille du marché cible. Nombre d'établissements/utilisateurs potentiels. Segment initial visé. Chiffrez.]\n\n## Modèle économique\n\n[Comment vous gagnez de l'argent. Prix, récurrence, panier moyen. Soyez précis.]\n\n## Traction\n\n[Ce que vous avez déjà accompli. Entretiens, pilotes, lettres d'intention, premiers revenus. Chiffres concrets uniquement.]\n\n## Équipe\n\n[Qui vous êtes. Noms, rôles, pourquoi vous êtes les bonnes personnes pour ce projet. 2-3 lignes par personne.]\n\n## Demande\n\n[Ce que vous attendez de l'incubateur. Soyez spécifique : mentorat, réseau, financement, locaux, introductions.]\n\n## Contact\n\n[Nom — email — téléphone]\n"
     }
   ],
   "competencies": [
@@ -43,7 +44,7 @@
       "title": "Le one-pager",
       "params": {
         "deliverable_type": "document",
-        "instructions": "Remplis le one-pager d'Orisio pour le comité de sélection de Technowest. Chaque section compte : problème concret et chiffré, solution claire, marché dimensionné, modèle économique précis, traction honnête (pas de produit, pas de client — dis-le), équipe, et demande spécifique à l'incubateur. Le jury voit 8 startups aujourd'hui : sois concis, chiffré et honnête. Rappels utiles : blocs français occupés à 68 % (benchmark 85 %), ~800 k€/an de temps perdu pour un CHU moyen, 1 300 établissements avec bloc opératoire, cible initiale les 32 CHU, marché adressable ~50 M€/an, Ségur du numérique : 2 Md€ débloqués.",
+        "instructions": "Alexandre : « Remplis le template et sois carré. Mets des chiffres, pas des généralités — les jurés voient 8 startups, ils veulent du concret. Dis pas “les hôpitaux ont un problème de planning”, chiffre-le. » Remplis le one-pager d'Orisio pour le comité de sélection de Technowest. Chaque section compte : problème concret et chiffré, solution claire, marché dimensionné, modèle économique précis, traction honnête (pas de produit, pas de client — dis-le), équipe, et demande spécifique à l'incubateur. Le jury voit 8 startups aujourd'hui : sois concis, chiffré et honnête. Rappels utiles : blocs français occupés à 68 % (benchmark 85 %), ~800 k€/an de temps perdu pour un CHU moyen, 1 300 établissements avec bloc opératoire, cible initiale les 32 CHU, marché adressable ~50 M€/an, Ségur du numérique : 2 Md€ débloqués. Données terrain d'Alexandre : 10-15 % des créneaux de bloc sont annulés chaque semaine, un créneau perdu coûte 1 500 à 3 000 €, et les blocs sont encore gérés avec Excel et WhatsApp.",
         "template": "# One-Pager — Orisio\n\n## Problème\n[Décrivez le problème que vous résolvez. Soyez concret : qui souffre, pourquoi, combien ça coûte. 3-4 phrases max.]\n\n## Solution\n[Décrivez votre produit/service. Ce qu'il fait, comment il fonctionne, en quoi il est différent. Pas de jargon. 3-4 phrases max.]\n\n## Marché\n[Taille du marché cible. Nombre d'établissements/utilisateurs potentiels. Segment initial visé. Chiffrez.]\n\n## Modèle économique\n[Comment vous gagnez de l'argent. Prix, récurrence, panier moyen. Soyez précis.]\n\n## Traction\n[Ce que vous avez déjà accompli. Entretiens, pilotes, lettres d'intention, premiers revenus. Chiffres concrets uniquement.]\n\n## Équipe\n[Qui vous êtes. Noms, rôles, pourquoi vous êtes les bonnes personnes pour ce projet. 2-3 lignes par personne.]\n\n## Demande\n[Ce que vous attendez de l'incubateur. Soyez spécifique : mentorat, réseau, financement, locaux, introductions.]\n\n## Contact\n[Nom — email — téléphone]",
         "document_ids": [
           "one_pager_template"
@@ -120,7 +121,7 @@
       "mechanic": "presentation",
       "title": "Elevator pitch — 40 secondes",
       "params": {
-        "brief": "Le jury t'écoute en silence. Tu as EXACTEMENT 40 secondes : quel problème, quelle solution, pourquoi ton équipe. 3-4 phrases max. Pas d'intro, pas de remerciements, pas de blabla. Le chrono est lancé.",
+        "brief": "Alexandre, juste avant que tu entres : « T'es prêt ? 40 secondes c'est rien. Problème, solution, pourquoi nous. Répète-le avant — chaque mot compte. Go. » Le jury t'écoute en silence. Tu as EXACTEMENT 40 secondes : quel problème, quelle solution, pourquoi ton équipe. 3-4 phrases max. Pas d'intro, pas de remerciements, pas de blabla. Le chrono est lancé.",
         "preparation_s": 60,
         "lang": "fr-FR",
         "document_ids": [
@@ -183,7 +184,7 @@
         "actor_id": "jury_technowest",
         "question_count": 5,
         "context_hint": "5 minutes de questions, sans temps mort. Claire Dumont attaque sur le business (marché, pricing, cycle de vente), Thomas Vidal challenge la tech (HDS, stack, faisabilité MVP), Dr. Morin teste ta connaissance du terrain hospitalier. Réponds du tac au tac — et n'invente pas ce que tu ne sais pas.",
-        "directive": "Commence par Claire Dumont (cible et taille de marché), puis alterne Thomas Vidal (faisabilité technique, HDS, scope MVP) et Dr. Isabelle Morin (terrain hospitalier, adoption, parcours patient), en rebondissant sur les réponses du joueur. Une seule question à la fois, préfixée par le nom du membre. Si une réponse est floue ou survendue, le membre suivant creuse ce point."
+        "directive": "Ta toute première intervention est celle de Claire Dumont, mot pour mot : « Merci pour cette présentation. On va vous poser quelques questions. Je commence : vous ciblez quel type d'établissements exactement, et vous avez une idée de la taille de ce marché ? » Ensuite, alterne Thomas Vidal (faisabilité technique, HDS, scope MVP) et Dr. Isabelle Morin (terrain hospitalier, adoption, parcours patient), en rebondissant sur les réponses du joueur. Une seule question à la fois, préfixée par le nom du membre. Si une réponse est floue ou survendue, le membre suivant creuse ce point."
       },
       "time_limit_s": 360,
       "evaluation": {
