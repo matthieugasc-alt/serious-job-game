@@ -10,6 +10,12 @@ import { useEffect, useRef, useState } from "react";
 import type { MechanicProps, TranscriptEvent } from "@/app/lib/engine/mechanics";
 import { ChatPanel } from "@/app/player/primitives/ChatPanel";
 import {
+  ActorIdentity,
+  CounterChip,
+  InstructionBanner,
+  PrimaryButton,
+} from "@/app/player/primitives/ui";
+import {
   buildOutput,
   countPlayerMessages,
   resolveMinExchanges,
@@ -121,28 +127,20 @@ export function EntretienComponent({ context, onComplete }: MechanicProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-4 border-b bg-gray-50 px-4 py-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide opacity-50">
-            Objectif de l'entretien
-          </p>
-          <p className="truncate text-sm font-medium">{objective}</p>
-        </div>
+      <InstructionBanner label="Objectif de l'entretien" text={objective} />
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-2.5">
+        <ActorIdentity actor={actor} />
         <div className="flex shrink-0 items-center gap-3">
-          <span className="text-xs opacity-60">
+          <CounterChip done={playerCount >= minExchanges}>
             {playerCount}/{minExchanges} message{minExchanges > 1 ? "s" : ""} min.
-          </span>
-          <button
-            className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-            disabled={!canFinish}
-            onClick={() => void handleFinish()}
-          >
+          </CounterChip>
+          <PrimaryButton disabled={!canFinish} onClick={() => void handleFinish()}>
             {finishing ? "Observation…" : "Terminer l'entretien"}
-          </button>
+          </PrimaryButton>
         </div>
       </div>
       {error && (
-        <p className="border-b bg-red-50 px-4 py-2 text-xs text-red-700">
+        <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-xs font-medium text-red-700">
           {error}
         </p>
       )}

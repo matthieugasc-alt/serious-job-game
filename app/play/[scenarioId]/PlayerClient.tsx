@@ -150,7 +150,7 @@ export function PlayerClient({ scenario, campaignId }: Props) {
   );
 
   return (
-    <div>
+    <div className="min-h-screen bg-gray-50">
       <Shell
         scenario={scenario}
         saveKey={

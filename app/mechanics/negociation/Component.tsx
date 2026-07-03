@@ -15,6 +15,15 @@ import type {
 } from "@/app/lib/engine/mechanics";
 import { ChatPanel } from "@/app/player/primitives/ChatPanel";
 import {
+  ActorIdentity,
+  DangerButton,
+  ErrorText,
+  InstructionBanner,
+  PreviousInputs,
+  PrimaryButton,
+  SecondaryButton,
+} from "@/app/player/primitives/ui";
+import {
   parseTerms,
   validateTermValues,
   formatProposal,
@@ -52,7 +61,6 @@ export function NegociationComponent({ context, onComplete }: MechanicProps) {
 
   const termErrors = validateTermValues(terms, values);
   const instructions = String(context.params.instructions ?? "");
-  const inputEntries = Object.entries(context.inputs);
 
   // Message d'ouverture de l'acteur (contenu scénario, via params).
   const openedRef = useRef(false);
@@ -130,83 +138,119 @@ export function NegociationComponent({ context, onComplete }: MechanicProps) {
     }
   };
 
+  /** Historique lisible d'une proposition (labels des termes). */
+  const proposalSummary = (p: JsonObject): string => {
+    const t = (p.terms ?? {}) as Record<string, unknown>;
+    return terms
+      .map((term) => `${term.label} : ${String(t[term.id] ?? "—")}`)
+      .join(" · ");
+  };
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b bg-gray-50 p-3 text-sm">{instructions}</div>
+      <InstructionBanner text={instructions} />
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 flex-1 border-r">
+        <div className="flex min-h-0 flex-1 flex-col border-r border-gray-200">
+          {actor && (
+            <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-2.5">
+              <ActorIdentity actor={actor} />
+            </div>
+          )}
           {actor ? (
-            <ChatPanel
-              transcript={events}
-              actors={context.actors}
-              onSend={exchange}
-              busy={busy || closing}
-            />
+            <div className="min-h-0 flex-1">
+              <ChatPanel
+                transcript={events}
+                actors={context.actors}
+                onSend={exchange}
+                busy={busy || closing}
+              />
+            </div>
           ) : (
             <p className="p-4 text-sm text-red-600">
               Acteur introuvable pour ce step (actor_id : {actorId}).
             </p>
           )}
         </div>
-        <div className="min-h-0 w-80 space-y-3 overflow-y-auto p-4">
-          {inputEntries.length > 0 && (
-            <details className="rounded border bg-gray-50 p-3 text-sm">
-              <summary className="cursor-pointer font-medium">
-                Éléments des étapes précédentes
-              </summary>
-              <div className="mt-2 space-y-2">
-                {inputEntries.map(([k, v]) => (
-                  <div key={k}>
-                    <p className="text-xs font-medium opacity-60">{k}</p>
-                    <pre className="whitespace-pre-wrap font-sans">
-                      {typeof v === "string" ? v : JSON.stringify(v, null, 2)}
-                    </pre>
-                  </div>
-                ))}
-              </div>
-            </details>
-          )}
-          <h3 className="text-sm font-semibold">Termes de l'accord</h3>
-          {terms.map((t) => (
-            <label key={t.id} className="block">
-              <span className="text-xs font-medium opacity-60">{t.label}</span>
-              <input
-                className="mt-1 w-full rounded border px-3 py-2 text-sm"
-                type={t.type === "number" ? "number" : "text"}
-                value={values[t.id] ?? ""}
-                onChange={(e) => setTerm(t.id, e.target.value)}
-              />
-            </label>
-          ))}
-          <p className="text-xs opacity-50">
-            {proposals.length} proposition(s) formulée(s)
-          </p>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <div className="space-y-2">
-            <button
-              className="w-full rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-              disabled={!actor || termErrors.length > 0 || busy || closing}
-              onClick={() => void propose()}
-            >
-              Proposer ces termes
-            </button>
-            <button
-              className="w-full rounded border border-black px-4 py-2 text-sm disabled:opacity-40"
-              disabled={
-                proposals.length === 0 || termErrors.length > 0 || busy || closing
-              }
-              onClick={() => void close(true)}
-            >
-              {closing ? "Observation en cours…" : "Conclure l'accord aux termes affichés"}
-            </button>
-            <button
-              className="w-full rounded border border-red-600 px-4 py-2 text-sm text-red-600 disabled:opacity-40"
-              disabled={busy || closing}
-              onClick={() => void close(false)}
-            >
-              Rompre la négociation
-            </button>
+        <div className="min-h-0 w-96 space-y-4 overflow-y-auto bg-gray-50/60 p-4">
+          <PreviousInputs inputs={context.inputs} />
+
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-900">
+              🤝 Termes de l&apos;accord
+            </h3>
+            <div className="mt-3 space-y-3">
+              {terms.map((t) => (
+                <label key={t.id} className="block">
+                  <span className="text-xs font-semibold text-gray-600">
+                    {t.label}
+                  </span>
+                  <input
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    type={t.type === "number" ? "number" : "text"}
+                    value={values[t.id] ?? ""}
+                    onChange={(e) => setTerm(t.id, e.target.value)}
+                  />
+                </label>
+              ))}
+            </div>
+            <div className="mt-4 space-y-2">
+              <PrimaryButton
+                className="w-full"
+                disabled={!actor || termErrors.length > 0 || busy || closing}
+                onClick={() => void propose()}
+              >
+                Proposer ces termes
+              </PrimaryButton>
+              <SecondaryButton
+                className="w-full"
+                disabled={
+                  proposals.length === 0 || termErrors.length > 0 || busy || closing
+                }
+                onClick={() => void close(true)}
+              >
+                {closing
+                  ? "Observation en cours…"
+                  : "Conclure l'accord aux termes affichés"}
+              </SecondaryButton>
+              <DangerButton
+                className="w-full"
+                disabled={busy || closing}
+                onClick={() => void close(false)}
+              >
+                Rompre la négociation
+              </DangerButton>
+            </div>
           </div>
+
+          {/* Historique des propositions formulées. */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-900">
+              Historique des propositions
+            </h3>
+            {proposals.length === 0 ? (
+              <p className="mt-2 text-xs text-gray-400">
+                Aucune proposition formulée pour l&apos;instant.
+              </p>
+            ) : (
+              <ol className="mt-3 space-y-2">
+                {proposals.map((p, i) => (
+                  <li
+                    key={i}
+                    className="rounded-lg border border-gray-100 bg-gray-50 px-3 py-2"
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-600">
+                      Proposition {i + 1}
+                    </p>
+                    <p className="mt-0.5 text-xs leading-relaxed text-gray-700">
+                      {proposalSummary(p)}
+                    </p>
+                  </li>
+                ))}
+              </ol>
+            )}
+          </div>
+
+          <ErrorText>{error}</ErrorText>
         </div>
       </div>
     </div>

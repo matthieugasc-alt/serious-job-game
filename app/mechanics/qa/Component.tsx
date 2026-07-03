@@ -15,6 +15,12 @@ import type {
 } from "@/app/lib/engine/mechanics";
 import { ChatPanel } from "@/app/player/primitives/ChatPanel";
 import {
+  ActorIdentity,
+  CounterChip,
+  InstructionBanner,
+  PrimaryButton,
+} from "@/app/player/primitives/ui";
+import {
   buildOutput,
   buildQaDirective,
   countActorMessages,
@@ -134,34 +140,29 @@ export function QaComponent({ context, onComplete }: MechanicProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-4 border-b bg-gray-50 px-4 py-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide opacity-50">
-            {actor.name} vous interroge
-          </p>
-          {contextHint && (
-            <p className="truncate text-sm font-medium">{contextHint}</p>
-          )}
-        </div>
+      {contextHint && (
+        <InstructionBanner label={`${actor.name} vous interroge`} text={contextHint} />
+      )}
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-2.5">
+        <ActorIdentity actor={actor} />
         <div className="flex shrink-0 items-center gap-3">
-          <span className="text-xs opacity-60">
+          <CounterChip done={allAnswered}>
             Réponses : {Math.min(answered, total)}/{total}
-          </span>
-          <button
-            className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
+          </CounterChip>
+          <PrimaryButton
             disabled={!allAnswered || busy || finishing}
             onClick={() => void handleFinish()}
           >
             {finishing ? "Observation…" : "Terminer"}
-          </button>
+          </PrimaryButton>
         </div>
       </div>
       {error && (
-        <div className="flex items-center gap-3 border-b bg-red-50 px-4 py-2">
-          <p className="text-xs text-red-700">{error}</p>
+        <div className="flex shrink-0 items-center gap-3 border-b border-red-100 bg-red-50 px-4 py-2">
+          <p className="text-xs font-medium text-red-700">{error}</p>
           {needsQuestion && (
             <button
-              className="rounded border border-red-300 px-2 py-0.5 text-xs text-red-700"
+              className="rounded-lg border border-red-300 bg-white px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-50"
               onClick={() => void askQuestion(actor, answered + 1)}
             >
               Relancer

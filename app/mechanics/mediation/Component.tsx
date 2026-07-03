@@ -18,6 +18,13 @@ import type {
 } from "@/app/lib/engine/mechanics";
 import { ChatPanel } from "@/app/player/primitives/ChatPanel";
 import {
+  ActorAvatar,
+  CounterChip,
+  InstructionBanner,
+  PrimaryButton,
+  SecondaryButton,
+} from "@/app/player/primitives/ui";
+import {
   type Recipient,
   resolveMinExchanges,
   buildDirective,
@@ -177,52 +184,63 @@ export function MediationComponent({ context, onComplete }: MechanicProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-4 border-b bg-gray-50 px-4 py-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide opacity-50">
-            Conflit à réguler
+      <InstructionBanner label="Conflit à réguler" text={conflictBrief} icon="⚖️" />
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-2.5">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex -space-x-2">
+            <ActorAvatar actorId={partyA.actor_id} name={partyA.name} size="sm" />
+            <ActorAvatar actorId={partyB.actor_id} name={partyB.name} size="sm" />
+          </div>
+          <p className="truncate text-sm font-semibold text-gray-900">
+            {partyA.name} · {partyB.name}
           </p>
-          <p className="text-sm font-medium">{conflictBrief}</p>
         </div>
         <div className="flex shrink-0 items-center gap-3">
-          <span className="text-xs opacity-60">
+          <CounterChip done={playerCount >= minExchanges}>
             {playerCount}/{minExchanges} message{minExchanges > 1 ? "s" : ""} min.
-          </span>
+          </CounterChip>
           {!closingOpen && (
-            <button
-              className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-              disabled={!canClose}
-              onClick={() => setClosingOpen(true)}
-            >
+            <PrimaryButton disabled={!canClose} onClick={() => setClosingOpen(true)}>
               Conclure la médiation
-            </button>
+            </PrimaryButton>
           )}
         </div>
       </div>
       {error && (
-        <p className="border-b bg-red-50 px-4 py-2 text-xs text-red-700">{error}</p>
+        <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-xs font-medium text-red-700">
+          {error}
+        </p>
       )}
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="flex items-center gap-2 border-b px-4 py-2 text-xs">
-            <span className="font-medium opacity-60">À :</span>
-            {(
-              [
-                ["a", partyA.name],
-                ["b", partyB.name],
-                ["both", "Les deux"],
-              ] as const
-            ).map(([value, label]) => (
-              <button
-                key={value}
-                className={`rounded px-2 py-1 ${
-                  recipient === value ? "bg-black text-white" : "bg-gray-100"
-                }`}
-                onClick={() => setRecipient(value)}
-              >
-                {label}
-              </button>
-            ))}
+          {/* Sélecteur de destinataire — segmented control. */}
+          <div className="flex shrink-0 items-center gap-3 border-b border-gray-200 bg-white px-4 py-2">
+            <span className="text-xs font-semibold text-gray-500">
+              S&apos;adresser à :
+            </span>
+            <div className="inline-flex rounded-lg bg-gray-100 p-1">
+              {(
+                [
+                  ["a", partyA.name],
+                  ["b", partyB.name],
+                  ["both", "Les deux"],
+                ] as const
+              ).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={recipient === value}
+                  className={`rounded-md px-3 py-1 text-xs font-medium transition ${
+                    recipient === value
+                      ? "bg-white text-indigo-700 shadow-sm ring-1 ring-gray-200"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                  onClick={() => setRecipient(value)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="min-h-0 flex-1">
             <ChatPanel
@@ -235,49 +253,61 @@ export function MediationComponent({ context, onComplete }: MechanicProps) {
           </div>
         </div>
         {closingOpen && (
-          <div className="min-h-0 w-80 space-y-3 overflow-y-auto border-l p-4">
-            <h3 className="text-sm font-semibold">Conclure la médiation</h3>
-            <label className="block">
-              <span className="text-xs font-medium opacity-60">Accord trouvé ?</span>
-              <select
-                className="mt-1 w-full rounded border px-3 py-2 text-sm"
-                value={reached ? "oui" : "non"}
-                onChange={(e) => {
-                  const r = e.target.value === "oui";
-                  setReached(r);
-                  persist(r, terms);
-                }}
-              >
-                <option value="oui">Oui</option>
-                <option value="non">Non</option>
-              </select>
-            </label>
-            <label className="block">
-              <span className="text-xs font-medium opacity-60">Termes / constat</span>
-              <textarea
-                className="mt-1 min-h-[120px] w-full resize-y rounded border px-3 py-2 text-sm"
-                value={terms}
-                onChange={(e) => {
-                  setTerms(e.target.value);
-                  persist(reached, e.target.value);
-                }}
-                placeholder="Les termes de l'accord, ou le constat de désaccord…"
-              />
-            </label>
-            <button
-              className="w-full rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-              disabled={resolutionErrors.length > 0 || finishing || busy}
-              onClick={() => void submit()}
-            >
-              {finishing ? "Observation en cours…" : "Valider la conclusion"}
-            </button>
-            <button
-              className="w-full rounded border px-4 py-2 text-sm disabled:opacity-40"
-              disabled={finishing}
-              onClick={() => setClosingOpen(false)}
-            >
-              Reprendre la médiation
-            </button>
+          <div className="min-h-0 w-80 space-y-3 overflow-y-auto border-l border-gray-200 bg-gray-50/60 p-4">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900">
+                Conclure la médiation
+              </h3>
+              <div className="mt-3 space-y-3">
+                <label className="block">
+                  <span className="text-xs font-semibold text-gray-600">
+                    Accord trouvé ?
+                  </span>
+                  <select
+                    className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    value={reached ? "oui" : "non"}
+                    onChange={(e) => {
+                      const r = e.target.value === "oui";
+                      setReached(r);
+                      persist(r, terms);
+                    }}
+                  >
+                    <option value="oui">Oui</option>
+                    <option value="non">Non</option>
+                  </select>
+                </label>
+                <label className="block">
+                  <span className="text-xs font-semibold text-gray-600">
+                    Termes / constat
+                  </span>
+                  <textarea
+                    className="mt-1 min-h-[120px] w-full resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    value={terms}
+                    onChange={(e) => {
+                      setTerms(e.target.value);
+                      persist(reached, e.target.value);
+                    }}
+                    placeholder="Les termes de l'accord, ou le constat de désaccord…"
+                  />
+                </label>
+              </div>
+              <div className="mt-4 space-y-2">
+                <PrimaryButton
+                  className="w-full"
+                  disabled={resolutionErrors.length > 0 || finishing || busy}
+                  onClick={() => void submit()}
+                >
+                  {finishing ? "Observation en cours…" : "Valider la conclusion"}
+                </PrimaryButton>
+                <SecondaryButton
+                  className="w-full"
+                  disabled={finishing}
+                  onClick={() => setClosingOpen(false)}
+                >
+                  Reprendre la médiation
+                </SecondaryButton>
+              </div>
+            </div>
           </div>
         )}
       </div>

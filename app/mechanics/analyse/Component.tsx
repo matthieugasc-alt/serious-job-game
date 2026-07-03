@@ -10,6 +10,13 @@ import { useMemo, useState } from "react";
 import type { MechanicProps, TranscriptEvent } from "@/app/lib/engine/mechanics";
 import { DocumentViewer } from "@/app/player/primitives/DocumentViewer";
 import {
+  CounterChip,
+  ErrorText,
+  InstructionBanner,
+  PreviousInputs,
+  PrimaryButton,
+} from "@/app/player/primitives/ui";
+import {
   parseFindingsPrompts,
   validateFindings,
   buildSummary,
@@ -30,7 +37,10 @@ export function AnalyseComponent({ context, onComplete }: MechanicProps) {
 
   const missing = validateFindings(prompts, findings);
   const instructions = String(context.params.instructions ?? "");
-  const inputEntries = Object.entries(context.inputs);
+
+  const filledCount = prompts.filter(
+    (p) => (findings[p.id] ?? "").trim().length > 0,
+  ).length;
 
   const setField = (id: string, value: string) => {
     const next = { ...findings, [id]: value };
@@ -67,50 +77,59 @@ export function AnalyseComponent({ context, onComplete }: MechanicProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b bg-gray-50 p-3 text-sm">{instructions}</div>
+      <InstructionBanner text={instructions} />
       <div className="flex min-h-0 flex-1">
+        {/* Split 55/45 : documents à gauche, formulaire à droite. */}
         {context.documents.length > 0 && (
-          <div className="min-h-0 w-1/2 border-r">
+          <div className="min-h-0 w-[55%] border-r border-gray-200">
             <DocumentViewer documents={context.documents} />
           </div>
         )}
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-          {inputEntries.length > 0 && (
-            <details className="rounded border bg-gray-50 p-3 text-sm" open>
-              <summary className="cursor-pointer font-medium">
-                Éléments des étapes précédentes
-              </summary>
-              <div className="mt-2 space-y-2">
-                {inputEntries.map(([k, v]) => (
-                  <div key={k}>
-                    <p className="text-xs font-medium opacity-60">{k}</p>
-                    <pre className="whitespace-pre-wrap font-sans">
-                      {typeof v === "string" ? v : JSON.stringify(v, null, 2)}
-                    </pre>
-                  </div>
-                ))}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50/60">
+          <div className="space-y-4 p-4 sm:p-5">
+            <PreviousInputs inputs={context.inputs} defaultOpen />
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-gray-900">
+                Votre analyse
+              </h2>
+              <CounterChip done={filledCount >= prompts.length && prompts.length > 0}>
+                {filledCount}/{prompts.length} champ
+                {prompts.length > 1 ? "s" : ""} rempli
+                {filledCount > 1 ? "s" : ""}
+              </CounterChip>
+            </div>
+            {prompts.map((p) => (
+              <div
+                key={p.id}
+                className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm"
+              >
+                <label className="block">
+                  <span className="text-sm font-semibold text-gray-900">
+                    {p.label}
+                  </span>
+                  {p.placeholder && (
+                    <span className="mt-0.5 block text-xs text-gray-500">
+                      {p.placeholder}
+                    </span>
+                  )}
+                  <textarea
+                    className="mt-2.5 min-h-[90px] w-full resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                    value={findings[p.id] ?? ""}
+                    placeholder="Votre réponse…"
+                    onChange={(e) => setField(p.id, e.target.value)}
+                  />
+                </label>
               </div>
-            </details>
-          )}
-          {prompts.map((p) => (
-            <label key={p.id} className="block">
-              <span className="text-sm font-medium">{p.label}</span>
-              <textarea
-                className="mt-1 min-h-[90px] w-full resize-y rounded border px-3 py-2 text-sm"
-                value={findings[p.id] ?? ""}
-                placeholder={p.placeholder}
-                onChange={(e) => setField(p.id, e.target.value)}
-              />
-            </label>
-          ))}
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-            disabled={missing.length > 0 || submitting}
-            onClick={() => void submit()}
-          >
-            {submitting ? "Observation en cours…" : "Valider mon analyse"}
-          </button>
+            ))}
+            <ErrorText>{error}</ErrorText>
+            <PrimaryButton
+              className="w-full sm:w-auto"
+              disabled={missing.length > 0 || submitting}
+              onClick={() => void submit()}
+            >
+              {submitting ? "Observation en cours…" : "Valider mon analyse"}
+            </PrimaryButton>
+          </div>
         </div>
       </div>
     </div>

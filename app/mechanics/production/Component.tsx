@@ -10,6 +10,12 @@ import { useState } from "react";
 import type { MechanicProps, TranscriptEvent } from "@/app/lib/engine/mechanics";
 import { DocumentViewer } from "@/app/player/primitives/DocumentViewer";
 import {
+  ErrorText,
+  InstructionBanner,
+  PreviousInputs,
+  PrimaryButton,
+} from "@/app/player/primitives/ui";
+import {
   parseDeliverableType,
   validateDraft,
   buildDeliverable,
@@ -49,7 +55,6 @@ export function ProductionComponent({ context, onComplete }: MechanicProps) {
 
   const missing = validateDraft(type, draft);
   const instructions = String(context.params.instructions ?? "");
-  const inputEntries = Object.entries(context.inputs);
 
   const setField = (patch: Partial<DeliverableDraft>) => {
     const next = { ...draft, ...patch };
@@ -87,85 +92,96 @@ export function ProductionComponent({ context, onComplete }: MechanicProps) {
     }
   };
 
+  const bodyLength = draft.body.trim().length;
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b bg-gray-50 p-3 text-sm">{instructions}</div>
+      <InstructionBanner text={instructions} />
       <div className="flex min-h-0 flex-1">
+        {/* Documents en CONTENU (viewer markdown/PDF) à gauche. */}
         {context.documents.length > 0 && (
-          <div className="min-h-0 w-1/3 border-r">
+          <div className="min-h-0 w-[45%] border-r border-gray-200">
             <DocumentViewer documents={context.documents} />
           </div>
         )}
-        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
-          {inputEntries.length > 0 && (
-            <details className="rounded border bg-gray-50 p-3 text-sm">
-              <summary className="cursor-pointer font-medium">
-                Éléments des étapes précédentes
-              </summary>
-              <div className="mt-2 space-y-2">
-                {inputEntries.map(([k, v]) => (
-                  <div key={k}>
-                    <p className="text-xs font-medium opacity-60">{k}</p>
-                    <pre className="whitespace-pre-wrap font-sans">
-                      {typeof v === "string" ? v : JSON.stringify(v, null, 2)}
-                    </pre>
-                  </div>
-                ))}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50/60">
+          <div className="space-y-4 p-4 sm:p-5">
+            <PreviousInputs inputs={context.inputs} />
+
+            {/* Éditeur façon client mail / éditeur de document. */}
+            <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+              <div className="flex items-center gap-2 border-b border-gray-100 bg-gray-50/80 px-4 py-2.5">
+                <span aria-hidden>{type === "mail" ? "✉️" : "📝"}</span>
+                <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
+                  {type === "mail" ? "Nouveau message" : "Votre document"}
+                </p>
               </div>
-            </details>
-          )}
-          {type === "mail" && (
-            <>
-              <label className="block">
-                <span className="text-xs font-medium opacity-60">À</span>
-                <input
-                  className="mt-1 w-full rounded border bg-gray-100 px-3 py-2 text-sm"
-                  value={recipientName}
-                  disabled
-                  readOnly
-                />
-              </label>
-              <label className="block">
-                <span className="text-xs font-medium opacity-60">Objet</span>
-                <input
-                  className="mt-1 w-full rounded border px-3 py-2 text-sm"
-                  value={draft.subject ?? ""}
-                  placeholder={subjectHint}
-                  onChange={(e) => setField({ subject: e.target.value })}
-                />
-              </label>
-            </>
-          )}
-          {type === "document" && (
-            <label className="block">
-              <span className="text-xs font-medium opacity-60">Titre</span>
-              <input
-                className="mt-1 w-full rounded border px-3 py-2 text-sm"
-                value={draft.title ?? ""}
-                onChange={(e) => setField({ title: e.target.value })}
+
+              {type === "mail" && (
+                <div className="divide-y divide-gray-100 border-b border-gray-100">
+                  <div className="flex items-center gap-3 px-4 py-2">
+                    <span className="w-12 shrink-0 text-xs font-semibold text-gray-500">
+                      À
+                    </span>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-indigo-50 px-2.5 py-1 text-xs font-medium text-indigo-800">
+                      {recipientName}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3 px-4 py-1.5">
+                    <span className="w-12 shrink-0 text-xs font-semibold text-gray-500">
+                      Objet
+                    </span>
+                    <input
+                      className="w-full border-0 bg-transparent py-1 text-sm font-medium text-gray-900 placeholder:font-normal placeholder:text-gray-400 focus:outline-none"
+                      value={draft.subject ?? ""}
+                      placeholder={subjectHint ?? "Objet du message…"}
+                      onChange={(e) => setField({ subject: e.target.value })}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {type === "document" && (
+                <div className="border-b border-gray-100 px-4 py-2">
+                  <input
+                    className="w-full border-0 bg-transparent py-1 text-base font-semibold text-gray-900 placeholder:font-normal placeholder:text-gray-400 focus:outline-none"
+                    value={draft.title ?? ""}
+                    placeholder="Titre du document…"
+                    onChange={(e) => setField({ title: e.target.value })}
+                  />
+                </div>
+              )}
+
+              <textarea
+                className="block min-h-[300px] w-full resize-y border-0 px-4 py-3 text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:outline-none"
+                value={draft.body}
+                placeholder={
+                  type === "mail"
+                    ? "Rédigez votre message…"
+                    : "Rédigez le corps du document…"
+                }
+                onChange={(e) => setField({ body: e.target.value })}
               />
-            </label>
-          )}
-          <label className="block">
-            <span className="text-xs font-medium opacity-60">Corps</span>
-            <textarea
-              className="mt-1 min-h-[240px] w-full resize-y rounded border px-3 py-2 text-sm"
-              value={draft.body}
-              onChange={(e) => setField({ body: e.target.value })}
-            />
-          </label>
-          {error && <p className="text-sm text-red-600">{error}</p>}
-          <button
-            className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-            disabled={missing.length > 0 || submitting}
-            onClick={() => void submit()}
-          >
-            {submitting
-              ? "Observation en cours…"
-              : type === "mail"
-                ? "Envoyer"
-                : "Rendre"}
-          </button>
+              <div className="flex items-center justify-end border-t border-gray-100 px-4 py-1.5">
+                <span className="text-[11px] tabular-nums text-gray-400">
+                  {bodyLength} caractère{bodyLength > 1 ? "s" : ""}
+                </span>
+              </div>
+            </div>
+
+            <ErrorText>{error}</ErrorText>
+            <PrimaryButton
+              className="w-full sm:w-auto"
+              disabled={missing.length > 0 || submitting}
+              onClick={() => void submit()}
+            >
+              {submitting
+                ? "Observation en cours…"
+                : type === "mail"
+                  ? "Envoyer"
+                  : "Rendre"}
+            </PrimaryButton>
+          </div>
         </div>
       </div>
     </div>

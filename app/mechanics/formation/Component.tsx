@@ -13,6 +13,13 @@ import { useEffect, useRef, useState } from "react";
 import type { MechanicProps, TranscriptEvent } from "@/app/lib/engine/mechanics";
 import { ChatPanel } from "@/app/player/primitives/ChatPanel";
 import {
+  ActorIdentity,
+  CounterChip,
+  InstructionBanner,
+  PrimaryButton,
+  SecondaryButton,
+} from "@/app/player/primitives/ui";
+import {
   parseObjectives,
   resolveMinExchanges,
   buildDirective,
@@ -151,33 +158,27 @@ export function FormationComponent({ context, onComplete }: MechanicProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-4 border-b bg-gray-50 px-4 py-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide opacity-50">
-            Sujet de la formation
-          </p>
-          <p className="text-sm font-medium">{topic}</p>
-        </div>
+      <InstructionBanner label="Sujet de la formation" text={topic} icon="🎓" />
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-2.5">
+        <ActorIdentity actor={actor} />
         <div className="flex shrink-0 items-center gap-3">
-          <span className="text-xs opacity-60">
+          <CounterChip done={playerCount >= minExchanges}>
             {playerCount}/{minExchanges} message{minExchanges > 1 ? "s" : ""} min.
-          </span>
+          </CounterChip>
           {!closingOpen && (
-            <button
-              className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-              disabled={!canClose}
-              onClick={() => setClosingOpen(true)}
-            >
+            <PrimaryButton disabled={!canClose} onClick={() => setClosingOpen(true)}>
               Terminer la session
-            </button>
+            </PrimaryButton>
           )}
         </div>
       </div>
       {error && (
-        <p className="border-b bg-red-50 px-4 py-2 text-xs text-red-700">{error}</p>
+        <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-xs font-medium text-red-700">
+          {error}
+        </p>
       )}
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 flex-1 border-r">
+        <div className="min-h-0 flex-1 border-r border-gray-200">
           <ChatPanel
             transcript={transcript}
             actors={context.actors}
@@ -186,52 +187,56 @@ export function FormationComponent({ context, onComplete }: MechanicProps) {
             placeholder={`Votre explication à ${actor.name}…`}
           />
         </div>
-        <div className="min-h-0 w-80 space-y-3 overflow-y-auto p-4">
-          <h3 className="text-sm font-semibold">
-            {closingOpen
-              ? "Objectifs couverts (à cocher)"
-              : "Objectifs de la session"}
-          </h3>
-          <ul className="space-y-2">
-            {objectives.map((o) => (
-              <li key={o.id} className="text-sm">
-                {closingOpen ? (
-                  <label className="flex cursor-pointer items-start gap-2">
-                    <input
-                      type="checkbox"
-                      className="mt-0.5"
-                      checked={covered.includes(o.id)}
-                      onChange={() => toggle(o.id)}
-                    />
-                    <span>{o.label}</span>
-                  </label>
-                ) : (
-                  <span className="flex items-start gap-2">
-                    <span className="opacity-40">•</span>
-                    <span>{o.label}</span>
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-          {closingOpen && (
-            <>
-              <button
-                className="w-full rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-                disabled={finishing || busy}
-                onClick={() => void submit()}
-              >
-                {finishing ? "Observation en cours…" : "Valider la session"}
-              </button>
-              <button
-                className="w-full rounded border px-4 py-2 text-sm disabled:opacity-40"
-                disabled={finishing}
-                onClick={() => setClosingOpen(false)}
-              >
-                Reprendre la session
-              </button>
-            </>
-          )}
+        <div className="min-h-0 w-80 space-y-3 overflow-y-auto bg-gray-50/60 p-4">
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-900">
+              {closingOpen
+                ? "Objectifs couverts (à cocher)"
+                : "🎯 Objectifs de la session"}
+            </h3>
+            <ul className="mt-3 space-y-2">
+              {objectives.map((o) => (
+                <li key={o.id} className="text-sm text-gray-700">
+                  {closingOpen ? (
+                    <label className="flex cursor-pointer items-start gap-2.5 rounded-lg border border-gray-100 bg-gray-50 px-3 py-2 transition hover:border-indigo-200">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5 h-4 w-4 accent-indigo-600"
+                        checked={covered.includes(o.id)}
+                        onChange={() => toggle(o.id)}
+                      />
+                      <span className="leading-relaxed">{o.label}</span>
+                    </label>
+                  ) : (
+                    <span className="flex items-start gap-2">
+                      <span aria-hidden className="mt-0.5 text-indigo-400">
+                        •
+                      </span>
+                      <span className="leading-relaxed">{o.label}</span>
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {closingOpen && (
+              <div className="mt-4 space-y-2">
+                <PrimaryButton
+                  className="w-full"
+                  disabled={finishing || busy}
+                  onClick={() => void submit()}
+                >
+                  {finishing ? "Observation en cours…" : "Valider la session"}
+                </PrimaryButton>
+                <SecondaryButton
+                  className="w-full"
+                  disabled={finishing}
+                  onClick={() => setClosingOpen(false)}
+                >
+                  Reprendre la session
+                </SecondaryButton>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

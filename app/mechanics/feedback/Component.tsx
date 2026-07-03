@@ -13,6 +13,13 @@ import { useEffect, useRef, useState } from "react";
 import type { MechanicProps, TranscriptEvent } from "@/app/lib/engine/mechanics";
 import { ChatPanel } from "@/app/player/primitives/ChatPanel";
 import {
+  ActorIdentity,
+  CounterChip,
+  InstructionBanner,
+  PrimaryButton,
+  SecondaryButton,
+} from "@/app/player/primitives/ui";
+import {
   resolveMinRounds,
   countPlayerMessages,
   validateCommitments,
@@ -139,35 +146,30 @@ export function FeedbackComponent({ context, onComplete }: MechanicProps) {
     );
   }
 
+  const bannerText = frameworkHint
+    ? `${contextBrief}\nCadre suggéré : ${frameworkHint}`
+    : contextBrief;
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-4 border-b bg-gray-50 px-4 py-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide opacity-50">
-            Situation à débriefer
-          </p>
-          <p className="text-sm font-medium">{contextBrief}</p>
-          {frameworkHint && (
-            <p className="text-xs opacity-60">Cadre suggéré : {frameworkHint}</p>
-          )}
-        </div>
+      <InstructionBanner label="Situation à débriefer" text={bannerText} />
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-2.5">
+        <ActorIdentity actor={actor} />
         <div className="flex shrink-0 items-center gap-3">
-          <span className="text-xs opacity-60">
+          <CounterChip done={playerCount >= minRounds}>
             {playerCount}/{minRounds} message{minRounds > 1 ? "s" : ""} min.
-          </span>
+          </CounterChip>
           {!closingOpen && (
-            <button
-              className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-              disabled={!canClose}
-              onClick={() => setClosingOpen(true)}
-            >
+            <PrimaryButton disabled={!canClose} onClick={() => setClosingOpen(true)}>
               Clore l&apos;échange
-            </button>
+            </PrimaryButton>
           )}
         </div>
       </div>
       {error && (
-        <p className="border-b bg-red-50 px-4 py-2 text-xs text-red-700">{error}</p>
+        <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-xs font-medium text-red-700">
+          {error}
+        </p>
       )}
       <div className="flex min-h-0 flex-1">
         <div className="min-h-0 flex-1">
@@ -180,31 +182,37 @@ export function FeedbackComponent({ context, onComplete }: MechanicProps) {
           />
         </div>
         {closingOpen && (
-          <div className="min-h-0 w-80 space-y-3 overflow-y-auto border-l p-4">
-            <h3 className="text-sm font-semibold">Engagements convenus</h3>
-            <textarea
-              className="min-h-[140px] w-full resize-y rounded border px-3 py-2 text-sm"
-              value={commitments}
-              onChange={(e) => {
-                setCommitments(e.target.value);
-                context.io.saveScratch({ commitments: e.target.value });
-              }}
-              placeholder="Ce qui a été convenu à l'issue de l'échange…"
-            />
-            <button
-              className="w-full rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-              disabled={commitmentErrors.length > 0 || finishing || busy}
-              onClick={() => void submit()}
-            >
-              {finishing ? "Observation en cours…" : "Valider les engagements"}
-            </button>
-            <button
-              className="w-full rounded border px-4 py-2 text-sm disabled:opacity-40"
-              disabled={finishing}
-              onClick={() => setClosingOpen(false)}
-            >
-              Reprendre l&apos;échange
-            </button>
+          <div className="min-h-0 w-80 space-y-3 overflow-y-auto border-l border-gray-200 bg-gray-50/60 p-4">
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <h3 className="text-sm font-semibold text-gray-900">
+                ✅ Engagements convenus
+              </h3>
+              <textarea
+                className="mt-3 min-h-[140px] w-full resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                value={commitments}
+                onChange={(e) => {
+                  setCommitments(e.target.value);
+                  context.io.saveScratch({ commitments: e.target.value });
+                }}
+                placeholder="Ce qui a été convenu à l'issue de l'échange…"
+              />
+              <div className="mt-3 space-y-2">
+                <PrimaryButton
+                  className="w-full"
+                  disabled={commitmentErrors.length > 0 || finishing || busy}
+                  onClick={() => void submit()}
+                >
+                  {finishing ? "Observation en cours…" : "Valider les engagements"}
+                </PrimaryButton>
+                <SecondaryButton
+                  className="w-full"
+                  disabled={finishing}
+                  onClick={() => setClosingOpen(false)}
+                >
+                  Reprendre l&apos;échange
+                </SecondaryButton>
+              </div>
+            </div>
           </div>
         )}
       </div>

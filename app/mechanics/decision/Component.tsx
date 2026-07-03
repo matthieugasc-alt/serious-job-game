@@ -10,6 +10,14 @@
 import { useMemo, useState } from "react";
 import type { MechanicProps, TranscriptEvent } from "@/app/lib/engine/mechanics";
 import type { StepObservation } from "@/app/lib/engine/criteria";
+import { DocumentViewer } from "@/app/player/primitives/DocumentViewer";
+import {
+  CounterChip,
+  ErrorText,
+  InstructionBanner,
+  PreviousInputs,
+  PrimaryButton,
+} from "@/app/player/primitives/ui";
 import {
   parseOptions,
   parseConfig,
@@ -34,7 +42,6 @@ export function DecisionComponent({ context, onComplete }: MechanicProps) {
 
   const blocking = validateDecision(choices, justification, config);
   const instructions = String(context.params.instructions ?? "");
-  const inputEntries = Object.entries(context.inputs);
 
   const persist = (nextChoices: string[], nextJustification: string) => {
     context.io.saveScratch({
@@ -102,84 +109,124 @@ export function DecisionComponent({ context, onComplete }: MechanicProps) {
     }
   };
 
+  const justificationLength = justification.trim().length;
+  const justificationOk =
+    !config.requireJustification ||
+    justificationLength >= config.minJustificationChars;
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b bg-gray-50 p-3 text-sm">{instructions}</div>
-      <div className="min-h-0 flex-1 space-y-4 overflow-y-auto p-4">
-        {inputEntries.length > 0 && (
-          <details className="rounded border bg-gray-50 p-3 text-sm">
-            <summary className="cursor-pointer font-medium">
-              Éléments des étapes précédentes
-            </summary>
-            <div className="mt-2 space-y-2">
-              {inputEntries.map(([k, v]) => (
-                <div key={k}>
-                  <p className="text-xs font-medium opacity-60">{k}</p>
-                  <pre className="whitespace-pre-wrap font-sans">
-                    {typeof v === "string" ? v : JSON.stringify(v, null, 2)}
-                  </pre>
-                </div>
-              ))}
+      <InstructionBanner text={instructions} />
+      <div className="flex min-h-0 flex-1">
+        {context.documents.length > 0 && (
+          <div className="min-h-0 w-[42%] border-r border-gray-200">
+            <DocumentViewer documents={context.documents} />
+          </div>
+        )}
+        <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50/60">
+          <div className="space-y-4 p-4 sm:p-5">
+            <PreviousInputs inputs={context.inputs} />
+
+            <div className="flex items-center justify-between gap-3">
+              <h2 className="text-sm font-semibold text-gray-900">
+                {config.maxChoices === 1
+                  ? "Choisissez une option"
+                  : `Choisissez jusqu'à ${config.maxChoices} options`}
+              </h2>
+              {config.maxChoices > 1 && (
+                <CounterChip done={choices.length === config.maxChoices}>
+                  {choices.length}/{config.maxChoices} option
+                  {config.maxChoices > 1 ? "s" : ""}
+                </CounterChip>
+              )}
             </div>
-          </details>
-        )}
-        <div className="grid gap-3 sm:grid-cols-2">
-          {options.map((o) => {
-            const selected = choices.includes(o.id);
-            return (
-              <button
-                key={o.id}
-                type="button"
-                aria-pressed={selected}
-                className={`rounded-lg border p-4 text-left transition ${
-                  selected
-                    ? "border-black bg-black text-white"
-                    : "border-gray-200 bg-white hover:border-gray-400"
-                }`}
-                onClick={() => toggle(o.id)}
-              >
-                <p className="text-sm font-semibold">{o.label}</p>
-                <p className={`mt-1 text-xs ${selected ? "opacity-80" : "opacity-60"}`}>
-                  {o.description}
-                </p>
-              </button>
-            );
-          })}
+
+            <div className="grid gap-3 lg:grid-cols-2">
+              {options.map((o) => {
+                const selected = choices.includes(o.id);
+                return (
+                  <button
+                    key={o.id}
+                    type="button"
+                    aria-pressed={selected}
+                    className={`relative rounded-xl border-2 p-4 pr-10 text-left shadow-sm transition ${
+                      selected
+                        ? "border-indigo-600 bg-indigo-50/60 ring-1 ring-indigo-200"
+                        : "border-gray-200 bg-white hover:border-indigo-200 hover:bg-indigo-50/20"
+                    }`}
+                    onClick={() => toggle(o.id)}
+                  >
+                    <span
+                      aria-hidden
+                      className={`absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold transition ${
+                        selected
+                          ? "bg-indigo-600 text-white"
+                          : "border-2 border-gray-300 bg-white text-transparent"
+                      }`}
+                    >
+                      ✓
+                    </span>
+                    <p
+                      className={`text-sm font-semibold ${
+                        selected ? "text-indigo-900" : "text-gray-900"
+                      }`}
+                    >
+                      {o.label}
+                    </p>
+                    <p
+                      className={`mt-1.5 text-xs leading-relaxed ${
+                        selected ? "text-indigo-800/80" : "text-gray-500"
+                      }`}
+                    >
+                      {o.description}
+                    </p>
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <span className="text-sm font-semibold text-gray-900">
+                  Justification
+                  {!config.requireJustification && (
+                    <span className="ml-1.5 text-xs font-normal text-gray-400">
+                      (facultative)
+                    </span>
+                  )}
+                </span>
+                {config.requireJustification && (
+                  <CounterChip done={justificationOk}>
+                    {justificationLength}/{config.minJustificationChars} caractères
+                    min.
+                  </CounterChip>
+                )}
+              </div>
+              <textarea
+                className="mt-2.5 min-h-[120px] w-full resize-y rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                value={justification}
+                placeholder={
+                  config.requireJustification
+                    ? `Justifiez votre décision (${config.minJustificationChars} caractères minimum)…`
+                    : "Justifiez votre décision (facultatif)…"
+                }
+                onChange={(e) => {
+                  setJustification(e.target.value);
+                  persist(choices, e.target.value);
+                }}
+              />
+            </div>
+
+            <ErrorText>{error}</ErrorText>
+            <PrimaryButton
+              className="w-full sm:w-auto"
+              disabled={blocking.length > 0 || submitting}
+              onClick={() => void submit()}
+            >
+              {submitting ? "Observation en cours…" : "Trancher"}
+            </PrimaryButton>
+          </div>
         </div>
-        {config.maxChoices > 1 && (
-          <p className="text-xs opacity-60">
-            {choices.length}/{config.maxChoices} option(s) sélectionnée(s)
-          </p>
-        )}
-        <label className="block">
-          <span className="text-sm font-medium">Justification</span>
-          <textarea
-            className="mt-1 min-h-[120px] w-full resize-y rounded border px-3 py-2 text-sm"
-            value={justification}
-            placeholder={
-              config.requireJustification
-                ? `Justifiez votre décision (${config.minJustificationChars} caractères minimum)…`
-                : "Justifiez votre décision (facultatif)…"
-            }
-            onChange={(e) => {
-              setJustification(e.target.value);
-              persist(choices, e.target.value);
-            }}
-          />
-          {config.requireJustification && (
-            <span className="text-xs opacity-50">
-              {justification.trim().length}/{config.minJustificationChars} caractères
-            </span>
-          )}
-        </label>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <button
-          className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-          disabled={blocking.length > 0 || submitting}
-          onClick={() => void submit()}
-        >
-          {submitting ? "Observation en cours…" : "Trancher"}
-        </button>
       </div>
     </div>
   );

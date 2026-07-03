@@ -13,6 +13,12 @@ import type { MechanicProps, TranscriptEvent } from "@/app/lib/engine/mechanics"
 import { ChatPanel } from "@/app/player/primitives/ChatPanel";
 import { DocumentViewer } from "@/app/player/primitives/DocumentViewer";
 import {
+  ActorIdentity,
+  CounterChip,
+  InstructionBanner,
+  PrimaryButton,
+} from "@/app/player/primitives/ui";
+import {
   WITNESS_DIRECTIVE,
   parseHypotheses,
   resolveMinExchanges,
@@ -150,100 +156,119 @@ export function DiagnosticComponent({ context, onComplete }: MechanicProps) {
     );
   }
 
+  const inputClass =
+    "mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100";
+
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="border-b bg-gray-50 px-4 py-3">
-        <p className="text-xs font-medium uppercase tracking-wide opacity-50">
-          Situation à diagnostiquer
-        </p>
-        <p className="text-sm font-medium">{situation}</p>
-      </div>
+      <InstructionBanner
+        label="Situation à diagnostiquer"
+        text={situation}
+        icon="🔍"
+      />
       {error && (
-        <p className="border-b bg-red-50 px-4 py-2 text-xs text-red-700">{error}</p>
+        <p className="shrink-0 border-b border-red-100 bg-red-50 px-4 py-2 text-xs font-medium text-red-700">
+          {error}
+        </p>
       )}
       <div className="flex min-h-0 flex-1">
-        <div className="min-h-0 flex-1 border-r">
-          <ChatPanel
-            transcript={transcript}
-            actors={context.actors}
-            onSend={handleSend}
-            busy={busy || finishing}
-            placeholder={`Votre question à ${actor.name}…`}
-          />
+        <div className="flex min-h-0 flex-1 flex-col border-r border-gray-200">
+          <div className="shrink-0 border-b border-gray-200 bg-white px-4 py-2.5">
+            <ActorIdentity actor={actor} />
+          </div>
+          <div className="min-h-0 flex-1">
+            <ChatPanel
+              transcript={transcript}
+              actors={context.actors}
+              onSend={handleSend}
+              busy={busy || finishing}
+              placeholder={`Votre question à ${actor.name}…`}
+            />
+          </div>
         </div>
         {context.documents.length > 0 && (
-          <div className="min-h-0 w-72 border-r">
+          <div className="min-h-0 w-80 border-r border-gray-200">
             <DocumentViewer documents={context.documents} />
           </div>
         )}
-        <div className="min-h-0 w-80 space-y-3 overflow-y-auto p-4">
-          <h3 className="text-sm font-semibold">Mon diagnostic</h3>
-          <label className="block">
-            <span className="text-xs font-medium opacity-60">Cause retenue</span>
-            {hypotheses.length > 0 ? (
-              <select
-                className="mt-1 w-full rounded border px-3 py-2 text-sm"
-                value={cause}
-                onChange={(e) => {
-                  setCause(e.target.value);
-                  persist(e.target.value, evidence, eliminated);
-                }}
-              >
-                <option value="">— Sélectionner —</option>
-                {hypotheses.map((h) => (
-                  <option key={h.id} value={h.id}>
-                    {h.label}
-                  </option>
-                ))}
-              </select>
-            ) : (
-              <input
-                className="mt-1 w-full rounded border px-3 py-2 text-sm"
-                value={cause}
-                onChange={(e) => {
-                  setCause(e.target.value);
-                  persist(e.target.value, evidence, eliminated);
-                }}
-              />
-            )}
-          </label>
-          <label className="block">
-            <span className="text-xs font-medium opacity-60">
-              Éléments à l&apos;appui
-            </span>
-            <textarea
-              className="mt-1 min-h-[90px] w-full resize-y rounded border px-3 py-2 text-sm"
-              value={evidence}
-              onChange={(e) => {
-                setEvidence(e.target.value);
-                persist(cause, e.target.value, eliminated);
-              }}
-            />
-          </label>
-          <label className="block">
-            <span className="text-xs font-medium opacity-60">
-              Causes écartées et pourquoi
-            </span>
-            <textarea
-              className="mt-1 min-h-[90px] w-full resize-y rounded border px-3 py-2 text-sm"
-              value={eliminated}
-              onChange={(e) => {
-                setEliminated(e.target.value);
-                persist(cause, evidence, e.target.value);
-              }}
-            />
-          </label>
-          <p className="text-xs opacity-50">
-            {playerCount}/{minExchanges} échange{minExchanges > 1 ? "s" : ""} min.
-            avec le témoin
-          </p>
-          <button
-            className="w-full rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-            disabled={!canSubmit}
-            onClick={() => void submit()}
-          >
-            {finishing ? "Observation en cours…" : "Rendre mon diagnostic"}
-          </button>
+        <div className="min-h-0 w-80 space-y-3 overflow-y-auto bg-gray-50/60 p-4">
+          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+            <h3 className="text-sm font-semibold text-gray-900">
+              🩺 Mon diagnostic
+            </h3>
+            <div className="mt-3 space-y-3">
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-600">
+                  Cause retenue
+                </span>
+                {hypotheses.length > 0 ? (
+                  <select
+                    className={inputClass}
+                    value={cause}
+                    onChange={(e) => {
+                      setCause(e.target.value);
+                      persist(e.target.value, evidence, eliminated);
+                    }}
+                  >
+                    <option value="">— Sélectionner —</option>
+                    {hypotheses.map((h) => (
+                      <option key={h.id} value={h.id}>
+                        {h.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    className={inputClass}
+                    value={cause}
+                    onChange={(e) => {
+                      setCause(e.target.value);
+                      persist(e.target.value, evidence, eliminated);
+                    }}
+                  />
+                )}
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-600">
+                  Éléments à l&apos;appui
+                </span>
+                <textarea
+                  className={`${inputClass} min-h-[90px] resize-y`}
+                  value={evidence}
+                  onChange={(e) => {
+                    setEvidence(e.target.value);
+                    persist(cause, e.target.value, eliminated);
+                  }}
+                />
+              </label>
+              <label className="block">
+                <span className="text-xs font-semibold text-gray-600">
+                  Causes écartées et pourquoi
+                </span>
+                <textarea
+                  className={`${inputClass} min-h-[90px] resize-y`}
+                  value={eliminated}
+                  onChange={(e) => {
+                    setEliminated(e.target.value);
+                    persist(cause, evidence, e.target.value);
+                  }}
+                />
+              </label>
+            </div>
+            <div className="mt-3">
+              <CounterChip done={playerCount >= minExchanges}>
+                {playerCount}/{minExchanges} échange{minExchanges > 1 ? "s" : ""} min.
+                avec le témoin
+              </CounterChip>
+            </div>
+            <PrimaryButton
+              className="mt-3 w-full"
+              disabled={!canSubmit}
+              onClick={() => void submit()}
+            >
+              {finishing ? "Observation en cours…" : "Rendre mon diagnostic"}
+            </PrimaryButton>
+          </div>
         </div>
       </div>
     </div>

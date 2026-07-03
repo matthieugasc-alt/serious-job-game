@@ -19,6 +19,10 @@ import type {
 import { CountdownTimer } from "@/app/player/primitives/CountdownTimer";
 import { DocumentViewer } from "@/app/player/primitives/DocumentViewer";
 import {
+  InstructionBanner,
+  PrimaryButton,
+} from "@/app/player/primitives/ui";
+import {
   probeVoiceCapability,
   humanReasonMessage,
   type VoiceCapabilityStatus,
@@ -224,34 +228,51 @@ export function PresentationComponent({ context, onComplete }: MechanicProps) {
     );
     return (
       <div className="flex h-full min-h-0 flex-col">
-        <div className="flex items-center justify-between gap-4 border-b bg-gray-50 px-4 py-3">
-          <p className="text-sm font-medium">Préparation de votre présentation</p>
-          <div className="flex items-center gap-3">
+        {/* Phase 1 — préparation, clairement identifiée. */}
+        <div className="flex shrink-0 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-2.5">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <span
+              aria-hidden
+              className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-100 text-sm"
+            >
+              📝
+            </span>
+            <div className="min-w-0">
+              <p className="text-[11px] font-semibold uppercase tracking-wider text-amber-700">
+                Phase 1/2 — Préparation
+              </p>
+              <p className="truncate text-sm font-semibold text-gray-900">
+                Préparez votre présentation
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
             <CountdownTimer
               key="prepare"
               seconds={remaining}
               running
               onExpire={startSpeak}
             />
-            <button
-              className="rounded bg-black px-4 py-2 text-sm text-white"
-              onClick={startSpeak}
-            >
-              Commencer l'exposé
-            </button>
+            <PrimaryButton onClick={startSpeak}>
+              Commencer l&apos;exposé →
+            </PrimaryButton>
           </div>
         </div>
-        <div className="min-h-0 flex-1 overflow-y-auto p-4">
-          <p className="mb-1 text-xs font-medium uppercase tracking-wide opacity-50">
-            Brief
-          </p>
-          <p className="whitespace-pre-wrap text-sm">{brief}</p>
+        <InstructionBanner label="Brief" text={brief} />
+        <div className="flex min-h-0 flex-1 flex-col">
+          {context.documents.length > 0 ? (
+            <div className="min-h-0 flex-1">
+              <DocumentViewer documents={context.documents} />
+            </div>
+          ) : (
+            <div className="flex flex-1 items-center justify-center p-8">
+              <p className="max-w-sm text-center text-sm text-gray-400">
+                Profitez du temps de préparation pour structurer votre exposé —
+                l&apos;essentiel est dans le brief ci-dessus.
+              </p>
+            </div>
+          )}
         </div>
-        {context.documents.length > 0 && (
-          <div className="max-h-[45%] min-h-0 border-t">
-            <DocumentViewer documents={context.documents} />
-          </div>
-        )}
       </div>
     );
   }
@@ -268,33 +289,30 @@ export function PresentationComponent({ context, onComplete }: MechanicProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex items-center justify-between gap-4 border-b bg-gray-50 px-4 py-3">
-        <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide opacity-50">
-            Votre présentation
-          </p>
-          <p className="truncate text-sm font-medium">{brief}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-3">
-          <CountdownTimer
-            key="speak"
-            seconds={speakRemaining}
-            running={!finishing}
-            onExpire={onSpeakExpire}
-          />
-          <button
-            className="rounded bg-black px-4 py-2 text-sm text-white disabled:opacity-40"
-            disabled={finishing}
-            onClick={() => void finalize()}
+      {/* Phase 2 — exposé. */}
+      <div className="flex shrink-0 items-center justify-between gap-4 border-b border-gray-200 bg-white px-4 py-2.5">
+        <div className="flex min-w-0 items-center gap-2.5">
+          <span
+            aria-hidden
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-indigo-100 text-sm"
           >
-            {finishing ? "Observation…" : "Terminer"}
-          </button>
+            🎤
+          </span>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-700">
+              Phase 2/2 — Exposé
+            </p>
+            <p className="truncate text-sm font-semibold text-gray-900">{brief}</p>
+          </div>
         </div>
+        <PrimaryButton disabled={finishing} onClick={() => void finalize()}>
+          {finishing ? "Observation…" : "Terminer"}
+        </PrimaryButton>
       </div>
 
       {(error || micError || fallbackMessage) && (
-        <div className="space-y-1 border-b bg-amber-50 px-4 py-2">
-          {error && <p className="text-xs text-red-700">{error}</p>}
+        <div className="shrink-0 space-y-1 border-b border-amber-100 bg-amber-50 px-4 py-2">
+          {error && <p className="text-xs font-medium text-red-700">{error}</p>}
           {micError && <p className="text-xs text-amber-900">{micError}</p>}
           {!micError && fallbackMessage && (
             <p className="text-xs text-amber-900">{fallbackMessage}</p>
@@ -302,12 +320,24 @@ export function PresentationComponent({ context, onComplete }: MechanicProps) {
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
+      <div className="flex min-h-0 flex-1 flex-col gap-4 bg-gray-50/60 p-4 sm:p-5">
+        {/* Gros timer central. */}
+        <div className="flex shrink-0 items-center justify-center">
+          <CountdownTimer
+            key="speak"
+            seconds={speakRemaining}
+            running={!finishing}
+            onExpire={onSpeakExpire}
+            size="lg"
+          />
+        </div>
         {voiceUsable && (
-          <div className="flex items-center gap-3">
+          <div className="flex shrink-0 items-center justify-center gap-3">
             <button
-              className={`rounded px-4 py-2 text-sm text-white ${
-                recording ? "bg-red-600" : "bg-black"
+              className={`inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition disabled:pointer-events-none disabled:opacity-40 ${
+                recording
+                  ? "animate-pulse bg-red-600 hover:bg-red-700"
+                  : "bg-indigo-600 hover:bg-indigo-700"
               }`}
               disabled={finishing}
               onClick={() => (recording ? void stopMic() : void startMic())}
@@ -315,14 +345,14 @@ export function PresentationComponent({ context, onComplete }: MechanicProps) {
               {recording ? "■ Arrêter le micro" : "● Parler au micro"}
             </button>
             {recording && (
-              <p className="min-w-0 flex-1 truncate text-xs italic opacity-60">
+              <p className="min-w-0 max-w-xs flex-1 truncate text-xs italic text-gray-500">
                 {interim || "Enregistrement en cours…"}
               </p>
             )}
           </div>
         )}
         <textarea
-          className="min-h-0 flex-1 resize-none rounded border px-3 py-2 text-sm"
+          className="min-h-0 flex-1 resize-none rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm leading-relaxed text-gray-900 shadow-sm placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
           placeholder="Prononcez votre présentation… (le texte dicté au micro s'ajoute ici)"
           value={speech}
           disabled={finishing}
