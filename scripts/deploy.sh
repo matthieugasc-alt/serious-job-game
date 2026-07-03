@@ -67,11 +67,13 @@ sleep 3
 
 echo "═══ Smoke tests ═══"
 HOME_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
-HUB_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/founder/hub)
-echo "  Home HTTP:       $HOME_CODE"
-echo "  Founder hub HTTP: $HUB_CODE"
+PLAY_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/play/cpo_entretien)
+INTRO_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/founder/intro)
+echo "  Home HTTP:          $HOME_CODE"
+echo "  Player v2 HTTP:     $PLAY_CODE"
+echo "  Founder intro HTTP: $INTRO_CODE"
 
-if [ "$HOME_CODE" != "200" ] || [ "$HUB_CODE" != "200" ]; then
+if [ "$HOME_CODE" != "200" ] || [ "$PLAY_CODE" != "200" ] || [ "$INTRO_CODE" != "200" ]; then
   echo "!!! WARNING: certaines pages ne servent pas 200. Check pm2 logs."
   pm2 logs "$APP_NAME" --lines 20 --nostream
   exit 1
