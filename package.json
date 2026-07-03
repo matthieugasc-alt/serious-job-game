@@ -7,12 +7,13 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "validate:scenarios": "node scripts/validate-scenarios-v2.mjs",
+    "validate:scenarios": "node scripts/validate-scenarios-v2.mjs && node scripts/validate-scenarios-v3.mjs",
     "validate:founder": "node scripts/validate-founder.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "validate:scenarios:v2": "node scripts/validate-scenarios-v2.mjs"
+    "validate:scenarios:v2": "node scripts/validate-scenarios-v2.mjs",
+    "validate:scenarios:v3": "node scripts/validate-scenarios-v3.mjs"
   },
   "dependencies": {
     "next": "16.2.2",
