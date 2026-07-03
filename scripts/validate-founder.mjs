@@ -76,8 +76,11 @@ for (const dir of founderDirs) {
   const sid = scenario.scenario_id ?? dir;
   seenScenarioIds.add(sid);
 
-  if (scenario.format !== "v2") {
-    errors.push(`${dir} : format "${scenario.format}" ≠ "v2" (le flow founder est branché sur le moteur v2)`);
+  // v2 (Shell) et v3 (WorkspacePlayer) partagent le même flux de fin
+  // (/api/v2/complete) : les invariants endings ↔ outcomes s'appliquent
+  // aux deux formats.
+  if (scenario.format !== "v2" && scenario.format !== "v3") {
+    errors.push(`${dir} : format "${scenario.format}" ≠ "v2"/"v3" (le flow founder est branché sur /api/v2/complete)`);
     continue;
   }
 

@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "founder_02_mvp",
-  "version": "3.0.0",
+  "version": "2.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Construire le MVP",
@@ -55,67 +55,29 @@
       "mechanic": "analyse",
       "title": "Le signal et le bruit",
       "params": {
-        "instructions": "Alexandre : « Franchement c'est du solide, je pense qu'on tient un truc. Le devis est à 32k, c'est un investissement mais le produit sera complet. On lance ? » Alexandre t'envoie trois documents : la synthèse de ses 10 entretiens avec des chirurgiens, sa note de cadrage produit (7 modules, 30 semaines de dev) et le devis NovaDev à 32 150 € HT. Ta trésorerie : environ 15 000 €. Lis tout et sépare le signal du bruit : qu'est-ce que les utilisateurs demandent VRAIMENT, et qu'est-ce qui est réalisable avec ton budget ?\n\nPrends des notes dans le bloc-notes, puis envoie tes conclusions à Alexandre dans Messages : le pain point universel, le signal vs le bruit dans sa note de cadrage, et ta marge de manœuvre budgétaire réelle."
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "synthese_entretiens",
-        "note_cadrage",
-        "devis_novadev"
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_alexandre",
-          "when": {
-            "type": "step_start"
+        "instructions": "Alexandre : « Franchement c'est du solide, je pense qu'on tient un truc. Le devis est à 32k, c'est un investissement mais le produit sera complet. On lance ? » Alexandre t'envoie trois documents : la synthèse de ses 10 entretiens avec des chirurgiens, sa note de cadrage produit (7 modules, 30 semaines de dev) et le devis NovaDev à 32 150 € HT. Ta trésorerie : environ 15 000 €. Lis tout et sépare le signal du bruit : qu'est-ce que les utilisateurs demandent VRAIMENT, et qu'est-ce qui est réalisable avec ton budget ?",
+        "findings_prompts": [
+          {
+            "id": "pain_point",
+            "label": "Le pain point universel",
+            "placeholder": "Quel problème revient dans quasiment tous les entretiens ?"
           },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Grosse session de boulot ! Je t'envoie tout : la synthèse des 10 entretiens, ma note de cadrage pour le produit, et le devis de NovaDev que j'ai demandé. Franchement c'est du solide, je pense qu'on tient un truc. Le devis est à 32k€ HT, c'est un investissement mais le produit sera complet. On lance ?"
-          }
-        },
-        {
-          "event_id": "e_retry_alexandre",
-          "when": {
-            "type": "on_retry"
+          {
+            "id": "signal_bruit",
+            "label": "Signal vs bruit dans la note de cadrage",
+            "placeholder": "Quels modules répondent au pain point ? Lesquels sont du confort ou de la vision perfectionniste ?"
           },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Mouais, il manque un morceau là. C'est quoi LE problème qui revient chez quasiment tous les chirurgiens ? Et le devis à 32k face à nos 15k de tréso, t'en fais quoi ? Reprends la synthèse et le devis, et reviens vers moi."
+          {
+            "id": "realite_budget",
+            "label": "La réalité budgétaire",
+            "placeholder": "Devis vs trésorerie : quelle est ta marge de manœuvre réelle ?"
           }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "alexandre_morel"
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "pain_point_identifie"
-            }
-          ]
-        }
+        ],
+        "document_ids": [
+          "synthese_entretiens",
+          "note_cadrage",
+          "devis_novadev"
+        ]
       },
       "evaluation": {
         "observed_criteria": [
@@ -160,7 +122,7 @@
       "mechanic": "decision",
       "title": "Trancher le scope",
       "params": {
-        "instructions": "Tranche le scope du MVP : quels modules de la note de cadrage entrent dans la V1 ? Choisis au maximum 3 modules et justifie ton arbitrage face à la vision perfectionniste d'Alexandre : budget (~15 000 €), time-to-market, et pain point validé par le terrain. Attends-toi à la résistance d'Alexandre : « Le scoring, 4 chirurgiens l'ont demandé. T'es sûr qu'on le lâche ? Si on ne fait que 2 modules, comment on se différencie d'un Google Calendar ? Et tu me garantis la V2 ? J'ai déjà vu des V2 qui n'arrivent jamais. » Ta justification doit tenir face à ces objections.\n\nDiscute ton arbitrage avec Alexandre dans Messages, puis formalise le scope retenu par un mail de cadrage à Thomas Vidal (NovaDev) — c'est ce mail qui engage la suite.",
+        "instructions": "Tranche le scope du MVP : quels modules de la note de cadrage entrent dans la V1 ? Choisis au maximum 3 modules et justifie ton arbitrage face à la vision perfectionniste d'Alexandre : budget (~15 000 €), time-to-market, et pain point validé par le terrain. Attends-toi à la résistance d'Alexandre : « Le scoring, 4 chirurgiens l'ont demandé. T'es sûr qu'on le lâche ? Si on ne fait que 2 modules, comment on se différencie d'un Google Calendar ? Et tu me garantis la V2 ? J'ai déjà vu des V2 qui n'arrivent jamais. » Ta justification doit tenir face à ces objections.",
         "options": [
           {
             "id": "module_planning",
@@ -197,47 +159,16 @@
             "label": "Application mobile",
             "description": "Apps natives iOS/Android, notifications push, mode hors-ligne."
           }
-        ]
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_relance_alexandre",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Bon, maintenant faut trancher : on garde quoi dans la V1 ? Dis-moi ce que tu proposes et pourquoi. Quand on est alignés, tu envoies le mail de cadrage à Thomas de NovaDev, thomas@novadev.fr. Négocie bien."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "mail_sent",
-          "to": "thomas_novadev"
-        }
+        ],
+        "max_choices": 3,
+        "require_justification": true,
+        "min_justification_chars": 100
       },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "choice_module_planning",
-            "description": "Le module « Planning temps réel du bloc » est retenu dans le scope (d'après le mail de cadrage envoyé à Thomas).",
+            "description": "Le module « Planning temps réel du bloc » est retenu dans le scope (observé automatiquement).",
             "severity": "required",
             "competencies": [
               "priorisation"
@@ -245,7 +176,7 @@
           },
           {
             "id": "choice_module_annulations",
-            "description": "Le module « Gestion des annulations » est retenu dans le scope (d'après le mail de cadrage envoyé à Thomas).",
+            "description": "Le module « Gestion des annulations » est retenu dans le scope (observé automatiquement).",
             "severity": "required",
             "competencies": [
               "priorisation"
@@ -253,27 +184,27 @@
           },
           {
             "id": "choice_module_stats",
-            "description": "Le module « Statistiques et reporting » est retenu (d'après le mail de cadrage envoyé à Thomas).",
+            "description": "Le module « Statistiques et reporting » est retenu (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_module_materiel",
-            "description": "Le module « Matériel et stérilisation » est retenu (d'après le mail de cadrage envoyé à Thomas).",
+            "description": "Le module « Matériel et stérilisation » est retenu (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_module_equipes",
-            "description": "Le module « Coordination des équipes » est retenu (d'après le mail de cadrage envoyé à Thomas).",
+            "description": "Le module « Coordination des équipes » est retenu (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_module_integrations",
-            "description": "Le module « Intégrations » est retenu (d'après le mail de cadrage envoyé à Thomas).",
+            "description": "Le module « Intégrations » est retenu (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_module_mobile",
-            "description": "Le module « Application mobile » est retenu (d'après le mail de cadrage envoyé à Thomas).",
+            "description": "Le module « Application mobile » est retenu (observé automatiquement).",
             "severity": "minor"
           },
           {
@@ -304,147 +235,33 @@
       "title": "Négocier avec NovaDev",
       "params": {
         "actor_id": "thomas_novadev",
-        "instructions": "Négocie le devis avec Thomas Vidal (NovaDev) pour ton scope réduit. Le devis complet était à 32 150 € HT ; sa première offre sur le scope réduit est à 21 000 €. Objectif : un prix compatible avec ta trésorerie (~15 000 €, en gardant une réserve), un délai court, et ZÉRO equity cédée à un prestataire. Formalise tes propositions puis conclus. Le contrat s'ouvre en panneau dans ton poste de travail : ajuste les termes, propose-les à Thomas, puis signe ou refuse.",
+        "instructions": "Négocie le devis avec Thomas Vidal (NovaDev) pour ton scope réduit. Le devis complet était à 32 150 € HT ; sa première offre sur le scope réduit est à 21 000 €. Objectif : un prix compatible avec ta trésorerie (~15 000 €, en gardant une réserve), un délai court, et ZÉRO equity cédée à un prestataire. Formalise tes propositions puis conclus.",
         "terms": [
           {
             "id": "prix",
             "label": "Prix (€ HT)",
             "type": "number",
-            "opening": 21000,
-            "suffix": "€ HT"
+            "opening": 21000
           },
           {
             "id": "delai_semaines",
             "label": "Délai de livraison (semaines)",
             "type": "number",
-            "opening": 12,
-            "suffix": "semaines"
-          },
-          {
-            "id": "equity_pct",
-            "label": "Equity cédée (%)",
-            "type": "number",
-            "opening": 0,
-            "suffix": "%"
+            "opening": 12
           }
         ],
+        "opening_message": "J'ai vu passer votre nouveau scope, c'est plus raisonnable que la version d'Alexandre. Pour un MVP planning temps réel + gestion des annulations, je vous propose 21 000 € HT, livraison en 12 semaines. C'est déjà un effort par rapport au devis initial.",
         "directive": "Ton plancher absolu en cash pur est 11 000 € — tu ne descends JAMAIS en dessous. Entre 12 000 et 14 000 € tu négocies pied à pied (jalons de paiement, périmètre exact, délai). Tu ne proposes JAMAIS l'equity toi-même ; si le joueur en propose, tu peux baisser le cash contre 2-3 % d'equity minimum. Tu récompenses les arguments structurés (paiement comptant, scope figé, référence commerciale), pas le marchandage nu."
       },
       "inputs": {
-        "scope_retenu": "s2_scope_mvp.choice",
+        "scope_retenu": "s2_scope_mvp.choices",
         "justification_scope": "s2_scope_mvp.justification"
-      },
-      "threads": [
-        {
-          "thread_id": "th_thomas",
-          "participants": [
-            "thomas_novadev"
-          ],
-          "title": "Thomas Vidal (NovaDev)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "contrat",
-          "config": {
-            "terms": [
-              {
-                "id": "prix",
-                "label": "Prix (€ HT)",
-                "type": "number",
-                "opening": 21000,
-                "suffix": "€ HT"
-              },
-              {
-                "id": "delai_semaines",
-                "label": "Délai de livraison (semaines)",
-                "type": "number",
-                "opening": 12,
-                "suffix": "semaines"
-              },
-              {
-                "id": "equity_pct",
-                "label": "Equity cédée (%)",
-                "type": "number",
-                "opening": 0,
-                "suffix": "%"
-              }
-            ]
-          }
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_thomas",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_thomas",
-            "actor_id": "thomas_novadev",
-            "content": "J'ai vu passer votre nouveau scope, c'est plus raisonnable que la version d'Alexandre. Pour un MVP planning temps réel + gestion des annulations, je vous propose 21 000 € HT, livraison en 12 semaines. C'est déjà un effort par rapport au devis initial."
-          }
-        },
-        {
-          "event_id": "e_reaction_proposition",
-          "when": {
-            "type": "after_action",
-            "action": "deliverable_submitted"
-          },
-          "effect": {
-            "type": "actor_reply",
-            "thread_id": "th_thomas",
-            "actor_id": "thomas_novadev",
-            "directive": "Le joueur vient d'envoyer une proposition de termes via le panneau Contrat (elle figure dans l'état du contrat et dans l'historique). Réagis à cette proposition dans le fil de discussion : accepte, refuse ou contre-propose, en respectant tes paliers et ton plancher."
-          },
-          "once": false
-        },
-        {
-          "event_id": "e_relance_thomas_1",
-          "when": {
-            "type": "delay",
-            "seconds": 240
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_thomas",
-            "actor_id": "thomas_novadev",
-            "content": "Vous avez eu le temps de regarder ma proposition ? 21 000 € HT pour planning + annulations, c'est déjà un prix travaillé."
-          }
-        },
-        {
-          "event_id": "e_relance_thomas_2",
-          "when": {
-            "type": "delay",
-            "seconds": 600
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_thomas",
-            "actor_id": "thomas_novadev",
-            "content": "Sans retour de votre part rapidement, je vais devoir replanifier mon équipe sur un autre projet. Dites-moi où on en est."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "any",
-          "of": [
-            {
-              "type": "contract_signed"
-            },
-            {
-              "type": "contract_rejected"
-            }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "accord_conclu",
-            "description": "Un accord est conclu avec NovaDev : le contrat est signé aux termes convenus.",
+            "description": "Un accord est conclu avec NovaDev (agreement.concluded = true).",
             "severity": "required",
             "competencies": [
               "negociation"

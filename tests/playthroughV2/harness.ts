@@ -134,11 +134,12 @@ import {
 // Chargement des scénarios réels
 // ═══════════════════════════════════════════════════════════════════
 
+// founder_02_mvp est passé au format v3 (pilote workspace, jalon 1) :
+// il est couvert par tests/playthroughV3/pilot.playthrough.test.ts.
 export const SCENARIO_IDS = [
   "vitrine_signer_le_pilote",
   "founder_00_cto",
   "founder_01_incubator",
-  "founder_02_mvp",
   "founder_03_clinical",
   "founder_04_v1",
   "founder_05_sales",

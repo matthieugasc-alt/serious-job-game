@@ -59,10 +59,10 @@ export function listScenarios(): ScenarioMeta[] {
 
         if (!parsed) continue;
 
-        // Moteur v2 uniquement : les scénarios legacy v1 (par phases) ont
-        // été archivés dans archive/legacy-v1/ — seuls les scénarios au
-        // format "v2" (séquences de mécaniques) sont jouables via /play.
-        if (parsed.format !== 'v2') continue;
+        // Moteurs v2 et v3 : les scénarios legacy v1 (par phases) ont été
+        // archivés dans archive/legacy-v1/ — les formats "v2" (séquences de
+        // mécaniques) et "v3" (workspace immersif) sont jouables via /play.
+        if (parsed.format !== 'v2' && parsed.format !== 'v3') continue;
 
         // Extract meta information
         if (parsed.meta && parsed.scenario_id) {

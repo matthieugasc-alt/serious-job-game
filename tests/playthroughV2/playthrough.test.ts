@@ -1,6 +1,7 @@
 /**
  * ═════════════════════════════════════════════════════════════════
- * Playthrough headless des 7 scénarios v2 contre le moteur réel.
+ * Playthrough headless des scénarios v2 (SCENARIO_IDS) contre le moteur
+ * réel. founder_02_mvp est passé v3 → tests/playthroughV3/.
  * ═════════════════════════════════════════════════════════════════
  *
  * Ce que ces tests PROUVENT :
@@ -47,7 +48,7 @@ const isFounder = (id: string): boolean =>
 // E. Garde-fou global : validation statique contre les manifests
 // ═══════════════════════════════════════════════════════════════════
 
-describe("E. validateScenarioV2 — 0 issue sur les 7 scénarios", () => {
+describe("E. validateScenarioV2 — 0 issue sur les scénarios v2 suivis", () => {
   for (const [id, scenario] of scenarios) {
     it(`${id} passe la validation statique`, () => {
       expect(validateScenarioV2(scenario, MECHANIC_MANIFESTS)).toEqual([]);

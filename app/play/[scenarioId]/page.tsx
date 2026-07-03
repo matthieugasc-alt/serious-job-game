@@ -1,11 +1,12 @@
 /**
- * /play/[scenarioId] — route du player v2.
+ * /play/[scenarioId] — route du player (v2 ET v3).
  *
  * Server component : lit scenarios/<scenarioId>/scenario.json depuis le
- * disque, vérifie le format v2 (404 sinon), vérifie le verrouillage
- * admin (scenarioConfig → page « scénario verrouillé », pas le Shell),
- * puis délègue au client component PlayerClient qui monte le Shell
- * générique.
+ * disque, vérifie le format (404 sinon), vérifie le verrouillage admin
+ * (scenarioConfig → page « scénario verrouillé », jamais le player), puis
+ * délègue au client component :
+ *   - format "v2" → PlayerClient (Shell générique v2, inchangé)
+ *   - format "v3" → WorkspacePlayer (poste de travail immersif, jalon 1)
  *
  * ?campaign=<id> → saveKey `campaignId::scenarioId` (deep-save séparé
  * par campagne) et campaign_id transmis au POST /api/v2/complete.
@@ -16,7 +17,9 @@ import path from "node:path";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { ScenarioV2 } from "@/app/lib/engine/mechanics";
+import type { ScenarioV3 } from "@/app/lib/engine/workspace";
 import { getScenarioConfig } from "@/app/lib/scenarioConfig";
+import { WorkspacePlayer } from "@/app/workspace/WorkspacePlayer";
 import { PlayerClient } from "./PlayerClient";
 
 export const dynamic = "force-dynamic";
@@ -36,13 +39,13 @@ export default async function PlayPage({ params, searchParams }: Props) {
 
   const file = path.join(process.cwd(), "scenarios", scenarioId, "scenario.json");
 
-  let scenario: ScenarioV2;
+  let scenario: ScenarioV2 | ScenarioV3;
   try {
-    scenario = JSON.parse(await fs.readFile(file, "utf8")) as ScenarioV2;
+    scenario = JSON.parse(await fs.readFile(file, "utf8")) as ScenarioV2 | ScenarioV3;
   } catch {
     notFound();
   }
-  if (scenario.format !== "v2") notFound();
+  if (scenario.format !== "v2" && scenario.format !== "v3") notFound();
 
   // ── Verrouillage admin (exigence PO) ────────────────────────────
   // Un scénario verrouillé via l'admin reste visible sur le catalogue
@@ -102,5 +105,8 @@ export default async function PlayPage({ params, searchParams }: Props) {
     );
   }
 
+  if (scenario.format === "v3") {
+    return <WorkspacePlayer scenario={scenario} campaignId={campaignId} />;
+  }
   return <PlayerClient scenario={scenario} campaignId={campaignId} />;
 }
