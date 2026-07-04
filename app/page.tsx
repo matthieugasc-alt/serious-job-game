@@ -47,6 +47,15 @@ const LEVEL_DISPLAY: Record<string, { label: string; bg: string; text: string }>
   expert: { label: "Expert", bg: "#f3e8ff", text: "#6b21a8" },
 };
 
+/** Couleur d'accent (liseré carte) dérivée du niveau affiché. */
+function levelAccent(difficulty: string): string {
+  const d = LEVEL_DISPLAY[difficulty];
+  if (d) return d.text;
+  if (difficulty === "junior") return "#0369a1";
+  if (difficulty === "intermediate") return "#b45309";
+  return "#991b1b";
+}
+
 function DifficultyBadge({ difficulty }: { difficulty: string }) {
   // Niveau override admin → label français dédié ; sinon valeur brute
   // du scenario.json (junior/intermediate/…) comme avant.
@@ -163,15 +172,19 @@ function ScenarioCard({
   levelOverride?: string;
 }) {
   const isTeaser = !!scenario.is_teaser;
+  const accent = levelAccent(levelOverride || scenario.difficulty);
+  const restShadow = "0 1px 2px rgba(16,24,40,0.06), 0 10px 24px rgba(16,24,40,0.10)";
+  const hoverShadow = "0 2px 4px rgba(16,24,40,0.08), 0 16px 36px rgba(16,24,40,0.16)";
   return (
     <div
       onClick={!isLocked ? onClick : undefined}
       style={{
-        border: "1px solid #ddd",
-        borderRadius: 18,
+        border: "1px solid #cdd6e8",
+        borderTop: `4px solid ${isLocked ? "#cbd5e1" : accent}`,
+        borderRadius: 14,
         padding: 24,
         background: isLocked ? "#f5f5f5" : "#fff",
-        boxShadow: "0 8px 24px rgba(0,0,0,0.05)",
+        boxShadow: restShadow,
         cursor: isLocked ? "not-allowed" : "pointer",
         transition: "all 0.3s ease",
         display: "flex",
@@ -181,15 +194,13 @@ function ScenarioCard({
       }}
       onMouseEnter={(e) => {
         if (!isLocked) {
-          (e.currentTarget as HTMLDivElement).style.boxShadow =
-            "0 12px 32px rgba(0,0,0,0.12)";
+          (e.currentTarget as HTMLDivElement).style.boxShadow = hoverShadow;
           (e.currentTarget as HTMLDivElement).style.transform = "translateY(-4px)";
         }
       }}
       onMouseLeave={(e) => {
         if (!isLocked) {
-          (e.currentTarget as HTMLDivElement).style.boxShadow =
-            "0 8px 24px rgba(0,0,0,0.05)";
+          (e.currentTarget as HTMLDivElement).style.boxShadow = restShadow;
           (e.currentTarget as HTMLDivElement).style.transform = "translateY(0)";
         }
       }}
@@ -286,8 +297,9 @@ function ScenarioCard({
             padding: "6px 12px",
             borderRadius: 6,
             fontSize: 12,
-            backgroundColor: "#f3f4f6",
-            color: "#555",
+            backgroundColor: "#eef2ff",
+            color: "#4a4aaa",
+            border: "1px solid #e0e3f7",
           }}
         >
           ⏱ {scenario.estimated_duration_min}min
@@ -319,10 +331,10 @@ function ScenarioCard({
               key={tag}
               style={{
                 padding: "4px 10px",
-                borderRadius: 4,
+                borderRadius: 12,
                 fontSize: 12,
-                backgroundColor: "#f0f0f0",
-                color: "#666",
+                backgroundColor: "#eef2f7",
+                color: "#475569",
               }}
             >
               #{tag}
@@ -616,7 +628,7 @@ export default function ScenarioSelectionPage() {
     <main
       style={{
         minHeight: "100vh",
-        background: "linear-gradient(180deg, #f6f8fc 0%, #eef2f9 100%)",
+        background: "linear-gradient(180deg, #eef1f7 0%, #e2e8f4 100%)",
         padding: "28px 20px 40px",
         fontFamily: "Arial, sans-serif",
         color: "#111",
@@ -956,7 +968,7 @@ export default function ScenarioSelectionPage() {
                   style={{
                     padding: "8px 16px",
                     borderRadius: 20,
-                    border: selectedCategories.has(category) ? "2px solid #5b5fc7" : "1px solid #ddd",
+                    border: selectedCategories.has(category) ? "2px solid #5b5fc7" : "1px solid #c3cee0",
                     background: selectedCategories.has(category) ? "#f0f0ff" : "#fff",
                     color: selectedCategories.has(category) ? "#5b5fc7" : "#666",
                     cursor: "pointer",
