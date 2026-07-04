@@ -2,9 +2,9 @@
 
 /**
  * BlocNotesApp — application complète du Bloc-notes Universel (dock).
- * Trois onglets : Notes (sidebar + éditeur de blocs fluide), Kanban
- * (3 colonnes DnD), Base de données (tableau filtrable, sources
- * navigables via openApp). Toutes les mutations passent par les
+ * Quatre onglets : Notes (sidebar + éditeur de blocs fluide), Tâches
+ * (tableau filtrable), Mind map (carte mentale de la hiérarchie de
+ * blocs) et Kanban (3 colonnes DnD). Toutes les mutations passent par les
  * constructeurs d'api.ts → dispatch tool_op ; lectures via les
  * sélecteurs purs. Aucun import de mécaniques ni du moteur hors types
  * (garde-fou testé).
@@ -17,6 +17,7 @@ import type { Note } from "./spec";
 import { BlockEditor } from "./components/BlockEditor";
 import { DatabaseView } from "./components/DatabaseView";
 import { KanbanView } from "./components/KanbanView";
+import { MindMapView } from "./components/MindMapView";
 import { NotesSidebar } from "./components/NotesSidebar";
 import {
   asAnyBlocks,
@@ -31,11 +32,12 @@ import {
 
 const RENAME_DEBOUNCE_MS = 500;
 
-type Tab = "notes" | "kanban" | "base";
+type Tab = "notes" | "kanban" | "base" | "mind";
 
 const TABS: [Tab, string][] = [
   ["notes", "Notes"],
   ["base", "Tâches"],
+  ["mind", "Mind map"],
   ["kanban", "Kanban"],
 ];
 
@@ -129,6 +131,17 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
       {tab === "base" && (
         <div className="min-h-0 flex-1">
           <DatabaseView state={state} openApp={openApp} onOpenNote={openNote} defaultFilter="tache" />
+        </div>
+      )}
+
+      {tab === "mind" && (
+        <div className="min-h-0 flex-1">
+          <MindMapView
+            state={state}
+            initialNoteId={selected?.id ?? null}
+            dispatch={dispatch}
+            onOpenNote={openNote}
+          />
         </div>
       )}
 
