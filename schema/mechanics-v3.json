@@ -1,6 +1,6 @@
 {
   "$comment": "Registre v3 (workspace) — specs HEADLESS des 11 mécaniques + registre des tools connus. Consommé par scripts/validate-scenarios-v3.mjs (qui ne peut pas importer du TS). Les mécaniques v3 sont des capacités du moteur (zéro UI) : default_tools sont SUGGÉRÉS, le step peut ajuster. Synchro vérifiée par app/mechanics/__tests__/specs.headless.test.ts.",
-  "tools": ["notes", "contrat", "editeur", "reunion", "bloc-notes"],
+  "tools": ["notes", "contrat", "editeur", "reunion", "bloc-notes", "bibliotheque"],
   "mechanics": [
     {
       "id": "analyse",

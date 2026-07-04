@@ -111,7 +111,7 @@ const ACTION_TYPES = new Set<WorkspaceAction["type"]>([
 
 /** Tools au carnet PERSISTANT : jamais réinitialisés par un exit goto
  *  (TOOL_BLOC_NOTES.md §1 — le carnet n'est jamais reset par une phase). */
-const NON_RESETTABLE_TOOLS = new Set<string>(["bloc-notes"]);
+const NON_RESETTABLE_TOOLS = new Set<string>(["bloc-notes", "bibliotheque"]);
 
 const WHEN_TYPES = new Set<string>([
   "step_start",

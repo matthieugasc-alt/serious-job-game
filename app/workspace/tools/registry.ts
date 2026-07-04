@@ -16,6 +16,8 @@ import { reunionSpec } from "./reunion/spec";
 import { ReunionTool } from "./reunion/ReunionTool";
 import { blocNotesSpec } from "./bloc-notes/spec";
 import { BlocNotesToolPanel } from "./bloc-notes/components/BlocNotesToolPanel";
+import { bibliothequeSpec } from "./bibliotheque/spec";
+import { BibliothequeToolPanel } from "./bibliotheque/components/BibliothequeToolPanel";
 
 export const TOOL_REGISTRY: Record<string, WorkspaceTool> = {
   [notesSpec.id]: { ...notesSpec, Component: NotesTool },
@@ -26,6 +28,10 @@ export const TOOL_REGISTRY: Record<string, WorkspaceTool> = {
   // le panneau droit → vue rapide ; l'app complète (BlocNotesApp) vit
   // dans le dock via APP_REGISTRY.
   [blocNotesSpec.id]: { ...blocNotesSpec, Component: BlocNotesToolPanel },
+  // Gestionnaire Documentaire Universel (docs/TOOL_GESTIONNAIRE_DOC.md) :
+  // spec pure + applyOp (tool_op), jamais réinitialisé. Panneau = aperçu ;
+  // l'app complète (Lot 2) sera hébergée par l'app documents du dock.
+  [bibliothequeSpec.id]: { ...bibliothequeSpec, Component: BibliothequeToolPanel },
 };
 
 export type { WorkspaceTool, ToolComponentProps, WorkspaceDispatch } from "./types";
