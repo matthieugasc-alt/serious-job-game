@@ -16,7 +16,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceAppProps } from "../../apps/types";
 import {
   addTag,
-  clearCompare,
   closeEntry,
   createFolder,
   deleteFolder,
@@ -25,6 +24,7 @@ import {
   openEntry,
   removeEntry,
   removeTag,
+  reorderWindows,
   searchEntries,
   selectAllEntries,
   selectAllTags,
@@ -32,7 +32,6 @@ import {
   selectFolders,
   selectLibrary,
   selectOpenWindows,
-  setCompare,
   setLayout,
   toggleFavorite,
   togglePin,
@@ -100,6 +99,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
   const [sel, setSel] = useState<Selection>({ type: "all" });
   const [view, setView] = useState<"library" | "desk">("library");
   const [openId, setOpenId] = useState<string | null>(null);
+  const [dragTab, setDragTab] = useState<string | null>(null);
   const [newFolder, setNewFolder] = useState("");
   const handledContext = useRef<string | null>(null);
   const dispatchedIndex = useRef<Set<string>>(new Set());
@@ -159,6 +159,14 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
     },
     [dispatch],
   );
+
+  // Retour arrière (navigateur / trackpad) → revenir au sélecteur de
+  // documents (jamais sortir du scénario — cf. useNavigationGuard).
+  useEffect(() => {
+    const onBack = () => setView((v) => (v === "desk" ? "library" : v));
+    window.addEventListener("revealio:back", onBack);
+    return () => window.removeEventListener("revealio:back", onBack);
+  }, []);
 
   /** Ouvrir un document À CÔTÉ : l'ouvre et bascule en deux colonnes. */
   const openBeside = useCallback(
@@ -223,13 +231,22 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
   const deskLayout = selectLibrary(libState).desk.layout;
   const showDesk = view === "desk" && (openWindows.length > 0 || compareEntries !== null);
   const focusedId = openWindows.some((w) => w.id === openId) ? openId : openWindows[0]?.id ?? null;
-  const otherWindow = openWindows.find((w) => w.id !== focusedId);
 
   const closeWindow = (id: string) => {
     dispatch(closeEntry(id));
     const rest = openWindows.filter((w) => w.id !== id);
     if (id === focusedId) setOpenId(rest[0]?.id ?? null);
     if (rest.length === 0 && !compareEntries) setView("library");
+  };
+
+  // Réordonner les onglets du bureau par glisser-déposer.
+  const dropTab = (targetId: string) => {
+    if (!dragTab || dragTab === targetId) return;
+    const ids = openWindows.map((w) => w.id).filter((wid) => wid !== dragTab);
+    const at = ids.indexOf(targetId);
+    ids.splice(at < 0 ? ids.length : at, 0, dragTab);
+    dispatch(reorderWindows(ids));
+    setDragTab(null);
   };
 
   if (showDesk) {
@@ -244,17 +261,31 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
             ← Bibliothèque
           </button>
 
-          {/* Onglets des fenêtres ouvertes. */}
+          {/* Onglets des fenêtres ouvertes — glisser-déposer pour réordonner. */}
           <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
             {openWindows.map((w) => (
               <span
                 key={w.id}
-                className={`inline-flex max-w-[180px] shrink-0 items-center gap-1 rounded-lg border px-2 py-1 text-xs transition ${
-                  w.id === focusedId && !compareEntries
+                draggable
+                onDragStart={(e) => {
+                  setDragTab(w.id);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+                onDragOver={(e) => {
+                  if (dragTab) e.preventDefault();
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  dropTab(w.id);
+                }}
+                onDragEnd={() => setDragTab(null)}
+                className={`inline-flex max-w-[180px] shrink-0 cursor-grab items-center gap-1 rounded-lg border px-2 py-1 text-xs transition active:cursor-grabbing ${
+                  w.id === focusedId
                     ? "border-indigo-300 bg-indigo-50 text-indigo-800"
                     : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
-                }`}
+                } ${dragTab === w.id ? "opacity-40" : ""}`}
               >
+                <span aria-hidden className="select-none text-gray-300">⠿</span>
                 <button type="button" className="min-w-0 truncate" onClick={() => setOpenId(w.id)}>
                   {w.title || "(sans titre)"}
                 </button>
@@ -270,46 +301,33 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
             ))}
           </div>
 
-          {/* Comparaison. */}
-          {compareEntries ? (
-            <button
-              type="button"
-              className="shrink-0 rounded-lg bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-200"
-              onClick={() => dispatch(clearCompare())}
-            >
-              Fin de comparaison
-            </button>
-          ) : (
-            <button
-              type="button"
-              disabled={!otherWindow}
-              title={otherWindow ? "Comparer deux fenêtres" : "Ouvrez au moins deux documents"}
-              className="shrink-0 rounded-lg border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 transition hover:border-indigo-300 hover:text-indigo-700 disabled:opacity-40"
-              onClick={() => focusedId && otherWindow && dispatch(setCompare(focusedId, otherWindow.id))}
-            >
-              ⇄ Comparer
-            </button>
-          )}
+          {/* Ouvrir un autre document (retour au sélecteur). */}
+          <button
+            type="button"
+            title="Ouvrir un autre document"
+            className="shrink-0 rounded-lg border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 transition hover:border-indigo-300 hover:text-indigo-700"
+            onClick={() => setView("library")}
+          >
+            + Doc
+          </button>
 
-          {/* Dispositions (masquées en comparaison). */}
-          {!compareEntries && (
-            <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-gray-200 p-0.5">
-              {LAYOUT_OPTIONS.map((o) => (
-                <button
-                  key={o.key}
-                  type="button"
-                  title={o.label}
-                  aria-pressed={deskLayout === o.key}
-                  className={`rounded px-1.5 py-0.5 text-sm transition ${
-                    deskLayout === o.key ? "bg-indigo-100 text-indigo-700" : "text-gray-500 hover:bg-gray-100"
-                  }`}
-                  onClick={() => dispatch(setLayout(o.key))}
-                >
-                  {o.icon}
-                </button>
-              ))}
-            </div>
-          )}
+          {/* Dispositions (une fenêtre / deux colonnes / deux lignes / grille). */}
+          <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-gray-200 p-0.5">
+            {LAYOUT_OPTIONS.map((o) => (
+              <button
+                key={o.key}
+                type="button"
+                title={o.label}
+                aria-pressed={deskLayout === o.key}
+                className={`rounded px-1.5 py-0.5 text-sm transition ${
+                  deskLayout === o.key ? "bg-indigo-100 text-indigo-700" : "text-gray-500 hover:bg-gray-100"
+                }`}
+                onClick={() => dispatch(setLayout(o.key))}
+              >
+                {o.icon}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="min-h-0 flex-1">

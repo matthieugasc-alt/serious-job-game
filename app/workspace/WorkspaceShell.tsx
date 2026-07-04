@@ -37,6 +37,8 @@ interface Props {
   timerDeadline?: number;
   /** Fils où un interlocuteur est en train d'écrire (indicateur de frappe). */
   busyThreads?: string[];
+  /** Sortie EXPLICITE de la mission (le retour arrière ne quitte jamais). */
+  onQuit?: () => void;
   dispatch: (action: WorkspaceAction) => void;
 }
 
@@ -49,6 +51,7 @@ export function WorkspaceShell({
   objective,
   timerDeadline,
   busyThreads,
+  onQuit,
   dispatch,
 }: Props) {
   const [activeApp, setActiveApp] = useState<string>(APP_ORDER[0]);
@@ -107,6 +110,16 @@ export function WorkspaceShell({
             <span aria-hidden>⏱</span>
             {Math.floor(timerLeft / 60)}:{String(timerLeft % 60).padStart(2, "0")}
           </span>
+        )}
+        {onQuit && (
+          <button
+            type="button"
+            title="Quitter la mission"
+            className={`${timerLeft !== null ? "ml-1" : "ml-auto"} shrink-0 rounded-lg border border-gray-200 px-2.5 py-1 text-xs font-medium text-gray-500 transition hover:border-red-300 hover:text-red-600`}
+            onClick={onQuit}
+          >
+            Quitter
+          </button>
         )}
       </header>
 

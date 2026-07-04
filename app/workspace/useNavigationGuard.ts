@@ -1,20 +1,33 @@
 "use client";
 
 /**
- * useNavigationGuard — protège une partie en cours contre les sorties
- * accidentelles (bouton retour du navigateur, refresh, fermeture).
+ * useNavigationGuard — le retour arrière ne quitte JAMAIS une mission.
  *
- * - popstate (retour arrière) : intercepté ; une confirmation explicite
- *   est demandée. Refus → l'état d'historique est re-poussé, le joueur
- *   reste dans la mission. Accord → navigation normale.
- * - beforeunload (refresh/fermeture) : confirmation native du navigateur.
+ * - popstate (retour arrière navigateur / trackpad) : intercepté ; l'état
+ *   d'historique est SYSTÉMATIQUEMENT re-poussé (on ne sort jamais du
+ *   scénario par un geste réflexe) et un événement `revealio:back` est
+ *   émis pour que l'app courante l'utilise comme navigation INTERNE
+ *   (ex. revenir au sélecteur de documents).
+ * - beforeunload (refresh/fermeture) : confirmation native, sauf sortie
+ *   explicite (bouton « Quitter » → requestScenarioExit).
  *
- * Le deep-save reste la vraie protection (l'état survit à tout) ; ce
- * garde protège l'IMMERSION : on ne sort pas d'une mission par un
- * geste réflexe.
+ * La sortie d'un scénario passe UNIQUEMENT par un bouton « Quitter »
+ * (requestScenarioExit) — jamais par le retour arrière.
  */
 
 import { useEffect } from "react";
+
+/** Événement émis à chaque retour arrière : navigation interne à l'app. */
+export const REVEALIO_BACK_EVENT = "revealio:back";
+
+let exiting = false;
+
+/** Sortie EXPLICITE d'un scénario (bouton « Quitter ») : lève le garde
+ *  beforeunload puis navigue vers la destination. */
+export function requestScenarioExit(href: string): void {
+  exiting = true;
+  window.location.assign(href);
+}
 
 export function useNavigationGuard(active: boolean) {
   useEffect(() => {
@@ -24,17 +37,13 @@ export function useNavigationGuard(active: boolean) {
     window.history.pushState({ revealioGuard: true }, "", window.location.href);
 
     const onPopState = () => {
-      const leave = window.confirm(
-        "Quitter la mission en cours ? Votre progression est sauvegardée, vous pourrez reprendre.",
-      );
-      if (leave) {
-        window.history.back();
-      } else {
-        window.history.pushState({ revealioGuard: true }, "", window.location.href);
-      }
+      // JAMAIS de sortie : on ré-ancre et on signale un retour interne.
+      window.history.pushState({ revealioGuard: true }, "", window.location.href);
+      window.dispatchEvent(new CustomEvent(REVEALIO_BACK_EVENT));
     };
 
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (exiting) return;
       e.preventDefault();
       e.returnValue = "";
     };

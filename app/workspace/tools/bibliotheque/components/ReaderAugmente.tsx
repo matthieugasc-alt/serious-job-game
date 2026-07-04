@@ -116,7 +116,7 @@ export function ReaderAugmente({
   documents,
   dispatch,
   nameOf,
-  defaultShowPanel = true,
+  defaultShowPanel = false,
   decisionState,
 }: {
   entry: DocEntry;
@@ -129,7 +129,11 @@ export function ReaderAugmente({
   const who = (id: string) => (nameOf ? nameOf(id) : id);
   const bodyRef = useRef<HTMLDivElement>(null);
   const instanceId = useId().replace(/[^a-zA-Z0-9]/g, "");
-  const [showPanel, setShowPanel] = useState(defaultShowPanel);
+  // Panneau d'annotations : masqué par défaut (le document prend toute la
+  // largeur). Épinglé au clic sur ✎, ou révélé au survol de sa poignée.
+  const [panelPinned, setPanelPinned] = useState(defaultShowPanel);
+  const [panelHover, setPanelHover] = useState(false);
+  const showPanel = panelPinned || panelHover;
   const [sel, setSel] = useState<{ text: string; anchor: string; x: number; y: number } | null>(null);
   const [commenting, setCommenting] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -160,13 +164,16 @@ export function ReaderAugmente({
     [entry],
   );
 
-  // ── Détection de sélection.
+  // ── Détection de sélection : on capture UNIQUEMENT à la FIN du geste
+  //    (mouseup/keyup), jamais pendant le drag — sinon un re-render en
+  //    cours de sélection réancre le curseur au début du document.
   useEffect(() => {
-    const update = () => {
+    const c = bodyRef.current;
+    if (!c) return;
+    const capture = () => {
       if (commenting) return;
       const s = window.getSelection();
-      const c = bodyRef.current;
-      if (!s || s.rangeCount === 0 || s.isCollapsed || !c) {
+      if (!s || s.rangeCount === 0 || s.isCollapsed) {
         setSel(null);
         return;
       }
@@ -187,12 +194,13 @@ export function ReaderAugmente({
         y: Math.max(4, r.top - cr.top + c.scrollTop - 44),
       });
     };
-    const c = bodyRef.current;
-    document.addEventListener("selectionchange", update);
-    c?.addEventListener("scroll", update, true);
+    document.addEventListener("mouseup", capture);
+    document.addEventListener("keyup", capture);
+    c.addEventListener("scroll", capture, true);
     return () => {
-      document.removeEventListener("selectionchange", update);
-      c?.removeEventListener("scroll", update, true);
+      document.removeEventListener("mouseup", capture);
+      document.removeEventListener("keyup", capture);
+      c.removeEventListener("scroll", capture, true);
     };
   }, [commenting]);
 
@@ -290,7 +298,7 @@ export function ReaderAugmente({
   const comments = entry.annotations.filter((a) => a.kind === "comment");
 
   return (
-    <div className="flex h-full min-h-0 bg-white">
+    <div className="relative flex h-full min-h-0 bg-white">
       {hlStyle && <style dangerouslySetInnerHTML={{ __html: hlStyle }} />}
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex shrink-0 items-start gap-3 border-b border-gray-200 bg-gray-50/80 px-4 py-3">
@@ -313,7 +321,14 @@ export function ReaderAugmente({
             <button type="button" title={entry.pinned ? "Désépingler (garder en haut de la liste)" : "Épingler en haut de la liste"} className={`rounded-md px-1.5 py-1 text-sm transition hover:bg-gray-100 ${entry.pinned ? "text-indigo-600" : "text-gray-300"}`} onClick={() => dispatch(togglePin(entry.id))}>
               📌
             </button>
-            <button type="button" title={showPanel ? "Masquer les annotations" : "Afficher les annotations"} aria-pressed={showPanel} className={`rounded-md px-1.5 py-1 text-sm transition hover:bg-gray-100 ${showPanel ? "text-indigo-600" : "text-gray-400"}`} onClick={() => setShowPanel((v) => !v)}>
+            <button
+              type="button"
+              title={panelPinned ? "Détacher le panneau d'annotations" : "Épingler le panneau (survol pour l'aperçu)"}
+              aria-pressed={showPanel}
+              className={`rounded-md px-1.5 py-1 text-sm transition hover:bg-gray-100 ${showPanel ? "text-indigo-600" : "text-gray-400"}`}
+              onClick={() => setPanelPinned((v) => !v)}
+              onMouseEnter={() => setPanelHover(true)}
+            >
               ✎ {entry.annotations.length + entry.bookmarks.length || ""}
             </button>
           </div>
@@ -349,7 +364,11 @@ export function ReaderAugmente({
       </div>
 
       {showPanel && (
-        <aside className="flex w-64 shrink-0 flex-col gap-3 overflow-y-auto border-l border-gray-200 bg-gray-50/70 px-3 py-3">
+        <aside
+          className="absolute right-0 top-0 z-30 flex h-full w-64 flex-col gap-3 overflow-y-auto border-l border-gray-200 bg-gray-50/95 px-3 py-3 shadow-xl backdrop-blur-sm"
+          onMouseEnter={() => setPanelHover(true)}
+          onMouseLeave={() => setPanelHover(false)}
+        >
           <AnnotationSection title="Surlignages" count={highlights.length} empty="Sélectionnez du texte pour surligner.">
             {highlights.map((a) => (
               <AnnotationRow key={a.id} onRemove={() => dispatch(removeAnnotation(entry.id, a.id))}>

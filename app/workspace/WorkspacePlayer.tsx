@@ -36,7 +36,7 @@ import { ActorAvatar, PrimaryButton } from "@/app/workspace/primitives/ui";
 import { WorkspaceShell } from "./WorkspaceShell";
 import { TOOL_REGISTRY } from "./apps/registry";
 import { buildCompletionPayload, runPendingEffects } from "./orchestrator";
-import { useNavigationGuard } from "@/app/workspace/useNavigationGuard";
+import { useNavigationGuard, requestScenarioExit } from "@/app/workspace/useNavigationGuard";
 
 interface Props {
   scenario: ScenarioV3;
@@ -354,6 +354,7 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
         objective={step.title}
         timerDeadline={timerDeadline}
         busyThreads={busyThreads}
+        onQuit={() => requestScenarioExit(campaignId ? `/founder/${campaignId}` : "/")}
         dispatch={dispatch}
       />
     </div>
