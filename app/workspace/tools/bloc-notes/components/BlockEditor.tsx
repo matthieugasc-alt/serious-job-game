@@ -35,6 +35,10 @@ const TYPING_DEBOUNCE_MS = 500;
 
 const clone = (b: AnyBlock[]): AnyBlock[] => JSON.parse(JSON.stringify(b)) as AnyBlock[];
 
+/** Empreinte structurelle (ids ignorés) — pour comparer un arbre local à
+ *  l'état stocké sans se laisser piéger par les ids éphémères. */
+const stripIds = (b: AnyBlock[]): string => JSON.stringify(b, (k, v) => (k === "id" ? undefined : v));
+
 function findPath(list: AnyBlock[], id: string, base: number[] = []): number[] | null {
   for (let i = 0; i < list.length; i++) {
     if (list[i].id === id) return [...base, i];
@@ -136,6 +140,21 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [noteId]);
+
+  // Réconciliation avec une modif EXTERNE des blocs (ex. un bloc déplacé
+  // vers une AUTRE note) : si aucune frappe n'est en attente et que l'état
+  // stocké diffère de l'arbre local, on resynchronise. Le bloc déplacé
+  // disparaît alors IMMÉDIATEMENT de la note source (fin de la duplication
+  // au re-drag). Pendant la frappe (débounce actif), l'arbre local prime.
+  useEffect(() => {
+    if (timer.current) return;
+    const incoming = ensureOne(asAnyBlocks(blocks));
+    if (stripIds(incoming) !== stripIds(treeRef.current)) {
+      treeRef.current = incoming;
+      setTree(incoming);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [blocks]);
 
   // Démontage / bascule : flush du texte en attente (rien ne se perd).
   useEffect(() => {
@@ -597,6 +616,27 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
                       toggleMark(b.id, "highlight");
                       return;
                     }
+                    // Actions de ligne au clavier.
+                    if (meta && e.shiftKey && key === "t") {
+                      e.preventDefault();
+                      convertKind(b.id, "todo");
+                      return;
+                    }
+                    if (meta && e.shiftKey && key === "d") {
+                      e.preventDefault();
+                      lineToDecision(b.id);
+                      return;
+                    }
+                    if (meta && e.shiftKey && e.key === "ArrowUp") {
+                      e.preventDefault();
+                      moveLine(b.id, -1);
+                      return;
+                    }
+                    if (meta && e.shiftKey && e.key === "ArrowDown") {
+                      e.preventDefault();
+                      moveLine(b.id, 1);
+                      return;
+                    }
                     if (e.key === "Enter" && !e.shiftKey) {
                       e.preventDefault();
                       splitBlock(b.id, ta.selectionStart ?? b.text.length);
@@ -670,13 +710,13 @@ const MARK_BTNS: [MarkKey, string, string, string, string][] = [
   ["highlight", "🖍", "", "Surligné", "⌘⇧H"],
 ];
 
-const CONVERT_BTNS: [BlockKind, string][] = [
+const CONVERT_BTNS: [BlockKind, string, string?][] = [
   ["paragraph", "Texte"],
   ["heading1", "Titre"],
   ["heading2", "Sous-titre"],
   ["bullet", "• Puce"],
   ["numbered", "1. Numérotée"],
-  ["todo", "☑ Tâche"],
+  ["todo", "☑ Tâche", "⌘⇧T"],
   ["quote", "❝ Citation"],
   ["separator", "— Séparateur"],
 ];
@@ -732,27 +772,31 @@ function LineMenu({
 
         <p className="px-1.5 pb-0.5 pt-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Transformer en</p>
         <div className="mb-1 grid grid-cols-2 gap-0.5">
-          {CONVERT_BTNS.map(([kind, label]) => (
+          {CONVERT_BTNS.map(([kind, label, sc]) => (
             <button
               key={kind}
               type="button"
               aria-pressed={block.kind === kind}
-              className={`truncate rounded-md px-1.5 py-1 text-left text-[11px] transition hover:bg-gray-100 ${block.kind === kind ? "bg-indigo-50 font-medium text-indigo-700" : "text-gray-700"}`}
+              className={`flex items-center justify-between gap-1 rounded-md px-1.5 py-1 text-left text-[11px] transition hover:bg-gray-100 ${block.kind === kind ? "bg-indigo-50 font-medium text-indigo-700" : "text-gray-700"}`}
               onClick={() => onConvert(kind)}
             >
-              {label}
+              <span className="truncate">{label}</span>
+              {sc && <span className="shrink-0 rounded bg-gray-100 px-1 text-[8px] text-gray-400">{sc}</span>}
             </button>
           ))}
         </div>
 
         <p className="px-1.5 pb-0.5 pt-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Envoyer vers</p>
         <button type="button" className="block w-full rounded-md px-2 py-1 text-left text-[11px] text-gray-700 hover:bg-gray-100" onClick={onToTask}>☑ Créer une tâche</button>
-        <button type="button" className="block w-full rounded-md px-2 py-1 text-left text-[11px] text-gray-700 hover:bg-gray-100" onClick={onToDecision}>🧭 Créer une décision</button>
+        <button type="button" className="flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-[11px] text-gray-700 hover:bg-gray-100" onClick={onToDecision}>
+          <span>🧭 Créer une décision</span>
+          <span className="shrink-0 rounded bg-gray-100 px-1 text-[8px] text-gray-400">⌘⇧D</span>
+        </button>
 
         <div className="my-1 h-px bg-gray-100" />
         <div className="flex items-center gap-0.5">
-          <button type="button" title="Monter" className="flex-1 rounded-md px-1 py-1 text-xs text-gray-600 hover:bg-gray-100" onClick={onMoveUp}>↑</button>
-          <button type="button" title="Descendre" className="flex-1 rounded-md px-1 py-1 text-xs text-gray-600 hover:bg-gray-100" onClick={onMoveDown}>↓</button>
+          <button type="button" title="Monter (⌘⇧↑)" className="flex flex-1 items-center justify-center gap-1 rounded-md px-1 py-1 text-xs text-gray-600 hover:bg-gray-100" onClick={onMoveUp}>↑<span className="rounded bg-gray-100 px-0.5 text-[8px] text-gray-400">⌘⇧↑</span></button>
+          <button type="button" title="Descendre (⌘⇧↓)" className="flex flex-1 items-center justify-center gap-1 rounded-md px-1 py-1 text-xs text-gray-600 hover:bg-gray-100" onClick={onMoveDown}>↓<span className="rounded bg-gray-100 px-0.5 text-[8px] text-gray-400">⌘⇧↓</span></button>
           <button type="button" title="Dupliquer" className="flex-1 rounded-md px-1 py-1 text-xs text-gray-600 hover:bg-gray-100" onClick={onDuplicate}>⧉</button>
           <button type="button" title="Supprimer" className="flex-1 rounded-md px-1 py-1 text-xs text-red-500 hover:bg-red-50" onClick={onDelete}>🗑</button>
         </div>
