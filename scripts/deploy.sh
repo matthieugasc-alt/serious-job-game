@@ -79,5 +79,15 @@ if [ "$HOME_CODE" != "200" ] || [ "$PLAY_CODE" != "200" ] || [ "$INTRO_CODE" != 
   exit 1
 fi
 
-echo "═══ ✅ Deploy OK ═══"
+echo "═══ Vérification de version (gate final) ═══"
+EXPECTED_SHA=$(git rev-parse HEAD)
+SERVED_SHA=$(curl -s http://localhost:3000/api/version | grep -o '"commit":"[^"]*"' | cut -d'"' -f4)
+echo "  Commit attendu : $EXPECTED_SHA"
+echo "  Commit servi   : $SERVED_SHA"
+if [ "$EXPECTED_SHA" != "$SERVED_SHA" ]; then
+  echo "!!! FAIL: la prod ne sert PAS le commit attendu. Build/PM2 incohérent."
+  exit 1
+fi
+
+echo "═══ ✅ Deploy OK — commit $SERVED_SHA servi ═══"
 pm2 status | head -10
