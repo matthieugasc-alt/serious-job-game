@@ -278,6 +278,213 @@ describe("validateScenarioV3 — règles v3", () => {
   });
 });
 
+describe("validateScenarioV3 — chantier A (exits)", () => {
+  function withStepExits(exits: unknown, completionExtra: object = {}): ScenarioV3 {
+    const s = base();
+    s.sequence[0].completion = { exits, ...completionExtra } as StepCompletion;
+    return s;
+  }
+  const okExit = { id: "e1", trigger: { type: "manual", label: "go" }, route: "next" };
+
+  it("scénario avec exits valides → aucun issue", () => {
+    const s = withStepExits(
+      [
+        okExit,
+        {
+          id: "e2",
+          trigger: { type: "mail_sent", to: "thomas" },
+          evaluate: false,
+          route: { goto: "s2" },
+          reset: { threads: ["th_alex"], tools: ["notes"] },
+          events: [
+            { event_id: "ev", effect: { type: "message_received", thread_id: "th_alex", actor_id: "alex", content: "x" } },
+          ],
+        },
+        { id: "e3", trigger: { type: "contract_rejected" }, route: { end: "failure" } },
+      ],
+      { max_gotos: 2, on_goto_exhausted: { end: "failure" } },
+    );
+    expect(validateScenarioV3(s, FAKE_SPECS, FAKE_TOOLS)).toEqual([]);
+  });
+
+  it("BAD_EXIT : trigger ET exits déclarés (exclusifs)", () => {
+    const s = base();
+    s.sequence[0].completion = {
+      trigger: { type: "manual", label: "x" },
+      exits: [okExit],
+    } as StepCompletion;
+    expect(codes(s)).toContain("BAD_EXIT");
+  });
+
+  it("MISSING_TRIGGER + BAD_EXIT : ni trigger ni exits / exits vide", () => {
+    expect(codes(withStepExits(undefined))).toContain("MISSING_TRIGGER");
+    const empty = codes(withStepExits([]));
+    expect(empty).toContain("MISSING_TRIGGER");
+    expect(empty).toContain("BAD_EXIT");
+  });
+
+  it("BAD_EXIT : id manquant/dupliqué, trigger manquant, route invalide, evaluate non booléen", () => {
+    const issues = codes(
+      withStepExits([
+        { trigger: { type: "manual", label: "a" }, route: "next" }, // id manquant
+        { id: "dup", trigger: { type: "manual", label: "b" }, route: "next" },
+        { id: "dup", trigger: { type: "manual", label: "c" }, route: "next" }, // dupliqué
+        { id: "e_no_trigger", route: "next" },
+        { id: "e_bad_route", trigger: { type: "manual", label: "d" }, route: "ailleurs" },
+        { id: "e_bad_eval", trigger: { type: "manual", label: "e" }, route: "next", evaluate: "oui" },
+      ]),
+    );
+    expect(issues.filter((c) => c === "BAD_EXIT")).toHaveLength(5);
+  });
+
+  it("BAD_EXIT : goto vers step inconnu + on_goto_exhausted manquant ; max_gotos invalide", () => {
+    const s = withStepExits([
+      { id: "e1", trigger: { type: "manual", label: "a" }, route: { goto: "s_absent" } },
+    ]);
+    const issues = codes(s);
+    expect(issues.filter((c) => c === "BAD_EXIT")).toHaveLength(2); // step inconnu + fallback manquant
+
+    const s2 = withStepExits([okExit], { max_gotos: 0 });
+    expect(codes(s2)).toContain("BAD_EXIT");
+  });
+
+  it("UNKNOWN_ENDING_REF : route end / on_goto_exhausted vers un ending inconnu", () => {
+    const s = withStepExits(
+      [
+        { id: "e1", trigger: { type: "manual", label: "a" }, route: { end: "ending_fantome" } },
+        { id: "e2", trigger: { type: "manual", label: "b" }, route: { goto: "s2" } },
+      ],
+      { on_goto_exhausted: { end: "autre_fantome" } },
+    );
+    expect(codes(s).filter((c) => c === "UNKNOWN_ENDING_REF")).toHaveLength(2);
+  });
+
+  it("BAD_EXIT : reset vers fil/tool inconnus ; events d'exit invalides", () => {
+    const issues = codes(
+      withStepExits([
+        {
+          id: "e1",
+          trigger: { type: "manual", label: "a" },
+          route: "next",
+          reset: { threads: ["th_fantome"], tools: ["tableur"] },
+          events: [
+            { event_id: "ev", effect: { type: "explosion" } },
+            { event_id: "ev", effect: { type: "notification", title: "t" } }, // event_id dupliqué
+            { effect: { type: "notification", title: "t" } }, // event_id manquant
+          ],
+        },
+      ]),
+    );
+    expect(issues.filter((c) => c === "BAD_EXIT")).toHaveLength(5);
+  });
+});
+
+describe("validateScenarioV3 — chantier B (bind_actor / alias)", () => {
+  it("alias lié par un step antérieur : utilisable partout ensuite (threads, params, triggers, events)", () => {
+    const s = base();
+    s.sequence[0].completion = {
+      exits: [
+        {
+          id: "choix",
+          trigger: {
+            type: "any",
+            of: [{ type: "mail_sent", to: "alex" }, { type: "mail_sent", to: "thomas" }],
+            bind_actor: "partenaire",
+          },
+          route: "next",
+          // L'alias lié par CE trigger est utilisable dans les events de CET exit.
+          events: [
+            { event_id: "ev", effect: { type: "mail_received", from_actor: "partenaire", subject: "s", body: "b" } },
+          ],
+        },
+      ],
+    } as StepCompletion;
+    s.sequence[1] = makeStep({
+      step_id: "s2",
+      mechanic: "m_prod",
+      params: { instructions: "x", cible_actor: "partenaire" },
+      threads: [{ thread_id: "th_p", participants: ["partenaire"] }],
+      events: [
+        {
+          event_id: "e_hello",
+          when: { type: "step_start" },
+          effect: { type: "message_received", thread_id: "th_p", actor_id: "partenaire", content: "…" },
+        },
+      ],
+      completion: { trigger: { type: "message_sent", to_actor: "partenaire" } },
+    });
+    expect(validateScenarioV3(s, FAKE_SPECS, FAKE_TOOLS)).toEqual([]);
+  });
+
+  it("alias utilisé AVANT d'être lié : refusé (thread, trigger, param)", () => {
+    const s = base();
+    s.sequence[0].threads!.push({ thread_id: "th_p", participants: ["partenaire"] });
+    s.sequence[0].params.cible_actor = "partenaire";
+    s.sequence[0].completion = {
+      trigger: { type: "message_sent", to_actor: "partenaire" },
+    };
+    const issues = codes(s);
+    expect(issues).toContain("BAD_THREAD");
+    expect(issues).toContain("UNKNOWN_ACTOR_REF");
+    expect(issues).toContain("UNKNOWN_TRIGGER_REF");
+  });
+
+  it("BAD_TRIGGER : bind_actor mal placé, vide, ou en collision avec un actor_id", () => {
+    for (const trigger of [
+      { type: "manual", label: "x", bind_actor: "a" }, // mauvais nœud
+      { type: "mail_sent", bind_actor: "" }, // vide
+      { type: "mail_sent", bind_actor: "alex" }, // collision
+    ]) {
+      expect(codes(withTrigger(base(), trigger as CompletionTrigger))).toContain("BAD_TRIGGER");
+    }
+  });
+});
+
+describe("validateScenarioV3 — chantier C (scoring)", () => {
+  const scoredExits: StepCompletion = {
+    exits: [
+      { id: "haut", trigger: { type: "mail_scored", to: "thomas", min_score: 7, scale: 10 }, route: "next" },
+      { id: "bas", trigger: { type: "mail_scored_below", to: "thomas", min_score: 7 }, route: { end: "failure" } },
+    ],
+  };
+
+  it("mail_scored + scoring.brief déclaré → valide", () => {
+    const s = base();
+    s.sequence[0].scoring = { brief: "Qualité du mail.", scale: 10 };
+    s.sequence[0].completion = scoredExits;
+    expect(validateScenarioV3(s, FAKE_SPECS, FAKE_TOOLS)).toEqual([]);
+  });
+
+  it("BAD_SCORING : mail_scored sans bloc scoring ; brief vide ; scale invalide", () => {
+    const s = base();
+    s.sequence[0].completion = scoredExits;
+    expect(codes(s)).toContain("BAD_SCORING");
+
+    const s2 = base();
+    s2.sequence[0].scoring = { brief: "" };
+    expect(codes(s2)).toContain("BAD_SCORING");
+
+    const s3 = base();
+    s3.sequence[0].scoring = { brief: "ok", scale: 0 };
+    expect(codes(s3)).toContain("BAD_SCORING");
+  });
+
+  it("BAD_TRIGGER : min_score absent/négatif, scale ≤ 0, min_score > scale ; UNKNOWN_TRIGGER_REF : destinataire inconnu", () => {
+    const s = base();
+    s.sequence[0].scoring = { brief: "ok" };
+    for (const [trigger, code] of [
+      [{ type: "mail_scored", min_score: -1 }, "BAD_TRIGGER"],
+      [{ type: "mail_scored", min_score: 7, scale: 0 }, "BAD_TRIGGER"],
+      [{ type: "mail_scored", min_score: 12, scale: 10 }, "BAD_TRIGGER"],
+      [{ type: "mail_scored_below", min_score: 7, to: "fantome" }, "UNKNOWN_TRIGGER_REF"],
+    ] as [CompletionTrigger, string][]) {
+      const sc = base();
+      sc.sequence[0].scoring = { brief: "ok" };
+      expect(codes(withTrigger(sc, trigger))).toContain(code);
+    }
+  });
+});
+
 describe("resolveStepInputsV3 (réutilise le composer v2)", () => {
   it("résout stepId et stepId.cle depuis stepResults", () => {
     const s = base();

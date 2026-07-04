@@ -16,6 +16,7 @@ import type { StepObservation } from "./criteria";
 import type {
   CompletionTrigger,
   LoggedAction,
+  StepCompletion,
   WorkspaceState,
 } from "./workspace";
 
@@ -27,6 +28,11 @@ import type {
  *   - lastObservation : dernière observation IA du step, rafraîchie
  *     par l'orchestrateur (effet observe_step → recordStepObservation)
  *   - horloges : now / stepStartedAt / scenarioStartedAt (ms epoch)
+ *   - resolveActor : résolution alias → actor_id (chantier B). Absente
+ *     ou alias inconnu : la référence est comparée telle quelle (un
+ *     alias non lié ne matche donc jamais un acteur réel — défensif).
+ *   - mailScores : scores IA du step/tentative courants (chantier C),
+ *     dans l'ordre d'enregistrement — le DERNIER score pertinent gagne.
  */
 export interface TriggerContext {
   log: readonly LoggedAction[];
@@ -35,6 +41,8 @@ export interface TriggerContext {
   now: number;
   stepStartedAt: number;
   scenarioStartedAt: number;
+  resolveActor?: (ref: string) => string;
+  mailScores?: readonly { to: readonly string[]; score: number }[];
 }
 
 /**
@@ -56,25 +64,29 @@ export function evaluateTrigger(
   ctx: TriggerContext,
 ): boolean {
   if (!trigger || typeof trigger !== "object") return false;
+  // Résolution alias → actor_id (chantier B) : identité si non lié.
+  const actor = (ref: string) => ctx.resolveActor?.(ref) ?? ref;
 
   switch (trigger.type) {
     case "mail_sent": {
       // Résolution to → actor_id : action.to est une liste d'actor_ids.
+      const to = trigger.to === undefined ? undefined : actor(trigger.to);
       const count = ctx.log.filter(
         (e) =>
           e.action.type === "mail_sent" &&
-          (trigger.to === undefined || e.action.to.includes(trigger.to)),
+          (to === undefined || e.action.to.includes(to)),
       ).length;
       return count >= minCount(trigger.min_count);
     }
 
     case "message_sent": {
       // Résolution to_actor → participants du fil visé par l'action.
+      const to = trigger.to_actor === undefined ? undefined : actor(trigger.to_actor);
       const count = ctx.log.filter((e) => {
         if (e.action.type !== "message_sent") return false;
-        if (trigger.to_actor === undefined) return true;
+        if (to === undefined) return true;
         const thread = ctx.workspace.threads[e.action.thread_id];
-        return thread?.participants.includes(trigger.to_actor) ?? false;
+        return thread?.participants.includes(to) ?? false;
       }).length;
       return count >= minCount(trigger.min_count);
     }
@@ -83,11 +95,12 @@ export function evaluateTrigger(
       // Un acteur a écrit dans un fil DEPUIS le début du step. Les
       // messages d'acteur ne sont pas des WorkspaceAction : on lit
       // l'état des threads (insertions horodatées du moteur).
+      const from = actor(trigger.from_actor);
       return Object.values(ctx.workspace.threads).some((thread) =>
         thread.messages.some(
           (m) =>
             m.from === "actor" &&
-            m.actor_id === trigger.from_actor &&
+            m.actor_id === from &&
             m.at >= ctx.stepStartedAt,
         ),
       );
@@ -126,9 +139,26 @@ export function evaluateTrigger(
     case "actor_validation":
       return (
         ctx.lastObservation?.criteria?.[
-          actorValidationCriterion(trigger.actor)
+          actorValidationCriterion(actor(trigger.actor))
         ] === true
       );
+
+    case "mail_scored":
+    case "mail_scored_below": {
+      // Chantier C : lu sur le score ENREGISTRÉ (session.mailScores,
+      // filtré par le reducer sur step + tentative). Dernier score
+      // pertinent : un renvoi rescore, le nouveau verdict remplace.
+      if (typeof trigger.min_score !== "number") return false;
+      const to = trigger.to === undefined ? undefined : actor(trigger.to);
+      const scores = (ctx.mailScores ?? []).filter(
+        (s) => to === undefined || s.to.includes(to),
+      );
+      if (scores.length === 0) return false;
+      const last = scores[scores.length - 1];
+      return trigger.type === "mail_scored"
+        ? last.score >= trigger.min_score
+        : last.score < trigger.min_score;
+    }
 
     case "manual":
       return ctx.log.some(
@@ -177,4 +207,116 @@ export function triggerMentions(
     return (trigger.of ?? []).some((t) => triggerMentions(t, types));
   }
   return false;
+}
+
+/**
+ * Tous les triggers d'une complétion : le `trigger` legacy (sucre) ET
+ * les triggers de chaque exit (chantier A). Sert au reducer (faut-il
+ * observer ? scorer ?) et au player (le step est-il temporel ?).
+ */
+export function completionTriggerList(
+  completion: StepCompletion | null | undefined,
+): CompletionTrigger[] {
+  if (!completion) return [];
+  const list: CompletionTrigger[] = [];
+  if (completion.trigger) list.push(completion.trigger);
+  for (const exit of completion.exits ?? []) {
+    if (exit?.trigger) list.push(exit.trigger);
+  }
+  return list;
+}
+
+/**
+ * Extrait tous les timer_elapsed (y compris imbriqués dans all/any).
+ * Sert au chrono visible du shell (chantier D) : le player en dérive
+ * l'échéance depuis stepStartedAt / scenarioStartedAt.
+ */
+export function collectTimerTriggers(
+  triggers: readonly CompletionTrigger[],
+): { seconds: number; from: "step_start" | "scenario_start" }[] {
+  const out: { seconds: number; from: "step_start" | "scenario_start" }[] = [];
+  const walk = (t: CompletionTrigger): void => {
+    if (!t || typeof t !== "object") return;
+    if (t.type === "timer_elapsed" && typeof t.seconds === "number" && t.seconds > 0) {
+      out.push({ seconds: t.seconds, from: t.from ?? "step_start" });
+    }
+    if (t.type === "all" || t.type === "any") (t.of ?? []).forEach(walk);
+  };
+  triggers.forEach(walk);
+  return out;
+}
+
+// ─── Acteurs dynamiques (chantier B) ──────────────────────────────
+
+/**
+ * Bindings produits par un trigger QUI VIENT DE TIRER : chaque
+ * `bind_actor` rencontré lie son alias au destinataire effectif.
+ *   - mail_sent : `to` (résolu) si déclaré, sinon le premier
+ *     destinataire du dernier mail correspondant de la tentative ;
+ *   - message_sent : `to_actor` (résolu) si déclaré, sinon le premier
+ *     participant du fil du dernier message correspondant ;
+ *   - any : le PREMIER sous-trigger qui tire décide du destinataire.
+ * À appeler uniquement quand evaluateTrigger(trigger, ctx) est vrai.
+ */
+export function collectTriggerBindings(
+  trigger: CompletionTrigger,
+  ctx: TriggerContext,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+  const walk = (t: CompletionTrigger): void => {
+    if (!t || typeof t !== "object") return;
+    const alias = (t as { bind_actor?: string }).bind_actor;
+    if (alias) {
+      const actor = boundActorOf(t, ctx);
+      if (actor) out[alias] = actor;
+    }
+    if (t.type === "all" || t.type === "any") (t.of ?? []).forEach(walk);
+  };
+  walk(trigger);
+  return out;
+}
+
+/** Destinataire effectif d'un trigger tiré (voir collectTriggerBindings). */
+function boundActorOf(t: CompletionTrigger, ctx: TriggerContext): string | null {
+  const actor = (ref: string) => ctx.resolveActor?.(ref) ?? ref;
+  switch (t.type) {
+    case "mail_sent": {
+      const to = t.to === undefined ? undefined : actor(t.to);
+      for (let i = ctx.log.length - 1; i >= 0; i--) {
+        const a = ctx.log[i].action;
+        if (a.type !== "mail_sent") continue;
+        if (to !== undefined && !a.to.includes(to)) continue;
+        return to ?? a.to[0] ?? null;
+      }
+      return null;
+    }
+    case "message_sent": {
+      const to = t.to_actor === undefined ? undefined : actor(t.to_actor);
+      for (let i = ctx.log.length - 1; i >= 0; i--) {
+        const a = ctx.log[i].action;
+        if (a.type !== "message_sent") continue;
+        const participants = ctx.workspace.threads[a.thread_id]?.participants ?? [];
+        if (to !== undefined && !participants.includes(to)) continue;
+        return to ?? participants[0] ?? null;
+      }
+      return null;
+    }
+    case "any": {
+      for (const sub of t.of ?? []) {
+        if (!evaluateTrigger(sub, ctx)) continue;
+        const bound = boundActorOf(sub, ctx);
+        if (bound) return bound;
+      }
+      return null;
+    }
+    case "all": {
+      for (const sub of t.of ?? []) {
+        const bound = boundActorOf(sub, ctx);
+        if (bound) return bound;
+      }
+      return null;
+    }
+    default:
+      return null;
+  }
 }

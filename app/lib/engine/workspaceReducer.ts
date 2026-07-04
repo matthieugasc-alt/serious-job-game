@@ -21,18 +21,25 @@ import type { StepEvaluationResult, StepObservation } from "./criteria";
 import type { JsonObject } from "./mechanics";
 import type {
   DispatchResult,
+  ExitNarrativeEvent,
   LoggedAction,
   NarrativeEffect,
   NarrativeEvent,
   NarrativeWhen,
   PendingEffect,
+  StepExit,
   StepInvocationV3,
   WorkspaceAction,
   WorkspaceState,
 } from "./workspace";
 import type { SessionV3State } from "./sessionV3";
 import { computeEndingV3, getCurrentStepV3 } from "./sessionV3";
-import { evaluateTrigger, triggerMentions } from "./triggers";
+import {
+  collectTriggerBindings,
+  completionTriggerList,
+  evaluateTrigger,
+  triggerMentions,
+} from "./triggers";
 import type { TriggerContext } from "./triggers";
 
 // ─── Options du reducer ───────────────────────────────────────────
@@ -68,6 +75,48 @@ const OBSERVATION_TRIGGER_TYPES = [
   "criterion_observed",
   "actor_validation",
 ] as const;
+
+const SCORING_TRIGGER_TYPES = ["mail_scored", "mail_scored_below"] as const;
+
+// ─── Acteurs dynamiques (chantier B) : résolution des alias ────────
+
+/**
+ * Résolution STRICTE d'une référence d'acteur : binding en session,
+ * sinon acteur déclaré, sinon throw explicite — un alias non résolu au
+ * runtime est un bug de scénario que composerV3 aurait dû attraper.
+ */
+function resolveActorStrict(session: SessionV3State, ref: string): string {
+  const bound = session.actorBindings[ref];
+  if (bound !== undefined) return bound;
+  if (session.scenario.actors.some((a) => a.actor_id === ref)) return ref;
+  throw new Error(
+    `Alias d'acteur non résolu au runtime : "${ref}" — aucun binding en session ` +
+      `et aucun acteur déclaré sous cet id (chantier B, bind_actor).`,
+  );
+}
+
+/**
+ * Params d'un step avec les refs d'acteur (`actor_id` / `*_actor`)
+ * résolues via session.actorBindings. Utilisé pour les directives de
+ * mécanique et par l'orchestrateur (buildArtifacts / buildOutput).
+ */
+export function resolveStepParamsV3(
+  session: SessionV3State,
+  params: JsonObject,
+): JsonObject {
+  let changed = false;
+  const out: JsonObject = { ...params };
+  for (const [k, v] of Object.entries(out)) {
+    if ((k === "actor_id" || k.endsWith("_actor")) && typeof v === "string") {
+      const bound = session.actorBindings[v];
+      if (bound !== undefined) {
+        out[k] = bound;
+        changed = true;
+      }
+    }
+  }
+  return changed ? out : params;
+}
 
 // ─── Dispatch principal ───────────────────────────────────────────
 
@@ -130,7 +179,22 @@ export function applyWorkspaceAction(
   }
 
   // Directive = celle de la mécanique du step + celle de l'event éventuel.
-  mergeMechanicDirective(effects, step, opts.specs);
+  mergeMechanicDirective(session, effects, step, opts.specs);
+
+  // Chantier C : un mail envoyé pendant un step à `scoring` déclaré part
+  // à la notation IA (route générique /api/v2/score) dès que la
+  // complétion dépend d'un mail_scored / mail_scored_below.
+  if (
+    action.type === "mail_sent" &&
+    step.scoring &&
+    completionTriggerList(step.completion).some((t) =>
+      triggerMentions(t, SCORING_TRIGGER_TYPES),
+    )
+  ) {
+    const sent = session.workspace.mailbox.sent;
+    const mail = sent[sent.length - 1];
+    if (mail) effects.push({ kind: "score_mail", mail_id: mail.mail_id });
+  }
 
   // (d) Trigger de complétion.
   return finalizeCompletion(
@@ -139,6 +203,7 @@ export function applyWorkspaceAction(
     SIGNIFICANT_ACTIONS.has(action.type),
     effects,
     now,
+    opts,
   );
 }
 
@@ -162,12 +227,15 @@ export function enterStep(
   ws.stepStartedAt = now;
   session.lastObservation = null;
   session.attemptStartedIndex = session.actionLog.length;
+  session.pendingExitId = null;
 
   for (const t of step.threads ?? []) {
     if (!ws.threads[t.thread_id]) {
       ws.threads[t.thread_id] = {
         thread_id: t.thread_id,
-        participants: [...t.participants],
+        // Chantier B : les participants peuvent être des alias liés par
+        // un step antérieur — résolution stricte à la création du fil.
+        participants: t.participants.map((p) => resolveActorStrict(session, p)),
         title: t.title,
         messages: [],
         unread: 0,
@@ -184,7 +252,7 @@ export function enterStep(
   const effects = fireEventsByWhen(session, step, "step_start", now, opts.specs);
   // Un trigger peut être déjà satisfait à l'entrée (document déjà lu,
   // timer scenario_start…) : on l'évalue immédiatement.
-  return finalizeCompletion(session, step, false, effects, now);
+  return finalizeCompletion(session, step, false, effects, now, opts);
 }
 
 // ─── Réinjection des contenus produits par l'orchestrateur ────────
@@ -225,7 +293,7 @@ export function applyNarrativeEffect(
 
   const step = getCurrentStepV3(session);
   if (!step) return { effects: [], completionFired: false };
-  return finalizeCompletion(session, step, significant, [], now);
+  return finalizeCompletion(session, step, significant, [], now, opts);
 }
 
 /**
@@ -247,7 +315,7 @@ export function recordActorMessage(
 
   const step = getCurrentStepV3(session);
   if (!step) return { effects: [], completionFired: false };
-  return finalizeCompletion(session, step, true, [], now);
+  return finalizeCompletion(session, step, true, [], now, opts);
 }
 
 /**
@@ -265,13 +333,49 @@ export function recordStepObservation(
   if (!step || session.isFinished) return { effects: [], completionFired: false };
   // significant=false : on ne redemande jamais une observation depuis
   // une observation (pas de boucle observe → observe).
-  return finalizeCompletion(session, step, false, [], opts.now ?? Date.now());
+  return finalizeCompletion(session, step, false, [], opts.now ?? Date.now(), opts);
+}
+
+/**
+ * Chantier C — enregistre le score IA d'un mail (réponse de
+ * l'orchestrateur à un effet score_mail, via POST /api/v2/score) puis
+ * réévalue la complétion : c'est ici qu'un mail_scored /
+ * mail_scored_below peut tirer. Idempotent par mail_id. Le score reste
+ * interne (audit) — JAMAIS montré au joueur.
+ */
+export function recordMailScore(
+  session: SessionV3State,
+  mailId: string,
+  score: number,
+  scale: number,
+  rationale?: string,
+  opts: ReducerOptions = {},
+): DispatchResult {
+  if (session.isFinished) return { effects: [], completionFired: false };
+  const now = opts.now ?? Date.now();
+  const step = getCurrentStepV3(session);
+  if (!step) return { effects: [], completionFired: false };
+
+  if (!session.mailScores.some((s) => s.mail_id === mailId)) {
+    const mail = session.workspace.mailbox.sent.find((m) => m.mail_id === mailId);
+    session.mailScores.push({
+      mail_id: mailId,
+      at: now,
+      step_id: step.step_id,
+      attempt_started_index: session.attemptStartedIndex,
+      to: mail ? [...mail.to] : [],
+      score,
+      scale,
+      rationale,
+    });
+  }
+  return finalizeCompletion(session, step, false, [], now, opts);
 }
 
 // ─── Verdict de step (même moteur que v2, retry DIÉGÉTIQUE) ───────
 
 export interface StepCompletionOutcome {
-  outcome: "advanced" | "retry" | "ended";
+  outcome: "advanced" | "retry" | "goto" | "ended";
   /** Null uniquement si la session était déjà finie / sans step. */
   evaluation: StepEvaluationResult | null;
   /** Effets narratifs du verdict : on_retry, on_step_passed, step_start
@@ -285,12 +389,19 @@ export interface StepCompletionOutcome {
  * avec un échec DIÉGÉTIQUE : pas de bannière, le retry déclenche les
  * events `on_retry` du step. L'avance déclenche `on_step_passed` du
  * step passé puis enterStep du suivant (events `step_start`).
+ *
+ * Chantier A : si `exitId` est fourni (verdict d'une SORTIE evaluate),
+ * le verdict est enregistré (stepResults, audit) puis la ROUTE DÉCLARÉE
+ * de la sortie s'applique — quel que soit le verdict. La politique
+ * on_failure et les events on_retry/on_step_passed ne jouent pas : avec
+ * des exits, la mise en scène appartient aux `events` de chaque sortie.
  */
 export function completeStepV3(
   session: SessionV3State,
   observation: StepObservation,
   output: JsonObject,
   opts: ReducerOptions = {},
+  exitId?: string,
 ): StepCompletionOutcome {
   const now = opts.now ?? Date.now();
   const step = getCurrentStepV3(session);
@@ -312,6 +423,18 @@ export function completeStepV3(
     attempts,
     passed: evaluation.passed,
   };
+
+  // ── Chantier A : verdict d'une sortie → route déclarée, sans policy.
+  if (exitId !== undefined) {
+    session.pendingExitId = null;
+    const exit = step.completion?.exits?.find((e) => e.id === exitId);
+    if (exit) {
+      const routed = executeExitRoute(session, step, exit, now, opts);
+      return { outcome: routed.outcome, evaluation, effects: routed.effects };
+    }
+    // Sortie introuvable (défensif — composerV3 l'interdit) : on retombe
+    // sur la politique legacy ci-dessous.
+  }
 
   if (evaluation.passed) {
     const effects = fireEventsByWhen(session, step, "on_step_passed", now, opts.specs);
@@ -360,6 +483,139 @@ function advanceV3(
 function finishV3(session: SessionV3State): void {
   session.isFinished = true;
   session.ending = computeEndingV3(session);
+}
+
+// ─── Sorties multiples et routage (chantier A) ────────────────────
+
+function routeLabel(route: StepExit["route"]): string {
+  if (route === "next") return "next";
+  if (route && typeof route === "object" && "goto" in route) return `goto:${route.goto}`;
+  if (route && typeof route === "object" && "end" in route) return `end:${route.end}`;
+  return "?";
+}
+
+/** Fin avec ending NOMMÉ (court-circuite computeEndingV3). Repli sur
+ *  computeEndingV3 si l'id est inconnu/absent (défensif). */
+function finishWithEnding(session: SessionV3State, endingId?: string): void {
+  session.isFinished = true;
+  session.ending =
+    (endingId !== undefined
+      ? session.scenario.endings.find((e) => e.id === endingId)
+      : undefined) ?? computeEndingV3(session);
+}
+
+/**
+ * Une sortie vient de tirer : bindings (chantier B), journal d'audit,
+ * events de la sortie (sémantique once, clé "<step>:<exit>:<event>").
+ * Les effets produits sont poussés dans `effects`.
+ */
+function fireExit(
+  session: SessionV3State,
+  step: StepInvocationV3,
+  exit: StepExit,
+  ctx: TriggerContext,
+  effects: PendingEffect[],
+  now: number,
+): void {
+  Object.assign(session.actorBindings, collectTriggerBindings(exit.trigger, ctx));
+  session.exitLog.push({
+    at: now,
+    step_id: step.step_id,
+    exit_id: exit.id,
+    route: routeLabel(exit.route),
+  });
+  for (const ev of exit.events ?? []) {
+    if (!armExitEvent(session, step, exit, ev)) continue;
+    effects.push(...executeEventEffect(session, ev.effect, now));
+  }
+}
+
+function armExitEvent(
+  session: SessionV3State,
+  step: StepInvocationV3,
+  exit: StepExit,
+  ev: ExitNarrativeEvent,
+): boolean {
+  if (ev.once === false) return true;
+  const key = `${step.step_id}:${exit.id}:${ev.event_id}`;
+  if (session.firedEvents.includes(key)) return false;
+  session.firedEvents.push(key);
+  return true;
+}
+
+/**
+ * Exécute la ROUTE d'une sortie :
+ *   - "next"          : step suivant (ou fin de séquence → computeEnding) ;
+ *   - {goto: step_id} : rollback déclaratif — compteur anti-boucle
+ *     (max_gotos, défaut 3, au-delà → on_goto_exhausted.end), reset des
+ *     fils/tools listés, ré-entrée du step cible (les events step_start
+ *     déjà tirés ne se REJOUENT PAS, sémantique once, sauf once:false ;
+ *     compteurs d'actions réarmés via attemptStartedIndex/enterStep) ;
+ *   - {end: ending_id}: fin immédiate avec l'ending nommé.
+ */
+function executeExitRoute(
+  session: SessionV3State,
+  step: StepInvocationV3,
+  exit: StepExit,
+  now: number,
+  opts: ReducerOptions,
+): { outcome: StepCompletionOutcome["outcome"]; effects: PendingEffect[] } {
+  session.pendingExitId = null;
+  const route = exit.route;
+
+  if (route !== "next" && route && typeof route === "object" && "goto" in route) {
+    const count = (session.gotoCounts[step.step_id] ?? 0) + 1;
+    session.gotoCounts[step.step_id] = count;
+    const max = step.completion?.max_gotos ?? 3;
+    if (count > max) {
+      const fallback = step.completion?.on_goto_exhausted?.end;
+      session.exitLog.push({
+        at: now,
+        step_id: step.step_id,
+        exit_id: exit.id,
+        route: `end:${fallback ?? "?"} (max_gotos ${max} dépassé)`,
+      });
+      finishWithEnding(session, fallback);
+      return { outcome: "ended", effects: [] };
+    }
+
+    // Reset déclaratif AVANT ré-entrée : fils vidés, tools réinitialisés.
+    const ws = session.workspace;
+    for (const threadId of exit.reset?.threads ?? []) {
+      const thread = ws.threads[threadId];
+      if (thread) {
+        thread.messages = [];
+        thread.unread = 0;
+      }
+    }
+    for (const toolId of exit.reset?.tools ?? []) {
+      if (toolId in ws.toolStates) ws.toolStates[toolId] = null;
+    }
+
+    const idx = session.scenario.sequence.findIndex((s) => s.step_id === route.goto);
+    if (idx < 0) {
+      // Défensif — composerV3 refuse un goto vers un step inconnu.
+      finishWithEnding(session);
+      return { outcome: "ended", effects: [] };
+    }
+    session.currentStepIndex = idx;
+    const entered = enterStep(session, { ...opts, now });
+    return { outcome: "goto", effects: entered.effects };
+  }
+
+  if (route !== "next" && route && typeof route === "object" && "end" in route) {
+    finishWithEnding(session, route.end);
+    return { outcome: "ended", effects: [] };
+  }
+
+  // "next"
+  if (session.currentStepIndex + 1 >= session.scenario.sequence.length) {
+    finishWithEnding(session);
+    return { outcome: "ended", effects: [] };
+  }
+  session.currentStepIndex += 1;
+  const entered = enterStep(session, { ...opts, now });
+  return { outcome: "advanced", effects: entered.effects };
 }
 
 // ─── (b) Application d'une action à l'état ────────────────────────
@@ -476,11 +732,17 @@ function executeEventEffect(
       pushNotification(session.workspace, "system", effect.title, effect.body, now);
       return [];
     case "mail_received":
-      deliverMail(session, effect, now);
+      // Chantier B : from_actor peut être un alias lié — résolution stricte.
+      deliverMail(
+        session,
+        { ...effect, from_actor: resolveActorStrict(session, effect.from_actor) },
+        now,
+      );
       return [];
-    case "message_received":
+    case "message_received": {
+      const actorId = resolveActorStrict(session, effect.actor_id);
       if (effect.content !== undefined) {
-        insertActorMessage(session, effect.thread_id, effect.actor_id, effect.content, now);
+        insertActorMessage(session, effect.thread_id, actorId, effect.content, now);
         return [];
       }
       // Sans contenu : c'est à l'IA de parler — même contrat qu'actor_reply.
@@ -488,16 +750,17 @@ function executeEventEffect(
         {
           kind: "actor_reply",
           thread_id: effect.thread_id,
-          actor_id: effect.actor_id,
+          actor_id: actorId,
           directive: effect.directive,
         },
       ];
+    }
     case "actor_reply":
       return [
         {
           kind: "actor_reply",
           thread_id: effect.thread_id,
-          actor_id: effect.actor_id,
+          actor_id: resolveActorStrict(session, effect.actor_id),
           directive: effect.directive,
         },
       ];
@@ -517,13 +780,15 @@ function fireEventsByWhen(
     if (!armEvent(session, step, ev)) continue;
     effects.push(...executeEventEffect(session, ev.effect, now));
   }
-  mergeMechanicDirective(effects, step, specs);
+  mergeMechanicDirective(session, effects, step, specs);
   return effects;
 }
 
 /** Directive finale d'un actor_reply = directive de la mécanique du
- *  step + directive propre à l'event (dans cet ordre). */
+ *  step + directive propre à l'event (dans cet ordre). Les params sont
+ *  résolus (chantier B : alias → actor_id) avant d'appeler la spec. */
 function mergeMechanicDirective(
+  session: SessionV3State,
   effects: PendingEffect[],
   step: StepInvocationV3,
   specs?: Record<string, DirectiveSource>,
@@ -532,7 +797,7 @@ function mergeMechanicDirective(
   if (!spec) return;
   let mechDirective: string | undefined;
   try {
-    mechDirective = spec.directive(step.params);
+    mechDirective = spec.directive(resolveStepParamsV3(session, step.params));
   } catch {
     mechDirective = undefined; // défensif : une spec cassée ne bloque pas le dispatch
   }
@@ -562,6 +827,17 @@ function buildTriggerContext(
     now,
     stepStartedAt: session.workspace.stepStartedAt,
     scenarioStartedAt: session.workspace.scenarioStartedAt,
+    // Chantier B : alias → actor_id (identité si non lié — un alias non
+    // résolu ne matche jamais, jamais de throw dans les triggers).
+    resolveActor: (ref) => session.actorBindings[ref] ?? ref,
+    // Chantier C : scores du step courant, TENTATIVE courante — un
+    // goto/retry réarme attemptStartedIndex, les scores antérieurs ne
+    // comptent plus (ils restent dans session.mailScores pour l'audit).
+    mailScores: session.mailScores.filter(
+      (s) =>
+        s.step_id === step.step_id &&
+        s.attempt_started_index === session.attemptStartedIndex,
+    ),
   };
 }
 
@@ -571,12 +847,44 @@ function finalizeCompletion(
   significant: boolean,
   effects: PendingEffect[],
   now: number,
+  opts: ReducerOptions = {},
 ): DispatchResult {
-  const fired = evaluateTrigger(
-    step.completion.trigger,
-    buildTriggerContext(session, step, now),
-  );
-  if (fired) {
+  const ctx = buildTriggerContext(session, step, now);
+  const exits = step.completion?.exits;
+
+  // ── Chantier A : sorties multiples — la PREMIÈRE qui tire gagne. ──
+  if (exits && exits.length > 0) {
+    // Une sortie a déjà tiré et attend son verdict IA : rien ne re-tire.
+    if (session.pendingExitId != null) return { effects, completionFired: false };
+
+    for (const exit of exits) {
+      if (!evaluateTrigger(exit.trigger, ctx)) continue;
+      fireExit(session, step, exit, ctx, effects, now);
+      if (exit.evaluate === false) {
+        // Route directe, sans observation IA (déterministe, synchrone).
+        const routed = executeExitRoute(session, step, exit, now, opts);
+        effects.push(...routed.effects);
+      } else {
+        session.pendingExitId = exit.id;
+        effects.push({ kind: "evaluate_step", exit_id: exit.id });
+      }
+      return { effects, completionFired: true };
+    }
+
+    if (
+      significant &&
+      exits.some((e) => triggerMentions(e.trigger, OBSERVATION_TRIGGER_TYPES))
+    ) {
+      effects.push({ kind: "observe_step" });
+    }
+    return { effects, completionFired: false };
+  }
+
+  // ── Legacy : trigger unique (sucre — politique on_failure inchangée).
+  const trigger = step.completion?.trigger;
+  if (trigger && evaluateTrigger(trigger, ctx)) {
+    // Chantier B : un trigger legacy peut aussi lier un alias.
+    Object.assign(session.actorBindings, collectTriggerBindings(trigger, ctx));
     effects.push({ kind: "evaluate_step" });
     return { effects, completionFired: true };
   }
@@ -586,7 +894,8 @@ function finalizeCompletion(
   // observe puis rappelle recordStepObservation.
   if (
     significant &&
-    triggerMentions(step.completion.trigger, OBSERVATION_TRIGGER_TYPES)
+    trigger &&
+    triggerMentions(trigger, OBSERVATION_TRIGGER_TYPES)
   ) {
     effects.push({ kind: "observe_step" });
   }

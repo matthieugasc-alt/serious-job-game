@@ -25,6 +25,8 @@ import type {
   StepInvocationV3,
   WorkspaceState,
   LoggedAction,
+  LoggedExit,
+  MailScoreRecord,
 } from "./workspace";
 
 export interface SessionV3State {
@@ -58,6 +60,28 @@ export interface SessionV3State {
    * ancrés sur stepStartedAt / scenarioStartedAt.
    */
   attemptStartedIndex: number;
+  /**
+   * Chantier B — acteurs dynamiques : alias → actor_id réel, liés par
+   * les triggers `bind_actor`. Résolution au runtime partout où un
+   * actor_id est attendu (threads, params, triggers, events).
+   */
+  actorBindings: Record<string, string>;
+  /**
+   * Chantier C — scores IA des mails envoyés (route /api/v2/score),
+   * journalisés pour l'audit et lus par mail_scored / mail_scored_below.
+   * JAMAIS montrés au joueur.
+   */
+  mailScores: MailScoreRecord[];
+  /** Chantier A — nombre de goto exécutés, par step_id source (anti-boucle). */
+  gotoCounts: Record<string, number>;
+  /** Chantier A — journal d'audit des sorties tirées. */
+  exitLog: LoggedExit[];
+  /**
+   * Chantier A — sortie tirée en attente de son verdict IA (evaluate
+   * par défaut) : tant qu'elle n'est pas résolue, aucune sortie du step
+   * ne peut re-tirer (anti double tir). Remis à null à chaque enterStep.
+   */
+  pendingExitId: string | null;
   isFinished: boolean;
   ending: EndingRule | null;
   realStartTime: number;
@@ -91,6 +115,11 @@ export function initializeSessionV3(
     lastObservation: null,
     firedEvents: [],
     attemptStartedIndex: 0,
+    actorBindings: {},
+    mailScores: [],
+    gotoCounts: {},
+    exitLog: [],
+    pendingExitId: null,
     isFinished: false,
     ending: null,
     realStartTime: now,
@@ -150,6 +179,13 @@ export function restoreSessionV3(raw: string): SessionV3State {
   if (parsed?.format !== "session_v3") {
     throw new Error("Snapshot invalide : format session_v3 attendu.");
   }
+  // Rétrocompat deep-save : les snapshots antérieurs aux chantiers A/B/C
+  // n'ont pas ces champs — on les initialise (purement additif).
+  parsed.actorBindings ??= {};
+  parsed.mailScores ??= [];
+  parsed.gotoCounts ??= {};
+  parsed.exitLog ??= [];
+  parsed.pendingExitId ??= null;
   return parsed;
 }
 

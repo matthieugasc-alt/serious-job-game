@@ -25,7 +25,9 @@ import {
   applyNarrativeEffect,
   completeStepV3,
   recordActorMessage,
+  recordMailScore,
   recordStepObservation,
+  resolveStepParamsV3,
 } from "@/app/lib/engine/workspaceReducer";
 import { MECHANIC_SPECS } from "@/app/mechanics/specs";
 
@@ -125,6 +127,13 @@ async function callActor(
   return ((await res.json()) as { content: string }).content;
 }
 
+/** Step avec les refs d'acteur des params résolues (chantier B : un
+ *  alias lié doit être vu comme l'acteur réel par les specs headless). */
+function resolvedStep(session: SessionV3State, step: StepInvocationV3): StepInvocationV3 {
+  const params = resolveStepParamsV3(session, step.params);
+  return params === step.params ? step : { ...step, params };
+}
+
 /** Observation fraîche du step courant : critères déclarés + artefacts
  *  de la spec headless (buildArtifacts) + transcript pertinent. */
 async function observeStep(
@@ -133,7 +142,7 @@ async function observeStep(
 ): Promise<StepObservation> {
   const spec = MECHANIC_SPECS[step.mechanic];
   const artifacts = spec
-    ? spec.buildArtifacts(session.workspace, step, session.actionLog)
+    ? spec.buildArtifacts(session.workspace, resolvedStep(session, step), session.actionLog)
     : null;
   const res = await fetch("/api/v2/observe", {
     method: "POST",
@@ -232,14 +241,40 @@ async function executeEffect(
       const step = getCurrentStepV3(session);
       if (!step) return [];
       // Observation FRAÎCHE puis verdict moteur (retry diégétique inclus).
+      // exit_id présent (chantier A) : le verdict route par la sortie.
       const observation = await observeStep(session, step);
       const current = getSession();
       if (!current || current.isFinished) return [];
       const spec = MECHANIC_SPECS[step.mechanic];
       const output: JsonObject = spec
-        ? spec.buildOutput(current.workspace, step, observation, current.actionLog)
+        ? spec.buildOutput(current.workspace, resolvedStep(current, step), observation, current.actionLog)
         : {};
-      return completeStepV3(current, observation, output, OPTS).effects;
+      return completeStepV3(current, observation, output, OPTS, effect.exit_id).effects;
+    }
+
+    case "score_mail": {
+      // Chantier C : notation IA générique du mail contre le brief du
+      // step (POST /api/v2/score), puis réinjection via recordMailScore.
+      const step = getCurrentStepV3(session);
+      const scoring = step?.scoring;
+      const mail = session.workspace.mailbox.sent.find((m) => m.mail_id === effect.mail_id);
+      if (!step || !scoring || !mail) return [];
+      const scale = scoring.scale ?? 10;
+      const res = await fetch("/api/v2/score", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mail: { to: mail.to, subject: mail.subject, body: mail.body },
+          scoring_brief: scoring.brief,
+          scale,
+        }),
+      });
+      if (!res.ok) throw new Error(`score: HTTP ${res.status}`);
+      const data = (await res.json()) as { score: number; rationale?: string };
+      const current = getSession();
+      if (!current || current.isFinished) return [];
+      return recordMailScore(current, effect.mail_id, data.score, scale, data.rationale, OPTS)
+        .effects;
     }
   }
 }

@@ -31,9 +31,33 @@ export const V3_TOOLS = registry.tools;
 const TRIGGER_TYPES = new Set([
   "mail_sent", "message_sent", "message_received", "contract_signed",
   "contract_rejected", "deliverable_submitted", "document_opened",
-  "timer_elapsed", "criterion_observed", "actor_validation", "manual",
+  "timer_elapsed", "criterion_observed", "actor_validation",
+  "mail_scored", "mail_scored_below", "manual",
   "all", "any",
 ]);
+/** Nœuds de trigger autorisés à porter bind_actor (chantier B). */
+const BINDABLE_TRIGGER_TYPES = new Set(["mail_sent", "message_sent", "any"]);
+
+/** Le trigger (ou un sous-trigger) mentionne-t-il un des types donnés ? */
+function triggerTreeMentions(trigger, types) {
+  if (!trigger || typeof trigger !== "object") return false;
+  if (types.includes(trigger.type)) return true;
+  if (trigger.type === "all" || trigger.type === "any") {
+    return (trigger.of ?? []).some((t) => triggerTreeMentions(t, types));
+  }
+  return false;
+}
+
+/** Collecte les alias bind_actor déclarés dans un arbre de trigger. */
+function collectBindAliases(trigger, into) {
+  if (!trigger || typeof trigger !== "object") return;
+  if (typeof trigger.bind_actor === "string" && trigger.bind_actor.length > 0) {
+    into.add(trigger.bind_actor);
+  }
+  if (trigger.type === "all" || trigger.type === "any") {
+    for (const sub of trigger.of ?? []) collectBindAliases(sub, into);
+  }
+}
 const ACTION_TYPES = new Set([
   "message_sent", "mail_sent", "mail_opened", "mail_draft_saved",
   "document_opened", "document_annotated", "tool_state_changed",
@@ -62,38 +86,63 @@ export function validateScenarioV3(scenario, specs = V3_SPECS, tools = V3_TOOLS)
     }
   }
 
+  const endingIds = new Set((scenario.endings ?? []).map((e) => e.id));
+  const allStepIds = new Set(scenario.sequence.map((s) => s.step_id));
   const seen = new Map();
   const knownThreadIds = new Set();
+  /** Alias liés par les steps ANTÉRIEURS (chantier B). */
+  const boundAliases = new Set();
+  const actorOk = (ref) => actorIds.has(ref) || boundAliases.has(ref);
 
-  const validateTrigger = (t, stepId, criterionIds) => {
+  const validateTrigger = (t, stepId, criterionIds, actorRefOk = actorOk) => {
     if (!t || typeof t !== "object" || !TRIGGER_TYPES.has(t.type)) {
       push("BAD_TRIGGER", stepId, `trigger : type inconnu "${t?.type ?? "?"}"`);
       return;
     }
     if (t.min_count !== undefined && (!Number.isInteger(t.min_count) || t.min_count < 1))
       push("BAD_TRIGGER", stepId, `trigger ${t.type} : min_count doit être un entier ≥ 1`);
+    // Chantier B : bind_actor — placement, forme, non-collision.
+    if (t.bind_actor !== undefined) {
+      if (!BINDABLE_TRIGGER_TYPES.has(t.type))
+        push("BAD_TRIGGER", stepId, `trigger ${t.type} : bind_actor n'est autorisé que sur mail_sent, message_sent et any`);
+      else if (typeof t.bind_actor !== "string" || t.bind_actor.length === 0)
+        push("BAD_TRIGGER", stepId, `trigger ${t.type} : bind_actor doit être une chaîne non vide`);
+      else if (actorIds.has(t.bind_actor))
+        push("BAD_TRIGGER", stepId, `trigger ${t.type} : l'alias bind_actor "${t.bind_actor}" entre en collision avec un actor_id déclaré`);
+    }
     switch (t.type) {
       case "all":
       case "any":
         if (!Array.isArray(t.of) || t.of.length === 0)
           push("BAD_TRIGGER", stepId, `trigger ${t.type} : la liste "of" ne peut pas être vide`);
-        else for (const sub of t.of) validateTrigger(sub, stepId, criterionIds);
+        else for (const sub of t.of) validateTrigger(sub, stepId, criterionIds, actorRefOk);
         break;
       case "mail_sent":
-        if (t.to !== undefined && !actorIds.has(t.to))
+        if (t.to !== undefined && !actorRefOk(t.to))
           push("UNKNOWN_TRIGGER_REF", stepId, `trigger mail_sent : destinataire inconnu "${t.to}"`);
         break;
       case "message_sent":
-        if (t.to_actor !== undefined && !actorIds.has(t.to_actor))
+        if (t.to_actor !== undefined && !actorRefOk(t.to_actor))
           push("UNKNOWN_TRIGGER_REF", stepId, `trigger message_sent : acteur inconnu "${t.to_actor}"`);
         break;
       case "message_received":
-        if (!actorIds.has(t.from_actor))
+        if (!actorRefOk(t.from_actor))
           push("UNKNOWN_TRIGGER_REF", stepId, `trigger message_received : acteur inconnu "${t.from_actor}"`);
         break;
       case "actor_validation":
-        if (!actorIds.has(t.actor))
+        if (!actorRefOk(t.actor))
           push("UNKNOWN_TRIGGER_REF", stepId, `trigger actor_validation : acteur inconnu "${t.actor}"`);
+        break;
+      case "mail_scored":
+      case "mail_scored_below":
+        if (typeof t.min_score !== "number" || t.min_score < 0)
+          push("BAD_TRIGGER", stepId, `trigger ${t.type} : min_score doit être un nombre ≥ 0`);
+        if (t.scale !== undefined && (typeof t.scale !== "number" || !(t.scale > 0)))
+          push("BAD_TRIGGER", stepId, `trigger ${t.type} : scale doit être un nombre > 0`);
+        else if (typeof t.min_score === "number" && typeof t.scale === "number" && t.min_score > t.scale)
+          push("BAD_TRIGGER", stepId, `trigger ${t.type} : min_score (${t.min_score}) dépasse scale (${t.scale})`);
+        if (t.to !== undefined && !actorRefOk(t.to))
+          push("UNKNOWN_TRIGGER_REF", stepId, `trigger ${t.type} : destinataire inconnu "${t.to}"`);
         break;
       case "criterion_observed":
         if (!criterionIds.has(t.criterion))
@@ -134,7 +183,7 @@ export function validateScenarioV3(scenario, specs = V3_SPECS, tools = V3_TOOLS)
         push("MISSING_PARAM", step.step_id, `Param requis manquant pour ${step.mechanic} : "${key}"`);
     }
     for (const [k, v] of Object.entries(step.params ?? {})) {
-      if ((k === "actor_id" || k.endsWith("_actor")) && typeof v === "string" && !actorIds.has(v))
+      if ((k === "actor_id" || k.endsWith("_actor")) && typeof v === "string" && !actorOk(v))
         push("UNKNOWN_ACTOR_REF", step.step_id, `params.${k} → acteur inconnu "${v}"`);
     }
     for (const [alias, ref] of Object.entries(step.inputs ?? {})) {
@@ -181,7 +230,7 @@ export function validateScenarioV3(scenario, specs = V3_SPECS, tools = V3_TOOLS)
       if (!Array.isArray(t.participants) || t.participants.length === 0)
         push("BAD_THREAD", step.step_id, `thread "${t.thread_id}" : au moins un participant IA requis`);
       for (const p of t.participants ?? []) {
-        if (!actorIds.has(p))
+        if (!actorOk(p))
           push("BAD_THREAD", step.step_id, `thread "${t.thread_id}" : participant inconnu "${p}"`);
       }
     }
@@ -221,13 +270,13 @@ export function validateScenarioV3(scenario, specs = V3_SPECS, tools = V3_TOOLS)
         continue;
       }
       if (effect.type === "message_received" || effect.type === "actor_reply") {
-        if (!actorIds.has(effect.actor_id))
+        if (!actorOk(effect.actor_id))
           push("BAD_EVENT", step.step_id, `event "${ev.event_id}" : acteur inconnu "${effect.actor_id}"`);
         if (!knownThreadIds.has(effect.thread_id))
           push("BAD_EVENT", step.step_id, `event "${ev.event_id}" : fil inconnu "${effect.thread_id}"`);
       }
       if (effect.type === "mail_received") {
-        if (!actorIds.has(effect.from_actor))
+        if (!actorOk(effect.from_actor))
           push("BAD_EVENT", step.step_id, `event "${ev.event_id}" : acteur inconnu "${effect.from_actor}"`);
         for (const id of effect.attachment_document_ids ?? []) {
           if (!documentIds.has(id))
@@ -236,11 +285,124 @@ export function validateScenarioV3(scenario, specs = V3_SPECS, tools = V3_TOOLS)
       }
     }
 
-    // ── v3 : completion.trigger OBLIGATOIRE ──
-    const trigger = step.completion?.trigger;
-    if (!trigger)
-      push("MISSING_TRIGGER", step.step_id, "completion.trigger manquant — aucune complétion implicite en v3");
-    else validateTrigger(trigger, step.step_id, criterionIds);
+    // ── v3 : completion — trigger (sucre) OU exits (chantier A) ──
+    const completion = step.completion ?? {};
+    const trigger = completion.trigger;
+    const exitsDeclared = completion.exits !== undefined;
+    const hasExits = Array.isArray(completion.exits) && completion.exits.length > 0;
+
+    if (!trigger && !hasExits)
+      push("MISSING_TRIGGER", step.step_id, "completion.trigger ou completion.exits manquant — aucune complétion implicite en v3");
+    if (exitsDeclared && !hasExits)
+      push("BAD_EXIT", step.step_id, "exits : la liste ne peut pas être vide.");
+    if (trigger && hasExits)
+      push("BAD_EXIT", step.step_id, "completion : trigger et exits sont exclusifs (trigger = sucre pour une sortie unique).");
+    if (trigger) validateTrigger(trigger, step.step_id, criterionIds);
+
+    if (hasExits) {
+      const exitIds = new Set();
+      let hasGoto = false;
+      for (const exit of completion.exits) {
+        const id = typeof exit?.id === "string" && exit.id.length > 0 ? exit.id : null;
+        if (!id) push("BAD_EXIT", step.step_id, "exit : id requis (chaîne non vide)");
+        else if (exitIds.has(id)) push("BAD_EXIT", step.step_id, `exit "${id}" : id dupliqué dans le step`);
+        else exitIds.add(id);
+        const label = id ?? "?";
+
+        if (!exit?.trigger) push("BAD_EXIT", step.step_id, `exit "${label}" : trigger requis`);
+        else validateTrigger(exit.trigger, step.step_id, criterionIds);
+
+        if (exit?.evaluate !== undefined && typeof exit.evaluate !== "boolean")
+          push("BAD_EXIT", step.step_id, `exit "${label}" : evaluate doit être un booléen`);
+
+        const route = exit?.route;
+        if (route === "next") {
+          // ok
+        } else if (route && typeof route === "object" && typeof route.goto === "string") {
+          hasGoto = true;
+          if (!allStepIds.has(route.goto))
+            push("BAD_EXIT", step.step_id, `exit "${label}" : goto vers un step inconnu "${route.goto}"`);
+        } else if (route && typeof route === "object" && typeof route.end === "string") {
+          if (!endingIds.has(route.end))
+            push("UNKNOWN_ENDING_REF", step.step_id, `exit "${label}" : ending inconnu "${route.end}"`);
+        } else {
+          push("BAD_EXIT", step.step_id, `exit "${label}" : route invalide — attendu "next", {"goto": "<step_id>"} ou {"end": "<ending_id>"}`);
+        }
+
+        for (const threadId of exit?.reset?.threads ?? []) {
+          if (!knownThreadIds.has(threadId))
+            push("BAD_EXIT", step.step_id, `exit "${label}" : reset.threads vise un fil inconnu "${threadId}"`);
+        }
+        for (const toolId of exit?.reset?.tools ?? []) {
+          if (!toolIds.has(toolId))
+            push("BAD_EXIT", step.step_id, `exit "${label}" : reset.tools vise un tool inconnu "${toolId}"`);
+        }
+
+        // Events de sortie : alias liés par CE trigger disponibles.
+        const exitAliases = new Set();
+        if (exit?.trigger) collectBindAliases(exit.trigger, exitAliases);
+        const exitActorOk = (ref) => actorOk(ref) || exitAliases.has(ref);
+        const seenExitEventIds = new Set();
+        for (const ev of exit?.events ?? []) {
+          if (typeof ev?.event_id !== "string" || ev.event_id.length === 0) {
+            push("BAD_EXIT", step.step_id, `exit "${label}" : event sans event_id`);
+            continue;
+          }
+          if (seenExitEventIds.has(ev.event_id))
+            push("BAD_EXIT", step.step_id, `exit "${label}" : event_id dupliqué "${ev.event_id}"`);
+          seenExitEventIds.add(ev.event_id);
+          const effect = ev.effect;
+          if (!effect || !EFFECT_TYPES.has(effect.type)) {
+            push("BAD_EXIT", step.step_id, `exit "${label}" : event "${ev.event_id}" — effect.type inconnu "${effect?.type ?? "?"}"`);
+            continue;
+          }
+          if (effect.type === "message_received" || effect.type === "actor_reply") {
+            if (!exitActorOk(effect.actor_id))
+              push("BAD_EXIT", step.step_id, `exit "${label}" : event "${ev.event_id}" — acteur inconnu "${effect.actor_id}"`);
+            if (!knownThreadIds.has(effect.thread_id))
+              push("BAD_EXIT", step.step_id, `exit "${label}" : event "${ev.event_id}" — fil inconnu "${effect.thread_id}"`);
+          }
+          if (effect.type === "mail_received") {
+            if (!exitActorOk(effect.from_actor))
+              push("BAD_EXIT", step.step_id, `exit "${label}" : event "${ev.event_id}" — acteur inconnu "${effect.from_actor}"`);
+            for (const docId of effect.attachment_document_ids ?? []) {
+              if (!documentIds.has(docId))
+                push("UNKNOWN_DOCUMENT_REF", step.step_id, `exit "${label}" : event "${ev.event_id}" — pièce jointe inconnue "${docId}"`);
+            }
+          }
+        }
+      }
+
+      if (hasGoto) {
+        const fallback = completion.on_goto_exhausted;
+        if (!fallback || typeof fallback.end !== "string" || fallback.end.length === 0)
+          push("BAD_EXIT", step.step_id, 'on_goto_exhausted: {"end": "<ending_id>"} est OBLIGATOIRE dès qu\'une sortie route en goto (garde-fou anti-boucle)');
+        else if (!endingIds.has(fallback.end))
+          push("UNKNOWN_ENDING_REF", step.step_id, `on_goto_exhausted : ending inconnu "${fallback.end}"`);
+      }
+    }
+
+    if (completion.max_gotos !== undefined && (!Number.isInteger(completion.max_gotos) || completion.max_gotos < 1))
+      push("BAD_EXIT", step.step_id, "completion.max_gotos doit être un entier ≥ 1.");
+
+    // ── Chantier C : scoring déclaratif ──
+    const scoring = step.scoring;
+    const mentionsScoring = [trigger, ...(completion.exits ?? []).map((e) => e?.trigger)]
+      .filter(Boolean)
+      .some((t) => triggerTreeMentions(t, ["mail_scored", "mail_scored_below"]));
+    if (mentionsScoring && (typeof scoring?.brief !== "string" || scoring.brief.length === 0))
+      push("BAD_SCORING", step.step_id, "un trigger mail_scored / mail_scored_below exige un bloc scoring.brief déclaré sur le step.");
+    if (scoring !== undefined) {
+      if (typeof scoring.brief !== "string" || scoring.brief.length === 0)
+        push("BAD_SCORING", step.step_id, "scoring.brief requis (chaîne non vide).");
+      if (scoring.scale !== undefined && (typeof scoring.scale !== "number" || !(scoring.scale > 0)))
+        push("BAD_SCORING", step.step_id, "scoring.scale doit être un nombre > 0.");
+    }
+
+    // ── Chantier B : alias liés par CE step → disponibles ensuite.
+    for (const t of [trigger, ...(completion.exits ?? []).map((e) => e?.trigger)]) {
+      if (t) collectBindAliases(t, boundAliases);
+    }
 
     seen.set(step.step_id, step);
   }

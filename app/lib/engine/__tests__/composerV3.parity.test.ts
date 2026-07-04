@@ -98,7 +98,79 @@ function fixtures(): ScenarioV3[] {
   const missingTrigger = makeScenario([makeStep({ step_id: "s1" })]);
   delete (missingTrigger.sequence[0] as { completion?: unknown }).completion;
 
-  return [valid, brokenTriggers, brokenStructure, missingTrigger];
+  // Chantiers A/B/C : exits + bindings + scoring, version VALIDE.
+  const validExits = makeScenario([
+    makeStep({
+      step_id: "s1",
+      threads: [{ thread_id: "th_alex", participants: ["alex"] }],
+      tools: [{ tool: "notes" }],
+      scoring: { brief: "Qualité du mail de prospection.", scale: 10 },
+      completion: {
+        exits: [
+          {
+            id: "garde",
+            trigger: { type: "mail_sent", min_count: 5 },
+            evaluate: false,
+            route: { end: "failure" },
+          },
+          {
+            id: "gagne",
+            trigger: {
+              type: "any",
+              of: [{ type: "mail_scored", to: "alex", min_score: 7 }, { type: "mail_sent", to: "thomas" }],
+              bind_actor: "partenaire",
+            },
+            route: "next",
+            events: [
+              { event_id: "ev_ok", effect: { type: "mail_received", from_actor: "partenaire", subject: "s", body: "b" } },
+            ],
+          },
+          {
+            id: "perd",
+            trigger: { type: "mail_scored_below", to: "alex", min_score: 7 },
+            evaluate: false,
+            route: { goto: "s1" },
+            reset: { threads: ["th_alex"], tools: ["notes"] },
+          },
+        ],
+        max_gotos: 2,
+        on_goto_exhausted: { end: "failure" },
+      },
+    }),
+    makeStep({
+      step_id: "s2",
+      threads: [{ thread_id: "th_p", participants: ["partenaire"] }],
+      completion: { trigger: { type: "message_sent", to_actor: "partenaire" } },
+    }),
+  ]);
+
+  // Chantiers A/B/C : version CASSÉE (chaque code au moins une fois).
+  const brokenExits = makeScenario([
+    makeStep({
+      step_id: "s1",
+      threads: [{ thread_id: "th_p", participants: ["alias_futur"] }], // alias jamais lié avant
+      completion: {
+        trigger: { type: "manual", label: "x", bind_actor: "oops" } as CompletionTrigger, // bind mal placé + exclusif avec exits
+        exits: [
+          { id: "dup", trigger: { type: "mail_scored", min_score: -1 }, route: "next" }, // min_score invalide + scoring manquant
+          { id: "dup", route: "ailleurs", evaluate: "oui" }, // id dupliqué + trigger manquant + route invalide + evaluate non booléen
+          {
+            id: "e3",
+            trigger: { type: "mail_sent", bind_actor: "alex" }, // collision actor_id
+            route: { goto: "s_absent" }, // step inconnu
+            reset: { threads: ["th_fantome"], tools: ["tableur"] },
+            events: [{ event_id: "ev", effect: { type: "explosion" } }],
+          },
+          { id: "e4", trigger: { type: "contract_signed" }, route: { end: "ending_fantome" } },
+        ],
+        max_gotos: 0,
+        on_goto_exhausted: { end: "autre_fantome" },
+      } as unknown as import("../workspace").StepCompletion,
+      scoring: { brief: "", scale: 0 }, // brief vide + scale invalide
+    }),
+  ]);
+
+  return [valid, brokenTriggers, brokenStructure, missingTrigger, validExits, brokenExits];
 }
 
 describe("parité TS ↔ mjs", () => {

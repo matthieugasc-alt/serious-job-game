@@ -11,7 +11,7 @@
  * (workspace.gardefou.test.ts).
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ActorDef, DocumentDef } from "@/app/lib/engine/mechanics";
 import type {
   StepToolConfig,
@@ -31,6 +31,9 @@ interface Props {
   missionTitle: string;
   /** Objectif du jour — bandeau discret, vocabulaire métier uniquement. */
   objective?: string;
+  /** Échéance (ms epoch) du timer_elapsed du step courant, dérivée de
+   *  stepStartedAt par le player — le shell ne fait qu'afficher. */
+  timerDeadline?: number;
   /** Fils où un interlocuteur est en train d'écrire (indicateur de frappe). */
   busyThreads?: string[];
   dispatch: (action: WorkspaceAction) => void;
@@ -43,6 +46,7 @@ export function WorkspaceShell({
   activeTools,
   missionTitle,
   objective,
+  timerDeadline,
   busyThreads,
   dispatch,
 }: Props) {
@@ -52,6 +56,19 @@ export function WorkspaceShell({
   /** Fils ouverts en mini-fenêtre ChatDock — état ici pour que Toasts
    *  puisse supprimer les notifications du fil déjà sous les yeux. */
   const [openChatThreads, setOpenChatThreads] = useState<string[]>([]);
+  /** Chrono discret (chantier D) : simple tick d'affichage — le moteur
+   *  reste seul maître du temps (clock_tick du player). */
+  const [nowMs, setNowMs] = useState(() => Date.now());
+  useEffect(() => {
+    if (timerDeadline === undefined) return;
+    setNowMs(Date.now());
+    const id = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [timerDeadline]);
+  const timerLeft =
+    timerDeadline === undefined
+      ? null
+      : Math.max(0, Math.ceil((timerDeadline - nowMs) / 1000));
 
   const openApp = (appId: string, context?: AppNavContext) => {
     if (!APP_REGISTRY[appId]) return;
@@ -78,6 +95,17 @@ export function WorkspaceShell({
               {objective}
             </p>
           </>
+        )}
+        {timerLeft !== null && (
+          <span
+            title="Temps restant"
+            className={`ml-auto inline-flex shrink-0 items-center gap-1 rounded-lg px-2 py-0.5 font-mono text-xs font-medium tabular-nums ${
+              timerLeft <= 30 ? "bg-red-100 text-red-700" : "bg-gray-100 text-gray-600"
+            }`}
+          >
+            <span aria-hidden>⏱</span>
+            {Math.floor(timerLeft / 60)}:{String(timerLeft % 60).padStart(2, "0")}
+          </span>
         )}
       </header>
 

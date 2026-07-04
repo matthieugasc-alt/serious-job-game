@@ -15,6 +15,9 @@ import {
   triggerMentions,
   actorValidationCriterion,
   ACTOR_VALIDATION_PREFIX,
+  completionTriggerList,
+  collectTimerTriggers,
+  collectTriggerBindings,
 } from "../triggers";
 import type { TriggerContext } from "../triggers";
 
@@ -260,6 +263,130 @@ describe("all / any / défensif", () => {
       evaluateTrigger({ type: "vibes_good" } as unknown as CompletionTrigger, c),
     ).toBe(false);
     expect(evaluateTrigger(null as unknown as CompletionTrigger, c)).toBe(false);
+  });
+});
+
+describe("mail_scored / mail_scored_below (chantier C)", () => {
+  const scored = (score: number, to = ["thomas"]) => ctx({ mailScores: [{ to, score }] });
+
+  it("mail_scored : dernier score pertinent ≥ min_score", () => {
+    const t = { type: "mail_scored", to: "thomas", min_score: 7 } as const;
+    expect(evaluateTrigger(t, ctx())).toBe(false); // aucun score
+    expect(evaluateTrigger(t, scored(6))).toBe(false);
+    expect(evaluateTrigger(t, scored(7))).toBe(true);
+    expect(evaluateTrigger(t, scored(9, ["alex"]))).toBe(false); // autre destinataire
+  });
+
+  it("mail_scored_below : tire quand un score existe ET est sous le seuil", () => {
+    const t = { type: "mail_scored_below", to: "thomas", min_score: 7 } as const;
+    expect(evaluateTrigger(t, ctx())).toBe(false); // pas de score = pas de verdict
+    expect(evaluateTrigger(t, scored(6))).toBe(true);
+    expect(evaluateTrigger(t, scored(7))).toBe(false);
+  });
+
+  it("le DERNIER score gagne (un renvoi rescore)", () => {
+    const c = ctx({ mailScores: [{ to: ["thomas"], score: 3 }, { to: ["thomas"], score: 8 }] });
+    expect(evaluateTrigger({ type: "mail_scored", to: "thomas", min_score: 7 }, c)).toBe(true);
+    expect(evaluateTrigger({ type: "mail_scored_below", to: "thomas", min_score: 7 }, c)).toBe(false);
+  });
+
+  it("sans `to` : n'importe quel mail scoré", () => {
+    expect(evaluateTrigger({ type: "mail_scored", min_score: 5 }, scored(5, ["alex"]))).toBe(true);
+  });
+});
+
+describe("resolveActor (chantier B) — alias dans les triggers", () => {
+  const resolveActor = (ref: string) => (ref === "partenaire" ? "thomas" : ref);
+
+  it("mail_sent.to, message_sent.to_actor et mail_scored.to résolvent l'alias", () => {
+    const cMail = ctx({ log: [entry(mail(["thomas"]))], resolveActor });
+    expect(evaluateTrigger({ type: "mail_sent", to: "partenaire" }, cMail)).toBe(true);
+
+    const workspace = ws({
+      threads: { th: { thread_id: "th", participants: ["thomas"], messages: [], unread: 0 } },
+    });
+    const cMsg = ctx({
+      log: [entry({ type: "message_sent", thread_id: "th", content: "x" })],
+      workspace,
+      resolveActor,
+    });
+    expect(evaluateTrigger({ type: "message_sent", to_actor: "partenaire" }, cMsg)).toBe(true);
+
+    const cScore = ctx({ mailScores: [{ to: ["thomas"], score: 8 }], resolveActor });
+    expect(evaluateTrigger({ type: "mail_scored", to: "partenaire", min_score: 7 }, cScore)).toBe(true);
+  });
+
+  it("alias non lié : comparé tel quel, ne matche jamais (défensif, pas de throw)", () => {
+    const c = ctx({ log: [entry(mail(["thomas"]))] }); // pas de resolveActor
+    expect(evaluateTrigger({ type: "mail_sent", to: "partenaire" }, c)).toBe(false);
+  });
+});
+
+describe("collectTriggerBindings (chantier B)", () => {
+  it("mail_sent + bind_actor : lie le destinataire du dernier mail correspondant", () => {
+    const c = ctx({ log: [entry(mail(["alex"])), entry(mail(["thomas"]), 2)] });
+    expect(
+      collectTriggerBindings({ type: "mail_sent", bind_actor: "partenaire" }, c),
+    ).toEqual({ partenaire: "thomas" });
+  });
+
+  it("any + bind_actor : le PREMIER sous-trigger qui tire décide", () => {
+    const c = ctx({ log: [entry(mail(["thomas"]))] });
+    const bindings = collectTriggerBindings(
+      {
+        type: "any",
+        of: [
+          { type: "mail_sent", to: "alex" },
+          { type: "mail_sent", to: "thomas" },
+        ],
+        bind_actor: "partenaire",
+      },
+      c,
+    );
+    expect(bindings).toEqual({ partenaire: "thomas" });
+  });
+
+  it("message_sent + bind_actor : lie via les participants du fil", () => {
+    const workspace = ws({
+      threads: { th: { thread_id: "th", participants: ["alex"], messages: [], unread: 0 } },
+    });
+    const c = ctx({
+      log: [entry({ type: "message_sent", thread_id: "th", content: "x" })],
+      workspace,
+    });
+    expect(
+      collectTriggerBindings({ type: "message_sent", bind_actor: "interlocuteur" }, c),
+    ).toEqual({ interlocuteur: "alex" });
+  });
+
+  it("rien ne matche : aucun binding (jamais de valeur fantôme)", () => {
+    expect(collectTriggerBindings({ type: "mail_sent", bind_actor: "x" }, ctx())).toEqual({});
+  });
+});
+
+describe("completionTriggerList / collectTimerTriggers (chantiers A/D)", () => {
+  it("liste le trigger legacy ET les triggers des exits", () => {
+    const list = completionTriggerList({
+      trigger: { type: "manual", label: "a" },
+      exits: [
+        { id: "e1", trigger: { type: "mail_sent" }, route: "next" },
+        { id: "e2", trigger: { type: "timer_elapsed", seconds: 60 }, route: { end: "x" } },
+      ],
+    });
+    expect(list.map((t) => t.type)).toEqual(["manual", "mail_sent", "timer_elapsed"]);
+    expect(completionTriggerList(undefined)).toEqual([]);
+  });
+
+  it("extrait les timer_elapsed, y compris imbriqués", () => {
+    const timers = collectTimerTriggers([
+      { type: "all", of: [{ type: "mail_sent" }, { type: "timer_elapsed", seconds: 120 }] },
+      { type: "timer_elapsed", seconds: 30, from: "scenario_start" },
+      { type: "manual", label: "x" },
+    ]);
+    expect(timers).toEqual([
+      { seconds: 120, from: "step_start" },
+      { seconds: 30, from: "scenario_start" },
+    ]);
   });
 });
 

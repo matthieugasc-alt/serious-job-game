@@ -107,9 +107,24 @@ export interface LoggedAction {
 
 // ─── Triggers (déclarés par le RÉDACTEUR — schéma v3) ─────────────
 
+/**
+ * `bind_actor` (chantier B — acteurs dynamiques) : quand le trigger
+ * tire, le destinataire RÉEL (mail/message) est lié à cet alias dans
+ * session.actorBindings. Les steps suivants peuvent référencer l'alias
+ * partout où un actor_id est attendu (threads.participants,
+ * params.*_actor / actor_id, triggers, events). Autorisé uniquement sur
+ * mail_sent, message_sent et any (le sous-trigger qui tire décide).
+ *
+ * `mail_scored` / `mail_scored_below` (chantier C — scoring IA à
+ * seuil) : le dernier mail scoré du step (session.mailScores, produit
+ * par la route générique /api/v2/score sur la base de step.scoring)
+ * atteint — ou non — le seuil. Les deux se déclarent sur le MÊME envoi
+ * (deux exits) : ≥ min_score tire mail_scored, < min_score tire
+ * mail_scored_below. Le score n'est JAMAIS montré au joueur.
+ */
 export type CompletionTrigger =
-  | { type: "mail_sent"; to?: string; min_count?: number }
-  | { type: "message_sent"; to_actor?: string; min_count?: number }
+  | { type: "mail_sent"; to?: string; min_count?: number; bind_actor?: string }
+  | { type: "message_sent"; to_actor?: string; min_count?: number; bind_actor?: string }
   | { type: "message_received"; from_actor: string }
   | { type: "contract_signed" }
   | { type: "contract_rejected" }
@@ -118,14 +133,101 @@ export type CompletionTrigger =
   | { type: "timer_elapsed"; seconds: number; from?: "step_start" | "scenario_start" }
   | { type: "criterion_observed"; criterion: string }
   | { type: "actor_validation"; actor: string }
+  | { type: "mail_scored"; to?: string; min_score: number; scale?: number }
+  | { type: "mail_scored_below"; to?: string; min_score: number; scale?: number }
   | { type: "manual"; label: string }
   | { type: "all"; of: CompletionTrigger[] }
-  | { type: "any"; of: CompletionTrigger[] };
+  | { type: "any"; of: CompletionTrigger[]; bind_actor?: string };
+
+// ─── Sorties multiples et routage (chantier A) ────────────────────
+
+/** Destination d'une sortie : step suivant, retour à un step (rollback
+ *  déclaratif) ou fin immédiate avec un ending NOMMÉ (court-circuite
+ *  computeEndingV3). */
+export type ExitRoute = "next" | { goto: string } | { end: string };
+
+/** Remise à zéro déclarative exécutée par une route goto : messages des
+ *  fils listés vidés, état des tools listés réinitialisé (null). */
+export interface ExitReset {
+  threads?: string[];
+  tools?: string[];
+}
+
+/** Event narratif attaché à une sortie : déclenché quand CETTE sortie
+ *  tire. `when` est ignoré (le déclencheur est la sortie elle-même) —
+ *  le champ est toléré pour rester compatible avec NarrativeEvent. */
+export interface ExitNarrativeEvent {
+  event_id: string;
+  when?: NarrativeWhen;
+  effect: NarrativeEffect;
+  /** Ne se rejoue pas (défaut true) — clé "<step>:<exit>:<event>". */
+  once?: boolean;
+}
+
+/**
+ * Une sortie de step. Le PREMIER exit dont le trigger tire gagne.
+ *  - evaluate (défaut true) : observation IA + verdict moteur enregistré
+ *    (stepResults) AVANT de router. false : route directe, sans I/O.
+ *  - La route déclarée s'applique QUEL QUE SOIT le verdict : avec des
+ *    exits, le rédacteur route explicitement (on_failure ne joue plus).
+ */
+export interface StepExit {
+  id: string;
+  trigger: CompletionTrigger;
+  evaluate?: boolean;
+  route: ExitRoute;
+  reset?: ExitReset;
+  events?: ExitNarrativeEvent[];
+}
 
 export interface StepCompletion {
-  trigger: CompletionTrigger;
+  /** Sucre : une sortie unique "next" avec la politique on_failure
+   *  existante. Exclusif avec `exits` (validation). */
+  trigger?: CompletionTrigger;
+  /** Sorties multiples ordonnées — la première qui tire gagne. */
+  exits?: StepExit[];
   /** "evaluate" (défaut) : observation IA → applyStepObservation → verdict. */
   on_trigger?: "evaluate";
+  /** Plafond de goto exécutés PAR CE STEP (défaut 3). */
+  max_gotos?: number;
+  /** Route de secours quand le plafond de goto est dépassé — OBLIGATOIRE
+   *  (validation) dès qu'une sortie route en goto. */
+  on_goto_exhausted?: { end: string };
+}
+
+// ─── Scoring IA à seuil (chantier C) ──────────────────────────────
+
+/** Cadre de notation d'un step : brief passé tel quel à la route
+ *  générique POST /api/v2/score (gpt-4.1-mini, température 0). */
+export interface StepScoring {
+  brief: string;
+  /** Échelle de notation (défaut 10). */
+  scale?: number;
+}
+
+/** Score enregistré dans la session (audit) — jamais montré au joueur. */
+export interface MailScoreRecord {
+  mail_id: string;
+  at: number;
+  step_id: string;
+  /** Tentative à laquelle le score appartient (valeur de
+   *  session.attemptStartedIndex au moment de l'enregistrement) : un
+   *  goto/retry réarme la tentative, les scores antérieurs ne comptent
+   *  plus pour les triggers — ils restent journalisés (audit). */
+  attempt_started_index: number;
+  to: string[];
+  score: number;
+  scale: number;
+  rationale?: string;
+}
+
+/** Entrée du journal d'audit des sorties tirées (chantier A). */
+export interface LoggedExit {
+  at: number;
+  step_id: string;
+  exit_id: string;
+  /** Route effective, lisible : "next" | "goto:<step>" | "end:<ending>". */
+  route: string;
 }
 
 // ─── Events narratifs (mise en scène — ne font JAMAIS avancer) ────
@@ -170,6 +272,9 @@ export interface StepInvocationV3 {
   threads?: { thread_id: string; participants: string[]; title?: string }[];
   document_ids?: string[];
   events?: NarrativeEvent[];
+  /** Cadre de notation IA des mails du step (chantier C) — requis dès
+   *  qu'un trigger mail_scored / mail_scored_below est déclaré. */
+  scoring?: StepScoring;
   completion: StepCompletion; // OBLIGATOIRE — validé par le schéma
   evaluation: { observed_criteria: StepCriterion[] };
   completion_rules: StepCompletionRules;
@@ -227,7 +332,10 @@ export type PendingEffect =
   | { kind: "actor_reply"; thread_id: string; actor_id: string; directive?: string }
   | { kind: "mail_incoming"; from_actor: string; subject: string; body: string; attachment_document_ids?: string[]; directive?: string }
   | { kind: "observe_step" }
-  | { kind: "evaluate_step" };
+  /** exit_id présent : le verdict route par la sortie nommée (chantier A). */
+  | { kind: "evaluate_step"; exit_id?: string }
+  /** Notation IA d'un mail envoyé (chantier C) → recordMailScore. */
+  | { kind: "score_mail"; mail_id: string };
 
 export interface DispatchResult {
   /** Effets narratifs/IA à exécuter (l'orchestrateur les traduit en I/O). */

@@ -94,8 +94,15 @@ export type {
   WorkspaceState,
   WorkspaceAction,
   LoggedAction,
+  LoggedExit,
   CompletionTrigger,
   StepCompletion,
+  StepExit,
+  ExitRoute,
+  ExitReset,
+  ExitNarrativeEvent,
+  StepScoring,
+  MailScoreRecord,
   NarrativeWhen,
   NarrativeEffect,
   NarrativeEvent,
@@ -133,6 +140,8 @@ export {
   applyNarrativeEffect,
   recordActorMessage,
   recordStepObservation,
+  recordMailScore,
+  resolveStepParamsV3,
   completeStepV3,
 } from "./workspaceReducer";
 
@@ -144,6 +153,9 @@ export {
   actorValidationCriterion,
   evaluateTrigger,
   triggerMentions,
+  completionTriggerList,
+  collectTimerTriggers,
+  collectTriggerBindings,
 } from "./triggers";
 
 // ─── composerV3 — validation statique + câblage des inputs ────────

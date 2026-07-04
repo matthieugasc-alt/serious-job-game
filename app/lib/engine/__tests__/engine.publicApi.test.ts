@@ -46,6 +46,8 @@ const ENGINE_PUBLIC_API = {
     "applyNarrativeEffect",
     "recordActorMessage",
     "recordStepObservation",
+    "recordMailScore",
+    "resolveStepParamsV3",
     "completeStepV3",
   ],
 
@@ -55,6 +57,9 @@ const ENGINE_PUBLIC_API = {
     "actorValidationCriterion",
     "evaluateTrigger",
     "triggerMentions",
+    "completionTriggerList",
+    "collectTimerTriggers",
+    "collectTriggerBindings",
   ],
 
   // 5. composerV3 — validation statique + câblage des inputs

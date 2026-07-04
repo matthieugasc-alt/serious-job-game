@@ -26,7 +26,11 @@ import {
 } from "@/app/lib/engine/sessionV3";
 import { applyWorkspaceAction, enterStep } from "@/app/lib/engine/workspaceReducer";
 import { validateScenarioV3 } from "@/app/lib/engine/composerV3";
-import { triggerMentions } from "@/app/lib/engine/triggers";
+import {
+  collectTimerTriggers,
+  completionTriggerList,
+  triggerMentions,
+} from "@/app/lib/engine/triggers";
 import { MECHANIC_SPECS, MECHANIC_SPEC_MANIFESTS } from "@/app/mechanics/specs";
 import { ActorAvatar, PrimaryButton } from "@/app/workspace/primitives/ui";
 import { WorkspaceShell } from "./WorkspaceShell";
@@ -185,12 +189,31 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
     [refresh, schedule],
   );
 
-  // Horloge : clock_tick toutes les 5 s si le step est temporel.
+  // Horloge : clock_tick toutes les 5 s si le step est temporel
+  // (events delay OU timer_elapsed dans le trigger / les exits).
   const step = session ? getCurrentStepV3(session) : null;
+  const stepTriggers = step ? completionTriggerList(step.completion) : [];
   const stepIsTemporal =
     !!step &&
     ((step.events ?? []).some((e) => e.when.type === "delay") ||
-      triggerMentions(step.completion.trigger, ["timer_elapsed"]));
+      stepTriggers.some((t) => triggerMentions(t, ["timer_elapsed"])));
+
+  // Chantier D : échéance du chrono visible (premier timer_elapsed à
+  // expirer). Le shell reste bête : il reçoit une échéance (ms epoch),
+  // dérivée de stepStartedAt / scenarioStartedAt.
+  const timers = collectTimerTriggers(stepTriggers);
+  const timerDeadline =
+    session && timers.length > 0
+      ? Math.min(
+          ...timers.map(
+            (t) =>
+              (t.from === "scenario_start"
+                ? session.workspace.scenarioStartedAt
+                : session.workspace.stepStartedAt) +
+              t.seconds * 1000,
+          ),
+        )
+      : undefined;
   useEffect(() => {
     if (!stepIsTemporal || session?.isFinished) return;
     const id = window.setInterval(
@@ -320,6 +343,7 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
         activeTools={[...declared, ...defaults]}
         missionTitle={scenario.meta.title}
         objective={step.title}
+        timerDeadline={timerDeadline}
         busyThreads={busyThreads}
         dispatch={dispatch}
       />

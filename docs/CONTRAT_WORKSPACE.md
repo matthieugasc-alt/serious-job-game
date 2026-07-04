@@ -125,10 +125,72 @@ Primitives de trigger (union fermée, validée par le schéma — toute autre va
 | `timer_elapsed` | `seconds`, `from: step_start\|scenario_start` | temps écoulé |
 | `criterion_observed` | `criterion` | l'observation IA (relancée après chaque action significative) rapporte ce critère |
 | `actor_validation` | `actor` | l'acteur IA émet son marqueur de validation (structuré, jamais affiché) |
+| `mail_scored` | `to?`, `min_score`, `scale?` | le dernier mail scoré du step atteint le seuil (§4quater) |
+| `mail_scored_below` | `to?`, `min_score`, `scale?` | le dernier mail scoré est SOUS le seuil (même envoi, exit opposé) |
 | `manual` | `label` | bouton explicite, affiché dans le workspace — si le rédacteur le veut |
 | `all` / `any` | `[triggers]` | combinaisons |
 
 Sémantique stricte : **rien d'autre ne fait avancer la séquence**. Pas de complétion implicite « la conversation semble finie ». Quand le trigger tire : `on_trigger: "evaluate"` (défaut) → `buildArtifacts` → observation IA → `applyStepObservation` → verdict moteur → advance/retry/end selon la politique du step (inchangée). Le retry est diégétique : l'échec déclenche un `event` narratif déclaré par le scénario (ex : Alexandre répond « il manque le budget, reprends ça ») — pas de modale.
+
+### §4bis — Sorties multiples et routage (`exits`, chantier A — 4 juillet 2026)
+
+`completion.trigger` est conservé tel quel : c'est le **sucre** pour une sortie unique `route: "next"` avec la politique `on_failure` existante — les scénarios existants restent valides sans modification. Un step peut à la place déclarer des sorties multiples (`trigger` et `exits` sont exclusifs) :
+
+```json
+"completion": {
+  "exits": [
+    {
+      "id": "gagne",
+      "trigger": { "type": "mail_scored", "to": "dsi", "min_score": 7 },
+      "evaluate": true,
+      "route": "next",
+      "events": [ { "event_id": "ev_ok", "effect": { "type": "actor_reply", "thread_id": "th_dsi", "actor_id": "dsi", "directive": "Réponds enthousiaste : le mail t'a convaincu." } } ]
+    },
+    {
+      "id": "perd",
+      "trigger": { "type": "mail_scored_below", "to": "dsi", "min_score": 7 },
+      "evaluate": false,
+      "route": { "goto": "s1_prospection" },
+      "reset": { "threads": ["th_dsi"], "tools": ["notes"] },
+      "events": [ { "event_id": "ev_ko", "once": false, "effect": { "type": "mail_received", "from_actor": "dsi", "subject": "Re: votre sollicitation", "body": "Ce n'est pas une priorité pour nous." } } ]
+    },
+    { "id": "garde", "trigger": { "type": "mail_sent", "min_count": 10 }, "evaluate": false, "route": { "end": "echec_prospection" } }
+  ],
+  "max_gotos": 3,
+  "on_goto_exhausted": { "end": "echec_prospection" }
+}
+```
+
+Sémantique :
+- **Le premier exit dont le trigger tire gagne** (ordre de déclaration). Chaque sortie tirée est journalisée dans `session.exitLog` (audit : `{at, step_id, exit_id, route}`).
+- `evaluate` (défaut `true`) : observation IA + verdict moteur enregistré dans `stepResults` (endings `requires_passed`/`min_passed`, audit) **puis** la route déclarée s'applique — quel que soit le verdict. `evaluate: false` : route directe, synchrone, sans I/O. Avec des exits, `on_failure`/`on_retry`/`on_step_passed` ne jouent plus : la mise en scène appartient aux `events` de chaque sortie.
+- `events` d'un exit : déclenchés quand CETTE sortie tire (`when` inutile ; `once` par défaut, clé `<step>:<exit>:<event>`).
+- `route: "next"` — step suivant. `route: {"goto": "<step_id>"}` — retour au step cible : `reset` déclaratif (messages des fils listés vidés, tools listés réinitialisés à null), compteurs d'actions réarmés (pattern `attemptStartedIndex`), les events `step_start` du step cible **ne se rejouent pas** (sémantique `once`) sauf `once: false`. `route: {"end": "<ending_id>"}` — fin immédiate avec l'ending nommé (court-circuite `computeEnding`).
+- **Garde-fou anti-boucle** : compteur de goto par step (`session.gotoCounts`), plafond `max_gotos` (défaut 3). Au-delà, la route de secours `on_goto_exhausted: {"end": …}` s'applique — sa déclaration est OBLIGATOIRE (validation) dès qu'un exit route en goto.
+
+### §4ter — Acteurs dynamiques (`bind_actor`, chantier B)
+
+Un trigger `mail_sent` / `message_sent` / `any` peut déclarer `bind_actor: "<alias>"` : quand il tire, le **destinataire réel** est lié à l'alias dans `session.actorBindings`. Sur un `any`, c'est le premier sous-trigger qui tire qui décide (`any[mail_sent{sofia}, mail_sent{marc}, mail_sent{karim}]` + `bind_actor` au niveau du any = le destinataire effectif est lié).
+
+```json
+{ "type": "any", "of": [ { "type": "mail_sent", "to": "sofia" }, { "type": "mail_sent", "to": "marc" } ], "bind_actor": "kol_choisi" }
+```
+
+Les steps suivants référencent l'alias partout où un actor_id est attendu : `threads.participants`, `params.actor_id` / `params.*_actor`, destinataires/acteurs des triggers (`to`, `to_actor`, `from_actor`, `actor`), acteurs des events (`actor_id`, `from_actor`). Résolution au runtime via les bindings ; les events de l'exit qui lie l'alias peuvent déjà l'utiliser (le binding précède leur exécution). Validation composerV3 : alias lié par un step ANTÉRIEUR (sinon refus), pas de collision avec un actor_id déclaré, placement restreint aux trois nœuds ci-dessus. Un alias non résolu au runtime = throw explicite (création de fil, event) ; dans un trigger, il ne matche simplement jamais (défensif).
+
+### §4quater — Scoring IA à seuil (`mail_scored`, chantier C)
+
+Mécanique « prospection » : le step déclare son cadre de notation, les exits déclarent les seuils.
+
+```json
+"scoring": { "brief": "Note la qualité du mail de prospection : accroche personnalisée, bénéfice clair pour le service, appel à l'action concret.", "scale": 10 }
+```
+
+Flux : le joueur envoie un mail → le moteur émet un effet `score_mail` → l'orchestrateur appelle la route générique **POST /api/v2/score** `{mail, scoring_brief, scale}` (gpt-4.1-mini, température 0, sortie JSON stricte `{score, rationale}`, score borné à `[0, scale]`) → `recordMailScore` journalise dans `session.mailScores` (audit) → les exits `mail_scored` / `mail_scored_below` sont évalués sur le **score enregistré** (le dernier de la tentative pour ce destinataire ; un goto/retry réarme la tentative). Le score n'est **JAMAIS** affiché au joueur : la réponse du monde (acteur enthousiaste, refus du DSI, silence du KOL) passe par les `events` des exits. Déterminisme : seuil déclaré dans le JSON, compteur `mail_sent{min_count}` combinable en exit de garde (ex : 10 mails envoyés → end).
+
+### §4quinquies — Timer visible (chantier D)
+
+Quand le step courant déclare un `timer_elapsed` (dans `completion.trigger` ou dans un exit), le WorkspacePlayer dérive l'échéance de `stepStartedAt` / `scenarioStartedAt` et la passe en prop (`timerDeadline`) au WorkspaceShell, qui affiche un chrono discret dans le bandeau (temps restant, rouge sous 30 s). Le shell reste bête (≤ 250 lignes) : l'expiration est déclenchée par le moteur via `clock_tick` (déjà le cas), jamais par l'UI.
 
 ## 5. Événement narratif ≠ trigger (séparation stricte)
 
