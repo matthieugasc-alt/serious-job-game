@@ -16,7 +16,7 @@ import { useMemo, useState } from "react";
 import type { WorkspaceAppProps } from "../../../apps/types";
 import { renameNote, updateBlocks } from "../api";
 import type { NotebookState } from "../spec";
-import { asAnyBlocks, asBlocks, newBlock, type AnyBlock, type BlockKind } from "./uiHelpers";
+import { asAnyBlocks, asBlocks, newBlock, removeBlockById, type AnyBlock, type BlockKind } from "./uiHelpers";
 
 const COL_W = 210;
 const ROW_H = 52;
@@ -131,6 +131,24 @@ function addChildTo(blocks: AnyBlock[], id: string, child: AnyBlock): AnyBlock[]
   );
 }
 
+/** Retrouve un bloc (sous-arbre) par id — référence, récursif. */
+function findBlock(blocks: AnyBlock[], id: string): AnyBlock | null {
+  for (const b of blocks) {
+    if (b.id === id) return b;
+    if (b.children) {
+      const f = findBlock(b.children, id);
+      if (f) return f;
+    }
+  }
+  return null;
+}
+
+/** Le sous-arbre `node` contient-il `id` (lui-même compris) ? Anti-cycle. */
+function subtreeHas(node: AnyBlock, id: string): boolean {
+  if (node.id === id) return true;
+  return (node.children ?? []).some((c) => subtreeHas(c, id));
+}
+
 // ─── Composant ────────────────────────────────────────────────────
 
 interface Props {
@@ -146,6 +164,8 @@ export function MindMapView({ state, initialNoteId, dispatch, onOpenNote }: Prop
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
   const [scale, setScale] = useState(1);
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [dropId, setDropId] = useState<string | null>(null);
 
   const activeId = override && state.notes[override] ? override : initialNoteId;
   const note = activeId ? state.notes[activeId] : null;
@@ -173,6 +193,31 @@ export function MindMapView({ state, initialNoteId, dispatch, onOpenNote }: Prop
     if (editingId === "__root__") dispatch(renameNote(note.id, value));
     else dispatch(updateBlocks(note.id, asBlocks(setText(asAnyBlocks(note.blocks), editingId, value))));
     setEditingId(null);
+  };
+
+  /** Un nœud peut-il accueillir le nœud glissé ? (pas soi-même, pas un descendant). */
+  const canDropOn = (targetId: string): boolean => {
+    if (!note || !dragId || dragId === "__root__" || dragId === targetId) return false;
+    const moved = findBlock(asAnyBlocks(note.blocks), dragId);
+    if (!moved) return false;
+    if (targetId !== "__root__" && subtreeHas(moved, targetId)) return false;
+    return true;
+  };
+
+  /** Reparente le sous-arbre glissé sous la cible (racine = niveau 1). */
+  const reparent = (targetId: string) => {
+    if (!note || !dragId || !canDropOn(targetId)) return;
+    const blocks = asAnyBlocks(note.blocks);
+    const moved = findBlock(blocks, dragId);
+    if (!moved) return;
+    const without = removeBlockById(blocks, dragId);
+    const next = targetId === "__root__" ? [...without, moved] : addChildTo(without, targetId, moved);
+    dispatch(updateBlocks(note.id, asBlocks(next)));
+    setCollapsed((prev) => {
+      const s = new Set(prev);
+      s.delete(targetId);
+      return s;
+    });
   };
 
   const addChild = (parentId: string) => {
@@ -298,10 +343,40 @@ export function MindMapView({ state, initialNoteId, dispatch, onOpenNote }: Prop
               {nodes.map((n) => {
                 const hidden = collapsed.has(n.id);
                 const line = n.text.split("\n")[0];
+                const isDrag = dragId === n.id;
+                const isDrop = dropId === n.id && canDropOn(n.id);
                 return (
                   <div
                     key={n.id}
-                    className="group absolute flex items-center rounded-lg border px-2.5 text-xs shadow-sm"
+                    draggable={editingId !== n.id && n.kind !== "root"}
+                    onDragStart={(e) => {
+                      if (n.kind === "root") {
+                        e.preventDefault();
+                        return;
+                      }
+                      e.dataTransfer.effectAllowed = "move";
+                      setDragId(n.id);
+                    }}
+                    onDragEnd={() => {
+                      setDragId(null);
+                      setDropId(null);
+                    }}
+                    onDragOver={(e) => {
+                      if (canDropOn(n.id)) {
+                        e.preventDefault();
+                        if (dropId !== n.id) setDropId(n.id);
+                      }
+                    }}
+                    onDragLeave={() => setDropId((d) => (d === n.id ? null : d))}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      reparent(n.id);
+                      setDragId(null);
+                      setDropId(null);
+                    }}
+                    className={`group absolute flex items-center rounded-lg border px-2.5 text-xs shadow-sm transition ${
+                      n.kind === "root" ? "" : "cursor-grab active:cursor-grabbing"
+                    } ${isDrag ? "opacity-40" : ""} ${isDrop ? "ring-2 ring-indigo-400 ring-offset-1" : ""}`}
                     style={{
                       left: PAD + n.x,
                       top: PAD + n.y,
