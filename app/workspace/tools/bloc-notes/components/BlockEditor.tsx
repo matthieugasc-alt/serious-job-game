@@ -662,12 +662,12 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
 
 // ─── Menu d'actions d'une ligne (à gauche de chaque bloc) ──────────
 
-const MARK_BTNS: [MarkKey, string, string, string][] = [
-  ["bold", "B", "font-bold", "Gras (⌘B)"],
-  ["italic", "I", "italic", "Italique (⌘I)"],
-  ["underline", "U", "underline", "Souligné (⌘U)"],
-  ["strikethrough", "S", "line-through", "Barré (⌘⇧S)"],
-  ["highlight", "🖍", "", "Surligné (⌘⇧H)"],
+const MARK_BTNS: [MarkKey, string, string, string, string][] = [
+  ["bold", "B", "font-bold", "Gras", "⌘B"],
+  ["italic", "I", "italic", "Italique", "⌘I"],
+  ["underline", "U", "underline", "Souligné", "⌘U"],
+  ["strikethrough", "S", "line-through", "Barré", "⌘⇧S"],
+  ["highlight", "🖍", "", "Surligné", "⌘⇧H"],
 ];
 
 const CONVERT_BTNS: [BlockKind, string][] = [
@@ -712,17 +712,18 @@ function LineMenu({
         {block.kind !== "separator" && (
           <>
             <p className="px-1.5 pb-0.5 pt-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Format</p>
-            <div className="mb-1 flex items-center gap-0.5 px-1">
-              {MARK_BTNS.map(([key, label, cls, title]) => (
+            <div className="mb-1 flex items-stretch gap-0.5 px-1">
+              {MARK_BTNS.map(([key, label, cls, title, shortcut]) => (
                 <button
                   key={key}
                   type="button"
-                  title={title}
+                  title={`${title} (${shortcut})`}
                   aria-pressed={Boolean(block.marks?.[key])}
-                  className={`flex-1 rounded px-1 py-1 text-xs leading-none transition hover:bg-gray-100 ${cls} ${block.marks?.[key] ? "bg-indigo-50 text-indigo-700" : "text-gray-600"}`}
+                  className={`flex flex-1 flex-col items-center gap-0.5 rounded px-1 py-1 transition hover:bg-gray-100 ${block.marks?.[key] ? "bg-indigo-50 text-indigo-700" : "text-gray-600"}`}
                   onClick={() => onToggleMark(key)}
                 >
-                  {label}
+                  <span className={`text-xs leading-none ${cls}`}>{label}</span>
+                  <span className="rounded bg-gray-100 px-1 text-[8px] leading-tight text-gray-400">{shortcut}</span>
                 </button>
               ))}
             </div>
