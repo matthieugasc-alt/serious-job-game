@@ -8,7 +8,7 @@ import type { WorkspaceApp } from "./types";
 import { MessagesApp } from "./messages/MessagesApp";
 import { MailApp } from "./mail/MailApp";
 import { DocumentsApp } from "./documents/DocumentsApp";
-import { NotesApp } from "./notes/NotesApp";
+import { BlocNotesApp } from "../tools/bloc-notes/BlocNotesApp";
 
 export const APP_REGISTRY: Record<string, WorkspaceApp> = {
   messages: {
@@ -32,17 +32,19 @@ export const APP_REGISTRY: Record<string, WorkspaceApp> = {
     badge: (ws) => Object.values(ws.documents).filter((d) => !d.opened).length,
     Component: DocumentsApp,
   },
-  notes: {
-    id: "notes",
-    title: "Notes",
-    icon: "📝",
+  // Bloc-notes Universel (docs/TOOL_BLOC_NOTES.md) — remplace l'ancienne
+  // app "notes" (le Tool notes simple reste pour les steps qui l'épinglent).
+  "bloc-notes": {
+    id: "bloc-notes",
+    title: "Bloc-notes",
+    icon: "📓",
     badge: () => 0,
-    Component: NotesApp,
+    Component: BlocNotesApp,
   },
 };
 
 /** Ordre d'affichage dans le rail latéral. */
-export const APP_ORDER = ["messages", "mail", "documents", "notes"] as const;
+export const APP_ORDER = ["messages", "mail", "documents", "bloc-notes"] as const;
 
 // Le shell n'importe QUE ce module (liste blanche du garde-fou) :
 // on ré-exporte donc ici les tools et les types dont il a besoin.

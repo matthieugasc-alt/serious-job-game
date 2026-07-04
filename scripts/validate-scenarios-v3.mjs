@@ -60,10 +60,12 @@ function collectBindAliases(trigger, into) {
 }
 const ACTION_TYPES = new Set([
   "message_sent", "mail_sent", "mail_opened", "mail_draft_saved",
-  "document_opened", "document_annotated", "tool_state_changed",
+  "document_opened", "document_annotated", "tool_state_changed", "tool_op",
   "contract_signed", "contract_rejected", "deliverable_submitted",
   "notification_read", "manual_trigger", "clock_tick",
 ]);
+/** Tools persistants : jamais réinitialisés par un exit goto (TOOL_BLOC_NOTES.md §1). */
+const NON_RESETTABLE_TOOLS = new Set(["bloc-notes"]);
 const WHEN_TYPES = new Set(["step_start", "delay", "after_action", "on_retry", "on_step_passed"]);
 const EFFECT_TYPES = new Set(["message_received", "mail_received", "notification", "actor_reply"]);
 
@@ -336,6 +338,8 @@ export function validateScenarioV3(scenario, specs = V3_SPECS, tools = V3_TOOLS)
         for (const toolId of exit?.reset?.tools ?? []) {
           if (!toolIds.has(toolId))
             push("BAD_EXIT", step.step_id, `exit "${label}" : reset.tools vise un tool inconnu "${toolId}"`);
+          else if (NON_RESETTABLE_TOOLS.has(toolId))
+            push("TOOL_RESET_FORBIDDEN", step.step_id, `exit "${label}" : reset.tools ne peut pas viser "${toolId}" — ce tool est persistant, jamais réinitialisé par une phase (TOOL_BLOC_NOTES.md §1)`);
         }
 
         // Events de sortie : alias liés par CE trigger disponibles.

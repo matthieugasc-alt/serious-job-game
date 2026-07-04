@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import type { ScenarioV3, WorkspaceAction } from "@/app/lib/engine/workspace";
+import type { ScenarioV3, ToolOpApplier, WorkspaceAction } from "@/app/lib/engine/workspace";
 import {
   cloneSessionV3,
   initializeSessionV3,
@@ -74,7 +74,16 @@ function markCompletedLocally(scenarioId: string): void {
   } catch { /* non bloquant */ }
 }
 
-const OPTS = { specs: MECHANIC_SPECS };
+// Reducers PURS des Tools (tool_op) : câblés depuis le TOOL_REGISTRY et
+// injectés au moteur via ReducerOptions.toolAppliers — le reducer moteur
+// reste pur/testable et 100 % ignorant des ops (TOOL_BLOC_NOTES.md §2).
+const TOOL_APPLIERS: Record<string, ToolOpApplier> = Object.fromEntries(
+  Object.values(TOOL_REGISTRY)
+    .filter((t) => typeof t.applyOp === "function")
+    .map((t) => [t.id, t.applyOp as ToolOpApplier]),
+);
+
+const OPTS = { specs: MECHANIC_SPECS, toolAppliers: TOOL_APPLIERS };
 const CLOCK_MS = 5_000;
 
 export function WorkspacePlayer({ scenario, campaignId }: Props) {

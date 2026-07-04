@@ -91,6 +91,11 @@ export type WorkspaceAction =
   | { type: "document_opened"; document_id: string }
   | { type: "document_annotated"; document_id: string; annotations: Json[] }
   | { type: "tool_state_changed"; tool_id: string; state: Json }
+  /** Extension générique Tools (TOOL_BLOC_NOTES.md §2) : op fine d'un
+   *  Tool, journalisée telle quelle ("note_created", "task_moved"…) puis
+   *  appliquée par le reducer PUR que le Tool enregistre (applyOp). Le
+   *  moteur n'a AUCUNE connaissance des ops. */
+  | { type: "tool_op"; tool_id: string; op: string; payload: JsonObject }
   | { type: "contract_signed"; tool_id: string; terms: JsonObject }
   | { type: "contract_rejected"; tool_id: string; reason?: string }
   | { type: "deliverable_submitted"; tool_id?: string; payload: JsonObject }
@@ -104,6 +109,15 @@ export interface LoggedAction {
   step_id: string;
   action: WorkspaceAction;
 }
+
+/**
+ * Reducer PUR d'un Tool (TOOL_BLOC_NOTES.md §2) — enregistré dans le
+ * TOOL_REGISTRY (Tool.applyOp) et passé au moteur via
+ * ReducerOptions.toolAppliers (même canal injectable que `specs` : le
+ * reducer reste pur et testable). Op inconnue → le Tool rend l'état
+ * inchangé ; tool sans applier → no-op journalisé défensif côté moteur.
+ */
+export type ToolOpApplier = (state: Json, op: string, payload: JsonObject) => Json;
 
 // ─── Triggers (déclarés par le RÉDACTEUR — schéma v3) ─────────────
 

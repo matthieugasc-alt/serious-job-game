@@ -10,9 +10,13 @@ import type { WorkspaceAction, WorkspaceState } from "@/app/lib/engine/workspace
 
 export type WorkspaceDispatch = (action: WorkspaceAction) => void;
 
-/** Contexte de navigation inter-apps (ex : ouvrir Documents sur une PJ). */
+/** Contexte de navigation inter-apps (ex : ouvrir Documents sur une PJ,
+ *  remonter à la source d'une annotation du Bloc-notes). */
 export interface AppNavContext {
   document_id?: string;
+  thread_id?: string;
+  mail_id?: string;
+  note_id?: string;
 }
 
 export interface WorkspaceAppProps {

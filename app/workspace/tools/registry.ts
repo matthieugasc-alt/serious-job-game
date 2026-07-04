@@ -14,12 +14,18 @@ import { editeurSpec } from "./editeur/spec";
 import { EditeurTool } from "./editeur/EditeurTool";
 import { reunionSpec } from "./reunion/spec";
 import { ReunionTool } from "./reunion/ReunionTool";
+import { blocNotesSpec } from "./bloc-notes/spec";
+import { BlocNotesToolPanel } from "./bloc-notes/components/BlocNotesToolPanel";
 
 export const TOOL_REGISTRY: Record<string, WorkspaceTool> = {
   [notesSpec.id]: { ...notesSpec, Component: NotesTool },
   [contratSpec.id]: { ...contratSpec, Component: ContratTool },
   [editeurSpec.id]: { ...editeurSpec, Component: EditeurTool },
   [reunionSpec.id]: { ...reunionSpec, Component: ReunionTool },
+  // Bloc-notes Universel : spec pure + applyOp (tool_op). Épinglé dans
+  // le panneau droit → vue rapide ; l'app complète (BlocNotesApp) vit
+  // dans le dock via APP_REGISTRY.
+  [blocNotesSpec.id]: { ...blocNotesSpec, Component: BlocNotesToolPanel },
 };
 
 export type { WorkspaceTool, ToolComponentProps, WorkspaceDispatch } from "./types";

@@ -20,6 +20,7 @@ import type {
 } from "@/app/lib/engine/workspace";
 import { APP_ORDER, APP_REGISTRY, TOOL_REGISTRY, type AppNavContext } from "./apps/registry";
 import { ChatDock } from "./ChatDock";
+import { QuickPanel } from "./tools/bloc-notes/QuickPanel";
 import { Toasts } from "./Toasts";
 
 interface Props {
@@ -211,6 +212,10 @@ export function WorkspaceShell({
           dispatch={dispatch}
         />
       )}
+
+      {/* QuickPanel bloc-notes : icône flottante + panneau latéral par-dessus
+          l'app active (jamais démontée) — pattern ChatDock. */}
+      <QuickPanel workspace={workspace} activeApp={activeApp} openApp={openApp} dispatch={dispatch} />
 
       {/* Toasts — haut-droite sous le bandeau, jamais pour le contenu déjà visible. */}
       <Toasts

@@ -170,7 +170,30 @@ function fixtures(): ScenarioV3[] {
     }),
   ]);
 
-  return [valid, brokenTriggers, brokenStructure, missingTrigger, validExits, brokenExits];
+  // Bloc-notes universel : tool persistant — reset.tools interdit
+  // (nouveau code TOOL_RESET_FORBIDDEN, TS et mjs).
+  const forbiddenReset = makeScenario([
+    makeStep({
+      step_id: "s1",
+      threads: [{ thread_id: "th_alex", participants: ["alex"] }],
+      completion: {
+        exits: [
+          {
+            id: "rejoue",
+            trigger: { type: "manual", label: "rejouer" },
+            evaluate: false,
+            route: { goto: "s1" },
+            reset: { threads: ["th_alex"], tools: ["bloc-notes"] },
+          },
+          { id: "fin", trigger: { type: "manual", label: "fin" }, evaluate: false, route: "next" },
+        ],
+        on_goto_exhausted: { end: "failure" },
+      },
+    }),
+    makeStep({ step_id: "s2" }),
+  ]);
+
+  return [valid, brokenTriggers, brokenStructure, missingTrigger, validExits, brokenExits, forbiddenReset];
 }
 
 describe("parité TS ↔ mjs", () => {
@@ -183,5 +206,11 @@ describe("parité TS ↔ mjs", () => {
   it("la fixture valide passe des deux côtés", () => {
     expect(tsCodes(fixtures()[0])).toEqual([]);
     expect(mjsCodes(fixtures()[0])).toEqual([]);
+  });
+
+  it("bloc-notes dans reset.tools → TOOL_RESET_FORBIDDEN (TS et mjs)", () => {
+    const forbidden = fixtures()[6];
+    expect(tsCodes(forbidden)).toEqual(["TOOL_RESET_FORBIDDEN"]);
+    expect(mjsCodes(forbidden)).toEqual(["TOOL_RESET_FORBIDDEN"]);
   });
 });

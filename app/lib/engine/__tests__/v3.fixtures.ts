@@ -10,7 +10,7 @@ import type {
 } from "../workspace";
 import type { DirectiveSource } from "../workspaceReducer";
 
-export const FAKE_TOOLS = ["notes", "contrat"];
+export const FAKE_TOOLS = ["notes", "contrat", "bloc-notes"];
 
 export const FAKE_SPECS: Record<string, MechanicSpecManifest> = {
   m_analyse: {

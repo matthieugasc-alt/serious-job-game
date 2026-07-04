@@ -93,6 +93,7 @@ export type {
   WsNotification,
   WorkspaceState,
   WorkspaceAction,
+  ToolOpApplier,
   LoggedAction,
   LoggedExit,
   CompletionTrigger,

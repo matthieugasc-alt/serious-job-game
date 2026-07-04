@@ -43,6 +43,7 @@ describe("WorkspaceShell — garde-fous", () => {
       /^\.\/apps\/registry$/,
       /^\.\/ChatDock$/,
       /^\.\/Toasts$/,
+      /^\.\/tools\/bloc-notes\/QuickPanel$/,
       /^@\/app\/player\/primitives\/ui$/,
       /^@\/app\/lib\/engine\//,
     ];
@@ -76,9 +77,11 @@ describe("APP_REGISTRY — garde-fou", () => {
   it("(c) chaque app a id/title/icon/badge/Component cohérents", () => {
     const ids = Object.keys(APP_REGISTRY);
     expect(ids.length).toBeGreaterThanOrEqual(4);
-    for (const required of ["messages", "mail", "documents", "notes"]) {
+    for (const required of ["messages", "mail", "documents", "bloc-notes"]) {
       expect(ids, `app manquante : ${required}`).toContain(required);
     }
+    // L'ancienne app "notes" est RETIRÉE (le Tool notes simple reste).
+    expect(ids).not.toContain("notes");
     for (const [key, app] of Object.entries(APP_REGISTRY)) {
       expect(app.id).toBe(key);
       expect(app.title.length).toBeGreaterThan(0);
@@ -88,6 +91,59 @@ describe("APP_REGISTRY — garde-fou", () => {
       expect(typeof app.Component).toBe("function");
     }
     expect([...APP_ORDER].sort()).toEqual(ids.sort());
+  });
+});
+
+describe("Bloc-notes Universel — garde-fous du module (TOOL_BLOC_NOTES.md §1)", () => {
+  const moduleDir = join(wsDir, "tools", "bloc-notes");
+
+  /** Tous les .ts/.tsx du module (composants compris), hors tests. */
+  const collect = (dir: string): string[] =>
+    readdirSync(dir).flatMap((entry) => {
+      const full = join(dir, entry);
+      if (statSync(full).isDirectory()) {
+        return entry === "__tests__" ? [] : collect(full);
+      }
+      return /\.(ts|tsx)$/.test(entry) ? [full] : [];
+    });
+
+  it("n'importe RIEN de app/mechanics, scenarios ou sessionV3, et le moteur en types uniquement", () => {
+    for (const file of collect(moduleDir)) {
+      const src = readFileSync(file, "utf8");
+      const imports = [...src.matchAll(/^import\s[\s\S]*?from\s+["']([^"']+)["']/gm)];
+      for (const m of imports) {
+        const spec = m[1];
+        expect(
+          /app\/mechanics|scenarios|sessionV3/.test(spec),
+          `import interdit dans ${file} : "${spec}"`,
+        ).toBe(false);
+        if (/@\/app\/lib\/engine\//.test(spec)) {
+          expect(
+            m[0].startsWith("import type"),
+            `import moteur NON-type dans ${file} : "${spec}"`,
+          ).toBe(true);
+        }
+      }
+    }
+  });
+
+  it("les apps hôtes n'importent que AnnotateButton (jamais api/model/spec du carnet)", () => {
+    const hosts = [
+      join(wsDir, "apps", "messages", "MessagesApp.tsx"),
+      join(wsDir, "apps", "messages", "ThreadConversation.tsx"),
+      join(wsDir, "apps", "mail", "MailApp.tsx"),
+      join(wsDir, "apps", "documents", "DocumentsApp.tsx"),
+    ];
+    for (const file of hosts) {
+      const src = readFileSync(file, "utf8");
+      const carnet = [...src.matchAll(/from\s+["']([^"']*bloc-notes[^"']*)["']/g)].map((m) => m[1]);
+      for (const spec of carnet) {
+        expect(
+          /bloc-notes\/AnnotateButton$/.test(spec),
+          `l'app hôte ${file} importe "${spec}" — seul AnnotateButton est permis`,
+        ).toBe(true);
+      }
+    }
   });
 });
 

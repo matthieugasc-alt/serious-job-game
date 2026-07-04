@@ -7,7 +7,7 @@
  * Envoyer un message dispatch `message_sent` — le moteur fait le reste.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { ActorDef } from "@/app/lib/engine/mechanics";
 import type { Thread } from "@/app/lib/engine/workspace";
 import { ActorAvatar } from "@/app/workspace/primitives/ui";
@@ -19,10 +19,16 @@ function lastAt(t: Thread): number {
   return t.messages[t.messages.length - 1]?.at ?? 0;
 }
 
-export function MessagesApp({ workspace, actors, dispatch, busyThreads }: WorkspaceAppProps) {
+export function MessagesApp({ workspace, actors, dispatch, busyThreads, context }: WorkspaceAppProps) {
   const threads = Object.values(workspace.threads).sort((a, b) => lastAt(b) - lastAt(a));
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const selected = threads.find((t) => t.thread_id === selectedId) ?? threads[0] ?? null;
+
+  // Navigation inter-apps : « remonter à la source » d'une annotation.
+  const requested = context?.thread_id;
+  useEffect(() => {
+    if (requested) setSelectedId(requested);
+  }, [requested]);
 
   const actorOf = (id: string): ActorDef | undefined => actors.find((a) => a.actor_id === id);
   const titleOf = (t: Thread) =>

@@ -8,7 +8,7 @@
  * bulles arrondies, zone de saisie propre.
  */
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { TranscriptEvent, ActorDef } from "@/app/lib/engine/mechanics";
 import { ActorAvatar } from "./ui";
 
@@ -20,6 +20,9 @@ interface Props {
   placeholder?: string;
   /** Canaux affichés (défaut : chat + system). */
   channels?: TranscriptEvent["channel"][];
+  /** Slot optionnel rendu à côté de chaque bulle (les lignes sont des
+   *  `group` : visible au survol) — ex : bouton d'annotation Messages. */
+  bubbleExtra?: (e: TranscriptEvent, index: number) => ReactNode;
 }
 
 export function ChatPanel({
@@ -29,6 +32,7 @@ export function ChatPanel({
   busy,
   placeholder,
   channels = ["chat", "system"],
+  bubbleExtra,
 }: Props) {
   const [draft, setDraft] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -65,7 +69,8 @@ export function ChatPanel({
           }
           if (e.role === "player") {
             return (
-              <div key={i} className="flex justify-end">
+              <div key={i} className="group flex items-end justify-end gap-1.5">
+                {bubbleExtra?.(e, i)}
                 <div className="max-w-[78%]">
                   <p className="mb-1 pr-1 text-right text-[11px] font-medium text-gray-400">
                     Vous
@@ -79,7 +84,7 @@ export function ChatPanel({
           }
           // Message acteur : avatar initiales colorées + bulle blanche.
           return (
-            <div key={i} className="flex items-end gap-2">
+            <div key={i} className="group flex items-end gap-2">
               <ActorAvatar
                 actorId={e.actor_id ?? "system"}
                 name={nameOf(e)}
@@ -93,6 +98,7 @@ export function ChatPanel({
                   <p className="whitespace-pre-wrap leading-relaxed">{e.content}</p>
                 </div>
               </div>
+              {bubbleExtra?.(e, i)}
             </div>
           );
         })}

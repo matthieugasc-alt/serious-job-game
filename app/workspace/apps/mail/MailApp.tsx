@@ -12,6 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import type { WsMail } from "@/app/lib/engine/workspace";
 import { Markdown } from "@/app/workspace/primitives/Markdown";
 import { ActorAvatar, PrimaryButton, SecondaryButton } from "@/app/workspace/primitives/ui";
+import { AnnotateButton, SelectionAnnotate } from "@/app/workspace/tools/bloc-notes/AnnotateButton";
 import { fmtWhen } from "../format";
 import type { WorkspaceAppProps } from "../types";
 
@@ -23,10 +24,11 @@ type Draft = { to: string[]; subject: string; body: string; attachments: string[
 
 const EMPTY_DRAFT: Draft = { to: [], subject: "", body: "", attachments: [] };
 
-export function MailApp({ workspace, actors, documents, dispatch, openApp }: WorkspaceAppProps) {
+export function MailApp({ workspace, actors, documents, dispatch, openApp, context }: WorkspaceAppProps) {
   const [tab, setTab] = useState<Tab>("inbox");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [composing, setComposing] = useState(false);
+  const bodyRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState<Draft>(() => {
     const saved = workspace.mailbox.drafts[DRAFT_ID];
     return saved ? { ...EMPTY_DRAFT, ...saved, attachments: [] } : EMPTY_DRAFT;
@@ -47,6 +49,22 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp }: Wor
     setComposing(false);
     if (!m.read) dispatch({ type: "mail_opened", mail_id: m.mail_id });
   };
+
+  // Navigation inter-apps : « remonter à la source » d'une annotation.
+  const requestedMail = context?.mail_id;
+  useEffect(() => {
+    if (!requestedMail) return;
+    const inInbox = workspace.mailbox.inbox.find((m) => m.mail_id === requestedMail);
+    const m = inInbox ?? workspace.mailbox.sent.find((x) => x.mail_id === requestedMail);
+    if (!m) return;
+    setTab(inInbox ? "inbox" : "sent");
+    openMail(m);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [requestedMail]);
+
+  /** SourceRef mail complète (objet, expéditeur, heure) pour le Bloc-notes. */
+  const mailSource = (m: WsMail, excerpt: string) =>
+    ({ kind: "mail", mail_id: m.mail_id, subject: m.subject, from: m.from, at: m.at, excerpt }) as const;
 
   const editDraft = (patch: Partial<Draft>) => {
     setDraft((prev) => {
@@ -245,6 +263,13 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp }: Wor
                     À : {selected.to.map(nameOf).join(", ")} · {fmtWhen(selected.at)}
                   </p>
                 </div>
+                <AnnotateButton
+                  source={mailSource(selected, selected.subject)}
+                  dispatch={dispatch}
+                  side="below"
+                  align="right"
+                  title="Annoter ce mail dans le bloc-notes"
+                />
                 <SecondaryButton className="!px-3 !py-1.5 !text-xs" onClick={() => reply(selected)}>
                   ↩ Répondre
                 </SecondaryButton>
@@ -267,10 +292,16 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp }: Wor
                 </div>
               )}
             </header>
-            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+            {/* Corps du mail : icône 📓 flottante sur sélection de texte. */}
+            <div ref={bodyRef} className="relative min-h-0 flex-1 overflow-y-auto px-5 py-4">
               <div className="mx-auto w-full max-w-[72ch]">
                 <Markdown>{selected.body}</Markdown>
               </div>
+              <SelectionAnnotate
+                containerRef={bodyRef}
+                dispatch={dispatch}
+                makeSource={(excerpt) => mailSource(selected, excerpt)}
+              />
             </div>
           </article>
         ) : (

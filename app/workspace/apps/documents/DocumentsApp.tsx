@@ -10,6 +10,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { DocumentDef } from "@/app/lib/engine/mechanics";
 import { DocumentViewer } from "@/app/workspace/primitives/DocumentViewer";
+import { SelectionAnnotate } from "@/app/workspace/tools/bloc-notes/AnnotateButton";
 import type { WorkspaceAppProps } from "../types";
 
 /** Icône par type : 📊 données, 📄 texte — même heuristique que le viewer. */
@@ -23,6 +24,7 @@ function docIcon(doc: DocumentDef): string {
 export function DocumentsApp({ workspace, documents, dispatch, context }: WorkspaceAppProps) {
   const [openId, setOpenId] = useState<string | null>(null);
   const handledContext = useRef<string | null>(null);
+  const readerRef = useRef<HTMLDivElement>(null);
 
   const openDoc = (id: string) => {
     setOpenId(id);
@@ -53,8 +55,14 @@ export function DocumentsApp({ workspace, documents, dispatch, context }: Worksp
             ← Tous les documents
           </button>
         </div>
-        <div className="min-h-0 flex-1">
+        {/* Lecteur : icône 📓 flottante sur sélection de texte (Bloc-notes). */}
+        <div ref={readerRef} className="relative min-h-0 flex-1">
           <DocumentViewer key={open.id} documents={[open]} />
+          <SelectionAnnotate
+            containerRef={readerRef}
+            dispatch={dispatch}
+            makeSource={(excerpt) => ({ kind: "document", document_id: open.id, excerpt })}
+          />
         </div>
       </div>
     );

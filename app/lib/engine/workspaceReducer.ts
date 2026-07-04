@@ -29,6 +29,7 @@ import type {
   PendingEffect,
   StepExit,
   StepInvocationV3,
+  ToolOpApplier,
   WorkspaceAction,
   WorkspaceState,
 } from "./workspace";
@@ -59,6 +60,13 @@ export interface ReducerOptions {
   /** Registre des mécaniques headless, par id — sert UNIQUEMENT à la
    *  directive de cadrage des réponses d'acteur. */
   specs?: Record<string, DirectiveSource>;
+  /**
+   * Reducers PURS des Tools, par tool_id (TOOL_BLOC_NOTES.md §2) —
+   * appliqués aux actions `tool_op` APRÈS journalisation. Injectés par
+   * l'orchestrateur (WorkspacePlayer, depuis le TOOL_REGISTRY) via le
+   * même canal que `specs` : le moteur reste 100 % ignorant des ops.
+   */
+  toolAppliers?: Record<string, ToolOpApplier>;
 }
 
 /** Actions « significatives » : après elles, si le step dépend de
@@ -142,7 +150,7 @@ export function applyWorkspaceAction(
   });
 
   // (b) Application au WorkspaceState.
-  applyActionToWorkspace(session.workspace, action, now);
+  applyActionToWorkspace(session.workspace, action, now, opts.toolAppliers);
 
   if (!step) return { effects: [], completionFired: false };
 
@@ -624,6 +632,7 @@ function applyActionToWorkspace(
   ws: WorkspaceState,
   action: WorkspaceAction,
   now: number,
+  toolAppliers?: Record<string, ToolOpApplier>,
 ): void {
   switch (action.type) {
     case "message_sent": {
@@ -668,6 +677,21 @@ function applyActionToWorkspace(
     case "tool_state_changed":
       ws.toolStates[action.tool_id] = action.state;
       break;
+    case "tool_op": {
+      // Extension générique Tools (TOOL_BLOC_NOTES.md §2) : l'op est déjà
+      // journalisée (audit fin) ; on délègue au reducer PUR enregistré
+      // par le Tool. Tool sans applier / applier cassé → no-op défensif
+      // (l'op reste dans le journal). Le moteur ne connaît AUCUNE op.
+      const applier = toolAppliers?.[action.tool_id];
+      if (!applier) break;
+      try {
+        const next = applier(ws.toolStates[action.tool_id] ?? null, action.op, action.payload);
+        if (next !== undefined) ws.toolStates[action.tool_id] = next;
+      } catch {
+        // défensif : un applier qui throw ne bloque jamais le dispatch
+      }
+      break;
+    }
     case "notification_read": {
       const notif = ws.notifications.find((n) => n.notif_id === action.notif_id);
       if (notif) notif.read = true;

@@ -10,6 +10,7 @@
 import type { ActorDef, TranscriptEvent } from "@/app/lib/engine/mechanics";
 import type { Thread, WorkspaceAction } from "@/app/lib/engine/workspace";
 import { ChatPanel } from "@/app/workspace/primitives/ChatPanel";
+import { AnnotateButton } from "@/app/workspace/tools/bloc-notes/AnnotateButton";
 
 /** Projection d'un fil workspace vers le transcript du ChatPanel. */
 export function threadToTranscript(t: Thread): TranscriptEvent[] {
@@ -51,6 +52,25 @@ export function ThreadConversation({
       placeholder={placeholder ?? "Écrivez votre message…"}
       onSend={(text) =>
         dispatch({ type: "message_sent", thread_id: thread.thread_id, content: text })
+      }
+      // Icône 📓 au survol de chaque bulle → annotation vers le Bloc-notes
+      // (SourceRef message complète : fil, auteur, heure, extrait).
+      bubbleExtra={(e) =>
+        e.role === "system" ? null : (
+          <AnnotateButton
+            source={{
+              kind: "message",
+              thread_id: thread.thread_id,
+              actor_id: e.actor_id,
+              at: e.at,
+              excerpt: e.content,
+            }}
+            dispatch={dispatch}
+            side="above"
+            align="right"
+            className="mb-2 opacity-0 group-hover:opacity-100"
+          />
+        )
       }
     />
   );

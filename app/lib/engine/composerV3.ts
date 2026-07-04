@@ -63,7 +63,10 @@ export interface ComposerIssueV3 {
     // Chantiers A/B/C
     | "BAD_EXIT"
     | "UNKNOWN_ENDING_REF"
-    | "BAD_SCORING";
+    | "BAD_SCORING"
+    // Bloc-notes universel : certains tools ne sont JAMAIS réinitialisés
+    // par une phase (TOOL_BLOC_NOTES.md §1) — interdits dans reset.tools.
+    | "TOOL_RESET_FORBIDDEN";
   stepId?: string;
   message: string;
 }
@@ -97,6 +100,7 @@ const ACTION_TYPES = new Set<WorkspaceAction["type"]>([
   "document_opened",
   "document_annotated",
   "tool_state_changed",
+  "tool_op",
   "contract_signed",
   "contract_rejected",
   "deliverable_submitted",
@@ -104,6 +108,10 @@ const ACTION_TYPES = new Set<WorkspaceAction["type"]>([
   "manual_trigger",
   "clock_tick",
 ]);
+
+/** Tools au carnet PERSISTANT : jamais réinitialisés par un exit goto
+ *  (TOOL_BLOC_NOTES.md §1 — le carnet n'est jamais reset par une phase). */
+const NON_RESETTABLE_TOOLS = new Set<string>(["bloc-notes"]);
 
 const WHEN_TYPES = new Set<string>([
   "step_start",
@@ -639,6 +647,12 @@ function validateExits(
     for (const toolId of exit?.reset?.tools ?? []) {
       if (!toolIds.has(toolId)) {
         push("BAD_EXIT", step.step_id, `exit "${label}" : reset.tools vise un tool inconnu "${toolId}"`);
+      } else if (NON_RESETTABLE_TOOLS.has(toolId)) {
+        push(
+          "TOOL_RESET_FORBIDDEN",
+          step.step_id,
+          `exit "${label}" : reset.tools ne peut pas viser "${toolId}" — ce tool est persistant, jamais réinitialisé par une phase (TOOL_BLOC_NOTES.md §1)`,
+        );
       }
     }
 

@@ -6,7 +6,7 @@
 
 import type { FC } from "react";
 import type { Json, JsonObject } from "@/app/lib/engine/mechanics";
-import type { WorkspaceAction } from "@/app/lib/engine/workspace";
+import type { ToolOpApplier, WorkspaceAction } from "@/app/lib/engine/workspace";
 
 export type WorkspaceDispatch = (action: WorkspaceAction) => void;
 
@@ -24,4 +24,12 @@ export interface WorkspaceTool {
   initialState(config: JsonObject): Json;
   /** Résumé lisible par l'observateur IA — fonction PURE (spec.ts, sans React). */
   describeForObservation(state: Json): string;
+  /**
+   * Reducer PUR des actions `tool_op` du tool (TOOL_BLOC_NOTES.md §2) —
+   * optionnel : les tools simples restent sur `tool_state_changed`.
+   * Exporté par le spec.ts du tool (node-safe, comme
+   * describeForObservation) et câblé au moteur par le WorkspacePlayer
+   * via ReducerOptions.toolAppliers. Op inconnue → état inchangé.
+   */
+  applyOp?: ToolOpApplier;
 }
