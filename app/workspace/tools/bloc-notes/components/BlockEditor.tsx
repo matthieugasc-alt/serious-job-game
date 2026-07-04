@@ -571,14 +571,30 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
                   onKeyDown={(e) => {
                     const ta = e.currentTarget;
                     const meta = e.metaKey || e.ctrlKey;
-                    if (meta && (e.key === "b" || e.key === "B")) {
+                    const key = e.key.toLowerCase();
+                    if (meta && !e.shiftKey && key === "b") {
                       e.preventDefault();
                       toggleMark(b.id, "bold");
                       return;
                     }
-                    if (meta && (e.key === "i" || e.key === "I")) {
+                    if (meta && !e.shiftKey && key === "i") {
                       e.preventDefault();
                       toggleMark(b.id, "italic");
+                      return;
+                    }
+                    if (meta && !e.shiftKey && key === "u") {
+                      e.preventDefault();
+                      toggleMark(b.id, "underline");
+                      return;
+                    }
+                    if (meta && e.shiftKey && key === "s") {
+                      e.preventDefault();
+                      toggleMark(b.id, "strikethrough");
+                      return;
+                    }
+                    if (meta && e.shiftKey && key === "h") {
+                      e.preventDefault();
+                      toggleMark(b.id, "highlight");
                       return;
                     }
                     if (e.key === "Enter" && !e.shiftKey) {
@@ -647,11 +663,11 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
 // ─── Menu d'actions d'une ligne (à gauche de chaque bloc) ──────────
 
 const MARK_BTNS: [MarkKey, string, string, string][] = [
-  ["bold", "B", "font-bold", "Gras"],
-  ["italic", "I", "italic", "Italique"],
-  ["underline", "U", "underline", "Souligné"],
-  ["strikethrough", "S", "line-through", "Barré"],
-  ["highlight", "🖍", "", "Surligné"],
+  ["bold", "B", "font-bold", "Gras (⌘B)"],
+  ["italic", "I", "italic", "Italique (⌘I)"],
+  ["underline", "U", "underline", "Souligné (⌘U)"],
+  ["strikethrough", "S", "line-through", "Barré (⌘⇧S)"],
+  ["highlight", "🖍", "", "Surligné (⌘⇧H)"],
 ];
 
 const CONVERT_BTNS: [BlockKind, string][] = [
