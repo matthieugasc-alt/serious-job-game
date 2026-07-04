@@ -9,6 +9,7 @@ import { MessagesApp } from "./messages/MessagesApp";
 import { MailApp } from "./mail/MailApp";
 import { DocumentsApp } from "./documents/DocumentsApp";
 import { BlocNotesApp } from "../tools/bloc-notes/BlocNotesApp";
+import { DecisionEngineApp } from "../tools/decision-engine/DecisionEngineApp";
 
 export const APP_REGISTRY: Record<string, WorkspaceApp> = {
   messages: {
@@ -41,10 +42,19 @@ export const APP_REGISTRY: Record<string, WorkspaceApp> = {
     badge: () => 0,
     Component: BlocNotesApp,
   },
+  // Decision Engine Universel (docs/TOOL_DECISION_ENGINE.md) — app dédiée,
+  // disponible selon config du scénario/mécanique. Héberge DecisionEngineApp.
+  decision: {
+    id: "decision",
+    title: "Decision Engine",
+    icon: "🧭",
+    badge: () => 0,
+    Component: DecisionEngineApp,
+  },
 };
 
 /** Ordre d'affichage dans le rail latéral. */
-export const APP_ORDER = ["messages", "mail", "documents", "bloc-notes"] as const;
+export const APP_ORDER = ["messages", "mail", "documents", "bloc-notes", "decision"] as const;
 
 // Le shell n'importe QUE ce module (liste blanche du garde-fou) :
 // on ré-exporte donc ici les tools et les types dont il a besoin.

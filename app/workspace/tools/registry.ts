@@ -18,6 +18,8 @@ import { blocNotesSpec } from "./bloc-notes/spec";
 import { BlocNotesToolPanel } from "./bloc-notes/components/BlocNotesToolPanel";
 import { bibliothequeSpec } from "./bibliotheque/spec";
 import { BibliothequeToolPanel } from "./bibliotheque/components/BibliothequeToolPanel";
+import { decisionEngineSpec } from "./decision-engine/spec";
+import { DecisionEngineToolPanel } from "./decision-engine/components/DecisionEngineToolPanel";
 
 export const TOOL_REGISTRY: Record<string, WorkspaceTool> = {
   [notesSpec.id]: { ...notesSpec, Component: NotesTool },
@@ -32,6 +34,10 @@ export const TOOL_REGISTRY: Record<string, WorkspaceTool> = {
   // spec pure + applyOp (tool_op), jamais réinitialisé. Panneau = aperçu ;
   // l'app complète (Lot 2) sera hébergée par l'app documents du dock.
   [bibliothequeSpec.id]: { ...bibliothequeSpec, Component: BibliothequeToolPanel },
+  // Decision Engine Universel (docs/TOOL_DECISION_ENGINE.md) : spec pure +
+  // applyOp (tool_op), jamais réinitialisé. Panneau = aperçu ; l'app
+  // complète (DecisionEngineApp) vit dans le dock via APP_REGISTRY.
+  [decisionEngineSpec.id]: { ...decisionEngineSpec, Component: DecisionEngineToolPanel },
 };
 
 export type { WorkspaceTool, ToolComponentProps, WorkspaceDispatch } from "./types";

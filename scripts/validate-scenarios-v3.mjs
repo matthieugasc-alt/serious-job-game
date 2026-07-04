@@ -65,7 +65,7 @@ const ACTION_TYPES = new Set([
   "notification_read", "manual_trigger", "clock_tick",
 ]);
 /** Tools persistants : jamais réinitialisés par un exit goto (TOOL_BLOC_NOTES.md §1). */
-const NON_RESETTABLE_TOOLS = new Set(["bloc-notes", "bibliotheque"]);
+const NON_RESETTABLE_TOOLS = new Set(["bloc-notes", "bibliotheque", "decision-engine"]);
 const WHEN_TYPES = new Set(["step_start", "delay", "after_action", "on_retry", "on_step_passed"]);
 const EFFECT_TYPES = new Set(["message_received", "mail_received", "notification", "actor_reply"]);
 
