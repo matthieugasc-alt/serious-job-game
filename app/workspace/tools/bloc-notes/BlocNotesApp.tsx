@@ -32,18 +32,18 @@ import {
 
 const RENAME_DEBOUNCE_MS = 500;
 
-type Tab = "notes" | "kanban" | "base" | "mind";
+type Tab = "notes" | "base";
+type TaskView = "bdd" | "kanban";
 
 const TABS: [Tab, string][] = [
   ["notes", "Notes"],
   ["base", "Tâches"],
-  ["mind", "Mind map"],
-  ["kanban", "Kanban"],
 ];
 
 export function BlocNotesApp({ workspace, dispatch, openApp, context }: WorkspaceAppProps) {
   const state = notebookStateOf(workspace);
   const [tab, setTab] = useState<Tab>("notes");
+  const [taskView, setTaskView] = useState<TaskView>("bdd");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   // Navigation entrante (QuickPanel, Base de données) : ouvrir une note.
@@ -122,26 +122,38 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
         ))}
       </header>
 
-      {tab === "kanban" && (
-        <div className="min-h-0 flex-1">
-          <KanbanView state={state} dispatch={dispatch} />
-        </div>
-      )}
-
       {tab === "base" && (
-        <div className="min-h-0 flex-1">
-          <DatabaseView state={state} openApp={openApp} onOpenNote={openNote} defaultFilter="tache" />
-        </div>
-      )}
-
-      {tab === "mind" && (
-        <div className="min-h-0 flex-1">
-          <MindMapView
-            state={state}
-            initialNoteId={selected?.id ?? null}
-            dispatch={dispatch}
-            onOpenNote={openNote}
-          />
+        <div className="flex min-h-0 flex-1 flex-col">
+          {/* Sous-vue : base de données ⟷ kanban. */}
+          <div className="flex shrink-0 items-center gap-1 border-b border-gray-100 bg-white px-3 py-1.5">
+            {(
+              [
+                ["bdd", "🗂 Base de données"],
+                ["kanban", "📋 Kanban"],
+              ] as [TaskView, string][]
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={taskView === v}
+                className={`rounded-md px-2.5 py-1 text-[11px] font-semibold transition ${
+                  taskView === v
+                    ? "bg-indigo-50 text-indigo-700"
+                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"
+                }`}
+                onClick={() => setTaskView(v)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <div className="min-h-0 flex-1">
+            {taskView === "bdd" ? (
+              <DatabaseView state={state} openApp={openApp} onOpenNote={openNote} defaultFilter="tache" />
+            ) : (
+              <KanbanView state={state} dispatch={dispatch} />
+            )}
+          </div>
         </div>
       )}
 
@@ -196,6 +208,7 @@ function NoteEditorPane({
 }) {
   const [title, setTitle] = useState(note.title);
   const [tagDraft, setTagDraft] = useState("");
+  const [view, setView] = useState<"edit" | "mind">("edit");
   const renameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(
     () => () => {
@@ -230,6 +243,27 @@ function NoteEditorPane({
             value={title}
             onChange={(e) => editTitle(e.target.value)}
           />
+          {/* Bascule éditeur ⟷ mind map (même note, mêmes blocs). */}
+          <div className="mt-1 flex shrink-0 items-center gap-0.5 rounded-lg bg-gray-100 p-0.5">
+            {(
+              [
+                ["edit", "✎ Éditer"],
+                ["mind", "🧠 Mind map"],
+              ] as ["edit" | "mind", string][]
+            ).map(([v, label]) => (
+              <button
+                key={v}
+                type="button"
+                aria-pressed={view === v}
+                className={`rounded-md px-2 py-1 text-[11px] font-semibold transition ${
+                  view === v ? "bg-white text-indigo-700 shadow-sm" : "text-gray-500 hover:text-gray-800"
+                }`}
+                onClick={() => setView(v)}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
           <button
             type="button"
             title="Supprimer la note"
@@ -281,7 +315,11 @@ function NoteEditorPane({
       </div>
 
       <div className="min-h-0 flex-1 px-5">
-        <BlockEditor noteId={note.id} blocks={note.blocks} dispatch={dispatch} />
+        {view === "edit" ? (
+          <BlockEditor noteId={note.id} blocks={note.blocks} dispatch={dispatch} />
+        ) : (
+          <MindMapView note={note} dispatch={dispatch} />
+        )}
       </div>
     </section>
   );

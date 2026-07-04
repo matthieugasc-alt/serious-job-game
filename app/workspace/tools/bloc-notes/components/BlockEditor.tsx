@@ -145,9 +145,19 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
   // vers une AUTRE note) : si aucune frappe n'est en attente et que l'état
   // stocké diffère de l'arbre local, on resynchronise. Le bloc déplacé
   // disparaît alors IMMÉDIATEMENT de la note source (fin de la duplication
-  // au re-drag). Pendant la frappe (débounce actif), l'arbre local prime.
+  // au re-drag).
+  // GARDE-FOUS anti-écrasement de la saisie : `normalizeNotebookState`
+  // recrée un tableau `blocks` neuf à CHAQUE rendu parent (tick d'horloge,
+  // renommage du titre…), donc cet effet se redéclenche souvent. On ne
+  // resynchronise JAMAIS pendant que l'utilisateur édite cette note :
+  //   1) frappe en attente (débounce actif), ou
+  //   2) un textarea de cette note a le focus (édition en cours).
   useEffect(() => {
     if (timer.current) return;
+    const active = document.activeElement;
+    for (const el of areaRefs.current.values()) {
+      if (el === active) return; // édition en cours → l'arbre local prime
+    }
     const incoming = ensureOne(asAnyBlocks(blocks));
     if (stripIds(incoming) !== stripIds(treeRef.current)) {
       treeRef.current = incoming;

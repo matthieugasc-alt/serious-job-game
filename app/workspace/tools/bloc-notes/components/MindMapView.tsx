@@ -15,7 +15,7 @@
 import { useMemo, useState } from "react";
 import type { WorkspaceAppProps } from "../../../apps/types";
 import { renameNote, updateBlocks } from "../api";
-import type { NotebookState } from "../spec";
+import type { Note } from "../spec";
 import { asAnyBlocks, asBlocks, newBlock, removeBlockById, type AnyBlock, type BlockKind } from "./uiHelpers";
 
 const COL_W = 210;
@@ -193,14 +193,12 @@ function subtreeHas(node: AnyBlock, id: string): boolean {
 // ─── Composant ────────────────────────────────────────────────────
 
 interface Props {
-  state: NotebookState;
-  initialNoteId: string | null;
+  /** La note courante — la mind map EST la structure de ses blocs. */
+  note: Note;
   dispatch: WorkspaceAppProps["dispatch"];
-  onOpenNote: (noteId: string) => void;
 }
 
-export function MindMapView({ state, initialNoteId, dispatch, onOpenNote }: Props) {
-  const [override, setOverride] = useState<string | null>(null);
+export function MindMapView({ note, dispatch }: Props) {
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -208,17 +206,11 @@ export function MindMapView({ state, initialNoteId, dispatch, onOpenNote }: Prop
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropId, setDropId] = useState<string | null>(null);
 
-  const activeId = override && state.notes[override] ? override : initialNoteId;
-  const note = activeId ? state.notes[activeId] : null;
-
   const { root, size } = useMemo(() => {
-    if (!note) return { root: null, size: { w: 0, h: 0 } };
     const tree = buildTree(note.title, asAnyBlocks(note.blocks));
     const s = layout(tree, collapsed);
     return { root: tree, size: s };
   }, [note, collapsed]);
-
-  const notes = state.order.map((id) => state.notes[id]).filter(Boolean);
 
   const toggleCollapse = (id: string) =>
     setCollapsed((prev) => {
@@ -292,32 +284,13 @@ export function MindMapView({ state, initialNoteId, dispatch, onOpenNote }: Prop
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-gray-50/60">
-      {/* Barre d'outils : sélecteur de note + zoom. */}
+      {/* Barre d'outils : titre + zoom (la note est déjà le contexte). */}
       <div className="flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-4 py-2.5">
         <span aria-hidden className="text-base leading-none">🧠</span>
-        <select
-          aria-label="Note à cartographier"
-          className="max-w-[240px] rounded-lg border border-gray-200 bg-gray-50 px-2.5 py-1.5 text-xs text-gray-900 focus:border-indigo-300 focus:bg-white focus:outline-none"
-          value={activeId ?? ""}
-          onChange={(e) => setOverride(e.target.value || null)}
-        >
-          {notes.length === 0 && <option value="">Aucune note</option>}
-          {notes.map((n) => (
-            <option key={n.id} value={n.id}>
-              {n.title.trim() || "Sans titre"}
-            </option>
-          ))}
-        </select>
-        {note && (
-          <button
-            type="button"
-            className="rounded-lg px-2 py-1 text-[11px] font-semibold text-gray-500 transition hover:bg-gray-50 hover:text-indigo-700"
-            title="Ouvrir dans l'éditeur"
-            onClick={() => onOpenNote(note.id)}
-          >
-            ✎ Éditer
-          </button>
-        )}
+        <span className="truncate text-xs font-semibold text-gray-600">
+          {note.title.trim() || "Sans titre"}
+        </span>
+        <span className="text-[11px] text-gray-400">— glisser pour réorganiser, double-clic pour éditer</span>
         <div className="ml-auto flex items-center gap-1">
           <button
             type="button"
@@ -342,11 +315,7 @@ export function MindMapView({ state, initialNoteId, dispatch, onOpenNote }: Prop
       </div>
 
       {/* Carte. */}
-      {!note ? (
-        <div className="flex flex-1 items-center justify-center text-sm text-gray-400">
-          Sélectionnez une note à cartographier.
-        </div>
-      ) : (
+      {(
         <div className="min-h-0 flex-1 overflow-auto p-2">
           <div
             className="relative"
