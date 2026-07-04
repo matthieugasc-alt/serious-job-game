@@ -169,7 +169,7 @@ describe("applyLibraryOp — liens doc↔doc (bidirectionnels)", () => {
   });
 
   it("supprimer une entrée retire les liens entrants et ferme sa fenêtre", () => {
-    let s = run(boot(), [
+    const s = run(boot(), [
       ["entries_linked", { a: "e1", b: "e2" }],
       ["entry_opened", { entry_id: "e2", at: T }],
       ["entry_removed", { entry_id: "e2" }],
