@@ -23,7 +23,13 @@ export type NoteId = string;
 export type TaskId = string;
 export type BlockId = string;
 
-export type BlockMarks = { bold?: boolean; italic?: boolean; highlight?: string };
+export type BlockMarks = {
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
+  highlight?: string;
+};
 
 export type Block =
   | {

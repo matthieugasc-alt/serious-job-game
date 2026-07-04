@@ -61,6 +61,8 @@ export type BlockKind =
 export interface BlockMarks {
   bold?: boolean;
   italic?: boolean;
+  underline?: boolean;
+  strikethrough?: boolean;
   highlight?: string;
 }
 

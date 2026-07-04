@@ -14,15 +14,19 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { WorkspaceAction } from "@/app/lib/engine/workspace";
-import { toggleTodo, updateBlocks } from "../api";
+import { createTask, toggleTodo, updateBlocks } from "../api";
+import { createDecision } from "@/app/workspace/tools/decision-engine/api";
 import type { Block } from "../spec";
 import {
   asAnyBlocks,
   asBlocks,
   newBlock,
+  uid,
   type AnyBlock,
   type BlockKind,
 } from "./uiHelpers";
+
+type MarkKey = "bold" | "italic" | "underline" | "strikethrough" | "highlight";
 
 const TYPING_DEBOUNCE_MS = 500;
 
@@ -119,6 +123,7 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
   const pendingFocus = useRef<{ id: string; caret: number } | null>(null);
   const [focusedId, setFocusedId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ id: string; before: boolean } | null>(null);
+  const [menuFor, setMenuFor] = useState<string | null>(null);
 
   // Changement de note → repartir de l'état stocké, purger le débounce.
   useEffect(() => {
@@ -288,7 +293,7 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
     focusBlock(id, caret);
   };
 
-  const toggleMark = (id: string, key: "bold" | "italic" | "highlight") => {
+  const toggleMark = (id: string, key: MarkKey) => {
     const next = clone(treeRef.current);
     const path = findPath(next, id);
     if (!path) return;
@@ -304,6 +309,66 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
     b.marks = Object.keys(marks).length > 0 ? marks : undefined;
     commit(next, true);
     focusBlock(id, areaRefs.current.get(id)?.selectionStart ?? b.text.length);
+  };
+
+  // ── Transformer / manipuler une ligne (via le menu de ligne) ──────
+  const convertKind = (id: string, kind: BlockKind) => {
+    const next = clone(treeRef.current);
+    const path = findPath(next, id);
+    if (!path) return;
+    const b = getAt(next, path);
+    b.kind = kind;
+    if (kind === "todo") b.checked = false;
+    else delete b.checked;
+    if (kind === "separator") b.text = "";
+    commit(next, true);
+    setMenuFor(null);
+  };
+
+  const regenIds = (b: AnyBlock): AnyBlock => ({
+    ...b,
+    id: uid("blk"),
+    children: b.children ? b.children.map(regenIds) : undefined,
+  });
+
+  const duplicateBlock = (id: string) => {
+    const next = clone(treeRef.current);
+    const path = findPath(next, id);
+    if (!path) return;
+    insertAt(next, siblingAfter(path), regenIds(getAt(next, path)));
+    commit(next, true);
+    setMenuFor(null);
+  };
+
+  const moveLine = (id: string, dir: -1 | 1) => {
+    const next = clone(treeRef.current);
+    const path = findPath(next, id);
+    if (!path) return;
+    const list = listAt(next, path);
+    const i = path[path.length - 1];
+    const j = i + dir;
+    if (j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    commit(next, true);
+  };
+
+  const blockTextOf = (id: string): string => {
+    const p = findPath(treeRef.current, id);
+    return p ? getAt(treeRef.current, p).text.trim() : "";
+  };
+
+  /** Ligne → tâche du Bloc-notes (Kanban / Base). */
+  const lineToTask = (id: string) => {
+    const text = blockTextOf(id);
+    if (text) dispatch(createTask({ title: text }));
+    setMenuFor(null);
+  };
+
+  /** Ligne → nouvelle décision dans le Decision Engine (façade publique). */
+  const lineToDecision = (id: string) => {
+    const text = blockTextOf(id);
+    if (text) dispatch(createDecision({ title: text }, { id: uid("dec") }));
+    setMenuFor(null);
   };
 
   /** Cocher/décocher : op dédiée toggle_todo (audit fin), jamais dupliquée
@@ -362,8 +427,8 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
             ? "italic text-gray-600"
             : "text-[15px] text-gray-800";
     const marks = `${b.marks?.bold ? " font-semibold" : ""}${b.marks?.italic ? " italic" : ""}${
-      b.marks?.highlight ? " bg-yellow-100 rounded" : ""
-    }`;
+      b.marks?.underline ? " underline" : ""
+    }${b.marks?.strikethrough ? " line-through" : ""}${b.marks?.highlight ? " bg-yellow-100 rounded" : ""}`;
     return base + marks;
   };
 
@@ -394,17 +459,45 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
                 setDropTarget(null);
               }}
             >
-              {/* Poignée de drag — visible au survol. */}
-              <span
-                draggable
-                title="Déplacer le bloc"
-                className="mt-1.5 shrink-0 cursor-grab select-none text-xs leading-none text-gray-300 opacity-0 transition group-hover:opacity-100 active:cursor-grabbing"
-                onDragStart={(e) => {
-                  e.dataTransfer.setData("text/bloc-notes-block", b.id);
-                  e.dataTransfer.effectAllowed = "move";
-                }}
-              >
-                ⠿
+              {/* Contrôles de ligne (survol) : menu d'actions + poignée de drag. */}
+              <span className="relative flex shrink-0 items-center">
+                <button
+                  type="button"
+                  title="Actions de la ligne"
+                  aria-label="Actions de la ligne"
+                  className="mt-1 rounded px-0.5 text-sm leading-none text-gray-300 opacity-0 transition hover:bg-gray-100 hover:text-gray-600 group-hover:opacity-100"
+                  onClick={() => setMenuFor((v) => (v === b.id ? null : b.id))}
+                >
+                  ⋮
+                </button>
+                <span
+                  draggable
+                  title="Déplacer le bloc"
+                  className="mt-1.5 cursor-grab select-none text-xs leading-none text-gray-300 opacity-0 transition group-hover:opacity-100 active:cursor-grabbing"
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/bloc-notes-block", b.id);
+                    e.dataTransfer.effectAllowed = "move";
+                  }}
+                >
+                  ⠿
+                </span>
+                {menuFor === b.id && (
+                  <LineMenu
+                    block={b}
+                    onClose={() => setMenuFor(null)}
+                    onToggleMark={(k) => toggleMark(b.id, k)}
+                    onConvert={(k) => convertKind(b.id, k)}
+                    onToTask={() => lineToTask(b.id)}
+                    onToDecision={() => lineToDecision(b.id)}
+                    onMoveUp={() => moveLine(b.id, -1)}
+                    onMoveDown={() => moveLine(b.id, 1)}
+                    onDuplicate={() => duplicateBlock(b.id)}
+                    onDelete={() => {
+                      deleteBlock(b.id);
+                      setMenuFor(null);
+                    }}
+                  />
+                )}
               </span>
 
               {/* Préfixe structurel. */}
@@ -535,5 +628,105 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
         <div aria-hidden className="min-h-[120px] cursor-text" onClick={appendParagraph} />
       </div>
     </div>
+  );
+}
+
+// ─── Menu d'actions d'une ligne (à gauche de chaque bloc) ──────────
+
+const MARK_BTNS: [MarkKey, string, string, string][] = [
+  ["bold", "B", "font-bold", "Gras"],
+  ["italic", "I", "italic", "Italique"],
+  ["underline", "U", "underline", "Souligné"],
+  ["strikethrough", "S", "line-through", "Barré"],
+  ["highlight", "🖍", "", "Surligné"],
+];
+
+const CONVERT_BTNS: [BlockKind, string][] = [
+  ["paragraph", "Texte"],
+  ["heading1", "Titre"],
+  ["heading2", "Sous-titre"],
+  ["bullet", "• Puce"],
+  ["numbered", "1. Numérotée"],
+  ["todo", "☑ Tâche"],
+  ["quote", "❝ Citation"],
+  ["separator", "— Séparateur"],
+];
+
+function LineMenu({
+  block,
+  onClose,
+  onToggleMark,
+  onConvert,
+  onToTask,
+  onToDecision,
+  onMoveUp,
+  onMoveDown,
+  onDuplicate,
+  onDelete,
+}: {
+  block: AnyBlock;
+  onClose: () => void;
+  onToggleMark: (k: MarkKey) => void;
+  onConvert: (k: BlockKind) => void;
+  onToTask: () => void;
+  onToDecision: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onDuplicate: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <>
+      {/* Backdrop : clic extérieur → fermeture. */}
+      <button type="button" aria-label="Fermer le menu" className="fixed inset-0 z-20 cursor-default" onClick={onClose} />
+      <div className="absolute left-3 top-6 z-30 w-56 rounded-xl border border-gray-200 bg-white p-1.5 text-left shadow-xl" onMouseDown={(e) => e.preventDefault()}>
+        {block.kind !== "separator" && (
+          <>
+            <p className="px-1.5 pb-0.5 pt-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Format</p>
+            <div className="mb-1 flex items-center gap-0.5 px-1">
+              {MARK_BTNS.map(([key, label, cls, title]) => (
+                <button
+                  key={key}
+                  type="button"
+                  title={title}
+                  aria-pressed={Boolean(block.marks?.[key])}
+                  className={`flex-1 rounded px-1 py-1 text-xs leading-none transition hover:bg-gray-100 ${cls} ${block.marks?.[key] ? "bg-indigo-50 text-indigo-700" : "text-gray-600"}`}
+                  onClick={() => onToggleMark(key)}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+
+        <p className="px-1.5 pb-0.5 pt-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Transformer en</p>
+        <div className="mb-1 grid grid-cols-2 gap-0.5">
+          {CONVERT_BTNS.map(([kind, label]) => (
+            <button
+              key={kind}
+              type="button"
+              aria-pressed={block.kind === kind}
+              className={`truncate rounded-md px-1.5 py-1 text-left text-[11px] transition hover:bg-gray-100 ${block.kind === kind ? "bg-indigo-50 font-medium text-indigo-700" : "text-gray-700"}`}
+              onClick={() => onConvert(kind)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <p className="px-1.5 pb-0.5 pt-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Envoyer vers</p>
+        <button type="button" className="block w-full rounded-md px-2 py-1 text-left text-[11px] text-gray-700 hover:bg-gray-100" onClick={onToTask}>☑ Créer une tâche</button>
+        <button type="button" className="block w-full rounded-md px-2 py-1 text-left text-[11px] text-gray-700 hover:bg-gray-100" onClick={onToDecision}>🧭 Créer une décision</button>
+
+        <div className="my-1 h-px bg-gray-100" />
+        <div className="flex items-center gap-0.5">
+          <button type="button" title="Monter" className="flex-1 rounded-md px-1 py-1 text-xs text-gray-600 hover:bg-gray-100" onClick={onMoveUp}>↑</button>
+          <button type="button" title="Descendre" className="flex-1 rounded-md px-1 py-1 text-xs text-gray-600 hover:bg-gray-100" onClick={onMoveDown}>↓</button>
+          <button type="button" title="Dupliquer" className="flex-1 rounded-md px-1 py-1 text-xs text-gray-600 hover:bg-gray-100" onClick={onDuplicate}>⧉</button>
+          <button type="button" title="Supprimer" className="flex-1 rounded-md px-1 py-1 text-xs text-red-500 hover:bg-red-50" onClick={onDelete}>🗑</button>
+        </div>
+      </div>
+    </>
   );
 }

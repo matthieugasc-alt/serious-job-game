@@ -156,6 +156,14 @@ describe("blocks_updated — hiérarchie de blocs", () => {
     expect(n.notes.n1.updated_at).toBe(T0 + 2);
   });
 
+  it("conserve les 5 marques (gras/italique/souligné/barré/surligné)", () => {
+    const marked: Block[] = [
+      { id: "m1", kind: "paragraph", text: "riche", marks: { bold: true, italic: true, underline: true, strikethrough: true, highlight: "yellow" } },
+    ];
+    const n = apply(withNote("n1"), "blocks_updated", { note_id: "n1", blocks: marked as unknown as Json, at: T0 + 2 });
+    expect((n.notes.n1.blocks[0] as { marks?: unknown }).marks).toEqual({ bold: true, italic: true, underline: true, strikethrough: true, highlight: "yellow" });
+  });
+
   it("déplacement d'un bloc (Tab = enfant → racine) : nouvel arbre appliqué tel quel", () => {
     let s = applyNotebookOp(withNote("n1"), "blocks_updated", {
       note_id: "n1",

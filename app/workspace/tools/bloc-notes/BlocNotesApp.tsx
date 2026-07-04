@@ -226,9 +226,9 @@ function NoteEditorPane({
             }}
             onBlur={submitTag}
           />
-          <span className="ml-auto text-[11px] text-gray-300">
+          <span className="ml-auto text-[11px] text-gray-300" title={`Créée le ${new Date(note.created_at).toLocaleString("fr-FR")}`}>
             {note.source && <span aria-hidden className="mr-1">🔗</span>}
-            modifiée {fmtShort(note.updated_at)}
+            créée {fmtShort(note.created_at)} · modifiée {fmtShort(note.updated_at)}
           </span>
         </div>
       </div>

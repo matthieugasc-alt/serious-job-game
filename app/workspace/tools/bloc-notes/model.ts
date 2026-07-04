@@ -148,6 +148,8 @@ export function sanitizeBlocks(raw: Json | undefined): Block[] {
       ? {
           ...(item.marks.bold === true ? { bold: true } : {}),
           ...(item.marks.italic === true ? { italic: true } : {}),
+          ...(item.marks.underline === true ? { underline: true } : {}),
+          ...(item.marks.strikethrough === true ? { strikethrough: true } : {}),
           ...(typeof item.marks.highlight === "string" ? { highlight: item.marks.highlight } : {}),
         }
       : undefined;
