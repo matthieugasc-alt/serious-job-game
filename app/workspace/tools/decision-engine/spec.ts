@@ -119,6 +119,17 @@ export type EngineKind = (typeof ENGINE_KINDS)[number];
 
 export type AxisDef = { label: string; min_label?: string; max_label?: string; scale?: number };
 
+/** Arête du moteur Graph (les nœuds sont des DecisionItem ; les arêtes
+ *  vivent dans board.data.edges — ops dédiées, contrat §4 V2). */
+export type GraphEdge = {
+  id: string;
+  from: ItemId;
+  to: ItemId;
+  label?: string;
+  kind?: string;
+  directed?: boolean;
+};
+
 export const MATRIX_SCORINGS = ["weighted", "axis", "rice"] as const;
 export type MatrixScoring = (typeof MATRIX_SCORINGS)[number];
 

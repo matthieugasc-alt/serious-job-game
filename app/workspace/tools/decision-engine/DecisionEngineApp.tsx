@@ -27,6 +27,7 @@ import { RegistryBoard } from "./components/RegistryBoard";
 import { TableBoard } from "./components/TableBoard";
 import { KanbanBoard } from "./components/KanbanBoard";
 import { TimelineBoard } from "./components/TimelineBoard";
+import { GraphBoard } from "./components/GraphBoard";
 import type { Board } from "./spec";
 
 const ENGINE_ICON: Record<string, string> = { matrix: "📊", registry: "📋", table: "🗂️", kanban: "🧱", timeline: "📅", graph: "🕸️" };
@@ -36,7 +37,7 @@ function BoardView({ board, dispatch }: { board: Board; dispatch: WorkspaceAppPr
   if (board.engine === "table") return <TableBoard board={board} dispatch={dispatch} />;
   if (board.engine === "kanban") return <KanbanBoard board={board} dispatch={dispatch} />;
   if (board.engine === "timeline") return <TimelineBoard board={board} dispatch={dispatch} />;
-  if (board.engine === "graph") return <div className="flex h-full items-center justify-center p-4 text-center text-sm text-gray-400">Le moteur Graph arrive dans un prochain lot.</div>;
+  if (board.engine === "graph") return <GraphBoard board={board} dispatch={dispatch} />;
   return <MatrixBoard board={board} dispatch={dispatch} />;
 }
 
@@ -82,7 +83,7 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
   const openBoard = openBoardId ? getBoard(state, openBoardId) : null;
 
   // Presets groupés par moteur pour le sélecteur.
-  const presetGroups: [string, ReturnType<typeof listPresets>][] = ["matrix", "table", "registry", "kanban", "timeline"].map(
+  const presetGroups: [string, ReturnType<typeof listPresets>][] = ["matrix", "table", "registry", "kanban", "timeline", "graph"].map(
     (eng) => [eng, listPresets(eng)],
   );
 

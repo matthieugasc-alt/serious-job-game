@@ -54,6 +54,9 @@ export const DECISION_OPS = [
   "item_moved",
   "item_removed",
   "cell_set",
+  "edge_added",
+  "edge_updated",
+  "edge_removed",
 ] as const;
 export type DecisionOpName = (typeof DECISION_OPS)[number];
 
@@ -314,6 +317,9 @@ export function applyDecisionOp(state: Json, op: string, payload: JsonObject): J
     case "item_moved": next = itemUpdated(s, p, at); break;
     case "item_removed": next = itemRemoved(s, p, at); break;
     case "cell_set": next = cellSet(s, p, at); break;
+    case "edge_added": next = edgeAdded(s, p, at); break;
+    case "edge_updated": next = edgeUpdated(s, p, at); break;
+    case "edge_removed": next = edgeRemoved(s, p, at); break;
     default: next = null;
   }
   return (next ?? state) as Json;
@@ -698,7 +704,59 @@ function itemRemoved(s: DecisionEngineState, p: JsonObject, at: number): Decisio
   if (!b || id === undefined) return null;
   const items = boardItems(b);
   if (!items.some((i) => asString(i.id) === id)) return null;
-  return withBoard(s, setBoardItems(b, items.filter((i) => asString(i.id) !== id), at));
+  let next = setBoardItems(b, items.filter((i) => asString(i.id) !== id), at);
+  // Graph : purge des arêtes reliées au nœud supprimé.
+  const edges = boardEdges(next);
+  const pruned = edges.filter((e) => asString(e.from) !== id && asString(e.to) !== id);
+  if (pruned.length !== edges.length) next = setBoardEdges(next, pruned, at);
+  return withBoard(s, next);
+}
+
+// ─── Arêtes (moteur Graph) ─────────────────────────────────────────
+function boardEdges(b: Board): JsonObject[] {
+  const edges = (b.data as JsonObject).edges;
+  return Array.isArray(edges) ? edges.filter((e): e is JsonObject => isObject(e)) : [];
+}
+function setBoardEdges(b: Board, edges: JsonObject[], at: number): Board {
+  return { ...b, data: { ...(b.data as JsonObject), edges: edges as unknown as Json }, updated_at: at };
+}
+
+function edgeAdded(s: DecisionEngineState, p: JsonObject, at: number): DecisionEngineState | null {
+  const b = getBoard(s, p);
+  const edge = isObject(p.edge) ? p.edge : undefined;
+  if (!b || !edge) return null;
+  const id = asString(edge.id);
+  const from = asString(edge.from);
+  const to = asString(edge.to);
+  if (id === undefined || id.length === 0 || from === undefined || to === undefined || from === to) return null;
+  const items = boardItems(b);
+  const hasNode = (n: string) => items.some((i) => asString(i.id) === n);
+  if (!hasNode(from) || !hasNode(to)) return null;
+  const edges = boardEdges(b);
+  if (edges.some((e) => asString(e.id) === id)) return null;
+  return withBoard(s, setBoardEdges(b, [...edges, edge], at));
+}
+
+function edgeUpdated(s: DecisionEngineState, p: JsonObject, at: number): DecisionEngineState | null {
+  const b = getBoard(s, p);
+  const id = asString(p.edge_id);
+  const patch = isObject(p.patch) ? p.patch : {};
+  if (!b || id === undefined) return null;
+  const edges = boardEdges(b);
+  const idx = edges.findIndex((e) => asString(e.id) === id);
+  if (idx < 0) return null;
+  const next = [...edges];
+  next[idx] = { ...edges[idx], ...patch, id };
+  return withBoard(s, setBoardEdges(b, next, at));
+}
+
+function edgeRemoved(s: DecisionEngineState, p: JsonObject, at: number): DecisionEngineState | null {
+  const b = getBoard(s, p);
+  const id = asString(p.edge_id);
+  if (!b || id === undefined) return null;
+  const edges = boardEdges(b);
+  if (!edges.some((e) => asString(e.id) === id)) return null;
+  return withBoard(s, setBoardEdges(b, edges.filter((e) => asString(e.id) !== id), at));
 }
 
 function cellSet(s: DecisionEngineState, p: JsonObject, at: number): DecisionEngineState | null {

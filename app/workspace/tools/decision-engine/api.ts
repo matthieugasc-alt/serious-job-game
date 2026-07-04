@@ -16,6 +16,7 @@ import type {
   DecisionObject,
   DecisionOption,
   EngineKind,
+  GraphEdge,
   OptionId,
   SourceLink,
 } from "./spec";
@@ -302,6 +303,25 @@ export function setCell(boardId: BoardId, key: string, value: string, opts: OpOp
   return op("cell_set", { board_id: boardId, key, value, at: now(opts) });
 }
 
+// ─── Arêtes (moteur Graph) ─────────────────────────────────────────
+export function addEdge(
+  boardId: BoardId,
+  input: { from: string; to: string; label?: string; kind?: string; directed?: boolean },
+  opts: OpOptions = {},
+): DecisionToolOp {
+  const edge: JsonObject = { id: opts.id ?? uid("edge"), from: input.from, to: input.to };
+  if (input.label !== undefined) edge.label = input.label;
+  if (input.kind !== undefined) edge.kind = input.kind;
+  if (input.directed !== undefined) edge.directed = input.directed;
+  return op("edge_added", { board_id: boardId, edge, at: now(opts) });
+}
+export function updateEdge(boardId: BoardId, edgeId: string, patch: Partial<{ label: string; kind: string; directed: boolean }>, opts: OpOptions = {}): DecisionToolOp {
+  return op("edge_updated", { board_id: boardId, edge_id: edgeId, patch: patch as unknown as Json, at: now(opts) });
+}
+export function removeEdge(boardId: BoardId, edgeId: string, opts: OpOptions = {}): DecisionToolOp {
+  return op("edge_removed", { board_id: boardId, edge_id: edgeId, at: now(opts) });
+}
+
 // ─── Sélecteurs purs ───────────────────────────────────────────────
 export function selectState(state: Json): DecisionEngineState {
   return normalizeDecisionEngineState(state);
@@ -360,4 +380,21 @@ export function boardItemsOf(board: Board): DecisionItem[] {
       ...(typeof i.status === "string" ? { status: i.status } : {}),
     }))
     .filter((i) => i.id.length > 0);
+}
+
+/** Arêtes d'un board Graph (lecture typée depuis data.edges). */
+export function boardEdgesOf(board: Board): GraphEdge[] {
+  const edges = (board.data as JsonObject).edges;
+  if (!Array.isArray(edges)) return [];
+  return edges
+    .filter((e): e is JsonObject => Boolean(e) && typeof e === "object" && !Array.isArray(e))
+    .map((e) => ({
+      id: String(e.id ?? ""),
+      from: String(e.from ?? ""),
+      to: String(e.to ?? ""),
+      ...(typeof e.label === "string" ? { label: e.label } : {}),
+      ...(typeof e.kind === "string" ? { kind: e.kind } : {}),
+      ...(typeof e.directed === "boolean" ? { directed: e.directed } : {}),
+    }))
+    .filter((e) => e.id.length > 0 && e.from.length > 0 && e.to.length > 0);
 }

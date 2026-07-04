@@ -269,6 +269,58 @@ export const PRESETS: Record<string, Preset> = {
     },
   },
 
+  // ── Graph (Lot E) ────────────────────────────────────────────────
+  "graph.decision_tree": {
+    id: "graph.decision_tree",
+    title: "Arbre de décision",
+    description: "Décision → branches conditionnelles → conséquences.",
+    engine: "graph",
+    config: {},
+    seed: { items: [{ id: "root", label: "Décision ?", fields: {}, tags: [], links: [], x: 0.12, y: 0.5 }], edges: [] },
+  },
+  "graph.ishikawa": {
+    id: "graph.ishikawa",
+    title: "Ishikawa (causes → effet)",
+    description: "Diagramme en arêtes de poisson : catégories de causes vers le problème.",
+    engine: "graph",
+    config: {},
+    seed: {
+      items: [
+        { id: "effet", label: "Problème", fields: {}, tags: [], links: [], x: 0.88, y: 0.5 },
+        { id: "people", label: "Personnes", fields: {}, tags: [], links: [], x: 0.15, y: 0.85 },
+        { id: "process", label: "Processus", fields: {}, tags: [], links: [], x: 0.42, y: 0.85 },
+        { id: "tech", label: "Technologie", fields: {}, tags: [], links: [], x: 0.66, y: 0.8 },
+        { id: "policy", label: "Politique/Règles", fields: {}, tags: [], links: [], x: 0.15, y: 0.15 },
+        { id: "comm", label: "Communication", fields: {}, tags: [], links: [], x: 0.42, y: 0.15 },
+        { id: "ext", label: "Facteurs externes", fields: {}, tags: [], links: [], x: 0.66, y: 0.2 },
+      ],
+      edges: [
+        { id: "e_people", from: "people", to: "effet", directed: true },
+        { id: "e_process", from: "process", to: "effet", directed: true },
+        { id: "e_tech", from: "tech", to: "effet", directed: true },
+        { id: "e_policy", from: "policy", to: "effet", directed: true },
+        { id: "e_comm", from: "comm", to: "effet", directed: true },
+        { id: "e_ext", from: "ext", to: "effet", directed: true },
+      ],
+    },
+  },
+  "graph.five_whys": {
+    id: "graph.five_whys",
+    title: "5 Pourquoi",
+    description: "Remonter la chaîne causale d'un problème.",
+    engine: "graph",
+    config: {},
+    seed: { items: [{ id: "prob", label: "Problème constaté", fields: {}, tags: [], links: [], x: 0.12, y: 0.5 }], edges: [] },
+  },
+  "graph.dependencies": {
+    id: "graph.dependencies",
+    title: "Diagramme de dépendances",
+    description: "Nœuds et dépendances dirigées.",
+    engine: "graph",
+    config: {},
+    seed: { items: [], edges: [] },
+  },
+
   // ── Registry (Lot B) ─────────────────────────────────────────────
   "risk.analysis": {
     id: "risk.analysis",
