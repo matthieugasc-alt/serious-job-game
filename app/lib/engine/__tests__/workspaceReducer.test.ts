@@ -387,6 +387,37 @@ describe("(d) complétion", () => {
     expect(session.workspace.notifications.some((n) => n.app === "messages")).toBe(true);
   });
 
+  it("notification de message : titre = NOM de l'acteur (pas l'id) + source_id = fil", () => {
+    const session = boot();
+    recordActorMessage(session, "th_alex", "alex", "salut", { now: T0 + 2 });
+    const notif = session.workspace.notifications.find((n) => n.app === "messages");
+    expect(notif).toMatchObject({
+      title: "Message de Alexandre", // fixtures : actor_id "alex" → name "Alexandre"
+      source_id: "th_alex",
+      read: false,
+    });
+    // Repli défensif : acteur inconnu → id tel quel (jamais de crash).
+    recordActorMessage(session, "th_alex", "ghost", "…", { now: T0 + 3 });
+    expect(
+      session.workspace.notifications.some((n) => n.title === "Message de ghost"),
+    ).toBe(true);
+  });
+
+  it("notification de mail : corps = NOM de l'expéditeur + source_id = mail_id", () => {
+    const session = boot();
+    applyNarrativeEffect(
+      session,
+      { type: "mail_received", from_actor: "thomas", subject: "Devis", body: "…" },
+      { now: T0 + 2 },
+    );
+    const notif = session.workspace.notifications.find((n) => n.app === "mail");
+    expect(notif).toMatchObject({
+      title: "Devis",
+      body: "De Thomas",
+      source_id: "mail_in_1",
+    });
+  });
+
   it("timer_elapsed tire sur clock_tick", () => {
     const session = boot({
       completion: { trigger: { type: "timer_elapsed", seconds: 300 } },

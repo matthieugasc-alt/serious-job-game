@@ -11,9 +11,10 @@
  * (workspace.threads), MÊME dispatch `message_sent`, rendu de
  * conversation PARTAGÉ (ThreadConversation) — aucune logique dupliquée.
  * Monté par le WorkspaceShell, qui le masque quand Messages est ouvert.
+ * Les fenêtres ouvertes (openIds) sont contrôlées par le shell : les
+ * Toasts s'en servent pour ne pas notifier un fil déjà sous les yeux.
  */
 
-import { useState } from "react";
 import type { ActorDef } from "@/app/lib/engine/mechanics";
 import type { Thread, WorkspaceAction, WorkspaceState } from "@/app/lib/engine/workspace";
 import { ActorAvatar } from "@/app/player/primitives/ui";
@@ -26,6 +27,9 @@ interface Props {
   workspace: WorkspaceState;
   actors: ActorDef[];
   busyThreads?: string[];
+  /** Fils ouverts en mini-fenêtre — état détenu par le shell. */
+  openIds: string[];
+  onOpenIdsChange: (ids: string[]) => void;
   dispatch: (action: WorkspaceAction) => void;
 }
 
@@ -33,8 +37,7 @@ function lastAt(t: Thread): number {
   return t.messages[t.messages.length - 1]?.at ?? 0;
 }
 
-export function ChatDock({ workspace, actors, busyThreads, dispatch }: Props) {
-  const [openIds, setOpenIds] = useState<string[]>([]);
+export function ChatDock({ workspace, actors, busyThreads, openIds, onOpenIdsChange, dispatch }: Props) {
   const threads = Object.values(workspace.threads).sort((a, b) => lastAt(b) - lastAt(a));
 
   if (threads.length === 0) return null;
@@ -45,10 +48,10 @@ export function ChatDock({ workspace, actors, busyThreads, dispatch }: Props) {
     t.title ?? t.participants.map((p) => actorOf(p)?.name ?? p).join(", ");
 
   const toggle = (threadId: string) =>
-    setOpenIds((cur) =>
-      cur.includes(threadId)
-        ? cur.filter((id) => id !== threadId)
-        : [...cur.slice(-(MAX_OPEN - 1)), threadId],
+    onOpenIdsChange(
+      openIds.includes(threadId)
+        ? openIds.filter((id) => id !== threadId)
+        : [...openIds.slice(-(MAX_OPEN - 1)), threadId],
     );
 
   const open = openIds

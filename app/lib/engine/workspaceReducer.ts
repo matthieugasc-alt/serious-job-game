@@ -102,7 +102,7 @@ export function applyWorkspaceAction(
   for (const ev of step.events ?? []) {
     if (!whenMatchesAction(ev.when, action, now, session.workspace)) continue;
     if (!armEvent(session, step, ev)) continue;
-    effects.push(...executeEventEffect(session.workspace, ev.effect, now));
+    effects.push(...executeEventEffect(session, ev.effect, now));
   }
 
   // Réponse d'acteur automatique : un message du joueur dans un fil
@@ -210,11 +210,11 @@ export function applyNarrativeEffect(
       pushNotification(ws, "system", effect.title, effect.body, now);
       break;
     case "mail_received":
-      deliverMail(ws, effect, now);
+      deliverMail(session, effect, now);
       break;
     case "message_received":
       if (effect.content !== undefined) {
-        insertActorMessage(ws, effect.thread_id, effect.actor_id, effect.content, now);
+        insertActorMessage(session, effect.thread_id, effect.actor_id, effect.content, now);
         significant = true;
       }
       break;
@@ -243,7 +243,7 @@ export function recordActorMessage(
 ): DispatchResult {
   if (session.isFinished) return { effects: [], completionFired: false };
   const now = opts.now ?? Date.now();
-  insertActorMessage(session.workspace, threadId, actorId, content, now);
+  insertActorMessage(session, threadId, actorId, content, now);
 
   const step = getCurrentStepV3(session);
   if (!step) return { effects: [], completionFired: false };
@@ -467,20 +467,20 @@ function armEvent(
  * qui demandent une production IA deviennent des PendingEffect.
  */
 function executeEventEffect(
-  ws: WorkspaceState,
+  session: SessionV3State,
   effect: NarrativeEffect,
   now: number,
 ): PendingEffect[] {
   switch (effect.type) {
     case "notification":
-      pushNotification(ws, "system", effect.title, effect.body, now);
+      pushNotification(session.workspace, "system", effect.title, effect.body, now);
       return [];
     case "mail_received":
-      deliverMail(ws, effect, now);
+      deliverMail(session, effect, now);
       return [];
     case "message_received":
       if (effect.content !== undefined) {
-        insertActorMessage(ws, effect.thread_id, effect.actor_id, effect.content, now);
+        insertActorMessage(session, effect.thread_id, effect.actor_id, effect.content, now);
         return [];
       }
       // Sans contenu : c'est à l'IA de parler — même contrat qu'actor_reply.
@@ -515,7 +515,7 @@ function fireEventsByWhen(
   for (const ev of step.events ?? []) {
     if (ev.when.type !== whenType) continue;
     if (!armEvent(session, step, ev)) continue;
-    effects.push(...executeEventEffect(session.workspace, ev.effect, now));
+    effects.push(...executeEventEffect(session, ev.effect, now));
   }
   mergeMechanicDirective(effects, step, specs);
   return effects;
@@ -608,32 +608,45 @@ function ensureDocument(ws: WorkspaceState, documentId: string) {
   return (ws.documents[documentId] ??= { opened: false, annotations: [] });
 }
 
+/** Nom d'affichage d'un acteur — extension minimale (fix toasts) : les
+ *  notifications montrent le NOM du scénario ("Alexandre Morel"), jamais
+ *  l'actor_id ("alexandre_morel"). Repli sur l'id si acteur inconnu. */
+function actorNameOf(session: SessionV3State, actorId: string): string {
+  return (
+    session.scenario.actors.find((a) => a.actor_id === actorId)?.name ?? actorId
+  );
+}
+
 function insertActorMessage(
-  ws: WorkspaceState,
+  session: SessionV3State,
   threadId: string,
   actorId: string,
   content: string,
   now: number,
 ): void {
+  const ws = session.workspace;
   const thread = ensureThread(ws, threadId);
   thread.messages.push({ at: now, from: "actor", actor_id: actorId, content });
   thread.unread += 1;
   pushNotification(
     ws,
     "messages",
-    `Message de ${actorId}`,
+    `Message de ${actorNameOf(session, actorId)}`,
     content.length > 120 ? `${content.slice(0, 117)}…` : content,
     now,
+    threadId,
   );
 }
 
 function deliverMail(
-  ws: WorkspaceState,
+  session: SessionV3State,
   effect: Extract<NarrativeEffect, { type: "mail_received" }>,
   now: number,
 ): void {
+  const ws = session.workspace;
+  const mailId = `mail_in_${ws.mailbox.inbox.length + 1}`;
   ws.mailbox.inbox.push({
-    mail_id: `mail_in_${ws.mailbox.inbox.length + 1}`,
+    mail_id: mailId,
     at: now,
     from: effect.from_actor,
     to: ["player"],
@@ -644,7 +657,14 @@ function deliverMail(
       : undefined,
     read: false,
   });
-  pushNotification(ws, "mail", effect.subject, `De ${effect.from_actor}`, now);
+  pushNotification(
+    ws,
+    "mail",
+    effect.subject,
+    `De ${actorNameOf(session, effect.from_actor)}`,
+    now,
+    mailId,
+  );
 }
 
 function pushNotification(
@@ -653,6 +673,7 @@ function pushNotification(
   title: string,
   body: string | undefined,
   now: number,
+  sourceId?: string,
 ): void {
   ws.notifications.push({
     notif_id: `notif_${ws.notifications.length + 1}`,
@@ -660,6 +681,7 @@ function pushNotification(
     app,
     title,
     body,
+    source_id: sourceId,
     read: false,
   });
 }

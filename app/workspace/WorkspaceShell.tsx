@@ -4,7 +4,7 @@
  * WorkspaceShell — layout du poste de travail v3 (contrat §1).
  * Rail d'apps (badges non-lus), zone principale = app active, panneau
  * latéral droit pour un Tool épinglé, ChatDock (bulles de chat
- * flottantes, masquées quand Messages est ouvert), toasts.
+ * flottantes, masquées quand Messages est ouvert), Toasts (haut-droite).
  * AUCUNE logique métier : il reçoit l'état, monte les apps du registre
  * et transmet chaque action au moteur via `dispatch`.
  * Garde-fous : ≤ 250 lignes, imports sur liste blanche
@@ -20,6 +20,7 @@ import type {
 } from "@/app/lib/engine/workspace";
 import { APP_ORDER, APP_REGISTRY, TOOL_REGISTRY, type AppNavContext } from "./apps/registry";
 import { ChatDock } from "./ChatDock";
+import { Toasts } from "./Toasts";
 
 interface Props {
   workspace: WorkspaceState;
@@ -35,8 +36,6 @@ interface Props {
   dispatch: (action: WorkspaceAction) => void;
 }
 
-const TOAST_LIMIT = 3;
-
 export function WorkspaceShell({
   workspace,
   actors,
@@ -50,6 +49,9 @@ export function WorkspaceShell({
   const [activeApp, setActiveApp] = useState<string>(APP_ORDER[0]);
   const [appContext, setAppContext] = useState<AppNavContext | undefined>(undefined);
   const [pinnedTool, setPinnedTool] = useState<string | null>(null);
+  /** Fils ouverts en mini-fenêtre ChatDock — état ici pour que Toasts
+   *  puisse supprimer les notifications du fil déjà sous les yeux. */
+  const [openChatThreads, setOpenChatThreads] = useState<string[]>([]);
 
   const openApp = (appId: string, context?: AppNavContext) => {
     if (!APP_REGISTRY[appId]) return;
@@ -62,7 +64,6 @@ export function WorkspaceShell({
     .map((t) => ({ config: t.config ?? {}, def: TOOL_REGISTRY[t.tool] }))
     .filter((t) => Boolean(t.def));
   const pinned = tools.find((t) => t.def.id === pinnedTool) ?? null;
-  const toasts = workspace.notifications.filter((n) => !n.read).slice(-TOAST_LIMIT);
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-gray-100 text-gray-900">
@@ -177,44 +178,20 @@ export function WorkspaceShell({
           workspace={workspace}
           actors={actors}
           busyThreads={busyThreads}
+          openIds={openChatThreads}
+          onOpenIdsChange={setOpenChatThreads}
           dispatch={dispatch}
         />
       )}
 
-      {/* Toasts de notifications — au-dessus du ChatDock, cliquables → app source. */}
-      {toasts.length > 0 && (
-        <div className="pointer-events-none fixed bottom-24 right-4 z-50 flex w-80 flex-col gap-2">
-          {toasts.map((n) => (
-            <div
-              key={n.notif_id}
-              className="pointer-events-auto flex items-start gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-lg"
-            >
-              <button
-                type="button"
-                className="min-w-0 flex-1 text-left"
-                onClick={() => {
-                  openApp(n.app);
-                  dispatch({ type: "notification_read", notif_id: n.notif_id });
-                }}
-              >
-                <p className="flex items-center gap-1.5 text-xs font-semibold text-gray-900">
-                  <span aria-hidden>{APP_REGISTRY[n.app]?.icon ?? "🔔"}</span>
-                  <span className="truncate">{n.title}</span>
-                </p>
-                {n.body && <p className="mt-0.5 line-clamp-2 text-xs text-gray-600">{n.body}</p>}
-              </button>
-              <button
-                type="button"
-                aria-label="Ignorer la notification"
-                className="shrink-0 rounded-md px-1 text-gray-400 transition hover:text-gray-600"
-                onClick={() => dispatch({ type: "notification_read", notif_id: n.notif_id })}
-              >
-                ✕
-              </button>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* Toasts — haut-droite sous le bandeau, jamais pour le contenu déjà visible. */}
+      <Toasts
+        notifications={workspace.notifications}
+        activeApp={activeApp}
+        openChatThreads={activeApp === "messages" ? [] : openChatThreads}
+        openApp={openApp}
+        dispatch={dispatch}
+      />
     </div>
   );
 }

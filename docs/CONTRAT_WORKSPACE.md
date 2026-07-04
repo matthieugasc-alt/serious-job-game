@@ -59,6 +59,11 @@ App (UI) ── dispatch(action) ──► Moteur
 
 Le replay admin futur rejoue ce log — c'est le « git blame » de la partie, généralisé.
 
+**Extension additive validée (fix toasts, 4 juillet 2026)** :
+- `WsNotification.source_id?: string` — identifiant de la ressource source dans l'app (`thread_id` pour "messages", `mail_id` pour "mail"). Champ optionnel, purement additif : aucun consommateur existant n'est impacté.
+- Le reducer résout le **nom d'affichage** de l'acteur (`actors[].name`, repli sur l'`actor_id`) au moment de créer une notification : plus jamais d'id technique ("alexandre_morel") dans un toast.
+- Règles d'affichage des toasts (composant `app/workspace/Toasts.tsx`, extrait du shell) : jamais de toast pour l'app active ni pour un fil dont la mini-fenêtre ChatDock est ouverte (via `source_id`) ; disparition automatique après 3 s (croix conservée) ; pile haut-droite de 3 max, ne recouvre aucun élément interactif. La suppression est un **filtrage à l'affichage** (état local) — pas de `notification_read` synthétique : le journal ne contient que de vraies interactions joueur.
+
 ## 3. Le contrat `Tool`
 
 Un Tool est une brique d'interface du poste de travail, **indépendante des mécaniques** :

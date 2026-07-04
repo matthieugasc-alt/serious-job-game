@@ -54,6 +54,13 @@ export interface WsNotification {
   app: string; // app_id source ("mail", "messages", …)
   title: string;
   body?: string;
+  /**
+   * Extension additive (fix toasts, 4 juillet 2026) : identifiant de la
+   * ressource source dans l'app — thread_id pour "messages", mail_id
+   * pour "mail". Permet au shell de supprimer un toast quand le contenu
+   * concerné est déjà sous les yeux du joueur (ChatDock ouvert…).
+   */
+  source_id?: string;
   read: boolean;
 }
 
