@@ -86,6 +86,25 @@ export function newBlock(kind: BlockKind = "paragraph", text = ""): AnyBlock {
   return b;
 }
 
+/** Type MIME du glisser-déposer d'un bloc VERS UNE AUTRE NOTE (payload
+ *  JSON { sourceNoteId, block }). Distinct du réordonnancement intra-note. */
+export const BLOCK_MOVE_MIME = "application/bloc-notes-move";
+
+/** Retire un bloc (et son sous-arbre) par id — récursif, immuable. */
+export function removeBlockById(blocks: AnyBlock[], id: string): AnyBlock[] {
+  const out: AnyBlock[] = [];
+  for (const b of blocks) {
+    if (b.id === id) continue;
+    out.push(b.children ? { ...b, children: removeBlockById(b.children, id) } : b);
+  }
+  return out;
+}
+
+/** Régénère les ids d'un bloc et de ses enfants (copie sans collision). */
+export function regenBlockIds(b: AnyBlock): AnyBlock {
+  return { ...b, id: uid("blk"), ...(b.children ? { children: b.children.map(regenBlockIds) } : {}) };
+}
+
 // ─── Lectures d'affichage ─────────────────────────────────────────
 
 /** Premier texte non vide d'une note — aperçu des listes. */

@@ -12,13 +12,22 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { WorkspaceAppProps } from "../../apps/types";
-import { addTag, createNote, deleteNote, removeTag, renameNote } from "./api";
+import { addTag, createNote, deleteNote, removeTag, renameNote, updateBlocks } from "./api";
 import type { Note } from "./spec";
 import { BlockEditor } from "./components/BlockEditor";
 import { DatabaseView } from "./components/DatabaseView";
 import { KanbanView } from "./components/KanbanView";
 import { NotesSidebar } from "./components/NotesSidebar";
-import { fmtShort, notebookStateOf, opPayloadId } from "./components/uiHelpers";
+import {
+  asAnyBlocks,
+  asBlocks,
+  fmtShort,
+  notebookStateOf,
+  opPayloadId,
+  regenBlockIds,
+  removeBlockById,
+  type AnyBlock,
+} from "./components/uiHelpers";
 
 const RENAME_DEBOUNCE_MS = 500;
 
@@ -60,6 +69,29 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
   const openNote = (noteId: string) => {
     setTab("notes");
     setSelectedId(noteId);
+  };
+
+  /** Déplacer un bloc (glissé depuis l'éditeur) vers une AUTRE note. */
+  const moveBlock = (sourceId: string, targetId: string, block: AnyBlock) => {
+    const src = state.notes[sourceId];
+    const tgt = state.notes[targetId];
+    if (!src || !tgt || sourceId === targetId) return;
+    dispatch(updateBlocks(targetId, asBlocks([...asAnyBlocks(tgt.blocks), regenBlockIds(block)])));
+    dispatch(updateBlocks(sourceId, asBlocks(removeBlockById(asAnyBlocks(src.blocks), block.id))));
+  };
+
+  /** Déplacer un bloc vers une NOUVELLE note. */
+  const moveToNewNote = (sourceId: string, block: AnyBlock) => {
+    const src = state.notes[sourceId];
+    if (!src) return;
+    const action = createNote("");
+    dispatch(action);
+    const newId = opPayloadId(action, "note_id");
+    if (!newId) return;
+    dispatch(updateBlocks(newId, asBlocks([regenBlockIds(block)])));
+    dispatch(updateBlocks(sourceId, asBlocks(removeBlockById(asAnyBlocks(src.blocks), block.id))));
+    setTab("notes");
+    setSelectedId(newId);
   };
 
   return (
@@ -107,6 +139,8 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
             selectedId={selected?.id ?? null}
             onSelect={setSelectedId}
             onCreate={create}
+            onMoveBlock={moveBlock}
+            onMoveToNewNote={moveToNewNote}
           />
           {selected ? (
             <NoteEditorPane

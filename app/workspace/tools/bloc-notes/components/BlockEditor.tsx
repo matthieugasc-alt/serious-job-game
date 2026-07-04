@@ -20,6 +20,7 @@ import type { Block } from "../spec";
 import {
   asAnyBlocks,
   asBlocks,
+  BLOCK_MOVE_MIME,
   newBlock,
   uid,
   type AnyBlock,
@@ -472,10 +473,22 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
                 </button>
                 <span
                   draggable
-                  title="Déplacer le bloc"
+                  title="Déplacer le bloc (dans la note, ou vers une autre note via la liste)"
                   className="mt-1.5 cursor-grab select-none text-xs leading-none text-gray-300 opacity-0 transition group-hover:opacity-100 active:cursor-grabbing"
                   onDragStart={(e) => {
                     e.dataTransfer.setData("text/bloc-notes-block", b.id);
+                    // Flush le débounce : l'état source est à jour pour un
+                    // déplacement inter-notes (rien de récent n'est perdu).
+                    if (timer.current) {
+                      clearTimeout(timer.current);
+                      timer.current = null;
+                      dispatch(updateBlocks(noteId, asBlocks(treeRef.current)));
+                    }
+                    const path = findPath(treeRef.current, b.id);
+                    const subtree = path ? getAt(treeRef.current, path) : null;
+                    if (subtree) {
+                      e.dataTransfer.setData(BLOCK_MOVE_MIME, JSON.stringify({ sourceNoteId: noteId, block: subtree }));
+                    }
                     e.dataTransfer.effectAllowed = "move";
                   }}
                 >

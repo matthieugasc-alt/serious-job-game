@@ -10,7 +10,7 @@
 import { useState } from "react";
 import { selectByTag, selectChronological, selectRecent } from "../api";
 import type { Note, NotebookState } from "../spec";
-import { allTags, fmtDay, fmtShort, noteExcerpt, noteMatches } from "./uiHelpers";
+import { allTags, BLOCK_MOVE_MIME, fmtDay, fmtShort, noteExcerpt, noteMatches, type AnyBlock } from "./uiHelpers";
 
 type ViewMode = "recent" | "tags" | "chrono";
 
@@ -19,12 +19,33 @@ interface Props {
   selectedId: string | null;
   onSelect: (noteId: string) => void;
   onCreate: () => void;
+  /** Déplacer un bloc glissé depuis une autre note VERS cette note. */
+  onMoveBlock: (sourceNoteId: string, targetNoteId: string, block: AnyBlock) => void;
+  /** Déplacer un bloc glissé vers une NOUVELLE note. */
+  onMoveToNewNote: (sourceNoteId: string, block: AnyBlock) => void;
 }
 
-export function NotesSidebar({ state, selectedId, onSelect, onCreate }: Props) {
+/** Lit le payload de déplacement inter-notes depuis le dataTransfer. */
+function parseMove(e: React.DragEvent): { sourceNoteId: string; block: AnyBlock } | null {
+  const raw = e.dataTransfer.getData(BLOCK_MOVE_MIME);
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw) as { sourceNoteId?: unknown; block?: unknown };
+    if (typeof p.sourceNoteId === "string" && p.block && typeof p.block === "object") {
+      return { sourceNoteId: p.sourceNoteId, block: p.block as AnyBlock };
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+export function NotesSidebar({ state, selectedId, onSelect, onCreate, onMoveBlock, onMoveToNewNote }: Props) {
   const [mode, setMode] = useState<ViewMode>("recent");
   const [query, setQuery] = useState("");
   const [tag, setTag] = useState<string | null>(null);
+  const [dropNoteId, setDropNoteId] = useState<string | null>(null);
+  const [dropNew, setDropNew] = useState(false);
 
   const tags = allTags(state);
   const base: Note[] =
@@ -46,9 +67,24 @@ export function NotesSidebar({ state, selectedId, onSelect, onCreate }: Props) {
           type="button"
           aria-pressed={active}
           className={`block w-full border-b border-gray-50 px-3 py-2.5 text-left transition ${
-            active ? "bg-indigo-50/70" : "hover:bg-gray-50"
+            dropNoteId === n.id ? "bg-indigo-100 ring-1 ring-inset ring-indigo-300" : active ? "bg-indigo-50/70" : "hover:bg-gray-50"
           }`}
           onClick={() => onSelect(n.id)}
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes(BLOCK_MOVE_MIME)) {
+              e.preventDefault();
+              setDropNoteId(n.id);
+            }
+          }}
+          onDragLeave={() => setDropNoteId((v) => (v === n.id ? null : v))}
+          onDrop={(e) => {
+            const move = parseMove(e);
+            setDropNoteId(null);
+            if (move && move.sourceNoteId !== n.id) {
+              e.preventDefault();
+              onMoveBlock(move.sourceNoteId, n.id, move.block);
+            }
+          }}
         >
           <span className="flex items-baseline justify-between gap-2">
             <span className="flex min-w-0 items-center gap-1.5">
@@ -98,9 +134,26 @@ export function NotesSidebar({ state, selectedId, onSelect, onCreate }: Props) {
           />
           <button
             type="button"
-            title="Nouvelle note"
-            className="shrink-0 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+            title="Nouvelle note (ou déposez-y un bloc pour le déplacer)"
+            className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-white shadow-sm transition ${
+              dropNew ? "bg-indigo-800 ring-2 ring-indigo-300" : "bg-indigo-600 hover:bg-indigo-700"
+            }`}
             onClick={onCreate}
+            onDragOver={(e) => {
+              if (e.dataTransfer.types.includes(BLOCK_MOVE_MIME)) {
+                e.preventDefault();
+                setDropNew(true);
+              }
+            }}
+            onDragLeave={() => setDropNew(false)}
+            onDrop={(e) => {
+              const move = parseMove(e);
+              setDropNew(false);
+              if (move) {
+                e.preventDefault();
+                onMoveToNewNote(move.sourceNoteId, move.block);
+              }
+            }}
           >
             + Note
           </button>
