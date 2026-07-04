@@ -33,6 +33,7 @@ import { TransitionOverlay } from "./TransitionOverlay";
 import { StepChrome } from "./StepChrome";
 import { ActorAvatar, PrimaryButton } from "./primitives/ui";
 import { createLiveIO } from "./liveIO";
+import { useNavigationGuard } from "./useNavigationGuard";
 
 interface Props {
   scenario: ScenarioV2;
@@ -72,6 +73,9 @@ export function Shell({ scenario, saveKey, onFinished }: Props) {
   const [resumed, setResumed] = useState(false);
   /** Écran de présentation du scénario avant le premier step (session neuve). */
   const [briefingDone, setBriefingDone] = useState(false);
+
+  // Retour arrière / refresh accidentels : garde tant que la partie est en cours.
+  useNavigationGuard(session !== null && !session.isFinished && briefingDone);
 
   // Boot : reprise deep-save ou session neuve.
   useEffect(() => {

@@ -32,6 +32,7 @@ import { ActorAvatar, PrimaryButton } from "@/app/player/primitives/ui";
 import { WorkspaceShell } from "./WorkspaceShell";
 import { TOOL_REGISTRY } from "./apps/registry";
 import { buildCompletionPayload, runPendingEffects } from "./orchestrator";
+import { useNavigationGuard } from "@/app/player/useNavigationGuard";
 
 interface Props {
   scenario: ScenarioV3;
@@ -87,6 +88,9 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
   const [busyThreads, setBusyThreads] = useState<string[]>([]);
   const [microDebrief, setMicroDebrief] = useState<MicroDebrief | null>(null);
   const [savingOutcome, setSavingOutcome] = useState(false);
+
+  // Retour arrière / refresh accidentels : garde tant que la partie est en cours.
+  useNavigationGuard(session !== null && !session.isFinished && briefingDone);
 
   const persist = useCallback(() => {
     const s = sessionRef.current;
