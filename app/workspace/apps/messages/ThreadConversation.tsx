@@ -9,7 +9,7 @@
 
 import type { ActorDef, TranscriptEvent } from "@/app/lib/engine/mechanics";
 import type { Thread, WorkspaceAction } from "@/app/lib/engine/workspace";
-import { ChatPanel } from "@/app/player/primitives/ChatPanel";
+import { ChatPanel } from "@/app/workspace/primitives/ChatPanel";
 
 /** Projection d'un fil workspace vers le transcript du ChatPanel. */
 export function threadToTranscript(t: Thread): TranscriptEvent[] {

@@ -10,7 +10,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import type { JsonObject } from "@/app/lib/engine/mechanics";
 import type {
@@ -168,6 +168,22 @@ describe("(a) pureté des specs headless", () => {
     const src = readFileSync(join(mechanicsDir, "specHelpers.ts"), "utf8");
     expect(/from\s+["']react["']/.test(src)).toBe(false);
     expect(/\.tsx["']/.test(src)).toBe(false);
+  });
+
+  it("CONTRAT : app/mechanics/** ne contient aucun .tsx (les mécaniques sont headless)", () => {
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith(".tsx")) offenders.push(full);
+      }
+    };
+    walk(mechanicsDir);
+    expect(
+      offenders,
+      `Fichiers .tsx interdits sous app/mechanics/ (l'UI vit dans app/workspace/) :\n${offenders.join("\n")}`,
+    ).toEqual([]);
   });
 });
 

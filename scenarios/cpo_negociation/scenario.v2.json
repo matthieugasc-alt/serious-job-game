@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "cpo_negociation",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "La release de trop — négocier avec son Head of Engineering",
@@ -26,7 +26,8 @@
       "title": "Négociation de la release avec Yann",
       "params": {
         "actor_id": "yann_kowalski",
-        "instructions": "Négociez avec Yann les conditions de la release. Objectif : sortir avec un engagement FERME de sa part (date + périmètre). Attention : un accord imposé de force à un Head of Engineering épuisé explosera en cours de route — chaque exigence doit s'échanger contre une vraie contrepartie (périmètre, temps, budget dette). Le contrat s'ouvre en panneau dans votre poste de travail : ajustez les termes, proposez-les à Yann, puis signez l'accord conclu (ou refusez).",
+        "instructions": "Négociez avec Yann les conditions de la release. Objectif : sortir avec un engagement FERME de sa part (date + périmètre). Attention : un accord imposé de force à un Head of Engineering épuisé explosera en cours de route — chaque exigence doit s'échanger contre une vraie contrepartie (périmètre, temps, budget dette).",
+        "opening_message": "Écoute, je vais être direct : le 15 septembre avec les trois modules complets, on n'y arrivera pas. L'équipe est sous l'eau, et tant qu'on ne prend pas le temps de traiter la dette du module de sync, chaque feature nous coûte double. Il faut couper le périmètre ET décaler. Et je veux 20 % du sprint réservé à la dette, ce n'est plus négociable.",
         "terms": [
           {
             "id": "date_release",
@@ -44,88 +45,10 @@
             "id": "budget_dette_pct",
             "label": "% du sprint réservé à la dette technique",
             "type": "number",
-            "opening": 0,
-            "suffix": "%"
+            "opening": 0
           }
         ],
         "directive": "L'acteur veut couper le périmètre et décaler ; il ne s'engage fermement que si le joueur concède du périmètre OU du temps, ET un budget dette d'au moins 15 %. Si le joueur impose ses trois termes d'ouverture sans concession, l'acteur cède en apparence mais sans conviction, en précisant qu'il ne garantit rien."
-      },
-      "threads": [
-        {
-          "thread_id": "th_yann",
-          "participants": ["yann_kowalski"],
-          "title": "Yann Kowalski (Head of Engineering)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "contrat",
-          "config": {
-            "terms": [
-              {
-                "id": "date_release",
-                "label": "Date de la release",
-                "type": "text",
-                "opening": "15 septembre"
-              },
-              {
-                "id": "perimetre",
-                "label": "Périmètre de la release",
-                "type": "text",
-                "opening": "3 modules complets"
-              },
-              {
-                "id": "budget_dette_pct",
-                "label": "% du sprint réservé à la dette technique",
-                "type": "number",
-                "opening": 0,
-                "suffix": "%"
-              }
-            ]
-          }
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_yann",
-          "when": { "type": "step_start" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_yann",
-            "actor_id": "yann_kowalski",
-            "content": "Écoute, je vais être direct : le 15 septembre avec les trois modules complets, on n'y arrivera pas. L'équipe est sous l'eau, et tant qu'on ne prend pas le temps de traiter la dette du module de sync, chaque feature nous coûte double. Il faut couper le périmètre ET décaler. Et je veux 20 % du sprint réservé à la dette, ce n'est plus négociable."
-          }
-        },
-        {
-          "event_id": "e_reaction_proposition",
-          "when": { "type": "after_action", "action": "deliverable_submitted" },
-          "effect": {
-            "type": "actor_reply",
-            "thread_id": "th_yann",
-            "actor_id": "yann_kowalski",
-            "directive": "Le joueur vient d'envoyer une proposition de termes via le panneau Contrat (elle figure dans l'état du contrat et dans l'historique). Réagis à cette proposition dans le fil de discussion : accepte, refuse ou contre-propose, en respectant tes positions, tes concessions réelles et ton comportement d'accord de façade si on te passe en force."
-          },
-          "once": false
-        },
-        {
-          "event_id": "e_retry_yann",
-          "when": { "type": "on_retry" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_yann",
-            "actor_id": "yann_kowalski",
-            "content": "On ne va pas en rester là — un plan auquel je ne crois pas, ça explosera à la deuxième semaine de sprint et on aura tout perdu. Reprends le contrat : ce qu'il me faut, c'est une date qu'on peut vraiment tenir et de quoi la tenir — du périmètre en moins ou du temps en plus, et un vrai budget dette. Fais-moi une proposition qui tient compte de ma capacité réelle, et là je m'engage."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "any",
-          "of": [
-            { "type": "contract_signed" },
-            { "type": "contract_rejected" }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [

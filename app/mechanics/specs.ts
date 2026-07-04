@@ -1,11 +1,11 @@
 /**
  * MECHANIC_SPECS — registre des mécaniques HEADLESS v3 (workspace).
- * Même pattern garde-fou que MECHANIC_MANIFESTS (v2) : toute mécanique v3
- * ajoutée sans être enregistrée ici + dans schema/mechanics-v3.json casse
- * le test app/mechanics/__tests__/specs.headless.test.ts.
+ * Garde-fou : toute mécanique v3 ajoutée sans être enregistrée ici +
+ * dans schema/mechanics-v3.json casse le test
+ * app/mechanics/__tests__/specs.headless.test.ts.
  *
- * Ne PAS confondre avec app/mechanics/index.ts (registre v2 UI, intact
- * jusqu'au jalon 3) : ce module est PUR (importable en node, zéro React).
+ * Ce module est PUR (importable en node, zéro React) — le même test
+ * interdit tout .tsx sous app/mechanics/ (l'UI vit dans app/workspace/).
  */
 
 import type { MechanicSpec, MechanicSpecManifest } from "@/app/lib/engine/workspace";

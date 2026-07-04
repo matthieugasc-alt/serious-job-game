@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "cpo_formation",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Onboarder Inès sur la priorisation — RICE façon Fluxboard",
@@ -48,51 +48,8 @@
           }
         ],
         "min_exchanges": 4,
+        "opening_message": "Merci de prendre le temps ! Alors, j'ai vu passer des scores RICE dans le Notion, mais honnêtement, pour mon backlog je calcule au doigt mouillé. Et il y a un truc qui me chiffonne avant même la formule : pourquoi on ne fait pas juste ce que demande notre plus gros client ? C'est lui qui paie nos salaires, non ?",
         "directive": "L'apprenante est honnête et exigeante : elle réclame un exemple chiffré, tente de refaire le calcul (parfois avec une erreur à repérer), pose ses deux questions pièges (le plus gros client, l'arbitrage face à la CEO) et signale franchement quand une explication la perd. Elle ne valide jamais un point par politesse."
-      },
-      "threads": [
-        {
-          "thread_id": "th_ines",
-          "participants": ["ines_berrada"],
-          "title": "Inès Berrada (PM junior)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": ["doc_rice_fluxboard"],
-      "events": [
-        {
-          "event_id": "e_ouverture_ines",
-          "when": { "type": "step_start" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_ines",
-            "actor_id": "ines_berrada",
-            "content": "Merci de prendre le temps ! Alors, j'ai vu passer des scores RICE dans le Notion, mais honnêtement, pour mon backlog je calcule au doigt mouillé. Et il y a un truc qui me chiffonne avant même la formule : pourquoi on ne fait pas juste ce que demande notre plus gros client ? C'est lui qui paie nos salaires, non ?"
-          }
-        },
-        {
-          "event_id": "e_retry_ines",
-          "when": { "type": "on_retry" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_ines",
-            "actor_id": "ines_berrada",
-            "content": "Je vais être honnête avec toi : là, je ne saurais toujours pas prioriser mon backlog. Il me manque au moins un vrai exemple chiffré que je peux refaire moi-même, et je n'ai pas de réponse claire sur qui tranche si le score contredit Emma. Je préfère te le dire maintenant plutôt que de faire semblant — on peut reprendre ces points ?"
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "message_sent", "to_actor": "ines_berrada", "min_count": 4 },
-            { "type": "criterion_observed", "criterion": "objectifs_couverts_honnetement" }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [

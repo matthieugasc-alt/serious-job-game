@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "cpo_diagnostic",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "L'activation a chuté de 30 % — trouver la cause",
@@ -31,7 +31,7 @@
       "mechanic": "diagnostic",
       "title": "Investigation avec David — pourquoi l'activation chute",
       "params": {
-        "situation": "L'activation (premiers projets créés dans les 7 jours) a chuté de 30 % en trois semaines : de ~45 % à 31 %. Le volume de signups, lui, est stable. Emma (CEO) présente les chiffres au board vendredi et veut une cause identifiée, pas une liste de suppositions. David Osei a toutes les données — mais il ne vous donnera que ce que vous lui demandez. Consignez vos hypothèses dans le bloc-notes au fil de l'enquête, puis formalisez votre diagnostic par un message à David : la cause retenue, les preuves qui la soutiennent, et au moins une hypothèse écartée avec sa raison.",
+        "situation": "L'activation (premiers projets créés dans les 7 jours) a chuté de 30 % en trois semaines : de ~45 % à 31 %. Le volume de signups, lui, est stable. Emma (CEO) présente les chiffres au board vendredi et veut une cause identifiée, pas une liste de suppositions. David Osei a toutes les données — mais il ne vous donnera que ce que vous lui demandez.",
         "actor_id": "david_osei",
         "hypotheses": [
           {
@@ -51,51 +51,9 @@
             "label": "Creux saisonnier estival"
           }
         ],
-        "min_exchanges": 3
-      },
-      "threads": [
-        {
-          "thread_id": "th_david",
-          "participants": ["david_osei"],
-          "title": "David Osei (Lead Data)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": ["doc_dashboard_activation"],
-      "events": [
-        {
-          "event_id": "e_ouverture_david",
-          "when": { "type": "step_start" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_david",
-            "actor_id": "david_osei",
-            "content": "Salut. J'ai vu ton message — oui, l'activation décroche depuis trois semaines, c'est net. Je t'ai mis l'extraction hebdo dans le dossier, chiffres bruts. J'ai pas mal d'autres requêtes sous la main : tu veux regarder quoi en premier ?"
-          }
-        },
-        {
-          "event_id": "e_retry_david",
-          "when": { "type": "on_retry" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_david",
-            "actor_id": "david_osei",
-            "content": "J'ai relu ton diagnostic — en l'état, ça ne tiendra pas devant le board vendredi. Il leur faudra une cause précise, des preuves chiffrées, et les pistes écartées avec les chiffres qui les écartent. Si tu veux creuser, j'ai encore des requêtes sous la main : segmentation par device ou par canal, timing par rapport aux changements produit, complétion du funnel étape par étape. Tu veux regarder quoi ?"
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "message_sent", "to_actor": "david_osei", "min_count": 3 },
-            { "type": "criterion_observed", "criterion": "cause_correcte" }
-          ]
-        }
+        "document_ids": ["doc_dashboard_activation"],
+        "min_exchanges": 3,
+        "opening_message": "Salut. J'ai vu ton message — oui, l'activation décroche depuis trois semaines, c'est net. Je t'ai mis l'extraction hebdo dans le dossier, chiffres bruts. J'ai pas mal d'autres requêtes sous la main : tu veux regarder quoi en premier ?"
       },
       "evaluation": {
         "observed_criteria": [
@@ -108,7 +66,7 @@
           },
           {
             "id": "cause_correcte",
-            "description": "La cause retenue dans le diagnostic formalisé (message de synthèse envoyé à David) est bug_onboarding_mobile : la friction introduite par la release 4.2 (étape de vérification email) qui fait décrocher les utilisateurs mobile pendant l'onboarding.",
+            "description": "La cause retenue dans le diagnostic est bug_onboarding_mobile : la friction introduite par la release 4.2 (étape de vérification email) qui fait décrocher les utilisateurs mobile pendant l'onboarding.",
             "severity": "required",
             "competencies": ["analyse", "decision"]
           },

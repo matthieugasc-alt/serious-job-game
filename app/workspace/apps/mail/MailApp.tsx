@@ -10,8 +10,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { WsMail } from "@/app/lib/engine/workspace";
-import { Markdown } from "@/app/player/primitives/Markdown";
-import { ActorAvatar, PrimaryButton, SecondaryButton } from "@/app/player/primitives/ui";
+import { Markdown } from "@/app/workspace/primitives/Markdown";
+import { ActorAvatar, PrimaryButton, SecondaryButton } from "@/app/workspace/primitives/ui";
 import { fmtWhen } from "../format";
 import type { WorkspaceAppProps } from "../types";
 

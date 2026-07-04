@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "founder_05_sales",
-  "version": "3.0.0",
+  "version": "2.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Gérer une vente complexe",
@@ -63,7 +63,7 @@
       "mechanic": "decision",
       "title": "Choisir ta cible",
       "params": {
-        "instructions": "« Bon, il est temps de vendre. On a un produit qui marche, on a un pilote terminé, mais on a zéro client payant. J'ai passé les dernières semaines à compiler une liste de KOL — des gens qui ont de l'influence dans leur établissement et qui pourraient porter Orisio. Il y en a 10, j'ai mis les profils détaillés dans les documents. Choisis bien tes cibles. J'ai demandé à mon pote avocat des CGV gratos, c'est pas le pied mais ça permet d'avancer, elles sont aussi dans les docs. » Ces gens reçoivent 50 démarchages par semaine — tu n'auras pas deux chances. Choisis LA cible prioritaire de ta première vraie vente et justifie : urgence et visibilité du problème chez elle, pouvoir de prescription réel, vitesse de décision de l'établissement, risque DSI.\n\nLa liste des KOL et les CGV sont dans l'app Documents. Prends des notes, puis annonce ta cible à Alexandre dans Messages : qui, et pourquoi — c'est ta réponse dans le fil qui l'engage.",
+        "instructions": "« Bon, il est temps de vendre. On a un produit qui marche, on a un pilote terminé, mais on a zéro client payant. J'ai passé les dernières semaines à compiler une liste de KOL — des gens qui ont de l'influence dans leur établissement et qui pourraient porter Orisio. Il y en a 10, j'ai mis les profils détaillés dans les documents. Choisis bien tes cibles. J'ai demandé à mon pote avocat des CGV gratos, c'est pas le pied mais ça permet d'avancer, elles sont aussi dans les docs. » Ces gens reçoivent 50 démarchages par semaine — tu n'auras pas deux chances. Choisis LA cible prioritaire de ta première vraie vente et justifie : urgence et visibilité du problème chez elle, pouvoir de prescription réel, vitesse de décision de l'établissement, risque DSI.",
         "options": [
           {
             "id": "isabelle_fontaine",
@@ -115,117 +115,60 @@
             "label": "M. Thomas Barbier — HP Jean Mermoz (Ramsay)",
             "description": "Directeur des achats, décideur budgétaire direct. Mais non-médecin : il raisonne en TCO et ROI, pas en chirurgie."
           }
-        ]
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "liste_kol",
-        "cgv_orisio"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_ouverture",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Bon, il est temps de vendre. On a un produit qui marche, on a un pilote terminé, mais on a zéro client payant. J'ai passé les dernières semaines à compiler une liste de KOL — des gens qui ont de l'influence dans leur établissement et qui pourraient porter Orisio. Il y en a 10, j'ai mis les profils détaillés dans les documents. Choisis bien tes cibles. J'ai demandé à mon pote avocat des CGV gratos, c'est pas le pied mais ça permet d'avancer, elles sont aussi dans les docs."
-          }
-        },
-        {
-          "event_id": "e_alex_retry_kol",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Attends. Pourquoi cette cible plutôt qu'une autre ? Profil et problème vécu, pouvoir de prescription réel, vitesse de décision de l'établissement, risque DSI : déroule-moi ça. Ces gens reçoivent 50 démarchages par semaine — on n'a qu'une cartouche."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "alexandre_morel"
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "justif_profil"
-            }
-          ]
-        }
+        ],
+        "require_justification": true,
+        "min_justification_chars": 120
       },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "choice_isabelle_fontaine",
-            "description": "L'option « Dr. Isabelle Fontaine » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "description": "L'option « Dr. Isabelle Fontaine » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_philippe_marchand",
-            "description": "L'option « Dr. Philippe Marchand » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "description": "L'option « Dr. Philippe Marchand » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_nathalie_bergeron",
-            "description": "L'option « Dr. Nathalie Bergeron » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "description": "L'option « Dr. Nathalie Bergeron » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_laurent_dubois",
-            "description": "L'option « Dr. Laurent Dubois » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "description": "L'option « Dr. Laurent Dubois » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_amina_khelifi",
-            "description": "L'option « Dr. Amina Khelifi » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "description": "L'option « Dr. Amina Khelifi » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_jean_marc_delacroix",
-            "description": "L'option « Pr. Jean-Marc Delacroix » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "description": "L'option « Pr. Jean-Marc Delacroix » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_sandra_oliveira",
-            "description": "L'option « Dr. Sandra Oliveira » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "description": "L'option « Dr. Sandra Oliveira » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_maxime_chen",
-            "description": "L'option « Dr. Maxime Chen » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "description": "L'option « Dr. Maxime Chen » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_veronique_roche",
-            "description": "L'option « Dr. Véronique Roche » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "description": "L'option « Dr. Véronique Roche » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_thomas_barbier",
-            "description": "L'option « M. Thomas Barbier » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "description": "L'option « M. Thomas Barbier » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
@@ -263,61 +206,15 @@
       "params": {
         "deliverable_type": "mail",
         "recipient_actor": "kol_interesse",
-        "instructions": "Rédige le cold email à ton KOL cible. Règles d'or : PERSONNALISE (son poste, ses publications, son problème spécifique — pas de copié-collé), montre la VALEUR (temps morts au bloc, taux d'occupation), apporte une PREUVE (pilote terminé, données chiffrées), termine par un CALL-TO-ACTION concret (démo de 20 minutes, appel). Et sois COURT : un pavé part à la poubelle.\n\nEnvoie ton cold email depuis l'app Mail à ton KOL cible. L'objet compte autant que le corps : accrocheur et spécifique — pas de « Découvrez notre solution »."
+        "subject_hint": "Objet accrocheur et spécifique — pas de « Découvrez notre solution »",
+        "instructions": "Rédige le cold email à ton KOL cible. Règles d'or : PERSONNALISE (son poste, ses publications, son problème spécifique — pas de copié-collé), montre la VALEUR (temps morts au bloc, taux d'occupation), apporte une PREUVE (pilote terminé, données chiffrées), termine par un CALL-TO-ACTION concret (démo de 20 minutes, appel). Et sois COURT : un pavé part à la poubelle.",
+        "document_ids": [
+          "liste_kol"
+        ]
       },
       "inputs": {
         "kol_cible": "s1_choix_kol.choice",
         "justification_ciblage": "s1_choix_kol.justification"
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "liste_kol",
-        "cgv_orisio"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_go_email",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Vas-y, envoie ton cold email. Rappelle-toi : personnalisé, court, une preuve, un call-to-action concret. Un mail générique part direct à la poubelle."
-          }
-        },
-        {
-          "event_id": "e_alex_retry_email",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Ton mail partirait direct à la poubelle. Il est personnalisé sur SON profil et SON problème ? On voit la valeur ? Il y a une preuve (le pilote, des chiffres) et un call-to-action facile à accepter ? Réécris-le."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "mail_sent",
-          "to": "kol_interesse"
-        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -387,79 +284,6 @@
         "context_hint": "Ton KOL a transmis : « Je viens de transmettre votre proposition à notre DSI, Éric Moreau. C'est lui qui gère la validation technique et budgétaire. Préparez-vous — il est rigoureux. » Cybersécurité/HDS, RGPD, interopérabilité SIH, tarification : tes CGV sont ton référentiel (30 % d'acompte, engagement 36 mois, module d'intégration SIH sur devis en ~3 mois — article 7.2). Sois factuel et surtout NE MENS PAS : les DSI vérifient tout.",
         "directive": "Déroule exactement ces 4 sujets, dans l'ordre, une question à la fois : 1) hébergement et cybersécurité (localisation des données, certification HDS, chiffrement, MFA, tests d'intrusion, PCA/PRA) ; 2) RGPD (rôle au sens du RGPD, données traitées, DPA, localisation des serveurs) ; 3) interopérabilité (intégration avec le SIH DxCare/Easily, support HL7 FHIR — exige de savoir où en est CONCRÈTEMENT le développement) ; 4) tarification pour 8 à 12 salles (grille, facturation, mise en service, formation, support). Creuse toute réponse vague ou trop belle pour être vraie. Tu es prudent, méthodique, factuel — jamais hostile."
       },
-      "threads": [
-        {
-          "thread_id": "th_eric",
-          "participants": [
-            "eric_moreau"
-          ],
-          "title": "Éric Moreau (DSI)"
-        },
-        {
-          "thread_id": "th_kol",
-          "participants": [
-            "kol_interesse"
-          ],
-          "title": "Ton KOL"
-        },
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "cgv_orisio"
-      ],
-      "events": [
-        {
-          "event_id": "e_kol_transmission",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_kol",
-            "actor_id": "kol_interesse",
-            "content": "Je viens de transmettre votre proposition à notre DSI, Éric Moreau. C'est lui qui gère la validation technique et budgétaire. Préparez-vous — il est rigoureux."
-          }
-        },
-        {
-          "event_id": "e_ouverture_eric",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_eric",
-            "actor_id": "eric_moreau",
-            "directive": "Ouvre l'échange : présente-toi en une phrase (DSI de l'établissement, tu as reçu la proposition Orisio transmise par le KOL) et pose ta première question — sujet 1 : hébergement et cybersécurité (localisation des données, certification HDS, chiffrement, MFA, tests d'intrusion, PCA/PRA). Une seule question à la fois, conformément à ton protocole."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "eric_moreau",
-              "min_count": 4
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "interop_honnete"
-            }
-          ]
-        }
-      },
       "evaluation": {
         "observed_criteria": [
           {
@@ -528,61 +352,9 @@
       "params": {
         "actor_id": "kol_interesse",
         "objective": "La DSI a validé. Co-construis le plan d'implémentation avec ton KOL : calendrier de déploiement semaine par semaine (sans perturber l'activité du bloc, bascule un week-end), formation des équipes (chirurgiens, IBODE, cadres), reprise des données Excel existantes, accompagnement au changement, indicateurs de succès mesurables. Structure et reformule au fil de l'eau : tu t'engages sur ce plan.",
+        "min_exchanges": 5,
+        "opening_message": "Bon, la DSI a validé, on peut avancer. Maintenant il faut qu'on parle concret : comment on déploie ça chez nous. Premier point : le calendrier. On ne peut pas perturber l'activité du bloc pendant le déploiement — il me faut un planning précis, semaine par semaine, et la bascule en production doit se faire un week-end.",
         "directive": "Égrène tes exigences UNE PAR UNE au fil de l'échange, conformément à ton contexte : calendrier détaillé + bascule week-end, formation des équipes, reprise des données Excel, accompagnement au changement, indicateurs de succès. Challenge les réponses vagues ou les délais irréalistes. Tu valides explicitement quand un point te convient."
-      },
-      "threads": [
-        {
-          "thread_id": "th_kol",
-          "participants": [
-            "kol_interesse"
-          ],
-          "title": "Ton KOL"
-        },
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "cgv_orisio"
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_plan",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_kol",
-            "actor_id": "kol_interesse",
-            "content": "Bon, la DSI a validé, on peut avancer. Maintenant il faut qu'on parle concret : comment on déploie ça chez nous. Premier point : le calendrier. On ne peut pas perturber l'activité du bloc pendant le déploiement — il me faut un planning précis, semaine par semaine, et la bascule en production doit se faire un week-end."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "kol_interesse",
-              "min_count": 5
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "plan_complet"
-            }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -630,14 +402,13 @@
       "title": "Négociation contractuelle — exceptions aux CGV",
       "params": {
         "actor_id": "claire_vasseur",
-        "instructions": "Ton KOL te prévient : « Notre juriste, Me Claire Vasseur, a examiné vos CGV. Elle a préparé un document d'exceptions — c'est standard chez nous, chaque prestataire passe par là. » Et Alexandre botte en touche : « Honnêtement j'ai même pas lu, c'est pas mon domaine. Gère ça, moi je retourne au produit. » Le bon de commande déroge à tes CGV sur 5 points : remise de 15 %, interdiction totale de communication (pas de référence client), suppression des pénalités de retard de paiement, pénalités SLA avec résiliation de plein droit au-delà de 48 h d'indisponibilité, et engagement 36 mois remplacé par 6 mois de test + 12 mois. Négocie clause par clause : limite la remise (8-10 % max), obtiens un droit de communication même encadré, encadre les pénalités SLA, trouve un compromis sur la durée. Ne brade pas Orisio pour signer : le précédent que tu poses ici, chaque futur client le demandera. Le contrat s'ouvre en panneau dans ton poste de travail : ajuste les termes clause par clause, propose-les à Me Vasseur, puis signe le bon de commande amendé — ou refuse.",
+        "instructions": "Ton KOL te prévient : « Notre juriste, Me Claire Vasseur, a examiné vos CGV. Elle a préparé un document d'exceptions — c'est standard chez nous, chaque prestataire passe par là. » Et Alexandre botte en touche : « Honnêtement j'ai même pas lu, c'est pas mon domaine. Gère ça, moi je retourne au produit. » Le bon de commande déroge à tes CGV sur 5 points : remise de 15 %, interdiction totale de communication (pas de référence client), suppression des pénalités de retard de paiement, pénalités SLA avec résiliation de plein droit au-delà de 48 h d'indisponibilité, et engagement 36 mois remplacé par 6 mois de test + 12 mois. Négocie clause par clause : limite la remise (8-10 % max), obtiens un droit de communication même encadré, encadre les pénalités SLA, trouve un compromis sur la durée. Ne brade pas Orisio pour signer : le précédent que tu poses ici, chaque futur client le demandera.",
         "terms": [
           {
             "id": "remise_pct",
             "label": "Remise commerciale (%)",
             "type": "number",
-            "opening": 15,
-            "suffix": "%"
+            "opening": 15
           },
           {
             "id": "communication",
@@ -658,154 +429,17 @@
             "opening": "Avoir proportionnel + résiliation de plein droit au-delà de 48 h d'indisponibilité"
           }
         ],
+        "opening_message": "Monsieur,\n\nSuite à la validation de la DSI, je vous transmets le projet de bon de commande pour le déploiement de la solution Orisio dans notre établissement. Ce bon de commande intègre des conditions particulières qui dérogent à vos CGV.\n\nConditions particulières :\n\n1. REMISE COMMERCIALE — En tant que premier client référencé, l'établissement demande une remise de 15% sur le tarif par salle/mois communiqué à la DSI.\n\n2. COMMUNICATION (art. 6.5 CGV) — L'établissement refuse toute communication publique de la part de l'Éditeur mentionnant l'établissement comme client ou référence, y compris sur le site web, en congrès ou dans des supports marketing.\n\n3. PÉNALITÉS DE RETARD (art. 3.5 CGV) — Les pénalités de retard de paiement sont supprimées. L'établissement étant soumis à des circuits de validation comptable stricts, les délais de mandatement sont une contrainte administrative incompressible.\n\n4. PÉNALITÉS D'INDISPONIBILITÉ (art. 4.4 CGV) — En cas de disponibilité inférieure à 99,5% sur un mois donné, un avoir proportionnel au temps d'indisponibilité est appliqué. En cas d'indisponibilité supérieure à 48h consécutives, résiliation de plein droit sans indemnité.\n\n5. DURÉE D'ENGAGEMENT (art. 2.1 CGV) — L'engagement de 36 mois prévu aux CGV est remplacé par une période de test de 6 mois, suivie d'un engagement de 12 mois renouvelable tacitement.\n\nMerci de nous retourner ce bon de commande amendé avec vos observations.\n\nMe Claire Vasseur\nDirection des affaires juridiques",
         "directive": "Tu es ferme UNIQUEMENT sur la durée d'engagement : jamais 36 mois ferme (compromis acceptables : 12 mois ferme + renouvellement, ou 6 mois de test + 12 mois ferme). Sur la remise, tu peux descendre à 8-10 % si le joueur argumente (premier client = accompagnement renforcé, prix déjà négocié avec la DSI). Sur la communication, tu peux accepter une mention encadrée (accord préalable au cas par cas, ou référence anonymisée). Sur les pénalités SLA, tu peux abandonner la résiliation de plein droit contre un avoir plafonné. Tu lâches chaque point avec résistance, jamais deux à la fois, et tu exiges une contrepartie ou un argument à chaque fois. Si le joueur accepte tout sans discuter, tu conclus immédiatement, satisfaite."
       },
       "inputs": {
         "plan_implementation": "s4_plan_implementation.dialogue"
       },
-      "threads": [
-        {
-          "thread_id": "th_claire",
-          "participants": [
-            "claire_vasseur"
-          ],
-          "title": "Me Claire Vasseur (juriste)"
-        },
-        {
-          "thread_id": "th_kol",
-          "participants": [
-            "kol_interesse"
-          ],
-          "title": "Ton KOL"
-        },
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "contrat",
-          "config": {
-            "terms": [
-              {
-                "id": "remise_pct",
-                "label": "Remise commerciale (%)",
-                "type": "number",
-                "opening": 15,
-                "suffix": "%"
-              },
-              {
-                "id": "communication",
-                "label": "Droit de communication / référence client",
-                "type": "text",
-                "opening": "Toute communication mentionnant l'établissement est interdite"
-              },
-              {
-                "id": "duree_engagement",
-                "label": "Durée d'engagement",
-                "type": "text",
-                "opening": "6 mois de test, puis 12 mois renouvelable tacitement"
-              },
-              {
-                "id": "penalites_sla",
-                "label": "Pénalités d'indisponibilité (SLA)",
-                "type": "text",
-                "opening": "Avoir proportionnel + résiliation de plein droit au-delà de 48 h d'indisponibilité"
-              }
-            ]
-          }
-        }
-      ],
-      "document_ids": [
-        "cgv_orisio"
-      ],
-      "events": [
-        {
-          "event_id": "e_kol_prevenance",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_kol",
-            "actor_id": "kol_interesse",
-            "content": "Notre juriste, Me Claire Vasseur, a examiné vos CGV. Elle a préparé un document d'exceptions — c'est standard chez nous, chaque prestataire passe par là."
-          }
-        },
-        {
-          "event_id": "e_alex_botte_en_touche",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Honnêtement j'ai même pas lu, c'est pas mon domaine. Gère ça, moi je retourne au produit."
-          }
-        },
-        {
-          "event_id": "e_bon_de_commande",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "mail_received",
-            "from_actor": "claire_vasseur",
-            "subject": "Bon de commande Orisio — conditions particulières dérogatoires aux CGV",
-            "body": "Monsieur,\n\nSuite à la validation de la DSI, je vous transmets le projet de bon de commande pour le déploiement de la solution Orisio dans notre établissement. Ce bon de commande intègre des conditions particulières qui dérogent à vos CGV.\n\nConditions particulières :\n\n1. REMISE COMMERCIALE — En tant que premier client référencé, l'établissement demande une remise de 15% sur le tarif par salle/mois communiqué à la DSI.\n\n2. COMMUNICATION (art. 6.5 CGV) — L'établissement refuse toute communication publique de la part de l'Éditeur mentionnant l'établissement comme client ou référence, y compris sur le site web, en congrès ou dans des supports marketing.\n\n3. PÉNALITÉS DE RETARD (art. 3.5 CGV) — Les pénalités de retard de paiement sont supprimées. L'établissement étant soumis à des circuits de validation comptable stricts, les délais de mandatement sont une contrainte administrative incompressible.\n\n4. PÉNALITÉS D'INDISPONIBILITÉ (art. 4.4 CGV) — En cas de disponibilité inférieure à 99,5% sur un mois donné, un avoir proportionnel au temps d'indisponibilité est appliqué. En cas d'indisponibilité supérieure à 48h consécutives, résiliation de plein droit sans indemnité.\n\n5. DURÉE D'ENGAGEMENT (art. 2.1 CGV) — L'engagement de 36 mois prévu aux CGV est remplacé par une période de test de 6 mois, suivie d'un engagement de 12 mois renouvelable tacitement.\n\nMerci de nous retourner ce bon de commande amendé avec vos observations.\n\nMe Claire Vasseur\nDirection des affaires juridiques"
-          }
-        },
-        {
-          "event_id": "e_reaction_proposition",
-          "when": {
-            "type": "after_action",
-            "action": "deliverable_submitted"
-          },
-          "effect": {
-            "type": "actor_reply",
-            "thread_id": "th_claire",
-            "actor_id": "claire_vasseur",
-            "directive": "Le joueur vient d'envoyer une proposition d'amendements via le panneau Contrat (elle figure dans l'état du contrat et dans l'historique). Réagis clause par clause dans le fil : accepte, refuse ou contre-propose, conformément à ta fiche de rôle (ferme sur la durée d'engagement jamais 36 mois ferme ; remise 8-10 % contre argument ; communication encadrée possible ; SLA : abandon de la résiliation de plein droit contre avoir plafonné ; jamais deux concessions à la fois, toujours contre un argument ou une contrepartie)."
-          },
-          "once": false
-        },
-        {
-          "event_id": "e_relance_claire",
-          "when": {
-            "type": "delay",
-            "seconds": 300
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_claire",
-            "actor_id": "claire_vasseur",
-            "content": "Avez-vous des observations sur nos conditions particulières ? Notre établissement souhaite boucler ce dossier rapidement — sans retour, le bon de commande sera présenté tel quel à la signature."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "any",
-          "of": [
-            {
-              "type": "contract_signed"
-            },
-            {
-              "type": "contract_rejected"
-            }
-          ]
-        }
-      },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "accord_conclu",
-            "description": "Un accord est conclu : le bon de commande amendé est signé aux termes convenus.",
+            "description": "Un accord est conclu sur le bon de commande amendé (agreement.concluded = true).",
             "severity": "required",
             "competencies": [
               "negociation"
@@ -870,71 +504,18 @@
     {
       "step_id": "s6_recap_playbook",
       "mechanic": "production",
-      "title": "Le playbook — récapitulatif pour Alexandre",
+      "title": "Le playbook — mail récapitulatif",
       "params": {
-        "deliverable_type": "document",
-        "instructions": "Alexandre veut dupliquer ta vente à la clinique du pilote : « Envoie-moi un récap complet, je veux pouvoir copier-coller ta méthode. » Rédige le playbook : pourquoi ce KOL a été ciblé et ce qui a marché, les réponses données à la DSI (HDS, RGPD, interop, pricing), le plan d'implémentation validé, et les conditions finales négociées (remise, communication, engagement, SLA) — accepté ET refusé, avec justification. Sois exact sur les clauses : s'il arrive chez eux avec des conditions différentes, vous perdez toute crédibilité.\n\nRédige le playbook dans l'Éditeur de ton poste de travail, puis clique « Rendre le document » pour le remettre à Alexandre."
+        "deliverable_type": "mail",
+        "recipient_actor": "alexandre_morel",
+        "subject_hint": "Récap vente — Conditions et méthode à dupliquer",
+        "instructions": "Alexandre veut dupliquer ta vente à la clinique du pilote : « Envoie-moi un récap complet, je veux pouvoir copier-coller ta méthode. » Rédige le playbook : pourquoi ce KOL a été ciblé et ce qui a marché, les réponses données à la DSI (HDS, RGPD, interop, pricing), le plan d'implémentation validé, et les conditions finales négociées (remise, communication, engagement, SLA) — accepté ET refusé, avec justification. Sois exact sur les clauses : s'il arrive chez eux avec des conditions différentes, vous perdez toute crédibilité."
       },
       "inputs": {
         "kol_cible": "s1_choix_kol.choice",
         "reponses_dsi": "s3_objections_dsi.dialogue",
         "plan_implementation": "s4_plan_implementation.dialogue",
         "accord_final": "s5_nego_contrat.agreement"
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "editeur",
-          "config": {
-            "title_hint": "Playbook de vente — récap pour Alexandre"
-          }
-        },
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "cgv_orisio"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_demande_recap",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Il faut qu'on duplique ta vente à la clinique du pilote. Envoie-moi un récap complet, je veux pouvoir copier-coller ta méthode."
-          }
-        },
-        {
-          "event_id": "e_alex_retry_recap",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Il manque des morceaux. Je veux les conditions EXACTES négociées (remise, communication, engagement, SLA — accepté ET refusé), les réponses faites à la DSI, et pourquoi ce KOL. Sans ça je peux rien dupliquer. Complète ton récap."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "deliverable_submitted",
-          "tool": "editeur"
-        }
       },
       "evaluation": {
         "observed_criteria": [

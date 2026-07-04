@@ -6,11 +6,11 @@
  * Responsabilités (et rien d'autre) :
  *   1. valider le scénario v3 (composerV3) contre specs headless + tools
  *   2. init/reprise de session (deep-save localStorage, clé campagne)
- *   3. briefing simple (même esprit que le Shell v2) puis WorkspaceShell
+ *   3. briefing simple puis WorkspaceShell
  *   4. dispatch = applyWorkspaceAction sur un clone + exécution des
  *      PendingEffects par l'orchestrateur (I/O IA) + persistance
  *   5. clock_tick toutes les 5 s si le step a des triggers/events temporels
- *   6. fin → même flux que PlayerClient v2 (/api/v2/complete, microDebrief)
+ *   6. fin → POST /api/v2/complete (+ microDebrief en campagne founder)
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -28,11 +28,11 @@ import { applyWorkspaceAction, enterStep } from "@/app/lib/engine/workspaceReduc
 import { validateScenarioV3 } from "@/app/lib/engine/composerV3";
 import { triggerMentions } from "@/app/lib/engine/triggers";
 import { MECHANIC_SPECS, MECHANIC_SPEC_MANIFESTS } from "@/app/mechanics/specs";
-import { ActorAvatar, PrimaryButton } from "@/app/player/primitives/ui";
+import { ActorAvatar, PrimaryButton } from "@/app/workspace/primitives/ui";
 import { WorkspaceShell } from "./WorkspaceShell";
 import { TOOL_REGISTRY } from "./apps/registry";
 import { buildCompletionPayload, runPendingEffects } from "./orchestrator";
-import { useNavigationGuard } from "@/app/player/useNavigationGuard";
+import { useNavigationGuard } from "@/app/workspace/useNavigationGuard";
 
 interface Props {
   scenario: ScenarioV3;
@@ -58,7 +58,7 @@ function parseMicroDebrief(value: unknown): MicroDebrief | null {
     advice: typeof d.advice === "string" ? d.advice : undefined };
 }
 
-/** Même clé que le player v2 : la home lit ce marqueur (déverrouillage). */
+/** Clé historique (héritée du player v2) : la home lit ce marqueur (déverrouillage). */
 function markCompletedLocally(scenarioId: string): void {
   try {
     const raw = localStorage.getItem("v2_completed_scenarios");
@@ -98,7 +98,7 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
     try { window.localStorage.setItem(storageKey, serializeSessionV3(s)); } catch { /* noop */ }
   }, [storageKey]);
 
-  // Fin de partie : même flux que PlayerClient v2.
+  // Fin de partie : POST /api/v2/complete (campagne founder : microDebrief).
   const handleFinished = useCallback((s: SessionV3State) => {
     if (finishedRef.current) return;
     finishedRef.current = true;
@@ -266,7 +266,7 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
     );
   }
 
-  // ── Briefing (session neuve) — même esprit que l'écran v2 ──
+  // ── Briefing (session neuve) ──
   if (!briefingDone || !step) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10">

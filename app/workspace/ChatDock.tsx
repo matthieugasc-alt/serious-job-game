@@ -17,7 +17,7 @@
 
 import type { ActorDef } from "@/app/lib/engine/mechanics";
 import type { Thread, WorkspaceAction, WorkspaceState } from "@/app/lib/engine/workspace";
-import { ActorAvatar } from "@/app/player/primitives/ui";
+import { ActorAvatar } from "@/app/workspace/primitives/ui";
 import { ThreadConversation } from "./apps/messages/ThreadConversation";
 
 /** Fenêtres ouvertes simultanément (les plus anciennes se réduisent). */

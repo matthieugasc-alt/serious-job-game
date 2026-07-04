@@ -9,7 +9,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { DocumentDef } from "@/app/lib/engine/mechanics";
-import { DocumentViewer } from "@/app/player/primitives/DocumentViewer";
+import { DocumentViewer } from "@/app/workspace/primitives/DocumentViewer";
 import type { WorkspaceAppProps } from "../types";
 
 /** Icône par type : 📊 données, 📄 texte — même heuristique que le viewer. */

@@ -18,9 +18,7 @@
  * Parité CLI : scripts/validate-scenarios-v3.mjs (mêmes codes).
  */
 
-import type { Json, JsonObject, StepInvocation } from "./mechanics";
-import type { SessionV2State } from "./sessionV2";
-import { resolveStepInputs } from "./composer";
+import type { Json, JsonObject } from "./mechanics";
 import type {
   CompletionTrigger,
   MechanicSpecManifest,
@@ -498,14 +496,35 @@ function validateEvent(
 }
 
 /**
- * Résolution des inputs inter-steps — RÉUTILISE resolveStepInputs du
- * composer v2 (même format `inputs`, mêmes stepResults) : seul le type
- * nominal de la session diffère, d'où le pont structurel ci-dessous.
+ * Résolution des inputs déclarés d'un step depuis les outputs des steps
+ * précédents (format `inputs` hérité du v2 : "stepId" ou "stepId.cle").
+ * Runtime-strict : une référence irrésoluble throw — c'est un bug de
+ * scénario que validateScenarioV3 aurait dû attraper.
  */
 export function resolveStepInputsV3(
   session: SessionV3State,
   step: StepInvocationV3,
 ): JsonObject {
-  const bridge = { stepResults: session.stepResults } as unknown as SessionV2State;
-  return resolveStepInputs(bridge, step as unknown as StepInvocation);
+  const resolved: JsonObject = {};
+  for (const [alias, ref] of Object.entries(step.inputs ?? {})) {
+    const [srcId, key] = ref.split(".");
+    const src = session.stepResults[srcId];
+    if (!src) {
+      throw new Error(
+        `Step ${step.step_id} : input "${alias}" référence "${srcId}" qui n'a pas encore produit d'output.`,
+      );
+    }
+    if (key === undefined) {
+      resolved[alias] = src.output;
+    } else {
+      const value: Json | undefined = src.output[key];
+      if (value === undefined) {
+        throw new Error(
+          `Step ${step.step_id} : input "${alias}" — clé "${key}" absente de l'output de "${srcId}".`,
+        );
+      }
+      resolved[alias] = value;
+    }
+  }
+  return resolved;
 }

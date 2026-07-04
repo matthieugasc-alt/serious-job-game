@@ -25,7 +25,7 @@ export default defineConfig({
       include: [
         "app/lib/engine/**/*.ts",
         "app/mechanics/**/*.ts",
-        "app/player/**/*.ts",
+        "app/workspace/**/*.ts",
         "app/lib/founder.ts",
       ],
       exclude: ["**/*.test.ts", "**/__tests__/**", "**/node_modules/**"],

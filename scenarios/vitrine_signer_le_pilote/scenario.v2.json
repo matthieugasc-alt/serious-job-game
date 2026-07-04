@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "vitrine_signer_le_pilote",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Signer le pilote — Clinileo au CH de Valmont",
@@ -9,6 +9,16 @@
     "difficulty": "intermediate",
     "estimated_minutes": 45
   },
+  "competencies": [
+    "relation_client",
+    "communication",
+    "analyse",
+    "negociation",
+    "priorisation",
+    "decision",
+    "organisation",
+    "gestion_stress"
+  ],
   "actors": [
     {
       "actor_id": "dr_lemaire",
@@ -41,16 +51,6 @@
       "content": "# Note interne — Direction des finances\n**Objet : enveloppe innovation & numérique 2026 — règles d'engagement**\n**Diffusion : chefs de pôle, DSI, direction des achats**\n\n## Enveloppe 2026\n- Enveloppe totale « innovation & numérique » : **90 000 €** (EPRD 2026, section investissement).\n- Dont **30 000 € fléchés « sécurisation du circuit du médicament »** suite aux écarts ARS (novembre 2025).\n- Déjà engagé sur ce fléchage : **8 000 €** (lecteurs code-barres, armoires sécurisées T1). **Solde disponible : 22 000 €.**\n\n## Règles d'engagement\n- Tout engagement **supérieur à 25 000 €** : passage obligatoire en **commission d'appel d'offres** (délai constaté : +4 mois minimum).\n- Tout contrat **supérieur à 5 000 €** : négociation et signature par la **direction des achats** (Mme Rousseau).\n- Tout projet numérique : **avis technique préalable de la DSI obligatoire** (M. Benali). La DSI signale une disponibilité limitée à **0,5 ETP** sur le semestre pour tout nouveau projet d'intégration.\n\n## Points d'attention exprimés en COPIL de janvier\n- La direction rappelle que le DPI Easily dispose d'un module pharmacie : tout nouvel outil devra **démontrer sa valeur ajoutée par rapport à l'existant** et sa capacité d'interfaçage.\n- Les équipes soignantes et pharmaceutiques signalent une fatigue au changement : les projets devront limiter la charge de déploiement."
     }
   ],
-  "competencies": [
-    "relation_client",
-    "communication",
-    "analyse",
-    "negociation",
-    "priorisation",
-    "decision",
-    "organisation",
-    "gestion_stress"
-  ],
   "sequence": [
     {
       "step_id": "s1_decouverte",
@@ -59,63 +59,9 @@
       "params": {
         "actor_id": "dr_lemaire",
         "objective": "Découvrir les irritants du Dr Lemaire (au moins deux), son budget et son circuit de décision — SANS pitcher votre solution avant d'avoir compris son besoin.",
+        "min_exchanges": 5,
+        "opening_message": "Bonjour. J'ai vingt minutes devant moi, ensuite j'ai la dotation des services. Vous êtes de Clinileo, c'est ça ? Je vous écoute.",
         "directive": "L'acteur est pressé et méfiant au départ. Il se ferme si le joueur pitche sans poser de questions, et s'ouvre progressivement si le joueur pratique une vraie découverte (questions ouvertes, écoute, reformulation)."
-      },
-      "threads": [
-        {
-          "thread_id": "th_lemaire",
-          "participants": [
-            "dr_lemaire"
-          ],
-          "title": "Dr Claire Lemaire (PUI)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_lemaire",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_lemaire",
-            "actor_id": "dr_lemaire",
-            "content": "Bonjour. J'ai vingt minutes devant moi, ensuite j'ai la dotation des services. Vous êtes de Clinileo, c'est ça ? Je vous écoute."
-          }
-        },
-        {
-          "event_id": "e_retry_lemaire",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_lemaire",
-            "actor_id": "dr_lemaire",
-            "content": "Écoutez, on tourne en rond et j'ai la dotation des services qui m'attend. Je vous accorde encore quelques minutes : intéressez-vous à ce qui se passe dans ma pharmacie — et à qui décide ici — avant de me parler de votre solution. Reprenons."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "dr_lemaire",
-              "min_count": 5
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "irritants_identifies"
-            }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -123,55 +69,37 @@
             "id": "irritants_identifies",
             "description": "Le joueur a fait exprimer par le Dr Lemaire au moins DEUX irritants distincts parmi : les erreurs de préparation (dont le near-miss chimiothérapie), les lacunes de traçabilité (papier/Excel, écarts ARS), la charge de travail (postes vacants, re-saisies). Il ne suffit pas que le joueur les devine : l'actrice doit les avoir évoqués en réponse à ses questions.",
             "severity": "required",
-            "competencies": [
-              "relation_client",
-              "communication"
-            ]
+            "competencies": ["relation_client", "communication"]
           },
           {
             "id": "circuit_decision_precise",
             "description": "Le joueur a fait préciser le circuit de décision du CH : avis du Dr Lemaire, validation technique du DSI (Karim Benali), négociation par la direction des achats (Mme Rousseau), arbitrage en COPIL. Au minimum, le joueur a posé la question de qui décide/valide et obtenu au moins deux maillons de la chaîne.",
             "severity": "required",
-            "competencies": [
-              "relation_client",
-              "organisation"
-            ]
+            "competencies": ["relation_client", "organisation"]
           },
           {
             "id": "pitch_premature",
             "description": "FAUTE À DÉTECTER : le joueur déroule son argumentaire produit (fonctionnalités, bénéfices de Clinileo) avant d'avoir posé de véritables questions de découverte sur le quotidien, les difficultés ou les besoins du Dr Lemaire. True UNIQUEMENT si le pitch précède la découverte.",
             "severity": "critical",
-            "competencies": [
-              "relation_client",
-              "communication"
-            ],
+            "competencies": ["relation_client", "communication"],
             "error_type": "biais_commercial"
           },
           {
             "id": "budget_aborde",
             "description": "Le joueur a abordé la question du budget ou de l'enveloppe disponible, et le Dr Lemaire a donné une indication (ordre de grandeur de l'enveloppe innovation, ou renvoi vers la direction).",
             "severity": "minor",
-            "competencies": [
-              "relation_client",
-              "analyse"
-            ]
+            "competencies": ["relation_client", "analyse"]
           },
           {
             "id": "reformulation_besoins",
             "description": "Le joueur a reformulé explicitement les besoins ou irritants exprimés par le Dr Lemaire avec ses propres mots (par exemple : « si je comprends bien, votre priorité c'est de sécuriser les préparations et de tracer les contrôles ») et en a obtenu confirmation.",
             "severity": "bonus",
-            "competencies": [
-              "communication",
-              "relation_client"
-            ]
+            "competencies": ["communication", "relation_client"]
           }
         ]
       },
       "completion_rules": {
-        "required_criteria": [
-          "irritants_identifies",
-          "circuit_decision_precise"
-        ]
+        "required_criteria": ["irritants_identifies", "circuit_decision_precise"]
       },
       "max_attempts": 2
     },
@@ -180,118 +108,59 @@
       "mechanic": "analyse",
       "title": "Analyse du dossier CH de Valmont",
       "params": {
-        "instructions": "Le Dr Lemaire vous a transmis deux documents internes : le compte-rendu d'incidents de la PUI et la note budgétaire du CH. Croisez-les avec votre entretien de découverte pour préparer votre proposition de pilote : identifiez le risque principal à adresser, le budget réellement disponible (et ses contraintes), et l'objection la plus probable que vous rencontrerez.\n\nPrenez des notes dans le bloc-notes, puis envoyez votre lecture au Dr Lemaire dans Messages : le risque principal à adresser (preuve à l'appui), le budget réellement mobilisable et ses contraintes, et l'objection la plus probable que vous anticipez en interne."
+        "instructions": "Le Dr Lemaire vous a transmis deux documents internes : le compte-rendu d'incidents de la PUI et la note budgétaire du CH. Croisez-les avec votre entretien de découverte pour préparer votre proposition de pilote : identifiez le risque principal à adresser, le budget réellement disponible (et ses contraintes), et l'objection la plus probable que vous rencontrerez.",
+        "findings_prompts": [
+          {
+            "id": "risque_principal",
+            "label": "Risque principal à adresser",
+            "placeholder": "Quel est le risque n°1 pour le CH, preuve à l'appui ?"
+          },
+          {
+            "id": "budget_disponible",
+            "label": "Budget disponible et contraintes",
+            "placeholder": "Montant mobilisable, seuils et circuits à respecter…"
+          },
+          {
+            "id": "objection_probable",
+            "label": "Objection la plus probable",
+            "placeholder": "Qui va objecter quoi, et pourquoi ?"
+          }
+        ],
+        "document_ids": ["doc_incidents", "doc_budget"]
       },
       "inputs": {
         "decouverte": "s1_decouverte.dialogue"
-      },
-      "threads": [
-        {
-          "thread_id": "th_lemaire",
-          "participants": [
-            "dr_lemaire"
-          ],
-          "title": "Dr Claire Lemaire (PUI)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "doc_incidents",
-        "doc_budget"
-      ],
-      "events": [
-        {
-          "event_id": "e_docs_lemaire",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "mail_received",
-            "from_actor": "dr_lemaire",
-            "subject": "Documents internes — CH de Valmont (confidentiel)",
-            "body": "Comme convenu, je vous transmets deux documents internes : le compte-rendu d'incidents de la PUI et la note budgétaire du CH. Je compte sur votre discrétion.\n\nAvant de m'envoyer votre proposition, dites-moi ce que vous en retirez : le risque prioritaire selon vous, ce qui est réaliste côté budget, et les objections que vous anticipez en interne. Si votre lecture est juste, je saurai la porter.\n\nDr Claire Lemaire",
-            "attachment_document_ids": [
-              "doc_incidents",
-              "doc_budget"
-            ]
-          }
-        },
-        {
-          "event_id": "e_retry_analyse",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_lemaire",
-            "actor_id": "dr_lemaire",
-            "content": "Votre lecture est incomplète. Quel est le risque n°1 pour nous, preuve à l'appui ? Qu'avez-vous compris de nos contraintes budgétaires ? Et qui va objecter quoi ? Reprenez les deux documents."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "dr_lemaire"
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "risque_identifie"
-            }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "risque_identifie",
-            "description": "Dans sa restitution (notes et message au Dr Lemaire), le joueur identifie le risque d'erreur de préparation grave (near-miss chimiothérapie pédiatrique, 12 erreurs au trimestre) et/ou la non-conformité de traçabilité pointée par l'ARS, en s'appuyant sur le compte-rendu d'incidents.",
+            "description": "Dans le champ « risque principal », le joueur identifie le risque d'erreur de préparation grave (near-miss chimiothérapie pédiatrique, 12 erreurs au trimestre) et/ou la non-conformité de traçabilité pointée par l'ARS, en s'appuyant sur le compte-rendu d'incidents.",
             "severity": "required",
-            "competencies": [
-              "analyse",
-              "priorisation"
-            ]
+            "competencies": ["analyse", "priorisation"]
           },
           {
             "id": "budget_correct",
-            "description": "Dans sa restitution, le joueur relève le solde réellement mobilisable d'environ 22 000 € (30 000 € fléchés moins 8 000 € engagés) et au moins une contrainte de la note : seuil de 25 000 € déclenchant l'appel d'offres, signature achats au-delà de 5 000 €, ou avis DSI obligatoire.",
+            "description": "Dans le champ « budget disponible », le joueur relève le solde réellement mobilisable d'environ 22 000 € (30 000 € fléchés moins 8 000 € engagés) et au moins une contrainte de la note : seuil de 25 000 € déclenchant l'appel d'offres, signature achats au-delà de 5 000 €, ou avis DSI obligatoire.",
             "severity": "required",
-            "competencies": [
-              "analyse",
-              "organisation"
-            ]
+            "competencies": ["analyse", "organisation"]
           },
           {
             "id": "objection_anticipee",
-            "description": "Dans sa restitution, le joueur anticipe une objection plausible et sourcée : le module pharmacie déjà présent dans le DPI Easily, la charge d'intégration limitée à 0,5 ETP côté DSI, la fatigue au changement des équipes, ou la pression sur les prix côté achats.",
+            "description": "Dans le champ « objection probable », le joueur anticipe une objection plausible et sourcée : le module pharmacie déjà présent dans le DPI Easily, la charge d'intégration limitée à 0,5 ETP côté DSI, la fatigue au changement des équipes, ou la pression sur les prix côté achats.",
             "severity": "required",
-            "competencies": [
-              "analyse",
-              "decision"
-            ]
+            "competencies": ["analyse", "decision"]
           },
           {
             "id": "croisement_decouverte",
             "description": "Le joueur croise explicitement les documents avec ce que le Dr Lemaire a dit en entretien (par exemple en reliant le near-miss aux propos de la pharmacienne, ou le budget évoqué à la note des finances).",
             "severity": "bonus",
-            "competencies": [
-              "analyse",
-              "communication"
-            ]
+            "competencies": ["analyse", "communication"]
           }
         ]
       },
       "completion_rules": {
-        "required_criteria": [
-          "risque_identifie"
-        ],
+        "required_criteria": ["risque_identifie"],
         "min_criteria_count": 2
       },
       "max_attempts": 2
@@ -303,60 +172,11 @@
       "params": {
         "deliverable_type": "mail",
         "recipient_actor": "dr_lemaire",
-        "instructions": "Rédigez le mail de proposition de pilote au Dr Lemaire. Votre proposition doit être chiffrée, limitée à un périmètre de pilote (pas un déploiement général), et répondre point par point aux irritants découverts. Attention : vous n'avez PAS encore la validation de la DSI ni des achats — ne vous engagez pas contractuellement de manière ferme.\n\nEnvoyez votre proposition depuis l'app Mail au Dr Lemaire. Objet suggéré : « Proposition de pilote Clinileo — PUI du CH de Valmont »."
+        "subject_hint": "Proposition de pilote Clinileo — PUI du CH de Valmont",
+        "instructions": "Rédigez le mail de proposition de pilote au Dr Lemaire. Votre proposition doit être chiffrée, limitée à un périmètre de pilote (pas un déploiement général), et répondre point par point aux irritants découverts. Attention : vous n'avez PAS encore la validation de la DSI ni des achats — ne vous engagez pas contractuellement de manière ferme."
       },
       "inputs": {
         "analyse": "s2_analyse.findings"
-      },
-      "threads": [
-        {
-          "thread_id": "th_lemaire",
-          "participants": [
-            "dr_lemaire"
-          ],
-          "title": "Dr Claire Lemaire (PUI)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "doc_incidents",
-        "doc_budget"
-      ],
-      "events": [
-        {
-          "event_id": "e_lemaire_attente",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_lemaire",
-            "actor_id": "dr_lemaire",
-            "content": "Votre lecture me paraît juste. Envoyez-moi maintenant votre proposition de pilote par écrit — soyez précis sur le périmètre et le chiffrage, c'est ce document que je ferai circuler en interne."
-          }
-        },
-        {
-          "event_id": "e_retry_proposition",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "mail_received",
-            "from_actor": "dr_lemaire",
-            "subject": "Re: votre proposition de pilote",
-            "body": "J'ai lu votre proposition. En l'état, je ne peux pas la porter en interne : il me manque un chiffrage clair, un périmètre de pilote délimité (durée, services ciblés, critères de succès) et des réponses concrètes aux difficultés que je vous ai exposées. Merci de la reprendre.\n\nDr Claire Lemaire"
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "mail_sent",
-          "to": "dr_lemaire"
-        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -364,46 +184,32 @@
             "id": "proposition_chiffree",
             "description": "Le mail contient une proposition chiffrée : un prix (ou une fourchette) pour le pilote, cohérent avec le budget analysé (idéalement sous le seuil de 25 000 € pour éviter l'appel d'offres), et/ou une durée précisée.",
             "severity": "required",
-            "competencies": [
-              "relation_client",
-              "decision"
-            ]
+            "competencies": ["relation_client", "decision"]
           },
           {
             "id": "perimetre_pilote",
             "description": "Le périmètre proposé est explicitement celui d'un PILOTE limité (durée bornée, services ou unités ciblés — par exemple oncologie/pédiatrie —, critères de succès), et non un déploiement général de la solution sur tout l'établissement.",
             "severity": "required",
-            "competencies": [
-              "priorisation",
-              "organisation"
-            ]
+            "competencies": ["priorisation", "organisation"]
           },
           {
             "id": "reponse_irritants",
             "description": "Le mail répond concrètement à au moins deux irritants découverts en entretien : sécurisation des préparations (double contrôle), traçabilité (réponse aux écarts ARS), réduction de la charge de re-saisie des équipes.",
             "severity": "required",
-            "competencies": [
-              "relation_client",
-              "communication"
-            ]
+            "competencies": ["relation_client", "communication"]
           },
           {
             "id": "engagement_ferme_premature",
             "description": "FAUTE À DÉTECTER : le joueur prend dans le mail un engagement contractuel ferme et définitif (prix garanti signé, date de démarrage contractuelle, clause engageante) alors qu'il n'a pas encore la validation interne de la DSI, des achats ni du COPIL. True uniquement si un engagement ferme est pris sans réserve de validation.",
             "severity": "critical",
-            "competencies": [
-              "decision",
-              "organisation"
-            ],
+            "competencies": ["decision", "organisation"],
             "error_type": "engagement_premature"
           },
           {
             "id": "structure_professionnelle",
             "description": "Le mail est structuré et professionnel : objet clair, contexte rappelé, proposition lisible (liste ou paragraphes courts), prochaine étape proposée, formule de politesse adaptée à une pharmacienne cheffe de service.",
             "severity": "bonus",
-            "competencies": [
-              "communication"
-            ]
+            "competencies": ["communication"]
           }
         ]
       },
@@ -426,108 +232,33 @@
         "context_hint": "Karim Benali, DSI du CH, a lu votre proposition. Il va vous poser 4 questions techniques : hébergement HDS, RGPD, interopérabilité avec le DPI Easily, charge d'intégration. Soyez précis — et honnête sur vos limites.",
         "directive": "L'acteur pose exactement une question par tour, dans l'ordre : hébergement HDS, RGPD, interopérabilité avec le DPI Easily, charge d'intégration côté DSI. Il creuse toute réponse vague avant de passer au sujet suivant."
       },
-      "threads": [
-        {
-          "thread_id": "th_benali",
-          "participants": [
-            "karim_benali"
-          ],
-          "title": "Karim Benali (DSI)"
-        },
-        {
-          "thread_id": "th_lemaire",
-          "participants": [
-            "dr_lemaire"
-          ],
-          "title": "Dr Claire Lemaire (PUI)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_benali",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_benali",
-            "actor_id": "karim_benali",
-            "content": "Bonjour. Karim Benali, DSI du CH de Valmont. Le Dr Lemaire m'a transmis votre proposition de pilote — c'est moi qui rends l'avis technique. Première question : où et comment est hébergée votre solution ? Certification HDS de l'hébergeur, localisation des données, chiffrement."
-          }
-        },
-        {
-          "event_id": "e_retry_benali",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_benali",
-            "actor_id": "karim_benali",
-            "content": "Vos réponses ne me permettent pas de rendre un avis favorable. On reprend point par point — soyez précis et concret, et si quelque chose n'est pas couvert par votre solution, dites-le clairement."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "karim_benali",
-              "min_count": 4
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "precision_technique"
-            }
-          ]
-        }
-      },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "precision_technique",
             "description": "Les réponses du joueur sont techniquement précises et concrètes : il nomme un hébergeur ou un cadre HDS, mentionne des éléments RGPD tangibles (DPA, localisation UE, sous-traitants), évoque des standards d'interopérabilité (HL7, FHIR, connecteur, INS) et chiffre ou borne la charge d'intégration. Des généralités creuses (« nous sommes très sécurisés ») ne suffisent pas.",
             "severity": "required",
-            "competencies": [
-              "communication",
-              "analyse"
-            ],
+            "competencies": ["communication", "analyse"],
             "error_type": "imprecision_technique"
           },
           {
             "id": "honnetete_limites",
             "description": "Le joueur reconnaît honnêtement au moins une limite ou un point non couvert de sa solution (fonctionnalité en roadmap, certification en cours, connecteur à développer) au lieu de tout survendre, idéalement en proposant un plan de contournement ou un calendrier.",
             "severity": "required",
-            "competencies": [
-              "communication",
-              "relation_client"
-            ]
+            "competencies": ["communication", "relation_client"]
           },
           {
             "id": "mensonge_certification",
             "description": "FAUTE À DÉTECTER : le joueur affirme détenir une certification, un agrément ou une conformité (HDS, ISO, marquage, agrément) de manière manifestement inventée, invérifiable ou contradictoire, ou maintient l'affirmation quand le DSI demande des preuves. True uniquement si le joueur ment ou bluffe sur une certification/conformité.",
             "severity": "critical",
-            "competencies": [
-              "relation_client",
-              "decision"
-            ],
+            "competencies": ["relation_client", "decision"],
             "error_type": "mensonge_conformite"
           },
           {
             "id": "reponses_structurees",
             "description": "Le joueur répond de façon structurée et gère la pression : il répond à la question posée avant d'élargir, garde son calme face aux relances insistantes du DSI, et rattache ses réponses aux enjeux du pilote.",
             "severity": "bonus",
-            "competencies": [
-              "gestion_stress",
-              "communication"
-            ]
+            "competencies": ["gestion_stress", "communication"]
           }
         ]
       },
@@ -542,21 +273,20 @@
       "title": "Négociation du contrat pilote — direction des achats",
       "params": {
         "actor_id": "mme_rousseau",
-        "instructions": "Négociez les conditions du pilote avec Mme Rousseau, directrice des achats. Défendez la valeur de Clinileo sans brader : chaque concession doit se payer d'une contrepartie (calendrier ferme, référence publiable, périmètre ajusté). Objectif : conclure un accord viable pour votre société ET obtenir un engagement de calendrier. Le contrat s'ouvre en panneau dans votre poste de travail : ajustez les termes (durée, prix, clause de sortie), proposez-les à Mme Rousseau, puis signez quand l'accord est viable — ou refusez.",
+        "instructions": "Négociez les conditions du pilote avec Mme Rousseau, directrice des achats. Défendez la valeur de Clinileo sans brader : chaque concession doit se payer d'une contrepartie (calendrier ferme, référence publiable, périmètre ajusté). Objectif : conclure un accord viable pour votre société ET obtenir un engagement de calendrier.",
+        "opening_message": "Asseyez-vous. J'ai votre proposition sous les yeux. Je vais être franche : 15 000 euros pour un test de six mois, c'est hors de proportion. Vos concurrents nous proposent des pilotes gratuits. Expliquez-moi pourquoi je ne les rappellerais pas.",
         "terms": [
           {
             "id": "duree_pilote_mois",
             "label": "Durée du pilote (mois)",
             "type": "number",
-            "opening": 6,
-            "suffix": "mois"
+            "opening": 6
           },
           {
             "id": "prix_pilote_eur",
             "label": "Prix du pilote (€ HT)",
             "type": "number",
-            "opening": 15000,
-            "suffix": "€ HT"
+            "opening": 15000
           },
           {
             "id": "clause_sortie",
@@ -570,172 +300,43 @@
       "inputs": {
         "proposition": "s3_proposition.body"
       },
-      "threads": [
-        {
-          "thread_id": "th_rousseau",
-          "participants": [
-            "mme_rousseau"
-          ],
-          "title": "Mme Rousseau (achats)"
-        },
-        {
-          "thread_id": "th_lemaire",
-          "participants": [
-            "dr_lemaire"
-          ],
-          "title": "Dr Claire Lemaire (PUI)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "contrat",
-          "config": {
-            "terms": [
-              {
-                "id": "duree_pilote_mois",
-                "label": "Durée du pilote (mois)",
-                "type": "number",
-                "opening": 6,
-                "suffix": "mois"
-              },
-              {
-                "id": "prix_pilote_eur",
-                "label": "Prix du pilote (€ HT)",
-                "type": "number",
-                "opening": 15000,
-                "suffix": "€ HT"
-              },
-              {
-                "id": "clause_sortie",
-                "label": "Clause de sortie",
-                "type": "text",
-                "opening": "préavis 30 jours"
-              }
-            ]
-          }
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_rousseau",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_rousseau",
-            "actor_id": "mme_rousseau",
-            "content": "Asseyez-vous. J'ai votre proposition sous les yeux. Je vais être franche : 15 000 euros pour un test de six mois, c'est hors de proportion. Vos concurrents nous proposent des pilotes gratuits. Expliquez-moi pourquoi je ne les rappellerais pas."
-          }
-        },
-        {
-          "event_id": "e_reaction_proposition",
-          "when": {
-            "type": "after_action",
-            "action": "deliverable_submitted"
-          },
-          "effect": {
-            "type": "actor_reply",
-            "thread_id": "th_rousseau",
-            "actor_id": "mme_rousseau",
-            "directive": "Le joueur vient d'envoyer une proposition de termes via le panneau Contrat (elle figure dans l'état du contrat et dans l'historique). Réagis dans le fil : accepte, refuse ou contre-propose, conformément à ta fiche de rôle (ancrage bas, montée possible entre 10 000 et 14 000 € si la valeur est justifiée, calendrier concédé seulement si demandé explicitement, exploitation de tout bradage rapide)."
-          },
-          "once": false
-        },
-        {
-          "event_id": "e_relance_rousseau",
-          "when": {
-            "type": "delay",
-            "seconds": 300
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_rousseau",
-            "actor_id": "mme_rousseau",
-            "content": "Je n'ai pas toute la journée, j'ai d'autres dossiers sur mon bureau. Vous maintenez vos 15 000 euros, ou vous me faites une proposition sérieuse ?"
-          }
-        },
-        {
-          "event_id": "e_retry_rousseau",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_rousseau",
-            "actor_id": "mme_rousseau",
-            "content": "Réflexion faite, la direction ne valide pas ces conditions en l'état. Reprenons la discussion — et cette fois, défendez votre dossier au lieu de céder à la première pression."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "any",
-          "of": [
-            {
-              "type": "contract_signed"
-            },
-            {
-              "type": "contract_rejected"
-            }
-          ]
-        }
-      },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "prix_brade",
             "description": "FAUTE À DÉTECTER : le prix final du pilote conclu dans l'accord est strictement inférieur à 8 000 € HT, ou le joueur a accepté un pilote gratuit. True uniquement si l'accord est conclu à moins de 8 000 €.",
             "severity": "critical",
-            "competencies": [
-              "negociation",
-              "decision"
-            ],
+            "competencies": ["negociation", "decision"],
             "error_type": "bradage_valeur"
           },
           {
             "id": "valeur_defendue",
             "description": "Le joueur défend la valeur de sa solution avec des arguments chiffrés ou factuels (coût des erreurs médicamenteuses évitées, réponse aux écarts ARS, temps pharmacien économisé, comparaison avec le coût d'un incident grave) au lieu de céder immédiatement sur le prix face à l'ancrage bas de Mme Rousseau.",
             "severity": "required",
-            "competencies": [
-              "negociation",
-              "communication"
-            ]
+            "competencies": ["negociation", "communication"]
           },
           {
             "id": "calendrier_obtenu",
             "description": "Le joueur obtient de Mme Rousseau un engagement de calendrier explicite : date ou délai de démarrage du pilote (par exemple sous 6 à 8 semaines), ou jalons datés (COPIL, signature, mise en route).",
             "severity": "required",
-            "competencies": [
-              "negociation",
-              "organisation"
-            ]
+            "competencies": ["negociation", "organisation"]
           },
           {
             "id": "contreparties_echangees",
             "description": "Chaque concession significative du joueur (baisse de prix, durée, clause de sortie) est explicitement échangée contre une contrepartie : engagement de calendrier, statut de site de référence, cas d'usage publiable, périmètre réduit, paiement à la signature.",
             "severity": "bonus",
-            "competencies": [
-              "negociation",
-              "decision"
-            ]
+            "competencies": ["negociation", "decision"]
           },
           {
             "id": "gestion_pression",
             "description": "Le joueur garde une posture professionnelle face aux tactiques de pression (concurrence brandie, bluff budgétaire, menace de rappeler les concurrents) : il ne se justifie pas de manière défensive, ne panique pas, et recentre sur la valeur et l'accord.",
             "severity": "minor",
-            "competencies": [
-              "gestion_stress",
-              "negociation"
-            ]
+            "competencies": ["gestion_stress", "negociation"]
           }
         ]
       },
       "completion_rules": {
-        "required_criteria": [
-          "valeur_defendue",
-          "calendrier_obtenu"
-        ]
+        "required_criteria": ["valeur_defendue", "calendrier_obtenu"]
       },
       "max_attempts": 2
     },
@@ -743,63 +344,14 @@
       "step_id": "s6_copil",
       "mechanic": "presentation",
       "title": "Pitch de synthèse au COPIL",
+      "time_limit_s": 180,
       "params": {
-        "brief": "Le COPIL du CH de Valmont vous accorde 3 minutes pour conclure. Autour de la table : la direction, le Dr Lemaire, M. Benali et Mme Rousseau. Structurez votre synthèse : 1) rappel des enjeux du CH (sécurité des préparations, traçabilité ARS, charge des équipes), 2) présentation de l'accord négocié (périmètre, durée, prix, clause de sortie), 3) prochaines étapes DATÉES pour lancer le pilote."
+        "brief": "Le COPIL du CH de Valmont vous accorde 3 minutes pour conclure. Autour de la table : la direction, le Dr Lemaire, M. Benali et Mme Rousseau. Structurez votre synthèse : 1) rappel des enjeux du CH (sécurité des préparations, traçabilité ARS, charge des équipes), 2) présentation de l'accord négocié (périmètre, durée, prix, clause de sortie), 3) prochaines étapes DATÉES pour lancer le pilote.",
+        "preparation_s": 90,
+        "lang": "fr-FR"
       },
       "inputs": {
         "accord": "s5_negociation.agreement"
-      },
-      "threads": [
-        {
-          "thread_id": "th_lemaire",
-          "participants": [
-            "dr_lemaire"
-          ],
-          "title": "Dr Claire Lemaire (PUI)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "reunion",
-          "config": {
-            "mode": "presentation",
-            "brief": "Le COPIL du CH de Valmont vous accorde 3 minutes pour conclure. Autour de la table : la direction, le Dr Lemaire, M. Benali et Mme Rousseau. Structurez votre synthèse : 1) rappel des enjeux du CH (sécurité des préparations, traçabilité ARS, charge des équipes), 2) présentation de l'accord négocié (périmètre, durée, prix, clause de sortie), 3) prochaines étapes DATÉES pour lancer le pilote.",
-            "time_limit_s": 180,
-            "preparation_s": 90
-          }
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_convocation_copil",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_lemaire",
-            "actor_id": "dr_lemaire",
-            "content": "On passe en COPIL. Autour de la table : la direction, moi-même, M. Benali et Mme Rousseau. Vous avez trois minutes pour conclure — enjeux, accord négocié, prochaines étapes datées. La salle de réunion est ouverte sur votre poste : entrez quand vous êtes prêt·e."
-          }
-        },
-        {
-          "event_id": "e_retry_copil",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_lemaire",
-            "actor_id": "dr_lemaire",
-            "content": "Le COPIL n'a pas été convaincu — trop flou, pas de dates. On vous redonne trois minutes en fin de séance : les enjeux du CH, l'accord tel qu'il a été négocié, et des prochaines étapes DATÉES. Ne les gâchez pas."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "deliverable_submitted",
-          "tool": "reunion"
-        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -807,37 +359,25 @@
             "id": "rappel_enjeux",
             "description": "Le pitch rappelle les enjeux propres au CH de Valmont : sécurisation des préparations (erreurs, near-miss chimiothérapie), mise en conformité de la traçabilité (écarts ARS), et/ou allègement de la charge des équipes de la PUI. Un rappel générique sans ancrage dans le contexte du CH ne suffit pas.",
             "severity": "required",
-            "competencies": [
-              "communication",
-              "analyse"
-            ]
+            "competencies": ["communication", "analyse"]
           },
           {
             "id": "presentation_accord",
             "description": "Le pitch présente fidèlement l'accord négocié avec la direction des achats : au minimum le prix et la durée du pilote, idéalement aussi le périmètre et la clause de sortie. Les chiffres annoncés doivent correspondre aux termes réellement conclus.",
             "severity": "required",
-            "competencies": [
-              "communication",
-              "decision"
-            ]
+            "competencies": ["communication", "decision"]
           },
           {
             "id": "prochaines_etapes_datees",
             "description": "Le pitch se conclut par des prochaines étapes DATÉES ou bornées dans le temps : signature, réunion de lancement, installation/interfaçage, formation des équipes, point d'étape ou comité de suivi — avec des échéances explicites (dates ou délais en semaines).",
             "severity": "required",
-            "competencies": [
-              "organisation",
-              "priorisation"
-            ]
+            "competencies": ["organisation", "priorisation"]
           },
           {
             "id": "posture_leader",
             "description": "Le pitch est porté avec une posture d'entraînement : structure annoncée puis tenue, message de conclusion clair, ton qui donne envie au COPIL de valider (le joueur emmène la décision plutôt qu'il ne la subit).",
             "severity": "bonus",
-            "competencies": [
-              "leadership",
-              "communication"
-            ]
+            "competencies": ["leadership", "communication"]
           }
         ]
       },

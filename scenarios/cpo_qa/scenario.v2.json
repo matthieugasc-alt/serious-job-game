@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "cpo_qa",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Le grill du board",
@@ -29,44 +29,6 @@
         "question_count": 4,
         "context_hint": "Emma relaie les 4 questions du board : activation qui stagne, roadmap qui a glissé, concurrence, votre plan à 90 jours. Vos chiffres, que vous connaissez : activation 22 % (objectif annoncé : 35 % fin d'année), churn de janvier 12 comptes (surtout self-serve), roadmap Q2 décalée de 6 semaines (refonte notifications sous-estimée), Strato a levé 12 M€ et démarche vos clients, NPS 31. Répondez avec des faits, assumez ce qui est de votre ressort, et finissez avec un plan daté.",
         "directive": "L'actrice pose exactement une question par tour, dans l'ordre : stagnation de l'activation, glissement de la roadmap Q2, menace concurrentielle de Strato, plan personnel à 90 jours. Elle creuse toute réponse vague ou non chiffrée avant de passer à la question suivante, recoupe les chiffres avancés avec ceux qu'elle connaît, et se refroidit nettement si le joueur blame son équipe."
-      },
-      "threads": [
-        {
-          "thread_id": "th_emma",
-          "participants": ["emma_ricci"],
-          "title": "Emma Ricci (CEO)"
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_emma",
-          "when": { "type": "step_start" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_emma",
-            "actor_id": "emma_ricci",
-            "content": "Le board d'hier soir a été tendu — Corniche a passé quarante minutes sur le produit. J'ai quatre questions à te relayer, et je veux des réponses que je peux défendre dans trois semaines. Question 1/4 : pourquoi l'activation des nouveaux comptes stagne à 22 % depuis deux trimestres, alors qu'on a annoncé 35 % au board pour la fin d'année ?"
-          }
-        },
-        {
-          "event_id": "e_retry_emma",
-          "when": { "type": "on_retry" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_emma",
-            "actor_id": "emma_ricci",
-            "content": "Non. Je ne peux pas porter ça au board en l'état. Il me manque au moins une de ces trois choses : des chiffres exacts au lieu d'adjectifs, un échec assumé en TON nom — pas celui de Yann ou des équipes —, et un plan à 90 jours avec des dates et une cible chiffrée. On reprend depuis le début. Question 1/4 : l'activation à 22 %, pourquoi ?"
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "message_sent", "to_actor": "emma_ricci", "min_count": 4 },
-            { "type": "criterion_observed", "criterion": "plan_90j_concret" }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [

@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "cpo_feedback",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "La feature shippée sans discovery — feedback à Léa",
@@ -29,50 +29,8 @@
         "context_brief": "Léa Fontaine (PM senior, 3 ans de très bons résultats) a shippé « Exports avancés » pour Nexacorp (plus gros client, 8 % de l'ARR) sans aucune discovery : pas d'interviews, pas de problème validé, pas de critères de succès. Quatre semaines après la mise en production : 3 % d'adoption, deux sprints d'engineering consommés, roadmap du trimestre décalée. Vous savez que Thomas (Head of Sales) lui a mis une pression directe et documentée — réelle, mais qui n'autorise pas à court-circuiter le process produit. Objectif : un feedback exigeant ET juste, qui se conclut par des engagements concrets des deux côtés.",
         "framework_hint": "faits → impact → écoute de sa version → engagements mutuels",
         "min_rounds": 3,
+        "opening_message": "Tu voulais me voir ? Si c'est pour les Exports avancés, autant te le dire tout de suite : j'ai fait ce qu'il fallait pour sauver le renouvellement Nexacorp. Thomas me relançait tous les jours, avec la direction en copie. Alors oui, on a été vite. Mais franchement, tu aurais fait quoi à ma place ?",
         "directive": "L'actrice commence sur la défensive. Elle se ferme définitivement en cas d'attaque personnelle, repart tranquillisée si le joueur la félicite ou minimise, et ne devient constructive que si le joueur reste factuel ET reconnaît la réalité de la pression commerciale. Elle attend des engagements réciproques, pas seulement les siens."
-      },
-      "threads": [
-        {
-          "thread_id": "th_lea",
-          "participants": ["lea_fontaine"],
-          "title": "Léa Fontaine (PM senior)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_lea",
-          "when": { "type": "step_start" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_lea",
-            "actor_id": "lea_fontaine",
-            "content": "Tu voulais me voir ? Si c'est pour les Exports avancés, autant te le dire tout de suite : j'ai fait ce qu'il fallait pour sauver le renouvellement Nexacorp. Thomas me relançait tous les jours, avec la direction en copie. Alors oui, on a été vite. Mais franchement, tu aurais fait quoi à ma place ?"
-          }
-        },
-        {
-          "event_id": "e_retry_lea",
-          "when": { "type": "on_retry" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_lea",
-            "actor_id": "lea_fontaine",
-            "content": "Attends, on ne va pas se quitter là-dessus. On s'est parlé, mais je ne sais toujours pas ce qu'on change concrètement — ni de mon côté, ni du tien. Si c'est juste « fais mieux la prochaine fois », ça ne m'aide pas, et Thomas recommencera au prochain gros client. Redis-moi les faits qui te posent problème, écoute ma version, et dis-moi ce que TOI tu changes aussi."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "message_sent", "to_actor": "lea_fontaine", "min_count": 3 },
-            { "type": "criterion_observed", "criterion": "engagements_mutuels" }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [

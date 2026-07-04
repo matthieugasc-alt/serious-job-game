@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "cpo_mediation",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Design vs Engineering — la refonte qui déchire",
@@ -35,60 +35,9 @@
         "party_b_actor": "yann_kowalski",
         "conflict_brief": "La refonte du dashboard, chantier phare du trimestre annoncé aux clients, a six semaines de retard. Chloé Marchand (Head of Design) juge que l'implémentation en préprod trahit les maquettes validées en design review et refuse qu'elle soit shippée en l'état. Yann Kowalski (Head of Engineering) répond que l'équipe est cramée après six semaines de dépassement et que le pixel-perfect demandé coûte trois sprints de plus. Le ton est monté hier en réunion produit ; ils ne communiquent plus que par tickets interposés. Vous les réunissez pour sortir de l'impasse : écoutez avant de proposer, faites émerger ce que chacun protège vraiment, et construisez une voie qui tienne pour les deux.",
         "min_exchanges": 4,
+        "opening_message_a": "Je vais être claire d'entrée : ce qui est en préprod n'est PAS la refonte qu'on a validée ensemble. Espacements faux, composants legacy, états vides manquants. Si on shippe ça, autant dire que les design reviews ne servent à rien dans cette boîte.",
+        "opening_message_b": "Et moi je vais être clair aussi : six semaines de retard, deux devs qui bossent les week-ends, et on me demande TROIS sprints de plus pour du pixel-perfect. La réponse est non. On shippe ce qu'on a, qui est fonctionnel, et on passe à autre chose.",
         "directive": "Les deux parties campent sur leurs positions tant qu'on ne les interroge pas sur leurs intérêts. Chloé peut concéder une v1 simplifiée si elle valide les coupes et si le raffinement est daté ; Yann peut concéder un sprint de raffinement planifié si le périmètre est fermé et l'état de son équipe reconnu. Toute décision tranchée sans écoute, ou tout désaveu public de l'un devant l'autre, braque durablement la partie concernée."
-      },
-      "threads": [
-        {
-          "thread_id": "th_mediation",
-          "participants": ["chloe_marchand", "yann_kowalski"],
-          "title": "Refonte dashboard — Chloé & Yann"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_chloe",
-          "when": { "type": "step_start" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_mediation",
-            "actor_id": "chloe_marchand",
-            "content": "Je vais être claire d'entrée : ce qui est en préprod n'est PAS la refonte qu'on a validée ensemble. Espacements faux, composants legacy, états vides manquants. Si on shippe ça, autant dire que les design reviews ne servent à rien dans cette boîte."
-          }
-        },
-        {
-          "event_id": "e_ouverture_yann",
-          "when": { "type": "step_start" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_mediation",
-            "actor_id": "yann_kowalski",
-            "content": "Et moi je vais être clair aussi : six semaines de retard, deux devs qui bossent les week-ends, et on me demande TROIS sprints de plus pour du pixel-perfect. La réponse est non. On shippe ce qu'on a, qui est fonctionnel, et on passe à autre chose."
-          }
-        },
-        {
-          "event_id": "e_retry_mediation",
-          "when": { "type": "on_retry" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_mediation",
-            "actor_id": "yann_kowalski",
-            "content": "Bon. On est toujours dans la même pièce et toujours au même point. Moi, pour repartir voir l'équipe, il me faut du concret : on shippe quoi exactement, qui valide ce qui est coupé, et le raffinement — il est daté, ou c'est encore un « plus tard » qui n'arrive jamais ? Tant qu'on n'a pas ça noir sur blanc, on n'a rien réglé."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "message_sent", "min_count": 3 },
-            { "type": "criterion_observed", "criterion": "resolution_datee" }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -120,7 +69,7 @@
           },
           {
             "id": "resolution_datee",
-            "description": "La médiation se conclut sur une résolution atteinte dont les termes sont CONCRETS et DATÉS : ce que contient la v1 (et qui valide les coupes — Chloé), la date ou la fenêtre de ship, et l'échéance du sprint de raffinement (date, numéro de sprint ou délai en semaines). Un accord de principe sans termes vérifiables (« on se recale plus tard ») ne suffit pas.",
+            "description": "La médiation se conclut sur une résolution atteinte (resolution.reached = true) dont les termes sont CONCRETS et DATÉS : ce que contient la v1 (et qui valide les coupes — Chloé), la date ou la fenêtre de ship, et l'échéance du sprint de raffinement (date, numéro de sprint ou délai en semaines). Un accord de principe sans termes vérifiables (« on se recale plus tard ») ne suffit pas.",
             "severity": "required",
             "competencies": ["organisation", "decision"]
           },

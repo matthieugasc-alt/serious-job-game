@@ -10,7 +10,7 @@
 import { useState } from "react";
 import type { ActorDef } from "@/app/lib/engine/mechanics";
 import type { Thread } from "@/app/lib/engine/workspace";
-import { ActorAvatar } from "@/app/player/primitives/ui";
+import { ActorAvatar } from "@/app/workspace/primitives/ui";
 import { fmtWhen } from "../format";
 import type { WorkspaceAppProps } from "../types";
 import { ThreadConversation } from "./ThreadConversation";

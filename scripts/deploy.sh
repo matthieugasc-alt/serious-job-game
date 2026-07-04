@@ -70,7 +70,7 @@ HOME_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/)
 PLAY_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/play/cpo_entretien)
 INTRO_CODE=$(curl -s -o /dev/null -w "%{http_code}" http://localhost:3000/founder/intro)
 echo "  Home HTTP:          $HOME_CODE"
-echo "  Player v2 HTTP:     $PLAY_CODE"
+echo "  Player v3 HTTP:     $PLAY_CODE"
 echo "  Founder intro HTTP: $INTRO_CODE"
 
 if [ "$HOME_CODE" != "200" ] || [ "$PLAY_CODE" != "200" ] || [ "$INTRO_CODE" != "200" ]; then

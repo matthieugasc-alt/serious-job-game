@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "founder_03_clinical",
-  "version": "3.0.0",
+  "version": "2.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Test clinique",
@@ -71,7 +71,7 @@
       "mechanic": "decision",
       "title": "Choisir l'établissement pilote",
       "params": {
-        "instructions": "Alexandre t'envoie les fiches des trois établissements avec ce message : « Le MVP est prêt, bravo à l'équipe. Maintenant faut qu'on le teste en vrai. J'ai 3 pistes via mon réseau. Le CHU de Bordeaux ce serait une référence incroyable. Saint-Martin c'est un bon compromis — privé, réputé, taille correcte. Et il y a ma clinique, Saint-Augustin, mais franchement pour un premier test je trouve que c'est trop petit et pas assez crédible. À toi de voir, mais je pense qu'on devrait viser haut. Ah et quoi qu'il arrive : le test DOIT être gratuit. C'est notre premier client, c'est son réseau, on offre. » Lis les trois fiches, puis tranche : pèse le prestige de la référence contre le délai de contractualisation (chaque mois = 250 € de burn et du runway en moins) et les risques contractuels.\n\nLes trois fiches sont dans l'app Documents. Prends des notes si besoin, puis annonce ton choix à Alexandre dans Messages : l'établissement retenu et pourquoi — c'est ta réponse dans le fil qui l'engage.",
+        "instructions": "Alexandre t'envoie les fiches des trois établissements avec ce message : « Le MVP est prêt, bravo à l'équipe. Maintenant faut qu'on le teste en vrai. J'ai 3 pistes via mon réseau. Le CHU de Bordeaux ce serait une référence incroyable. Saint-Martin c'est un bon compromis — privé, réputé, taille correcte. Et il y a ma clinique, Saint-Augustin, mais franchement pour un premier test je trouve que c'est trop petit et pas assez crédible. À toi de voir, mais je pense qu'on devrait viser haut. Ah et quoi qu'il arrive : le test DOIT être gratuit. C'est notre premier client, c'est son réseau, on offre. » Lis les trois fiches, puis tranche : pèse le prestige de la référence contre le délai de contractualisation (chaque mois = 250 € de burn et du runway en moins) et les risques contractuels.",
         "options": [
           {
             "id": "chu",
@@ -88,83 +88,30 @@
             "label": "Clinique Saint-Augustin",
             "description": "5 salles, privé indépendant, la clinique d'Alexandre. Contrat simple, signature en 1 mois — mais petite référence et Alexandre est contre."
           }
+        ],
+        "require_justification": true,
+        "min_justification_chars": 120,
+        "document_ids": [
+          "fiche_chu",
+          "fiche_saint_martin",
+          "fiche_clinique"
         ]
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "fiche_chu",
-        "fiche_saint_martin",
-        "fiche_clinique"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_ouverture",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Le MVP est prêt, bravo à l'équipe. Maintenant faut qu'on le teste en vrai. J'ai 3 pistes via mon réseau, je t'ai mis les fiches dans les documents. Le CHU de Bordeaux ce serait une référence incroyable. Saint-Martin c'est un bon compromis — privé, réputé, taille correcte. Et il y a ma clinique, Saint-Augustin, mais franchement pour un premier test je trouve que c'est trop petit et pas assez crédible. À toi de voir, mais je pense qu'on devrait viser haut. Ah et quoi qu'il arrive : le test DOIT être gratuit. C'est notre premier client, c'est son réseau, on offre."
-          }
-        },
-        {
-          "event_id": "e_alex_retry_choix",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Attends, je suis pas convaincu. T'as pesé le délai de signature ? Chaque mois qui passe, c'est 250 € de burn et du runway en moins. Reprends les trois fiches et redonne-moi ton choix avec les avantages ET les risques en face."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "alexandre_morel"
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "justif_delai_runway"
-            }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "choice_chu",
-            "description": "L'option « CHU de Bordeaux » est choisie (d'après la décision annoncée à Alexandre dans Messages).",
+            "description": "L'option « CHU de Bordeaux » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_saint_martin",
-            "description": "L'option « Hôpital Privé Saint-Martin » est choisie (d'après la décision annoncée à Alexandre dans Messages).",
+            "description": "L'option « Hôpital Privé Saint-Martin » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_clinique",
-            "description": "L'option « Clinique Saint-Augustin » est choisie (d'après la décision annoncée à Alexandre dans Messages).",
+            "description": "L'option « Clinique Saint-Augustin » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
@@ -203,62 +150,17 @@
       "params": {
         "deliverable_type": "mail",
         "recipient_actor": "contact_etablissement",
-        "instructions": "Rédige le mail de prospection à la direction de l'établissement choisi pour proposer un test pilote d'Orisio. Ton destinataire : Dr. Pierre Lemaire, directeur du pôle chirurgical, au CHU de Bordeaux ; Laurent Castex, DSI, à Saint-Martin ; ou Dr. Claire Renaud-Picard, directrice, à la Clinique Saint-Augustin. Droit au but, pas de bla-bla marketing : gratuité et absence d'engagement, durée concrète (8 semaines), valeur pour l'établissement (occupation des blocs, gestion des annulations, planning temps réel), et garanties sur les données (hébergement HDS, conformité RGPD, aucune donnée patient nominative). Alexandre insiste : « Le mail doit être impeccable. C'est notre premier contact pro avec un établissement. Pas de fautes, pas de flou. » Et si tu as choisi la clinique, mentionne qu'Alexandre y est chirurgien, ça rassure. Politesse et structure obligatoires — un directeur d'établissement jette un mail brouillon.\n\nEnvoie ton mail depuis l'app Mail au contact de l'établissement choisi. Objet suggéré : « Orisio — Proposition de test pilote gratuit »."
+        "subject_hint": "Orisio — Proposition de test pilote gratuit",
+        "instructions": "Rédige le mail de prospection à la direction de l'établissement choisi pour proposer un test pilote d'Orisio. Ton destinataire : Dr. Pierre Lemaire, directeur du pôle chirurgical, au CHU de Bordeaux ; Laurent Castex, DSI, à Saint-Martin ; ou Dr. Claire Renaud-Picard, directrice, à la Clinique Saint-Augustin. Droit au but, pas de bla-bla marketing : gratuité et absence d'engagement, durée concrète (8 semaines), valeur pour l'établissement (occupation des blocs, gestion des annulations, planning temps réel), et garanties sur les données (hébergement HDS, conformité RGPD, aucune donnée patient nominative). Alexandre insiste : « Le mail doit être impeccable. C'est notre premier contact pro avec un établissement. Pas de fautes, pas de flou. » Et si tu as choisi la clinique, mentionne qu'Alexandre y est chirurgien, ça rassure. Politesse et structure obligatoires — un directeur d'établissement jette un mail brouillon.",
+        "document_ids": [
+          "fiche_chu",
+          "fiche_saint_martin",
+          "fiche_clinique"
+        ]
       },
       "inputs": {
         "etablissement_choisi": "s1_choix_etablissement.choice",
         "justification_choix": "s1_choix_etablissement.justification"
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "fiche_chu",
-        "fiche_saint_martin",
-        "fiche_clinique"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_exigence_mail",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Le mail doit être impeccable. C'est notre premier contact pro avec un établissement. Pas de fautes, pas de flou. Gratuité, durée, ce qu'on leur apporte, garanties sur les données — tout doit y être."
-          }
-        },
-        {
-          "event_id": "e_contact_retry_mail",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "mail_received",
-            "from_actor": "contact_etablissement",
-            "subject": "Re: votre proposition de test",
-            "body": "Votre message a retenu notre attention, mais il reste trop imprécis pour être présenté en interne : conditions financières exactes du test, durée, valeur concrète pour notre établissement et garanties sur les données (hébergement, RGPD). Merci de préciser votre proposition."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "mail_sent",
-          "to": "contact_etablissement"
-        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -314,70 +216,32 @@
       "mechanic": "analyse",
       "title": "Décortiquer le contrat",
       "params": {
-        "instructions": "L'établissement accepte le principe du test et t'envoie sa convention. Certains établissements ont des conditions… créatives. Analyse le contrat de l'établissement que tu as choisi, article par article. Tes lignes rouges non négociables : la PI d'Orisio ne se partage pas, et aucun intéressement sur tes revenus futurs. Prépare ta position avant de répondre au juriste.\n\nPrends des notes dans le bloc-notes, puis envoie ta position à Alexandre dans Messages avant de répondre au juriste : les clauses inacceptables (celles qui menacent directement Orisio, et pourquoi), les clauses gênantes mais discutables, et ta position de négociation (ce que tu refuses, ce que tu peux concéder, tes contreparties)."
+        "instructions": "L'établissement accepte le principe du test et t'envoie sa convention. Certains établissements ont des conditions… créatives. Analyse le contrat de l'établissement que tu as choisi, article par article. Tes lignes rouges non négociables : la PI d'Orisio ne se partage pas, et aucun intéressement sur tes revenus futurs. Prépare ta position avant de répondre au juriste.",
+        "findings_prompts": [
+          {
+            "id": "clauses_toxiques",
+            "label": "Clauses inacceptables",
+            "placeholder": "Quelles clauses menacent directement Orisio, et pourquoi ?"
+          },
+          {
+            "id": "clauses_moderees",
+            "label": "Clauses négociables",
+            "placeholder": "Quelles clauses sont gênantes mais discutables ?"
+          },
+          {
+            "id": "position_nego",
+            "label": "Ta position de négociation",
+            "placeholder": "Ce que tu refuses, ce que tu peux concéder, tes contreparties."
+          }
+        ],
+        "document_ids": [
+          "contrat_chu",
+          "contrat_saint_martin",
+          "contrat_clinique"
+        ]
       },
       "inputs": {
         "etablissement_choisi": "s1_choix_etablissement.choice"
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "contrat_chu",
-        "contrat_saint_martin",
-        "contrat_clinique"
-      ],
-      "events": [
-        {
-          "event_id": "e_convention_recue",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "mail_received",
-            "from_actor": "contact_etablissement",
-            "subject": "Convention de test — projet Orisio",
-            "body": "Bonjour,\n\nNotre direction accepte le principe d'un test pilote de votre solution. Vous trouverez la convention de partenariat de notre établissement dans les pièces de votre dossier. Merci de nous transmettre vos observations article par article — sans garantie de suite.\n\nCordialement,\nLe service juridique"
-          }
-        },
-        {
-          "event_id": "e_alex_garde_contrat",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Ils ont envoyé leur convention, c'est bon signe. Mais lis-la ligne par ligne — certains établissements ont des conditions créatives. Nos lignes rouges : la PI d'Orisio ne se partage pas, et aucun intéressement sur nos revenus futurs. Dis-moi ce que tu refuses et ce que tu peux concéder avant de répondre au juriste."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "alexandre_morel"
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "pieges_reperes"
-            }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -424,7 +288,7 @@
       "title": "Négocier les clauses",
       "params": {
         "actor_id": "contact_etablissement",
-        "instructions": "Négocie la convention avec le juriste de l'établissement. Lignes rouges : la PI reste 100 % Orisio (aucune copropriété, aucune licence perpétuelle) et zéro intéressement sur tes revenus ou ta levée de fonds. Cherche aussi à préserver une référence commerciale utilisable et un préavis de résiliation raisonnable. Formalise tes contre-propositions, puis conclus quand le contrat est signable — ne signe jamais un contrat toxique pour démarrer plus vite. Le contrat s'ouvre en panneau dans ton poste de travail : ajuste la rédaction des clauses, propose tes contre-rédactions au juriste, puis signe quand la convention est signable — ou refuse.",
+        "instructions": "Négocie la convention avec le juriste de l'établissement. Lignes rouges : la PI reste 100 % Orisio (aucune copropriété, aucune licence perpétuelle) et zéro intéressement sur tes revenus ou ta levée de fonds. Cherche aussi à préserver une référence commerciale utilisable et un préavis de résiliation raisonnable. Formalise tes contre-propositions, puis conclus quand le contrat est signable — ne signe jamais un contrat toxique pour démarrer plus vite.",
         "terms": [
           {
             "id": "propriete_intellectuelle",
@@ -445,119 +309,18 @@
             "opening": "Telle que rédigée dans le contrat reçu"
           }
         ],
+        "opening_message": "Bonjour. Vous avez reçu notre convention de test. Ces clauses sont standard pour un partenariat avec notre établissement. Si vous souhaitez des ajustements, transmettez vos observations article par article — sans garantie de suite.",
         "directive": "Adapte-toi à l'établissement choisi par le joueur, conformément à ta fiche de rôle. CHU (Me Gauthier) : très rigide ; tu ne lâches la copropriété de PI (article 5) que face à une argumentation ferme et répétée, et l'intéressement (article 6) en tout dernier recours — tu proposes d'abord de le réduire (2 %, plafonné). Saint-Martin (Me Arnaud) : la validation groupe Ramsay est NON NÉGOCIABLE, le reste (référence, préavis) est négociable avec résistance. Clinique (Me Roche) : le contrat est déjà propre, tu acceptes les précisions raisonnables rapidement. Tu restes sec, juridique, jamais vendeur."
       },
       "inputs": {
         "analyse_contrat": "s3_analyse_contrat.findings",
         "etablissement_choisi": "s1_choix_etablissement.choice"
       },
-      "threads": [
-        {
-          "thread_id": "th_contact",
-          "participants": [
-            "contact_etablissement"
-          ],
-          "title": "Juriste de l'établissement"
-        },
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "contrat",
-          "config": {
-            "terms": [
-              {
-                "id": "propriete_intellectuelle",
-                "label": "Propriété intellectuelle",
-                "type": "text",
-                "opening": "Telle que rédigée dans le contrat reçu"
-              },
-              {
-                "id": "interessement",
-                "label": "Intéressement / contrepartie financière",
-                "type": "text",
-                "opening": "Tel que rédigé dans le contrat reçu"
-              },
-              {
-                "id": "reference_commerciale",
-                "label": "Référence commerciale",
-                "type": "text",
-                "opening": "Telle que rédigée dans le contrat reçu"
-              }
-            ]
-          }
-        }
-      ],
-      "document_ids": [
-        "contrat_chu",
-        "contrat_saint_martin",
-        "contrat_clinique"
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_juriste",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_contact",
-            "actor_id": "contact_etablissement",
-            "content": "Bonjour. Vous avez reçu notre convention de test. Ces clauses sont standard pour un partenariat avec notre établissement. Si vous souhaitez des ajustements, transmettez vos observations article par article — sans garantie de suite."
-          }
-        },
-        {
-          "event_id": "e_reaction_proposition",
-          "when": {
-            "type": "after_action",
-            "action": "deliverable_submitted"
-          },
-          "effect": {
-            "type": "actor_reply",
-            "thread_id": "th_contact",
-            "actor_id": "contact_etablissement",
-            "directive": "Le joueur vient d'envoyer une proposition de rédaction des clauses via le panneau Contrat (elle figure dans l'état du contrat et dans l'historique). Réagis article par article dans le fil : accepte, refuse ou contre-propose, conformément à ta fiche de rôle et à l'établissement choisi. Reste sec et juridique."
-          },
-          "once": false
-        },
-        {
-          "event_id": "e_relance_juriste",
-          "when": {
-            "type": "delay",
-            "seconds": 300
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_contact",
-            "actor_id": "contact_etablissement",
-            "content": "Nous attendons vos observations formalisées sur la convention. Sans retour de votre part, le dossier sera présenté tel quel à notre direction — ou classé sans suite."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "any",
-          "of": [
-            {
-              "type": "contract_signed"
-            },
-            {
-              "type": "contract_rejected"
-            }
-          ]
-        }
-      },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "accord_conclu",
-            "description": "Un accord est conclu : la convention amendée est signée en l'état des clauses négociées.",
+            "description": "Un accord est conclu sur une convention signable (agreement.concluded = true).",
             "severity": "required",
             "competencies": [
               "negociation"

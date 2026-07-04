@@ -10,7 +10,7 @@
 
 import { useState } from "react";
 import type { Json } from "@/app/lib/engine/mechanics";
-import { DangerButton, PrimaryButton, SecondaryButton } from "@/app/player/primitives/ui";
+import { DangerButton, PrimaryButton, SecondaryButton } from "@/app/workspace/primitives/ui";
 import type { ToolComponentProps } from "../types";
 import {
   CONTRAT_TOOL_ID,

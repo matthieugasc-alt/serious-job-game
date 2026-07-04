@@ -1,63 +1,54 @@
 /**
  * ═════════════════════════════════════════════════════════════════════
- * @revealio/engine — Public API surface (moteur v2, format mécaniques)
+ * @revealio/engine — Public API surface (moteur v3, poste de travail)
  * ═════════════════════════════════════════════════════════════════════
  *
- * Point d'entrée unique et stable du moteur v2. Un scénario v2 est une
- * **séquence de mécaniques** (`sequence[]` de `StepInvocation`) — plus
- * de phases, plus de PhaseModule, plus de mail_config. L'architecture
- * est documentée dans docs/MECANIQUES.md ; le legacy v1 est archivé
- * dans archive/legacy-v1/ (voir ARCHIVE.md pour le mapping v1→v2).
+ * Point d'entrée unique et stable du moteur v3. Un scénario v3 est une
+ * **séquence de mécaniques headless** jouée dans un poste de travail
+ * simulé (threads, mailbox, documents, tools) : le joueur agit via des
+ * WorkspaceAction, le reducer applique, les triggers déclarent la fin
+ * de step. L'architecture est documentée dans docs/MECANIQUES.md ; le
+ * legacy v1 (phases) est archivé dans archive/legacy-v1/, le player v2
+ * (MechanicModule React + Shell) dans archive/legacy-v2/ARCHIVE.md.
  *
  * ─── Que trouve-t-on ici ? ────────────────────────────────────────
  *
- *  1. **mechanics** — le contrat d'une mécanique : `MechanicModule`
- *     (Component + evaluate), `MechanicManifest` (params/outputs),
- *     `ScenarioV2`, `StepInvocation`, `StepResult`, `EndingRule`,
- *     `MechanicIO`/`TranscriptEvent` (I/O vivant du player).
+ *  1. **criteria** — le moteur d'évaluation par critères observés :
+ *     `applyStepObservation(criteria, rules, observation)` — l'IA
+ *     OBSERVE, le moteur DÉCIDE. Inchangé depuis le v2 : c'est LE
+ *     moteur de verdict, partagé par sessionV3/workspaceReducer.
  *
- *  2. **criteria** — le moteur d'évaluation par critères observés :
- *     `applyStepObservation(criteria, rules, observation)` (successeur
- *     de applyPhaseObservation v1), sévérités, poids effectifs.
+ *  2. **mechanics** — les types fondamentaux partagés : `Json`,
+ *     `ActorDef`, `DocumentDef`, `TranscriptEvent`, `EndingRule`,
+ *     `StepResult`.
  *
- *  3. **sessionV2** — l'état de partie pur (sans React) :
- *     initialisation, avancement de step, transcript, sérialisation,
- *     calcul de l'ending (`computeEndingV2`).
+ *  3. **workspace** — le vocabulaire du poste de travail :
+ *     `ScenarioV3`, `StepInvocationV3`, `WorkspaceState`,
+ *     `WorkspaceAction`, `MechanicSpec`, `PendingEffect`…
  *
- *  4. **composer** — validation statique d'un scénario v2
- *     (`validateScenarioV2`) et résolution des `inputs` inter-steps
- *     (`resolveStepInputs`). Parité CLI : scripts/validate-scenarios-v2.mjs.
+ *  4. **sessionV3** — l'état de partie pur (sans React) :
+ *     init/clone/sérialisation, step courant, `computeEndingV3`.
  *
- *  5. **MECHANIC_MANIFESTS** — le registre des mécaniques disponibles
- *     (app/mechanics/manifests.ts), garde-fou testé contre
- *     schema/mechanics.json.
+ *  5. **workspaceReducer** — le cœur : `applyWorkspaceAction`,
+ *     `enterStep`, effets narratifs, observation → `completeStepV3`.
+ *
+ *  6. **triggers** — évaluation déclarative des CompletionTrigger.
+ *
+ *  7. **composerV3** — validation statique (`validateScenarioV3`) et
+ *     résolution des `inputs` inter-steps (`resolveStepInputsV3`).
+ *     Parité CLI : scripts/validate-scenarios-v3.mjs.
+ *
+ *  8. **MECHANIC_SPECS / MECHANIC_SPEC_MANIFESTS** — le registre des
+ *     mécaniques headless (app/mechanics/specs.ts), garde-fou testé
+ *     contre schema/mechanics-v3.json.
  *
  * ─── Ce qui N'EST PAS ici ─────────────────────────────────────────
  *
- *  - Les composants React des mécaniques (app/mechanics/<id>/Component)
- *    et le player (app/player/Shell, MechanicRunner) : couche
- *    présentation, importable directement.
+ *  - La couche présentation : app/workspace/ (WorkspacePlayer,
+ *    WorkspaceShell, apps, tools, orchestrateur I/O IA), importable
+ *    directement.
  *  - Le mode founder (app/lib/founder.ts) : économie de campagne,
  *    branchée sur le moteur via /api/v2/complete.
- *
- * ─── Exemple minimal ──────────────────────────────────────────────
- *
- * ```ts
- * import {
- *   validateScenarioV2,
- *   initializeSessionV2,
- *   getCurrentStep,
- *   completeCurrentStep,
- *   computeEndingV2,
- * } from "@/app/lib/engine";
- *
- * const issues = validateScenarioV2(scenario, MECHANIC_MANIFESTS);
- * const session = initializeSessionV2(scenario);
- * const step = getCurrentStep(session);
- * // … la mécanique produit un StepResult …
- * completeCurrentStep(session, result);
- * const ending = computeEndingV2(session);
- * ```
  *
  * ─── Convention d'évolution ───────────────────────────────────────
  *
@@ -81,45 +72,85 @@ export {
   effectiveWeight,
 } from "./criteria";
 
-// ─── mechanics — contrat des mécaniques + format scénario v2 ─────
+// ─── mechanics — types fondamentaux partagés ──────────────────────
 
 export type {
   Json,
   JsonObject,
-  MechanicManifest,
-  MechanicModule,
-  MechanicContext,
-  MechanicResult,
-  MechanicProps,
-  MechanicIO,
-  TranscriptEvent,
   ActorDef,
   DocumentDef,
-  ScenarioV2,
-  StepInvocation,
-  StepResult,
+  TranscriptEvent,
   EndingRule,
+  StepResult,
 } from "./mechanics";
 
-// ─── sessionV2 — état de partie pur ───────────────────────────────
+// ─── workspace — vocabulaire du poste de travail ──────────────────
 
-export type { SessionV2State } from "./sessionV2";
+export type {
+  ThreadMessage,
+  Thread,
+  WsMail,
+  WsNotification,
+  WorkspaceState,
+  WorkspaceAction,
+  LoggedAction,
+  CompletionTrigger,
+  StepCompletion,
+  NarrativeWhen,
+  NarrativeEffect,
+  NarrativeEvent,
+  StepToolConfig,
+  StepInvocationV3,
+  ScenarioV3,
+  MechanicSpecManifest,
+  MechanicSpec,
+  PendingEffect,
+  DispatchResult,
+} from "./workspace";
+
+// ─── sessionV3 — état de partie pur ───────────────────────────────
+
+export type { SessionV3State } from "./sessionV3";
 export {
-  initializeSessionV2,
-  cloneSessionV2,
-  getCurrentStep,
-  recordTranscriptEvent,
-  completeCurrentStep,
-  computeEndingV2,
-  serializeSessionV2,
-  restoreSessionV2,
-} from "./sessionV2";
+  initializeSessionV3,
+  cloneSessionV3,
+  getCurrentStepV3,
+  serializeSessionV3,
+  restoreSessionV3,
+  computeEndingV3,
+} from "./sessionV3";
 
-// ─── composer — validation statique + câblage des inputs ─────────
+// ─── workspaceReducer — le cœur du moteur ─────────────────────────
 
-export type { ComposerIssue } from "./composer";
-export { validateScenarioV2, resolveStepInputs } from "./composer";
+export type {
+  DirectiveSource,
+  ReducerOptions,
+  StepCompletionOutcome,
+} from "./workspaceReducer";
+export {
+  applyWorkspaceAction,
+  enterStep,
+  applyNarrativeEffect,
+  recordActorMessage,
+  recordStepObservation,
+  completeStepV3,
+} from "./workspaceReducer";
 
-// ─── Registre des mécaniques ──────────────────────────────────────
+// ─── triggers — évaluation déclarative des CompletionTrigger ──────
 
-export { MECHANIC_MANIFESTS } from "@/app/mechanics/manifests";
+export type { TriggerContext } from "./triggers";
+export {
+  ACTOR_VALIDATION_PREFIX,
+  actorValidationCriterion,
+  evaluateTrigger,
+  triggerMentions,
+} from "./triggers";
+
+// ─── composerV3 — validation statique + câblage des inputs ────────
+
+export type { ComposerIssueV3 } from "./composerV3";
+export { validateScenarioV3, resolveStepInputsV3 } from "./composerV3";
+
+// ─── Registre des mécaniques headless ─────────────────────────────
+
+export { MECHANIC_SPECS, MECHANIC_SPEC_MANIFESTS } from "@/app/mechanics/specs";

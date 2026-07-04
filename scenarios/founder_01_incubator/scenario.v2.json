@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "founder_01_incubator",
-  "version": "3.0.0",
+  "version": "2.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Entrée en incubateur",
@@ -44,63 +44,11 @@
       "title": "Le one-pager",
       "params": {
         "deliverable_type": "document",
-        "instructions": "Alexandre : « Remplis le template et sois carré. Mets des chiffres, pas des généralités — les jurés voient 8 startups, ils veulent du concret. Dis pas “les hôpitaux ont un problème de planning”, chiffre-le. » Remplis le one-pager d'Orisio pour le comité de sélection de Technowest. Chaque section compte : problème concret et chiffré, solution claire, marché dimensionné, modèle économique précis, traction honnête (pas de produit, pas de client — dis-le), équipe, et demande spécifique à l'incubateur. Le jury voit 8 startups aujourd'hui : sois concis, chiffré et honnête. Rappels utiles : blocs français occupés à 68 % (benchmark 85 %), ~800 k€/an de temps perdu pour un CHU moyen, 1 300 établissements avec bloc opératoire, cible initiale les 32 CHU, marché adressable ~50 M€/an, Ségur du numérique : 2 Md€ débloqués. Données terrain d'Alexandre : 10-15 % des créneaux de bloc sont annulés chaque semaine, un créneau perdu coûte 1 500 à 3 000 €, et les blocs sont encore gérés avec Excel et WhatsApp.\n\nRédige le one-pager dans l'Éditeur de ton poste de travail (le template y est prérempli), puis clique « Rendre le document » pour l'envoyer au comité."
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "editeur",
-          "config": {
-            "template": "# One-Pager — Orisio\n\n## Problème\n[Décrivez le problème que vous résolvez. Soyez concret : qui souffre, pourquoi, combien ça coûte. 3-4 phrases max.]\n\n## Solution\n[Décrivez votre produit/service. Ce qu'il fait, comment il fonctionne, en quoi il est différent. Pas de jargon. 3-4 phrases max.]\n\n## Marché\n[Taille du marché cible. Nombre d'établissements/utilisateurs potentiels. Segment initial visé. Chiffrez.]\n\n## Modèle économique\n[Comment vous gagnez de l'argent. Prix, récurrence, panier moyen. Soyez précis.]\n\n## Traction\n[Ce que vous avez déjà accompli. Entretiens, pilotes, lettres d'intention, premiers revenus. Chiffres concrets uniquement.]\n\n## Équipe\n[Qui vous êtes. Noms, rôles, pourquoi vous êtes les bonnes personnes pour ce projet. 2-3 lignes par personne.]\n\n## Demande\n[Ce que vous attendez de l'incubateur. Soyez spécifique : mentorat, réseau, financement, locaux, introductions.]\n\n## Contact\n[Nom — email — téléphone]",
-            "title_hint": "One-Pager — Orisio"
-          }
-        },
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "one_pager_template"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_brief_onepager",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Remplis le template et sois carré. Mets des chiffres, pas des généralités — les jurés voient 8 startups, ils veulent du concret. Dis pas “les hôpitaux ont un problème de planning”, chiffre-le."
-          }
-        },
-        {
-          "event_id": "e_alex_retry_onepager",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "J'ai relu ton one-pager : en l'état, le jury le retoque. Où sont les chiffres ? Le problème, le marché, le modèle éco — chiffre tout. Et reste honnête sur où on en est : pas de produit, pas de client, on le dit. Reprends-le et re-rends-le."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "deliverable_submitted",
-          "tool": "editeur"
-        }
+        "instructions": "Alexandre : « Remplis le template et sois carré. Mets des chiffres, pas des généralités — les jurés voient 8 startups, ils veulent du concret. Dis pas “les hôpitaux ont un problème de planning”, chiffre-le. » Remplis le one-pager d'Orisio pour le comité de sélection de Technowest. Chaque section compte : problème concret et chiffré, solution claire, marché dimensionné, modèle économique précis, traction honnête (pas de produit, pas de client — dis-le), équipe, et demande spécifique à l'incubateur. Le jury voit 8 startups aujourd'hui : sois concis, chiffré et honnête. Rappels utiles : blocs français occupés à 68 % (benchmark 85 %), ~800 k€/an de temps perdu pour un CHU moyen, 1 300 établissements avec bloc opératoire, cible initiale les 32 CHU, marché adressable ~50 M€/an, Ségur du numérique : 2 Md€ débloqués. Données terrain d'Alexandre : 10-15 % des créneaux de bloc sont annulés chaque semaine, un créneau perdu coûte 1 500 à 3 000 €, et les blocs sont encore gérés avec Excel et WhatsApp.",
+        "template": "# One-Pager — Orisio\n\n## Problème\n[Décrivez le problème que vous résolvez. Soyez concret : qui souffre, pourquoi, combien ça coûte. 3-4 phrases max.]\n\n## Solution\n[Décrivez votre produit/service. Ce qu'il fait, comment il fonctionne, en quoi il est différent. Pas de jargon. 3-4 phrases max.]\n\n## Marché\n[Taille du marché cible. Nombre d'établissements/utilisateurs potentiels. Segment initial visé. Chiffrez.]\n\n## Modèle économique\n[Comment vous gagnez de l'argent. Prix, récurrence, panier moyen. Soyez précis.]\n\n## Traction\n[Ce que vous avez déjà accompli. Entretiens, pilotes, lettres d'intention, premiers revenus. Chiffres concrets uniquement.]\n\n## Équipe\n[Qui vous êtes. Noms, rôles, pourquoi vous êtes les bonnes personnes pour ce projet. 2-3 lignes par personne.]\n\n## Demande\n[Ce que vous attendez de l'incubateur. Soyez spécifique : mentorat, réseau, financement, locaux, introductions.]\n\n## Contact\n[Nom — email — téléphone]",
+        "document_ids": [
+          "one_pager_template"
+        ]
       },
       "evaluation": {
         "observed_criteria": [
@@ -173,51 +121,14 @@
       "mechanic": "presentation",
       "title": "Elevator pitch — 40 secondes",
       "params": {
-        "brief": "Alexandre, juste avant que tu entres : « T'es prêt ? 40 secondes c'est rien. Problème, solution, pourquoi nous. Répète-le avant — chaque mot compte. Go. » Le jury t'écoute en silence. Tu as EXACTEMENT 40 secondes : quel problème, quelle solution, pourquoi ton équipe. 3-4 phrases max. Pas d'intro, pas de remerciements, pas de blabla. Le chrono est lancé."
+        "brief": "Alexandre, juste avant que tu entres : « T'es prêt ? 40 secondes c'est rien. Problème, solution, pourquoi nous. Répète-le avant — chaque mot compte. Go. » Le jury t'écoute en silence. Tu as EXACTEMENT 40 secondes : quel problème, quelle solution, pourquoi ton équipe. 3-4 phrases max. Pas d'intro, pas de remerciements, pas de blabla. Le chrono est lancé.",
+        "preparation_s": 60,
+        "lang": "fr-FR",
+        "document_ids": [
+          "one_pager_template"
+        ]
       },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "reunion",
-          "config": {
-            "mode": "presentation",
-            "brief": "Alexandre, juste avant que tu entres : « T'es prêt ? 40 secondes c'est rien. Problème, solution, pourquoi nous. Répète-le avant — chaque mot compte. Go. » Le jury t'écoute en silence. Tu as EXACTEMENT 40 secondes : quel problème, quelle solution, pourquoi ton équipe. 3-4 phrases max. Pas d'intro, pas de remerciements, pas de blabla. Le chrono est lancé.",
-            "time_limit_s": 40,
-            "preparation_s": 60
-          }
-        }
-      ],
-      "document_ids": [
-        "one_pager_template"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_avant_pitch",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "T'es prêt ? 40 secondes c'est rien. Problème, solution, pourquoi nous. Répète-le avant — chaque mot compte. Go. La salle de réunion est ouverte sur ton poste : entre quand t'es prêt."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "deliverable_submitted",
-          "tool": "reunion"
-        }
-      },
+      "time_limit_s": 40,
       "evaluation": {
         "observed_criteria": [
           {
@@ -273,64 +184,9 @@
         "actor_id": "jury_technowest",
         "question_count": 5,
         "context_hint": "5 minutes de questions, sans temps mort. Claire Dumont attaque sur le business (marché, pricing, cycle de vente), Thomas Vidal challenge la tech (HDS, stack, faisabilité MVP), Dr. Morin teste ta connaissance du terrain hospitalier. Réponds du tac au tac — et n'invente pas ce que tu ne sais pas.",
-        "directive": "La toute première question de Claire Dumont a déjà été posée dans le fil (ciblage des établissements et taille du marché) — n'y reviens pas, attends la réponse du joueur. Ensuite, alterne Thomas Vidal (faisabilité technique, HDS, scope MVP) et Dr. Isabelle Morin (terrain hospitalier, adoption, parcours patient), en rebondissant sur les réponses du joueur. Une seule question à la fois, préfixée par le nom du membre. Si une réponse est floue ou survendue, le membre suivant creuse ce point."
+        "directive": "Ta toute première intervention est celle de Claire Dumont, mot pour mot : « Merci pour cette présentation. On va vous poser quelques questions. Je commence : vous ciblez quel type d'établissements exactement, et vous avez une idée de la taille de ce marché ? » Ensuite, alterne Thomas Vidal (faisabilité technique, HDS, scope MVP) et Dr. Isabelle Morin (terrain hospitalier, adoption, parcours patient), en rebondissant sur les réponses du joueur. Une seule question à la fois, préfixée par le nom du membre. Si une réponse est floue ou survendue, le membre suivant creuse ce point."
       },
-      "threads": [
-        {
-          "thread_id": "th_jury",
-          "participants": [
-            "jury_technowest"
-          ],
-          "title": "Jury Technowest"
-        },
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "reunion",
-          "config": {
-            "mode": "qa",
-            "brief": "5 minutes de questions, sans temps mort. Claire Dumont attaque sur le business (marché, pricing, cycle de vente), Thomas Vidal challenge la tech (HDS, stack, faisabilité MVP), Dr. Morin teste ta connaissance du terrain hospitalier. Réponds du tac au tac — et n'invente pas ce que tu ne sais pas.",
-            "time_limit_s": 300
-          }
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_jury",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_jury",
-            "actor_id": "jury_technowest",
-            "content": "Claire Dumont : Merci pour cette présentation. On va vous poser quelques questions. Je commence : vous ciblez quel type d'établissements exactement, et vous avez une idée de la taille de ce marché ?"
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "jury_technowest",
-              "min_count": 5
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "reponses_business"
-            }
-          ]
-        }
-      },
+      "time_limit_s": 360,
       "evaluation": {
         "observed_criteria": [
           {

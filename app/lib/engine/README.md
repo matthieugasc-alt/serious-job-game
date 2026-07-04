@@ -1,38 +1,41 @@
-# `@revealio/engine` — API publique du moteur v2 (mécaniques)
+# `@revealio/engine` — API publique du moteur v3 (poste de travail)
 
-Point d'entrée unique et stable du moteur de jeu. Un scénario v2
-(`format: "v2"`) est une **séquence de mécaniques** : chaque step invoque
-une mécanique universelle (entretien, qa, presentation, analyse,
-production, decision, negociation) avec des `params`, des `inputs` câblés
-sur les outputs des steps précédents, des critères observés et des
-completion_rules.
+Point d'entrée unique et stable du moteur de jeu. Un scénario v3
+(`format: "v3"`) est une **séquence de mécaniques headless** jouée dans
+un poste de travail simulé : le joueur agit via des `WorkspaceAction`
+(messages, mails, documents, tools), le reducer applique, les
+`CompletionTrigger` déclaratifs décident de la fin de step, l'IA observe
+les critères et **le moteur décide** (`applyStepObservation`).
 
 Toute évolution de cette API est verrouillée par
 `__tests__/engine.publicApi.test.ts` — retirer ou renommer un export fait
 échouer le test.
 
-> Le moteur v1 (phases, PhaseModule, runtime.ts) a été supprimé — voir
-> `archive/legacy-v1/ARCHIVE.md` pour le mapping conceptuel v1→v2 et le
-> sha git du dernier commit le contenant.
+> Le moteur v1 (phases, PhaseModule) est archivé dans
+> `archive/legacy-v1/ARCHIVE.md` ; le player v2 (MechanicModule React,
+> Shell, sessionV2, composer) dans `archive/legacy-v2/ARCHIVE.md` — avec
+> les sha git des derniers commits les contenant.
 
 ## Import minimal
 
 ```ts
 import {
-  validateScenarioV2,
-  initializeSessionV2,
-  getCurrentStep,
-  completeCurrentStep,
-  computeEndingV2,
-  MECHANIC_MANIFESTS,
+  validateScenarioV3,
+  initializeSessionV3,
+  enterStep,
+  applyWorkspaceAction,
+  computeEndingV3,
+  MECHANIC_SPECS,
+  MECHANIC_SPEC_MANIFESTS,
 } from "@/app/lib/engine";
 
-const issues = validateScenarioV2(scenario, MECHANIC_MANIFESTS);
-const session = initializeSessionV2(scenario);
-const step = getCurrentStep(session);
-// … la mécanique joue, produit un StepResult …
-completeCurrentStep(session, result);
-const ending = computeEndingV2(session);
+const issues = validateScenarioV3(scenario, MECHANIC_SPEC_MANIFESTS, tools);
+const session = initializeSessionV3(scenario);
+enterStep(session, { specs: MECHANIC_SPECS });
+// … le joueur agit …
+const { effects } = applyWorkspaceAction(session, action, { specs: MECHANIC_SPECS });
+// … l'orchestrateur exécute les PendingEffects (I/O IA) …
+const ending = computeEndingV3(session);
 ```
 
 ## Catégories d'exports
@@ -41,49 +44,70 @@ const ending = computeEndingV2(session);
 
 | Export | Rôle |
 |---|---|
-| `applyStepObservation(criteria, rules, observation)` | ⚠ SOURCE DE VÉRITÉ pass/fail d'un step (successeur de applyPhaseObservation v1) |
+| `applyStepObservation(criteria, rules, observation)` | ⚠ SOURCE DE VÉRITÉ pass/fail d'un step |
 | `CRITERION_SEVERITIES`, `CriterionSeverity` | `critical` / `required` / `bonus` / `minor` |
 | `effectiveWeight(c)` | Poids effectif d'un critère |
 | `StepCriterion`, `StepCompletionRules`, `StepObservation`, `StepEvaluationResult` | Types |
 
-### 2. `mechanics` — contrat des mécaniques + format scénario
+### 2. `mechanics` — types fondamentaux partagés
 
 | Export | Rôle |
 |---|---|
-| `MechanicModule` | Une mécanique = `Component` React + `evaluate` |
-| `MechanicManifest` | Params requis / output_keys déclarés |
-| `MechanicIO`, `TranscriptEvent` | I/O vivant entre Shell et mécanique |
-| `ScenarioV2`, `StepInvocation`, `StepResult`, `EndingRule` | Format scénario v2 |
-| `ActorDef`, `DocumentDef`, `Json`, `JsonObject` | Briques partagées |
+| `ActorDef`, `DocumentDef` | Déclarations du scénario |
+| `TranscriptEvent` | Trace d'échange (ChatPanel, orchestrateur, /api/v2/actor) |
+| `EndingRule`, `StepResult` | Fin de scénario, résultat de step persisté |
+| `Json`, `JsonObject` | Briques partagées |
 
-### 3. `sessionV2` — état de partie pur (sans React)
+### 3. `workspace` — vocabulaire du poste de travail (types)
 
-| Export | Rôle |
-|---|---|
-| `initializeSessionV2(scenario)` | Session neuve |
-| `getCurrentStep(s)` / `completeCurrentStep(s, result)` | Avancement |
-| `recordTranscriptEvent(s, ev)` | Journal de step |
-| `computeEndingV2(s)` | Résout l'ending (requires_passed, sinon default) |
-| `cloneSessionV2`, `serializeSessionV2`, `restoreSessionV2` | Persistance |
+`ScenarioV3`, `StepInvocationV3`, `WorkspaceState`, `WorkspaceAction`,
+`LoggedAction`, `CompletionTrigger`, `NarrativeEvent`, `MechanicSpec`,
+`MechanicSpecManifest`, `PendingEffect`, `DispatchResult`, …
 
-### 4. `composer` — validation statique + câblage
+### 4. `sessionV3` — état de partie pur (sans React)
 
 | Export | Rôle |
 |---|---|
-| `validateScenarioV2(scenario, manifests)` | Garde-fou structurel (parité CLI : `scripts/validate-scenarios-v2.mjs`) |
-| `resolveStepInputs(step, session)` | Résout `inputs` (`step_id.output_key`) |
-| `ComposerIssue` | Type d'issue |
+| `initializeSessionV3(scenario)` | Session neuve |
+| `getCurrentStepV3(s)` | Step courant |
+| `computeEndingV3(s)` | Résout l'ending (requires_passed, sinon default) |
+| `cloneSessionV3`, `serializeSessionV3`, `restoreSessionV3` | Persistance |
 
-### 5. Registre
+### 5. `workspaceReducer` — le cœur du moteur
 
 | Export | Rôle |
 |---|---|
-| `MECHANIC_MANIFESTS` | Registre des mécaniques (app/mechanics/manifests.ts), garde-fou testé contre `schema/mechanics.json` |
+| `applyWorkspaceAction(s, action, opts)` | Applique une action joueur, rend les `PendingEffect` |
+| `enterStep(s, opts)` | Entrée de step (threads, events, mails d'amorce) |
+| `applyNarrativeEffect`, `recordActorMessage` | Effets narratifs / réponses IA |
+| `recordStepObservation`, `completeStepV3` | Observation → verdict → avancement |
+
+### 6. `triggers` — fins de step déclaratives
+
+| Export | Rôle |
+|---|---|
+| `evaluateTrigger(trigger, ctx)` | Un `CompletionTrigger` est-il satisfait ? |
+| `triggerMentions(trigger, types)` | Le trigger référence-t-il ces types ? |
+| `actorValidationCriterion`, `ACTOR_VALIDATION_PREFIX` | Convention actor_validation |
+
+### 7. `composerV3` — validation statique + câblage
+
+| Export | Rôle |
+|---|---|
+| `validateScenarioV3(scenario, manifests, tools)` | Garde-fou structurel (parité CLI : `scripts/validate-scenarios-v3.mjs`) |
+| `resolveStepInputsV3(session, step)` | Résout `inputs` (`"stepId"` ou `"stepId.cle"`) |
+| `ComposerIssueV3` | Type d'issue |
+
+### 8. Registre
+
+| Export | Rôle |
+|---|---|
+| `MECHANIC_SPECS` / `MECHANIC_SPEC_MANIFESTS` | Registre des mécaniques headless (app/mechanics/specs.ts), garde-fou testé contre `schema/mechanics-v3.json` |
 
 ## Ce qui n'est PAS ici
 
-- Les composants React des mécaniques (`app/mechanics/<id>/Component.tsx`)
-  et le player (`app/player/Shell.tsx`, `MechanicRunner`) : couche
-  présentation, importable directement.
+- La couche présentation : `app/workspace/` (WorkspacePlayer,
+  WorkspaceShell, apps, tools, orchestrateur I/O IA, primitives UI),
+  importable directement.
 - Le mode founder (`app/lib/founder.ts`) : économie de campagne, branchée
   sur le moteur via `/api/v2/complete`.

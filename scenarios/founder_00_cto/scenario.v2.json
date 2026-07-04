@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "founder_00_cto",
-  "version": "3.0.0",
+  "version": "2.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Trouver un CTO",
@@ -88,74 +88,11 @@
       "title": "Entretien — Sofia Renault",
       "params": {
         "actor_id": "sofia_renault",
-        "objective": "Alexandre : « Sofia Renault vient d'arriver. Je te laisse avec elle, je reviens dans quelques minutes. » Évalue Sofia en 5 minutes : compétences réelles (santé numérique, HDS), raisons de son départ de MedFlow, engagement et prétentions (salaire, equity). Ton budget : 3 500 €/mois max, pool equity 10-20 %."
+        "objective": "Alexandre : « Sofia Renault vient d'arriver. Je te laisse avec elle, je reviens dans quelques minutes. » Évalue Sofia en 5 minutes : compétences réelles (santé numérique, HDS), raisons de son départ de MedFlow, engagement et prétentions (salaire, equity). Ton budget : 3 500 €/mois max, pool equity 10-20 %.",
+        "min_exchanges": 4,
+        "opening_message": "Bonsoir. Alexandre m'a parlé du projet, ça a l'air intéressant. Optimisation des blocs opératoires, c'est un vrai sujet — j'ai bossé sur du parcours patient chez MedFlow, c'est pas si loin. Qu'est-ce que vous avez aujourd'hui concrètement ?"
       },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        },
-        {
-          "thread_id": "th_sofia",
-          "participants": [
-            "sofia_renault"
-          ],
-          "title": "Sofia Renault"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "cv_sofia"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_intro_sofia",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Sofia Renault vient d'arriver. Je te laisse avec elle, je reviens dans quelques minutes."
-          }
-        },
-        {
-          "event_id": "e_ouverture_sofia",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_sofia",
-            "actor_id": "sofia_renault",
-            "content": "Bonsoir. Alexandre m'a parlé du projet, ça a l'air intéressant. Optimisation des blocs opératoires, c'est un vrai sujet — j'ai bossé sur du parcours patient chez MedFlow, c'est pas si loin. Qu'est-ce que vous avez aujourd'hui concrètement ?"
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "sofia_renault",
-              "min_count": 4
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "sofia_motifs_depart"
-            }
-          ]
-        }
-      },
+      "time_limit_s": 300,
       "evaluation": {
         "observed_criteria": [
           {
@@ -200,74 +137,11 @@
       "title": "Entretien — Marc Lefèvre",
       "params": {
         "actor_id": "marc_lefevre",
-        "objective": "Alexandre : « OK, Sofia est partie. Marc Lefèvre est là, je te l'envoie. » Évalue Marc en 5 minutes : compétences, mais surtout son engagement réel. Est-il prêt à quitter Betclic ? Est-il disponible à temps plein ? A-t-il d'autres projets en parallèle ?"
+        "objective": "Alexandre : « OK, Sofia est partie. Marc Lefèvre est là, je te l'envoie. » Évalue Marc en 5 minutes : compétences, mais surtout son engagement réel. Est-il prêt à quitter Betclic ? Est-il disponible à temps plein ? A-t-il d'autres projets en parallèle ?",
+        "min_exchanges": 4,
+        "opening_message": "Salut ! Marc Lefèvre, enchanté. Alexandre m'a pitch le projet rapidement, ça a l'air cool. Je bosse chez Betclic en ce moment sur de l'API temps réel, donc la charge et la perf c'est mon quotidien. Vous en êtes où ?"
       },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        },
-        {
-          "thread_id": "th_marc",
-          "participants": [
-            "marc_lefevre"
-          ],
-          "title": "Marc Lefèvre"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "cv_marc"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_intro_marc",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "OK, Sofia est partie. Marc Lefèvre est là, je te l'envoie."
-          }
-        },
-        {
-          "event_id": "e_ouverture_marc",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_marc",
-            "actor_id": "marc_lefevre",
-            "content": "Salut ! Marc Lefèvre, enchanté. Alexandre m'a pitch le projet rapidement, ça a l'air cool. Je bosse chez Betclic en ce moment sur de l'API temps réel, donc la charge et la perf c'est mon quotidien. Vous en êtes où ?"
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "marc_lefevre",
-              "min_count": 4
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "marc_engagement"
-            }
-          ]
-        }
-      },
+      "time_limit_s": 300,
       "evaluation": {
         "observed_criteria": [
           {
@@ -312,74 +186,11 @@
       "title": "Entretien — Karim Benzarti",
       "params": {
         "actor_id": "karim_benzarti",
-        "objective": "Alexandre : « Dernier ! Karim Benzarti. Il a l'air un peu nerveux mais motivé. Go. » Évalue Karim en 5 minutes : son niveau technique réel (junior en agence web), son potentiel, sa motivation et ses contraintes financières."
+        "objective": "Alexandre : « Dernier ! Karim Benzarti. Il a l'air un peu nerveux mais motivé. Go. » Évalue Karim en 5 minutes : son niveau technique réel (junior en agence web), son potentiel, sa motivation et ses contraintes financières.",
+        "min_exchanges": 4,
+        "opening_message": "Bonsoir, Karim Benzarti. Merci de me recevoir. J'ai lu le pitch qu'Alexandre m'a envoyé — l'optimisation des blocs opératoires, c'est un vrai sujet. J'ai un side project dans le médical justement, MedBoard, un dashboard de suivi patient. C'est pas le même périmètre mais ça m'a donné un bon aperçu de la complexité du domaine."
       },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        },
-        {
-          "thread_id": "th_karim",
-          "participants": [
-            "karim_benzarti"
-          ],
-          "title": "Karim Benzarti"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "cv_karim"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_intro_karim",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Dernier ! Karim Benzarti. Il a l'air un peu nerveux mais motivé. Go."
-          }
-        },
-        {
-          "event_id": "e_ouverture_karim",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_karim",
-            "actor_id": "karim_benzarti",
-            "content": "Bonsoir, Karim Benzarti. Merci de me recevoir. J'ai lu le pitch qu'Alexandre m'a envoyé — l'optimisation des blocs opératoires, c'est un vrai sujet. J'ai un side project dans le médical justement, MedBoard, un dashboard de suivi patient. C'est pas le même périmètre mais ça m'a donné un bon aperçu de la complexité du domaine."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "karim_benzarti",
-              "min_count": 4
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "karim_niveau_reel"
-            }
-          ]
-        }
-      },
+      "time_limit_s": 300,
       "evaluation": {
         "observed_criteria": [
           {
@@ -413,7 +224,7 @@
       "mechanic": "decision",
       "title": "Choisir ton CTO",
       "params": {
-        "instructions": "Alexandre : « Bon, t'as vu les trois. Qu'est-ce que t'en penses ? Moi j'ai bien aimé l'énergie de Karim, mais c'est toi qui décides. » Choisis ton CTO cofondateur et justifie ta décision. Contraintes : budget 3 500 €/mois max, pool equity 10-20 % (recommandation de Me Dufresne), 15 000 € de trésorerie totale, besoin d'un produit santé (HDS) construit vite et bien. Pèse compétences, engagement réel et coût.\n\nAppuie-toi sur tes notes d'entretien, puis discute ton choix avec Alexandre dans Messages : c'est ta réponse dans le fil — le candidat retenu et pourquoi — qui l'engage.",
+        "instructions": "Alexandre : « Bon, t'as vu les trois. Qu'est-ce que t'en penses ? Moi j'ai bien aimé l'énergie de Karim, mais c'est toi qui décides. » Choisis ton CTO cofondateur et justifie ta décision. Contraintes : budget 3 500 €/mois max, pool equity 10-20 % (recommandation de Me Dufresne), 15 000 € de trésorerie totale, besoin d'un produit santé (HDS) construit vite et bien. Pèse compétences, engagement réel et coût.",
         "options": [
           {
             "id": "sofia",
@@ -430,84 +241,25 @@
             "label": "Karim Benzarti",
             "description": "24 ans, DUT Info. Dev web junior en agence (Pixel33), side project médical MedBoard. Motivé à 100 %, honnête sur ses limites, peu cher — mais junior."
           }
-        ]
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "cv_sofia",
-        "cv_marc",
-        "cv_karim",
-        "note_avocat"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_debrief",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Bon, t'as vu les trois. Qu'est-ce que t'en penses ? Moi j'ai bien aimé l'énergie de Karim, mais c'est toi qui décides."
-          }
-        },
-        {
-          "event_id": "e_alex_retry_choix",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Mouais. T'as pas répondu aux vraies questions : il ou elle est dispo à fond, oui ou non ? Et on le paie comment, avec 3 500 € de budget mensuel et 15k en caisse ? Redis-moi ton choix avec ça sur la table."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "alexandre_morel"
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "justif_engagement"
-            }
-          ]
-        }
+        ],
+        "require_justification": true,
+        "min_justification_chars": 120
       },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "choice_sofia",
-            "description": "L'option « Sofia Renault » est choisie (d'après la décision annoncée à Alexandre dans Messages).",
+            "description": "L'option « Sofia Renault » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_marc",
-            "description": "L'option « Marc Lefèvre » est choisie (d'après la décision annoncée à Alexandre dans Messages).",
+            "description": "L'option « Marc Lefèvre » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
             "id": "choice_karim",
-            "description": "L'option « Karim Benzarti » est choisie (d'après la décision annoncée à Alexandre dans Messages).",
+            "description": "L'option « Karim Benzarti » est choisie (observé automatiquement).",
             "severity": "minor"
           },
           {
@@ -545,63 +297,18 @@
       "params": {
         "deliverable_type": "mail",
         "recipient_actor": "chosen_cto",
-        "instructions": "Alexandre : « Envoie un mail à celui ou celle que tu veux, avec ta proposition. Salaire, equity, rôle — sois clair. Et faut pas traîner, les bons profils ça part vite. » Envoie ta proposition formelle au candidat choisi. Le mail doit préciser : le rôle exact (CTO cofondateur), le package chiffré (salaire et/ou equity, vesting), et les conditions d'engagement. Sois explicite sur l'exigence de full-time et d'exclusivité — c'est ce qui te protégera plus tard.\n\nEnvoie ta proposition depuis l'app Mail au candidat retenu. Objet suggéré : « Proposition — CTO cofondateur Orisio »."
+        "subject_hint": "Proposition — CTO cofondateur Orisio",
+        "instructions": "Alexandre : « Envoie un mail à celui ou celle que tu veux, avec ta proposition. Salaire, equity, rôle — sois clair. Et faut pas traîner, les bons profils ça part vite. » Envoie ta proposition formelle au candidat choisi. Le mail doit préciser : le rôle exact (CTO cofondateur), le package chiffré (salaire et/ou equity, vesting), et les conditions d'engagement. Sois explicite sur l'exigence de full-time et d'exclusivité — c'est ce qui te protégera plus tard.",
+        "document_ids": [
+          "note_avocat",
+          "cv_sofia",
+          "cv_marc",
+          "cv_karim"
+        ]
       },
       "inputs": {
         "candidat_choisi": "s4_choix_cto.choice",
         "justification_choix": "s4_choix_cto.justification"
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "note_avocat",
-        "cv_sofia",
-        "cv_marc",
-        "cv_karim"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_go_mail",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Envoie un mail à celui ou celle que tu veux, avec ta proposition. Salaire, equity, rôle — sois clair. Et faut pas traîner, les bons profils ça part vite."
-          }
-        },
-        {
-          "event_id": "e_cto_retry_mail",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "mail_received",
-            "from_actor": "chosen_cto",
-            "subject": "Re: votre proposition",
-            "body": "Merci pour votre message. Avant de me décider, j'ai besoin de tout noir sur blanc : le rôle exact, le package complet (salaire, equity, vesting) et ce que vous attendez de moi en termes d'engagement. Pouvez-vous me renvoyer une proposition précise ?"
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "mail_sent",
-          "to": "chosen_cto"
-        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -656,69 +363,28 @@
       "mechanic": "analyse",
       "title": "Relire le pacte d'associés",
       "params": {
-        "instructions": "Le candidat a accepté ta proposition : « C'est aligné avec ce que je cherche. Je suis partant(e). Mon avocat Me Fabre va rédiger un pacte d'associés, je te l'envoie dans la journée. » Le pacte arrive par mail dans l'après-midi : « Comme discuté, voici le pacte rédigé par mon avocat. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine. » Alexandre te met en garde : « Avant de signer quoi que ce soit, relis bien la note de Me Dufresne. On est en train d'accueillir quelqu'un dans le capital — faut que tout soit carré. C'est le genre de document qu'on regrette de ne pas avoir lu le jour où ça se passe mal. » Relis le pacte ligne par ligne, article par article, en t'appuyant sur la note de Me Dufresne.\n\nPrends des notes dans le bloc-notes, puis envoie tes conclusions à Alexandre dans Messages : le point critique du pacte (quel article pose problème et pourquoi c'est dangereux pour Orisio), les clauses protectrices présentes ou absentes (vesting, leaver, non-concurrence), et les modifications précises à exiger avant signature."
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "pacte_associes",
-        "note_avocat"
-      ],
-      "events": [
-        {
-          "event_id": "e_pacte_mail",
-          "when": {
-            "type": "step_start"
+        "instructions": "Le candidat a accepté ta proposition : « C'est aligné avec ce que je cherche. Je suis partant(e). Mon avocat Me Fabre va rédiger un pacte d'associés, je te l'envoie dans la journée. » Le pacte arrive par mail dans l'après-midi : « Comme discuté, voici le pacte rédigé par mon avocat. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine. » Alexandre te met en garde : « Avant de signer quoi que ce soit, relis bien la note de Me Dufresne. On est en train d'accueillir quelqu'un dans le capital — faut que tout soit carré. C'est le genre de document qu'on regrette de ne pas avoir lu le jour où ça se passe mal. » Relis le pacte ligne par ligne, article par article, en t'appuyant sur la note de Me Dufresne.",
+        "findings_prompts": [
+          {
+            "id": "piege_principal",
+            "label": "Le point critique du pacte",
+            "placeholder": "Quel article pose problème, et pourquoi est-ce dangereux pour Orisio ?"
           },
-          "effect": {
-            "type": "mail_received",
-            "from_actor": "chosen_cto",
-            "subject": "Pacte d'associés — Orisio",
-            "body": "C'est aligné avec ce que je cherche. Je suis partant(e) ! Comme discuté, voici le pacte d'associés rédigé par mon avocat, Me Fabre. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine.",
-            "attachment_document_ids": [
-              "pacte_associes"
-            ]
-          }
-        },
-        {
-          "event_id": "e_alex_garde_fou",
-          "when": {
-            "type": "step_start"
+          {
+            "id": "clauses_protectrices",
+            "label": "Les clauses protectrices présentes (ou absentes)",
+            "placeholder": "Vesting, leaver, non-concurrence… que couvrent-elles, que manque-t-il ?"
           },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Avant de signer quoi que ce soit, relis bien la note de Me Dufresne. On est en train d'accueillir quelqu'un dans le capital — faut que tout soit carré. C'est le genre de document qu'on regrette de ne pas avoir lu le jour où ça se passe mal."
+          {
+            "id": "modifications_exigees",
+            "label": "Les modifications à exiger avant signature",
+            "placeholder": "Liste précisément ce que tu demanderas à modifier."
           }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "alexandre_morel"
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "piege_exclusivite"
-            }
-          ]
-        }
+        ],
+        "document_ids": [
+          "pacte_associes",
+          "note_avocat"
+        ]
       },
       "evaluation": {
         "observed_criteria": [
@@ -765,7 +431,7 @@
       "title": "Négocier le pacte",
       "params": {
         "actor_id": "chosen_cto",
-        "instructions": "Négocie les amendements du pacte avec ton futur CTO avant de signer. Objectif : un article 6 incluant engagement à temps plein et exclusivité, et une clause de bad leaver solide. Formalise tes propositions, puis conclus quand le pacte est signable. Le contrat s'ouvre en panneau dans ton poste de travail : ajuste la rédaction des clauses, propose-les à ton CTO, puis signe quand le pacte est signable — ou refuse.",
+        "instructions": "Négocie les amendements du pacte avec ton futur CTO avant de signer. Objectif : un article 6 incluant engagement à temps plein et exclusivité, et une clause de bad leaver solide. Formalise tes propositions, puis conclus quand le pacte est signable.",
         "terms": [
           {
             "id": "engagement_exclusivite",
@@ -780,111 +446,17 @@
             "opening": "Rédaction actuelle : vesting 4 ans, cliff 1 an, bad leaver à valeur nominale"
           }
         ],
+        "opening_message": "Tu as reçu le pacte ? Mon avocat a fait du travail propre, tout est standard. Si ça te va, on signe cette semaine et on lance les démarches.",
         "directive": "Le joueur négocie le pacte rédigé par ton avocat. Tu défends le texte tel quel (« c'est standard »). Tu ne proposes JAMAIS d'ajouter l'exclusivité ou le full-time toi-même ; si le joueur l'exige explicitement, tu acceptes conformément à ta fiche de rôle. Tu restes cordial : tu veux signer."
       },
       "inputs": {
         "analyse_pacte": "s6_analyse_pacte.findings"
       },
-      "threads": [
-        {
-          "thread_id": "th_cto",
-          "participants": [
-            "chosen_cto"
-          ],
-          "title": "Ton CTO pressenti"
-        },
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "contrat",
-          "config": {
-            "terms": [
-              {
-                "id": "engagement_exclusivite",
-                "label": "Article 6 — Engagement du CTO (full-time / exclusivité)",
-                "type": "text",
-                "opening": "Rédaction actuelle : engagement de moyens, sans mention de temps plein ni d'exclusivité"
-              },
-              {
-                "id": "clause_leaver",
-                "label": "Clause de leaver / vesting",
-                "type": "text",
-                "opening": "Rédaction actuelle : vesting 4 ans, cliff 1 an, bad leaver à valeur nominale"
-              }
-            ]
-          }
-        }
-      ],
-      "document_ids": [
-        "pacte_associes",
-        "note_avocat"
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_nego_cto",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_cto",
-            "actor_id": "chosen_cto",
-            "content": "Tu as reçu le pacte ? Mon avocat a fait du travail propre, tout est standard. Si ça te va, on signe cette semaine et on lance les démarches."
-          }
-        },
-        {
-          "event_id": "e_reaction_proposition",
-          "when": {
-            "type": "after_action",
-            "action": "deliverable_submitted"
-          },
-          "effect": {
-            "type": "actor_reply",
-            "thread_id": "th_cto",
-            "actor_id": "chosen_cto",
-            "directive": "Le joueur vient d'envoyer une proposition d'amendements via le panneau Contrat (elle figure dans l'état du contrat et dans l'historique). Réagis à cette proposition dans le fil : accepte, refuse ou contre-propose, conformément à ta fiche de rôle (tu défends le texte « standard », mais tu acceptes l'exclusivité/full-time si le joueur l'exige explicitement)."
-          },
-          "once": false
-        },
-        {
-          "event_id": "e_relance_cto",
-          "when": {
-            "type": "delay",
-            "seconds": 300
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_cto",
-            "actor_id": "chosen_cto",
-            "content": "On avance ? Mon avocat me demande où on en est — si on veut lancer les démarches ce mois-ci, il faut signer cette semaine."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "any",
-          "of": [
-            {
-              "type": "contract_signed"
-            },
-            {
-              "type": "contract_rejected"
-            }
-          ]
-        }
-      },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "accord_conclu",
-            "description": "Un accord est conclu : le pacte amendé est accepté par les deux parties et signé.",
+            "description": "Un accord est conclu : le pacte amendé est accepté par les deux parties (agreement.concluded = true).",
             "severity": "required",
             "competencies": [
               "negociation"
@@ -929,73 +501,7 @@
         "context_hint": "Alexandre t'appelle, paniqué : « Attends, je viens d'apprendre un truc. Je suis tombé sur LinkedIn sur un post de notre CTO qui se présente comme “CTO & Co-founder” d'une AUTRE startup — un truc de téléconsultation. Mi-temps chez nous, mi-temps chez eux. C'est quoi ce bordel ?? On avait dit full-time ! On dépend à 100 % de cette personne pour la tech, et là elle fait du 50/50 avec un autre projet. Relis le pacte — est-ce qu'on a quelque chose pour se protéger ? Soit tu appliques le pacte, soit tu acceptes de perdre le contrôle. Si tu ne réagis pas maintenant, tu poses un précédent dangereux. » Le CTO passe à l'offensive : gère la confrontation, appuie-toi sur les clauses du pacte, et formalise ta décision.",
         "directive": "TWIST : le joueur vient de découvrir ton double emploi (CTO & Co-founder d'une startup de téléconsultation, à mi-temps). Tu es sur la défensive et OFFENSIF, conformément à ta fiche de rôle : chaque question attaque le joueur (« Où est le problème tant que le travail est fait ? », « Tu comptes m'obliger à quoi, exactement ? », « Relis le pacte — vous ne pouvez rien faire »). Tu minimises, tu contestes, tu testes la solidité juridique de sa position. Si le joueur invoque précisément une clause d'exclusivité et le bad leaver du pacte signé, tu te dégonfles progressivement. S'il n'a aucune arme juridique, tu exiges 2 500 € pour partir."
       },
-      "threads": [
-        {
-          "thread_id": "th_cto",
-          "participants": [
-            "chosen_cto"
-          ],
-          "title": "Ton CTO pressenti"
-        },
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "pacte_associes",
-        "note_avocat"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_panique",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Attends, je viens d'apprendre un truc. Je suis tombé sur LinkedIn sur un post de notre CTO qui se présente comme “CTO & Co-founder” d'une AUTRE startup — un truc de téléconsultation. Mi-temps chez nous, mi-temps chez eux. C'est quoi ce bordel ?? On avait dit full-time ! On dépend à 100 % de cette personne pour la tech, et là elle fait du 50/50 avec un autre projet. Relis le pacte — est-ce qu'on a quelque chose pour se protéger ? Soit tu appliques le pacte, soit tu acceptes de perdre le contrôle. Si tu ne réagis pas maintenant, tu poses un précédent dangereux."
-          }
-        },
-        {
-          "event_id": "e_cto_offensive",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_cto",
-            "actor_id": "chosen_cto",
-            "directive": "TWIST : le joueur vient de découvrir ton double emploi (CTO & Co-founder d'une startup de téléconsultation, à mi-temps). Ouvre la confrontation conformément à ta fiche de rôle : tu es défensif et OFFENSIF, tu minimises et tu contestes. Pose ta première question offensive (par exemple « Où est le problème tant que le travail est fait ? »). Une seule question à la fois."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "chosen_cto",
-              "min_count": 3
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "rupture_formalisee"
-            }
-          ]
-        }
-      },
+      "time_limit_s": 420,
       "evaluation": {
         "observed_criteria": [
           {

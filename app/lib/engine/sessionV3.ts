@@ -15,7 +15,7 @@
  *                       (rafraîchie par l'orchestrateur via observe_step)
  *   - firedEvents     : events narratifs déjà tirés (sémantique `once`)
  *
- * Le v2 (sessionV2.ts) reste intact — cohabitation jusqu'au jalon 3.
+ * Le moteur v2 (sessionV2.ts) a été purgé — cf. archive/legacy-v2/ARCHIVE.md.
  */
 
 import type { EndingRule, StepResult } from "./mechanics";

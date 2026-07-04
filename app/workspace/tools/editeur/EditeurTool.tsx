@@ -12,8 +12,8 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import { Markdown } from "@/app/player/primitives/Markdown";
-import { PrimaryButton } from "@/app/player/primitives/ui";
+import { Markdown } from "@/app/workspace/primitives/Markdown";
+import { PrimaryButton } from "@/app/workspace/primitives/ui";
 import type { ToolComponentProps } from "../types";
 import {
   EDITEUR_TOOL_ID,

@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "cpo_entretien",
-  "version": "3.0.0",
+  "version": "1.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "La cliente qui menace de partir",
@@ -28,50 +28,8 @@
         "actor_id": "sophie_vandenberg",
         "objective": "Découvrir les VRAIES raisons de l'insatisfaction de Sophie Vandenberg — au-delà du prix qu'elle met en avant — et comprendre l'usage réel de Fluxboard par ses équipes. Ne proposez RIEN (remise, feature, geste) avant d'avoir compris.",
         "min_exchanges": 4,
+        "opening_message": "Bonjour. Merci de vous être libéré, je serai directe : le renouvellement arrive dans six semaines et à 24 000 € par an, ma direction financière me demande de justifier la dépense. Honnêtement, aujourd'hui, je ne sais pas quoi lui répondre.",
         "directive": "L'actrice ouvre sur le prix, qui est un prétexte. Elle ne révèle le vrai problème (adoption terrain effondrée, retour à Excel/WhatsApp) et le démarchage de Strato qu'en réponse à des questions ouvertes sur l'usage réel et sur ce qui a déclenché sa réflexion. Elle se ferme et devient évasive si le joueur propose une remise ou une feature avant d'avoir creusé."
-      },
-      "threads": [
-        {
-          "thread_id": "th_sophie",
-          "participants": ["sophie_vandenberg"],
-          "title": "Sophie Vandenberg (Logimat)"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "events": [
-        {
-          "event_id": "e_ouverture_sophie",
-          "when": { "type": "step_start" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_sophie",
-            "actor_id": "sophie_vandenberg",
-            "content": "Bonjour. Merci de vous être libéré, je serai directe : le renouvellement arrive dans six semaines et à 24 000 € par an, ma direction financière me demande de justifier la dépense. Honnêtement, aujourd'hui, je ne sais pas quoi lui répondre."
-          }
-        },
-        {
-          "event_id": "e_retry_sophie",
-          "when": { "type": "on_retry" },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_sophie",
-            "actor_id": "sophie_vandenberg",
-            "content": "Bon. On a beaucoup parlé tarif, et vous ne m'avez toujours pas posé une seule vraie question sur ce que mes équipes font — ou ne font pas — de votre outil au quotidien. Je vous accorde encore quelques minutes, parce que je préfère régler ça avec vous qu'avec un commercial de Strato. Mais posez-moi les bonnes questions, ou on en restera au prix et ma direction tranchera."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "message_sent", "to_actor": "sophie_vandenberg", "min_count": 4 },
-            { "type": "criterion_observed", "criterion": "irritants_reels" }
-          ]
-        }
       },
       "evaluation": {
         "observed_criteria": [

@@ -1,7 +1,7 @@
 {
-  "format": "v3",
+  "format": "v2",
   "scenario_id": "founder_04_v1",
-  "version": "3.0.0",
+  "version": "2.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Passage en V1",
@@ -53,78 +53,28 @@
       "mechanic": "analyse",
       "title": "Diagnostic terrain",
       "params": {
-        "instructions": "Le pilote d'un mois est terminé. Trois messages d'Alexandre tombent coup sur coup : « Bon. Le rapport est fini. 24 pages. Lis-le. » — « Et lis ça aussi. Réclamation d'une patiente de 67 ans. Prothèse de hanche annulée par le système, personne prévenu. Elle s'est pointée à 7h30 du mat pour rien. » — « On a un vrai problème. Le produit fait pas assez. J'ai déjà appelé Thomas, il peut nous faire les modules manquants pour 21K. Faut qu'on en parle. » Lis le rapport comme un CEO, pas comme un ingénieur : les verbatims des utilisateurs contiennent la réponse. Pose ton diagnostic.\n\nPrends des notes dans le bloc-notes, puis réponds à Alexandre dans Messages : le vrai problème du pilote (ce que disent réellement les métriques et les verbatims), l'urgence à traiter immédiatement, et ta réponse à sa demande des 5 modules à 21 K€."
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "rapport_alexandre",
-        "reclamation_patient"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_rapport",
-          "when": {
-            "type": "step_start"
+        "instructions": "Le pilote d'un mois est terminé. Trois messages d'Alexandre tombent coup sur coup : « Bon. Le rapport est fini. 24 pages. Lis-le. » — « Et lis ça aussi. Réclamation d'une patiente de 67 ans. Prothèse de hanche annulée par le système, personne prévenu. Elle s'est pointée à 7h30 du mat pour rien. » — « On a un vrai problème. Le produit fait pas assez. J'ai déjà appelé Thomas, il peut nous faire les modules manquants pour 21K. Faut qu'on en parle. » Lis le rapport comme un CEO, pas comme un ingénieur : les verbatims des utilisateurs contiennent la réponse. Pose ton diagnostic.",
+        "findings_prompts": [
+          {
+            "id": "probleme_principal",
+            "label": "Le vrai problème du pilote",
+            "placeholder": "Que disent réellement les métriques et les verbatims ?"
           },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Bon. Le rapport est fini. 24 pages. Lis-le."
-          }
-        },
-        {
-          "event_id": "e_alex_reclamation",
-          "when": {
-            "type": "step_start"
+          {
+            "id": "urgence_critique",
+            "label": "L'urgence à traiter immédiatement",
+            "placeholder": "Quel est le point de danger immédiat, et pourquoi ?"
           },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Et lis ça aussi. Réclamation d'une patiente de 67 ans. Prothèse de hanche annulée par le système, personne prévenu. Elle s'est pointée à 7h30 du mat pour rien."
+          {
+            "id": "reponse_a_alexandre",
+            "label": "Ta réponse à la demande des 5 modules à 21 K€",
+            "placeholder": "Suis-tu la recommandation d'Alexandre ? Pourquoi ?"
           }
-        },
-        {
-          "event_id": "e_alex_modules",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "On a un vrai problème. Le produit fait pas assez. J'ai déjà appelé Thomas, il peut nous faire les modules manquants pour 21K. Faut qu'on en parle."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "all",
-          "of": [
-            {
-              "type": "message_sent",
-              "to_actor": "alexandre_morel"
-            },
-            {
-              "type": "criterion_observed",
-              "criterion": "piege_features_evite"
-            }
-          ]
-        }
+        ],
+        "document_ids": [
+          "rapport_alexandre",
+          "reclamation_patient"
+        ]
       },
       "evaluation": {
         "observed_criteria": [
@@ -182,66 +132,14 @@
       "title": "La feuille de route V1",
       "params": {
         "deliverable_type": "document",
-        "instructions": "Alexandre a reçu ton diagnostic : « OK. Maintenant faut écrire à la direction de l'établissement. Explique-leur ce qu'on a trouvé et ce qu'on va corriger. Faut que ce soit carré. » Rédige ta feuille de route V1 pour les 8 prochaines semaines, à destination d'Alexandre et de la direction de l'établissement pilote : priorités, actions, budget et calendrier. Elle doit répondre à l'incident patient (bug d'annulation) et au problème d'adoption (formation, conduite du changement, suppression du double système Excel/Orisio) — pas simplement empiler des features. Chaque euro dépensé en dev est un euro de runway en moins.\n\nRédige la feuille de route dans l'Éditeur de ton poste de travail, puis clique « Rendre le document » pour la transmettre à Alexandre et à la direction de l'établissement."
+        "instructions": "Alexandre a reçu ton diagnostic : « OK. Maintenant faut écrire à la direction de l'établissement. Explique-leur ce qu'on a trouvé et ce qu'on va corriger. Faut que ce soit carré. » Rédige ta feuille de route V1 pour les 8 prochaines semaines, à destination d'Alexandre et de la direction de l'établissement pilote : priorités, actions, budget et calendrier. Elle doit répondre à l'incident patient (bug d'annulation) et au problème d'adoption (formation, conduite du changement, suppression du double système Excel/Orisio) — pas simplement empiler des features. Chaque euro dépensé en dev est un euro de runway en moins.",
+        "document_ids": [
+          "rapport_alexandre",
+          "reclamation_patient"
+        ]
       },
       "inputs": {
         "diagnostic": "s1_analyse_rapport.findings"
-      },
-      "threads": [
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "editeur",
-          "config": {
-            "title_hint": "Feuille de route V1 — 8 semaines"
-          }
-        },
-        {
-          "tool": "notes"
-        }
-      ],
-      "document_ids": [
-        "rapport_alexandre",
-        "reclamation_patient"
-      ],
-      "events": [
-        {
-          "event_id": "e_alex_commande_roadmap",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "OK. Maintenant faut écrire à la direction de l'établissement. Explique-leur ce qu'on a trouvé et ce qu'on va corriger. Faut que ce soit carré."
-          }
-        },
-        {
-          "event_id": "e_alex_retry_roadmap",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "C'est pas assez carré pour la direction. Il leur faut : le bug corrigé en priorité n°1 avec un délai, un vrai plan de formation et d'accompagnement, et un budget tenu — pas 21K de modules. Reprends ta feuille de route."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "deliverable_submitted",
-          "tool": "editeur"
-        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -299,142 +197,37 @@
       "title": "Négociation NovaDev — l'intéressement",
       "params": {
         "actor_id": "thomas_vidal",
-        "instructions": "Thomas Vidal veut renégocier avant de s'engager sur la V1. Son offre : 8 % du CA net d'Orisio SANS PLAFOND pendant 5 ans (contre -30 % sur son tarif), ou 5 % du capital en BSA. La note de ton avocat est ton arme : intéressement acceptable = ~5 % max, PLAFONNÉ (~80 K€), durée limitée (5 ans max) — ou BSA 2-3 % maximum — et cession de PI complète et irrévocable dans tous les cas. Négocie un deal qui aligne Thomas sans hypothéquer ta cap table. Le contrat s'ouvre en panneau dans ton poste de travail : ajuste les termes (taux, plafond, durée), propose-les à Thomas, puis signe quand le deal est acceptable — ou refuse.",
+        "instructions": "Thomas Vidal veut renégocier avant de s'engager sur la V1. Son offre : 8 % du CA net d'Orisio SANS PLAFOND pendant 5 ans (contre -30 % sur son tarif), ou 5 % du capital en BSA. La note de ton avocat est ton arme : intéressement acceptable = ~5 % max, PLAFONNÉ (~80 K€), durée limitée (5 ans max) — ou BSA 2-3 % maximum — et cession de PI complète et irrévocable dans tous les cas. Négocie un deal qui aligne Thomas sans hypothéquer ta cap table.",
         "terms": [
           {
             "id": "pourcentage_ca",
             "label": "Intéressement (% du CA net)",
             "type": "number",
-            "opening": 8,
-            "suffix": "%"
+            "opening": 8
           },
           {
             "id": "plafond_eur",
             "label": "Plafond total de l'intéressement (€)",
-            "type": "number",
-            "suffix": "€"
+            "type": "number"
           },
           {
             "id": "duree_ans",
             "label": "Durée de l'intéressement (années)",
             "type": "number",
-            "opening": 5,
-            "suffix": "ans"
+            "opening": 5
           }
         ],
+        "opening_message": "Bonjour,\n\nJ'ai bien reçu les retours du pilote via Alexandre. Il y a du travail — le bug d'annulation est critique et les modules demandés vont nécessiter un effort conséquent.\n\nAvant de s'engager sur la V1, je souhaite qu'on revoie les conditions. J'ai développé le MVP à un tarif très en dessous du marché parce que je croyais au projet. Aujourd'hui le produit est déployé en établissement — il a de la valeur.\n\nJe vous propose deux options :\n\n1. Intéressement de 8% du CA net d'Orisio, sans plafond, pendant 5 ans. En contrepartie, je réduis mon tarif de 30% sur la V1.\n\n2. Attribution de 5% du capital via BSA, valorisation actuelle. Je maintiens mon tarif normal.\n\nDans les deux cas, la PI reste chez Orisio — je ne demande pas de co-propriété.\n\nJe reste disponible pour en discuter.\n\nCordialement,\nThomas Vidal\nNovaDev",
         "directive": "Tu défends d'abord le 8 % sans plafond (« c'est le risque que j'ai pris »). Tu acceptes un plafond uniquement si le joueur argumente (note d'avocat, standards de marché, signal envoyé aux investisseurs). Ta zone d'accord réaliste : 4 à 6 % du CA, plafond entre 60 et 100 K€, durée 3 à 5 ans, cession de PI complète et irrévocable confirmée. Si le joueur accepte le 8 % sans plafond, tu conclus immédiatement, ravi. Tu es habile mais pas déraisonnable : tu veux ce contrat."
       },
       "inputs": {
         "roadmap": "s2_roadmap_correctifs.body"
       },
-      "threads": [
-        {
-          "thread_id": "th_thomas",
-          "participants": [
-            "thomas_vidal"
-          ],
-          "title": "Thomas Vidal (NovaDev)"
-        },
-        {
-          "thread_id": "th_alexandre",
-          "participants": [
-            "alexandre_morel"
-          ],
-          "title": "Alexandre Morel"
-        }
-      ],
-      "tools": [
-        {
-          "tool": "contrat",
-          "config": {
-            "terms": [
-              {
-                "id": "pourcentage_ca",
-                "label": "Intéressement (% du CA net)",
-                "type": "number",
-                "opening": 8,
-                "suffix": "%"
-              },
-              {
-                "id": "plafond_eur",
-                "label": "Plafond total de l'intéressement (€)",
-                "type": "number",
-                "suffix": "€"
-              },
-              {
-                "id": "duree_ans",
-                "label": "Durée de l'intéressement (années)",
-                "type": "number",
-                "opening": 5,
-                "suffix": "ans"
-              }
-            ]
-          }
-        }
-      ],
-      "document_ids": [
-        "note_avocat",
-        "rapport_alexandre"
-      ],
-      "events": [
-        {
-          "event_id": "e_mail_thomas",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "mail_received",
-            "from_actor": "thomas_vidal",
-            "subject": "Conditions V1 — proposition NovaDev",
-            "body": "Bonjour,\n\nJ'ai bien reçu les retours du pilote via Alexandre. Il y a du travail — le bug d'annulation est critique et les modules demandés vont nécessiter un effort conséquent.\n\nAvant de s'engager sur la V1, je souhaite qu'on revoie les conditions. J'ai développé le MVP à un tarif très en dessous du marché parce que je croyais au projet. Aujourd'hui le produit est déployé en établissement — il a de la valeur.\n\nJe vous propose deux options :\n\n1. Intéressement de 8% du CA net d'Orisio, sans plafond, pendant 5 ans. En contrepartie, je réduis mon tarif de 30% sur la V1.\n\n2. Attribution de 5% du capital via BSA, valorisation actuelle. Je maintiens mon tarif normal.\n\nDans les deux cas, la PI reste chez Orisio — je ne demande pas de co-propriété.\n\nJe reste disponible pour en discuter.\n\nCordialement,\nThomas Vidal\nNovaDev"
-          }
-        },
-        {
-          "event_id": "e_reaction_proposition",
-          "when": {
-            "type": "after_action",
-            "action": "deliverable_submitted"
-          },
-          "effect": {
-            "type": "actor_reply",
-            "thread_id": "th_thomas",
-            "actor_id": "thomas_vidal",
-            "directive": "Le joueur vient d'envoyer une proposition de termes (taux, plafond, durée) via le panneau Contrat (elle figure dans l'état du contrat et dans l'historique). Réagis à cette proposition dans le fil : accepte, refuse ou contre-propose, en respectant ta zone d'accord (4-6 % du CA, plafond 60-100 K€, durée 3-5 ans, PI cédée irrévocablement) et ta défense initiale du 8 % sans plafond."
-          },
-          "once": false
-        },
-        {
-          "event_id": "e_relance_thomas",
-          "when": {
-            "type": "delay",
-            "seconds": 300
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_thomas",
-            "actor_id": "thomas_vidal",
-            "content": "Vous avez pu regarder mes deux options ? J'ai besoin d'une réponse pour planifier la V1 — j'ai d'autres projets qui poussent derrière."
-          }
-        }
-      ],
-      "completion": {
-        "trigger": {
-          "type": "any",
-          "of": [
-            {
-              "type": "contract_signed"
-            },
-            {
-              "type": "contract_rejected"
-            }
-          ]
-        }
-      },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "accord_conclu",
-            "description": "Un accord est conclu avec Thomas : le contrat est signé aux termes convenus, sans rupture de la relation.",
+            "description": "Un accord est conclu avec Thomas (agreement.concluded = true) sans rupture de la relation.",
             "severity": "required",
             "competencies": [
               "negociation",

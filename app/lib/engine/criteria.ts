@@ -1,8 +1,9 @@
 /**
  * ═════════════════════════════════════════════════════════════════
- * Moteur v2 — Critères, observations, verdicts (vocabulaire "step")
+ * Moteur — Critères, observations, verdicts (vocabulaire "step")
  * ═════════════════════════════════════════════════════════════════
  *
+ * LE moteur de verdict du v3 (workspaceReducer → completeStepV3).
  * Généralisation du moteur E-chantier (applyPhaseObservation) au
  * modèle "séquence de mécaniques". Le principe est inchangé :
  *
