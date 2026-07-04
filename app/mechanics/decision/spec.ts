@@ -45,7 +45,7 @@ export const decisionSpec: MechanicSpec = {
       "Le joueur tranche entre des options et formalise son choix (message ou mail de cadrage). L'observateur regarde le choix exprimé et sa justification.",
     output_keys: ["choice", "justification"],
     required_params: ["instructions", "options"],
-    default_tools: ["notes"],
+    default_tools: [],
   },
 
   /** Même esprit que le v2 : l'acteur challenge, exige une logique,

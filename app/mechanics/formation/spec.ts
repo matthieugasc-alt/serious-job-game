@@ -49,7 +49,7 @@ export const formationSpec: MechanicSpec = {
       "Le joueur transmet un savoir à un acteur IA apprenant (fil Messages). La couverture des objectifs est observée via les critères alignés sur leurs ids.",
     output_keys: ["dialogue", "objectives_covered"],
     required_params: ["actor_id", "topic", "objectives"],
-    default_tools: ["notes"],
+    default_tools: [],
   },
 
   /** Même consigne apprenant que le v2 (LEARNER_DIRECTIVE), sujet en plus. */

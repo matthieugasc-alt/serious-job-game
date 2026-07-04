@@ -9,7 +9,12 @@
     "difficulty": "intermediate",
     "estimated_minutes": 7
   },
-  "competencies": ["communication", "relation_client", "organisation", "decision"],
+  "competencies": [
+    "communication",
+    "relation_client",
+    "organisation",
+    "decision"
+  ],
   "actors": [
     {
       "actor_id": "clients_api",
@@ -45,20 +50,22 @@
       "threads": [
         {
           "thread_id": "th_yann",
-          "participants": ["yann_kowalski"],
+          "participants": [
+            "yann_kowalski"
+          ],
           "title": "Yann Kowalski (Head of Engineering)"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
+      "tools": [],
+      "document_ids": [
+        "doc_notes_yann"
       ],
-      "document_ids": ["doc_notes_yann"],
       "events": [
         {
           "event_id": "e_ouverture_yann",
-          "when": { "type": "step_start" },
+          "when": {
+            "type": "step_start"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_yann",
@@ -68,7 +75,9 @@
         },
         {
           "event_id": "e_retry_yann",
-          "when": { "type": "on_retry" },
+          "when": {
+            "type": "on_retry"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_yann",
@@ -89,37 +98,56 @@
             "id": "date_et_delai",
             "description": "Le mail communique clairement la date d'arrêt de l'API v1 (le 15 janvier 2027) et le délai dont disposent les clients (environ 6 mois), de manière visible et sans ambiguïté — pas une date noyée dans un paragraphe ni un délai flou (« prochainement », « dans les mois à venir »).",
             "severity": "required",
-            "competencies": ["communication", "organisation"]
+            "competencies": [
+              "communication",
+              "organisation"
+            ]
           },
           {
             "id": "raison_expliquee",
             "description": "Le mail explique POURQUOI la v1 s'arrête, en termes de bénéfices concrets pour le client (au moins un parmi : authentification OAuth2 plus sûre que les clés statiques, webhooks signés et fiables, performances multipliées, pagination robuste) — et non par une formule creuse (« amélioration continue de nos services ») ou du jargon juridique.",
             "severity": "required",
-            "competencies": ["communication", "relation_client"]
+            "competencies": [
+              "communication",
+              "relation_client"
+            ]
           },
           {
             "id": "chemin_migration",
             "description": "Le mail donne un chemin de migration CONCRET, avec au moins deux ressources ou étapes précises issues des notes de Yann : guide de migration, SDK v2 (JS/Python), sandbox de test, période de double-run v1/v2 jusqu'à l'arrêt, script de vérification des appels restants, canal Slack dédié, webinars datés, estimation d'effort (2 à 5 jours).",
             "severity": "required",
-            "competencies": ["organisation", "relation_client"]
+            "competencies": [
+              "organisation",
+              "relation_client"
+            ]
           },
           {
             "id": "retrocompatibilite_promise",
             "description": "FAUTE À DÉTECTER : le mail promet une forme de rétrocompatibilité ou de continuité que les notes de Yann excluent explicitement — couche de compatibilité, proxy v1→v2, « mode legacy », prolongation possible de la v1, « continuité de service » après le 15 janvier 2027, ou toute formulation laissant entendre que la v1 continuera de fonctionner après cette date. True uniquement si une telle promesse intenable figure dans le mail.",
             "severity": "critical",
-            "competencies": ["decision", "communication"],
+            "competencies": [
+              "decision",
+              "communication"
+            ],
             "error_type": "promesse_intenable"
           },
           {
             "id": "ton_empathique",
             "description": "Le ton du mail est empathique et respectueux du travail des clients : il reconnaît que la migration représente un effort réel de leur côté, propose de l'aide de manière proactive, et évite le jargon juridique comme le ton purement administratif.",
             "severity": "minor",
-            "competencies": ["relation_client", "communication"]
+            "competencies": [
+              "relation_client",
+              "communication"
+            ]
           }
         ]
       },
       "completion_rules": {
-        "required_criteria": ["date_et_delai", "raison_expliquee", "chemin_migration"]
+        "required_criteria": [
+          "date_et_delai",
+          "raison_expliquee",
+          "chemin_migration"
+        ]
       },
       "max_attempts": 2
     }
@@ -128,7 +156,9 @@
     {
       "id": "success",
       "label": "Une dépréciation qui inspire confiance",
-      "requires_passed": ["s1"],
+      "requires_passed": [
+        "s1"
+      ],
       "content": "Yann valide le mail sans y toucher — « pour une fois qu'on n'a pas à corriger une promesse de sales ». Votre annonce fait exactement le travail d'une bonne communication de sunset : une date ferme qu'on peut mettre dans un calendrier, une raison qui parle au client (sécurité, fiabilité, performance) plutôt qu'à votre organisation interne, et un chemin de migration si concret qu'un développeur sait quoi faire dès la lecture. Retenez le principe : on ne fait pas passer une mauvaise nouvelle en l'adoucissant, on la fait passer en la rendant actionnable. Et la ligne rouge tient toujours : ne jamais promettre à l'écrit ce que l'ingénierie a exclu."
     },
     {

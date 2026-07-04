@@ -30,7 +30,7 @@ export const analyseSpec: MechanicSpec = {
       "Le joueur lit les pièces du workspace, prend des notes et formule ses conclusions. L'observateur regarde documents ouverts, notes et messages.",
     output_keys: ["findings"],
     required_params: ["instructions"],
-    default_tools: ["notes"],
+    default_tools: [],
   },
 
   /** Cadrage universel des acteurs — même esprit que la directive v2 :

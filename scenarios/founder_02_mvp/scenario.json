@@ -66,11 +66,7 @@
           "title": "Alexandre Morel"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "document_ids": [
         "synthese_entretiens",
         "note_cadrage",
@@ -199,11 +195,7 @@
           "title": "Alexandre Morel"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "events": [
         {
           "event_id": "e_relance_alexandre",

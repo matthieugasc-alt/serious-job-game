@@ -1,104 +1,183 @@
 {
   "$comment": "Registre v3 (workspace) — specs HEADLESS des 11 mécaniques + registre des tools connus. Consommé par scripts/validate-scenarios-v3.mjs (qui ne peut pas importer du TS). Les mécaniques v3 sont des capacités du moteur (zéro UI) : default_tools sont SUGGÉRÉS, le step peut ajuster. Synchro vérifiée par app/mechanics/__tests__/specs.headless.test.ts.",
-  "tools": ["notes", "contrat", "editeur", "reunion", "bloc-notes", "bibliotheque", "decision-engine", "whiteboard"],
+  "tools": [
+    "notes",
+    "contrat",
+    "editeur",
+    "reunion",
+    "bloc-notes",
+    "bibliotheque",
+    "decision-engine",
+    "whiteboard"
+  ],
   "mechanics": [
     {
       "id": "analyse",
       "version": "3.0.0",
       "title": "Analyse",
       "description": "Le joueur lit les pièces du workspace, prend des notes et formule ses conclusions. L'observateur regarde documents ouverts, notes et messages.",
-      "output_keys": ["findings"],
-      "required_params": ["instructions"],
-      "default_tools": ["notes"]
+      "output_keys": [
+        "findings"
+      ],
+      "required_params": [
+        "instructions"
+      ],
+      "default_tools": []
     },
     {
       "id": "decision",
       "version": "3.0.0",
       "title": "Décision",
       "description": "Le joueur tranche entre des options et formalise son choix (message ou mail de cadrage). L'observateur regarde le choix exprimé et sa justification.",
-      "output_keys": ["choice", "justification"],
-      "required_params": ["instructions", "options"],
-      "default_tools": ["notes"]
+      "output_keys": [
+        "choice",
+        "justification"
+      ],
+      "required_params": [
+        "instructions",
+        "options"
+      ],
+      "default_tools": []
     },
     {
       "id": "diagnostic",
       "version": "3.0.0",
       "title": "Diagnostic",
       "description": "Le joueur investigue la cause d'un problème auprès d'un acteur témoin (fil Messages), consigne ses hypothèses en notes et formalise son diagnostic. L'observateur regarde le fil, les notes et la formalisation.",
-      "output_keys": ["diagnosis", "dialogue"],
-      "required_params": ["situation", "actor_id"],
-      "default_tools": ["notes"]
+      "output_keys": [
+        "diagnosis",
+        "dialogue"
+      ],
+      "required_params": [
+        "situation",
+        "actor_id"
+      ],
+      "default_tools": []
     },
     {
       "id": "entretien",
       "version": "3.0.0",
       "title": "Entretien",
       "description": "Le joueur mène un dialogue avec un acteur IA vers un objectif déclaré, dans le fil Messages du step. L'observateur regarde le dialogue et les notes.",
-      "output_keys": ["dialogue", "exchange_count"],
-      "required_params": ["actor_id", "objective"],
-      "default_tools": ["notes"]
+      "output_keys": [
+        "dialogue",
+        "exchange_count"
+      ],
+      "required_params": [
+        "actor_id",
+        "objective"
+      ],
+      "default_tools": []
     },
     {
       "id": "feedback",
       "version": "3.0.0",
       "title": "Feedback",
       "description": "Le joueur délivre un retour difficile à un acteur IA qui réagit (fil Messages), puis formalise les engagements convenus (notes ou message). L'observateur regarde le fil, les notes et la formalisation.",
-      "output_keys": ["dialogue", "commitments"],
-      "required_params": ["actor_id", "context_brief"],
-      "default_tools": ["notes"]
+      "output_keys": [
+        "dialogue",
+        "commitments"
+      ],
+      "required_params": [
+        "actor_id",
+        "context_brief"
+      ],
+      "default_tools": []
     },
     {
       "id": "formation",
       "version": "3.0.0",
       "title": "Formation",
       "description": "Le joueur transmet un savoir à un acteur IA apprenant (fil Messages). La couverture des objectifs est observée via les critères alignés sur leurs ids.",
-      "output_keys": ["dialogue", "objectives_covered"],
-      "required_params": ["actor_id", "topic", "objectives"],
-      "default_tools": ["notes"]
+      "output_keys": [
+        "dialogue",
+        "objectives_covered"
+      ],
+      "required_params": [
+        "actor_id",
+        "topic",
+        "objectives"
+      ],
+      "default_tools": []
     },
     {
       "id": "mediation",
       "version": "3.0.0",
       "title": "Médiation",
       "description": "Le joueur conduit une médiation entre deux acteurs IA présents dans le MÊME fil Messages (chaque partie répond). L'observateur regarde le fil à trois voix et la formalisation de l'issue.",
-      "output_keys": ["dialogue", "resolution"],
-      "required_params": ["party_a_actor", "party_b_actor", "conflict_brief"],
-      "default_tools": ["notes"]
+      "output_keys": [
+        "dialogue",
+        "resolution"
+      ],
+      "required_params": [
+        "party_a_actor",
+        "party_b_actor",
+        "conflict_brief"
+      ],
+      "default_tools": []
     },
     {
       "id": "negociation",
       "version": "3.0.0",
       "title": "Négociation",
       "description": "Le joueur négocie des termes avec un acteur IA ; le Tool contrat (panneau) porte propositions et signature. L'observateur regarde le fil et l'état du contrat.",
-      "output_keys": ["agreement", "proposals_count"],
-      "required_params": ["actor_id", "instructions", "terms"],
-      "default_tools": ["contrat"]
+      "output_keys": [
+        "agreement",
+        "proposals_count"
+      ],
+      "required_params": [
+        "actor_id",
+        "instructions",
+        "terms"
+      ],
+      "default_tools": [
+        "contrat"
+      ]
     },
     {
       "id": "presentation",
       "version": "3.0.0",
       "title": "Présentation",
       "description": "Le joueur prépare puis prononce un exposé sous contrainte de temps dans le Tool réunion. L'observateur regarde le discours rendu et sa durée.",
-      "output_keys": ["speech", "duration_s"],
-      "required_params": ["brief"],
-      "default_tools": ["reunion"]
+      "output_keys": [
+        "speech",
+        "duration_s"
+      ],
+      "required_params": [
+        "brief"
+      ],
+      "default_tools": [
+        "reunion"
+      ]
     },
     {
       "id": "production",
       "version": "3.0.0",
       "title": "Production",
       "description": "Le joueur produit un livrable (mail, note, document) et le remet explicitement. L'observateur regarde le livrable soumis et les échanges associés.",
-      "output_keys": ["deliverable", "body"],
-      "required_params": ["deliverable_type", "instructions"],
-      "default_tools": ["notes"]
+      "output_keys": [
+        "deliverable",
+        "body"
+      ],
+      "required_params": [
+        "deliverable_type",
+        "instructions"
+      ],
+      "default_tools": []
     },
     {
       "id": "qa",
       "version": "3.0.0",
       "title": "Questions / réponses",
       "description": "Un acteur IA interroge le joueur, une question à la fois, dans le fil Messages du step. L'observateur regarde le dialogue et les réponses données.",
-      "output_keys": ["dialogue", "answers_count"],
-      "required_params": ["actor_id", "question_count"],
+      "output_keys": [
+        "dialogue",
+        "answers_count"
+      ],
+      "required_params": [
+        "actor_id",
+        "question_count"
+      ],
       "default_tools": []
     }
   ]

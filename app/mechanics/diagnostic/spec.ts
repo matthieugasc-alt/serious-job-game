@@ -51,7 +51,7 @@ export const diagnosticSpec: MechanicSpec = {
       "Le joueur investigue la cause d'un problème auprès d'un acteur témoin (fil Messages), consigne ses hypothèses en notes et formalise son diagnostic. L'observateur regarde le fil, les notes et la formalisation.",
     output_keys: ["diagnosis", "dialogue"],
     required_params: ["situation", "actor_id"],
-    default_tools: ["notes"],
+    default_tools: [],
   },
 
   /** Même consigne témoin que le v2 (WITNESS_DIRECTIVE), situation en plus. */

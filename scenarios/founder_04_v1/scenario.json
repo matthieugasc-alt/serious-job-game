@@ -64,11 +64,7 @@
           "title": "Alexandre Morel"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "document_ids": [
         "rapport_alexandre",
         "reclamation_patient"
@@ -223,11 +219,7 @@
           "title": "Alexandre Morel"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "document_ids": [
         "rapport_alexandre",
         "reclamation_patient"

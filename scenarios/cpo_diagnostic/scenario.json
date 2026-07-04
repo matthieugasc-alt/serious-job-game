@@ -67,11 +67,7 @@
           "title": "David Osei (Lead Data)"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "document_ids": [
         "doc_dashboard_activation"
       ],

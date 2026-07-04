@@ -38,7 +38,7 @@ export const entretienSpec: MechanicSpec = {
       "Le joueur mène un dialogue avec un acteur IA vers un objectif déclaré, dans le fil Messages du step. L'observateur regarde le dialogue et les notes.",
     output_keys: ["dialogue", "exchange_count"],
     required_params: ["actor_id", "objective"],
-    default_tools: ["notes"],
+    default_tools: [],
   },
 
   /** Même esprit que le v2 : l'acteur joue son rôle, l'objectif reste

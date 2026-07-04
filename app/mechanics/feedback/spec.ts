@@ -37,7 +37,7 @@ export const feedbackSpec: MechanicSpec = {
       "Le joueur délivre un retour difficile à un acteur IA qui réagit (fil Messages), puis formalise les engagements convenus (notes ou message). L'observateur regarde le fil, les notes et la formalisation.",
     output_keys: ["dialogue", "commitments"],
     required_params: ["actor_id", "context_brief"],
-    default_tools: ["notes"],
+    default_tools: [],
   },
 
   /** Même esprit que le v2 : l'acteur réagit selon son personnage,

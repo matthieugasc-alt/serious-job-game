@@ -100,11 +100,7 @@
           "title": "Sofia Renault"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "document_ids": [
         "cv_sofia"
       ],
@@ -220,11 +216,7 @@
           "title": "Marc Lefèvre"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "document_ids": [
         "cv_marc"
       ],
@@ -340,11 +332,7 @@
           "title": "Karim Benzarti"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "document_ids": [
         "cv_karim"
       ],
@@ -459,11 +447,7 @@
           "title": "Alexandre Morel"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "document_ids": [
         "cv_sofia",
         "cv_marc",
@@ -678,9 +662,6 @@
               }
             ]
           }
-        },
-        {
-          "tool": "notes"
         }
       ],
       "document_ids": [
@@ -870,11 +851,7 @@
           "title": "Alexandre Morel"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "document_ids": [
         "pacte_associes",
         "note_avocat"

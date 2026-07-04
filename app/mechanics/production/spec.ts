@@ -77,7 +77,7 @@ export const productionSpec: MechanicSpec = {
       "Le joueur produit un livrable (mail, note, document) et le remet explicitement. L'observateur regarde le livrable soumis et les échanges associés.",
     output_keys: ["deliverable", "body"],
     required_params: ["deliverable_type", "instructions"],
-    default_tools: ["notes"],
+    default_tools: [],
   },
 
   /** L'acteur précise le besoin, il ne rédige jamais à la place du joueur. */

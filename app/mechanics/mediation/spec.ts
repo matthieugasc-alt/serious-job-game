@@ -47,7 +47,7 @@ export const mediationSpec: MechanicSpec = {
       "Le joueur conduit une médiation entre deux acteurs IA présents dans le MÊME fil Messages (chaque partie répond). L'observateur regarde le fil à trois voix et la formalisation de l'issue.",
     output_keys: ["dialogue", "resolution"],
     required_params: ["party_a_actor", "party_b_actor", "conflict_brief"],
-    default_tools: ["notes"],
+    default_tools: [],
   },
 
   /** Directive UNIQUE reçue par chaque partie : elle scope l'acteur

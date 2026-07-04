@@ -70,11 +70,7 @@
           "title": "Dr Claire Lemaire (PUI)"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "events": [
         {
           "event_id": "e_ouverture_lemaire",
@@ -194,11 +190,7 @@
           "title": "Dr Claire Lemaire (PUI)"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "document_ids": [
         "doc_incidents",
         "doc_budget"
@@ -317,11 +309,7 @@
           "title": "Dr Claire Lemaire (PUI)"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "document_ids": [
         "doc_incidents",
         "doc_budget"
@@ -442,11 +430,7 @@
           "title": "Dr Claire Lemaire (PUI)"
         }
       ],
-      "tools": [
-        {
-          "tool": "notes"
-        }
-      ],
+      "tools": [],
       "events": [
         {
           "event_id": "e_ouverture_benali",
