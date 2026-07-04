@@ -128,7 +128,7 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
 
       {tab === "base" && (
         <div className="min-h-0 flex-1">
-          <DatabaseView state={state} openApp={openApp} onOpenNote={openNote} />
+          <DatabaseView state={state} openApp={openApp} onOpenNote={openNote} defaultFilter="tache" />
         </div>
       )}
 

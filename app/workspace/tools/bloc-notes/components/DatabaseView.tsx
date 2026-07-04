@@ -9,8 +9,22 @@
  */
 
 import { useState } from "react";
-import type { NotebookState, SourceRef, Task } from "../spec";
+import type { Block, Note, NotebookState, SourceRef, Task } from "../spec";
 import { fmtShort } from "./uiHelpers";
+
+/** Todos (cases à cocher) contenus dans les blocs d'une note, à plat. */
+function collectTodos(note: Note): { blockId: string; text: string; checked: boolean }[] {
+  const out: { blockId: string; text: string; checked: boolean }[] = [];
+  const walk = (blocks: Block[]) => {
+    for (const b of blocks) {
+      if (b.kind === "todo") out.push({ blockId: b.id, text: b.text, checked: Boolean(b.checked) });
+      const children = "children" in b ? b.children : undefined;
+      if (Array.isArray(children)) walk(children);
+    }
+  };
+  walk(note.blocks);
+  return out;
+}
 
 /** Signature structurelle du openApp du shell (AppNavContext étendu). */
 type OpenApp = (
@@ -53,12 +67,29 @@ interface Props {
   state: NotebookState;
   openApp: OpenApp;
   onOpenNote: (noteId: string) => void;
+  /** Filtre initial : l'onglet « Tâches » ouvre sur les tâches seules. */
+  defaultFilter?: "all" | RowKind;
 }
 
-export function DatabaseView({ state, openApp, onOpenNote }: Props) {
+export function DatabaseView({ state, openApp, onOpenNote, defaultFilter = "all" }: Props) {
   const [query, setQuery] = useState("");
-  const [typeFilter, setTypeFilter] = useState<"all" | RowKind>("all");
+  const [typeFilter, setTypeFilter] = useState<"all" | RowKind>(defaultFilter);
   const [sort, setSort] = useState<{ key: SortKey; asc: boolean }>({ key: "date", asc: false });
+
+  // Les todos (cases à cocher) des notes deviennent des TÂCHES à part
+  // entière — une ligne = une tâche, pas la conversation entière.
+  const noteTodoRows: RowItem[] = Object.values(state.notes).flatMap((n) =>
+    collectTodos(n).map((td): RowItem => ({
+      key: `todo:${n.id}:${td.blockId}`,
+      kind: "tache",
+      title: td.text.trim() || "(tâche sans texte)",
+      tags: n.tags,
+      status: td.checked ? "done" : "todo",
+      date: n.updated_at,
+      source: n.source,
+      noteId: n.id,
+    })),
+  );
 
   const rows: RowItem[] = [
     ...Object.values(state.notes).map((n): RowItem => ({
@@ -80,6 +111,7 @@ export function DatabaseView({ state, openApp, onOpenNote }: Props) {
       source: t.source,
       noteId: t.note_id,
     })),
+    ...noteTodoRows,
   ]
     .filter((r) => typeFilter === "all" || r.kind === typeFilter)
     .filter((r) => {
