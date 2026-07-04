@@ -34,6 +34,17 @@ const BRANCH_COLORS = [
   "#14b8a6",
 ];
 
+/** Blocs qui deviennent des NŒUDS de la carte (structure). */
+const STRUCTURAL = new Set<BlockKind>(["heading1", "heading2", "bullet", "numbered"]);
+const isStructural = (k: BlockKind): boolean => STRUCTURAL.has(k);
+
+/** Contenu non structurel rattaché à un nœud, visible au survol. */
+interface DetailLine {
+  kind: BlockKind;
+  text: string;
+  checked?: boolean;
+}
+
 interface MapNode {
   id: string;
   text: string;
@@ -42,41 +53,71 @@ interface MapNode {
   color: string;
   depth: number;
   children: MapNode[];
+  /** Paragraphes / citations / todos rattachés — aperçu au survol. */
+  details: DetailLine[];
   x: number;
   y: number;
 }
 
 // ─── Construction de l'arbre depuis les blocs ─────────────────────
+// Seuls titres + puces/numéros deviennent des nœuds. Les autres blocs
+// sont collectés comme « détails » du nœud parent (survol). Les nœuds
+// structurels enfouis sous un bloc-détail remontent au même niveau.
+
+function splitChildren(blocks: AnyBlock[], depth: number): { nodes: MapNode[]; details: DetailLine[] } {
+  const nodes: MapNode[] = [];
+  const details: DetailLine[] = [];
+  for (const b of blocks) {
+    if (b.kind === "separator") continue;
+    if (isStructural(b.kind)) {
+      const sub = splitChildren(b.children ?? [], depth + 1);
+      nodes.push({
+        id: b.id,
+        text: b.text,
+        kind: b.kind,
+        checked: b.checked,
+        color: "",
+        depth,
+        children: sub.nodes,
+        details: sub.details,
+        x: 0,
+        y: 0,
+      });
+    } else {
+      if (b.text.trim() || b.kind === "todo") details.push({ kind: b.kind, text: b.text, checked: b.checked });
+      const sub = splitChildren(b.children ?? [], depth);
+      nodes.push(...sub.nodes);
+      details.push(...sub.details);
+    }
+  }
+  return { nodes, details };
+}
+
+function paintBranch(n: MapNode, color: string): void {
+  n.color = color;
+  n.children.forEach((c) => paintBranch(c, color));
+}
 
 function buildTree(title: string, blocks: AnyBlock[]): MapNode {
-  const conv = (b: AnyBlock, depth: number, color: string): MapNode | null => {
-    if (b.kind === "separator") return null;
-    return {
-      id: b.id,
-      text: b.text,
-      kind: b.kind,
-      checked: b.checked,
-      color,
-      depth,
-      children: (b.children ?? [])
-        .map((c) => conv(c, depth + 1, color))
-        .filter((n): n is MapNode => n !== null),
-      x: 0,
-      y: 0,
-    };
-  };
+  const top = splitChildren(blocks, 1);
+  top.nodes.forEach((n, i) => paintBranch(n, BRANCH_COLORS[i % BRANCH_COLORS.length]));
   return {
     id: "__root__",
     text: title.trim() || "Sans titre",
     kind: "root",
     color: "#334155",
     depth: 0,
-    children: blocks
-      .map((b, i) => conv(b, 1, BRANCH_COLORS[i % BRANCH_COLORS.length]))
-      .filter((n): n is MapNode => n !== null),
+    children: top.nodes,
+    details: top.details,
     x: 0,
     y: 0,
   };
+}
+
+function detailGlyph(d: DetailLine): string {
+  if (d.kind === "todo") return d.checked ? "☑" : "☐";
+  if (d.kind === "quote") return "❝";
+  return "¶";
 }
 
 /** Assigne x (profondeur) et y (feuilles) ; parent centré sur ses enfants. */
@@ -420,6 +461,36 @@ export function MindMapView({ state, initialNoteId, dispatch, onOpenNote }: Prop
                       >
                         {line || <span className="opacity-40">vide</span>}
                       </button>
+                    )}
+
+                    {/* Indicateur de contenu rattaché (survol pour lire). */}
+                    {n.details.length > 0 && (
+                      <span
+                        className="ml-1 shrink-0 rounded px-1 text-[9px] font-semibold leading-4"
+                        style={{
+                          background: n.kind === "root" ? "rgba(255,255,255,.2)" : "rgba(0,0,0,.05)",
+                          color: n.kind === "root" ? "#fff" : n.color,
+                        }}
+                        title={`${n.details.length} élément(s) rattaché(s)`}
+                      >
+                        ≡{n.details.length}
+                      </span>
+                    )}
+
+                    {/* Aperçu du contenu non structurel au survol. */}
+                    {n.details.length > 0 && (
+                      <div className="absolute left-0 top-full z-20 mt-1 hidden max-h-48 w-64 overflow-auto rounded-lg border border-gray-200 bg-white p-2 text-left text-[11px] leading-snug text-gray-600 shadow-xl group-hover:block">
+                        {n.details.map((d, i) => (
+                          <div key={`${n.id}-d${i}`} className="flex gap-1.5 py-0.5">
+                            <span aria-hidden className="shrink-0 opacity-60">
+                              {detailGlyph(d)}
+                            </span>
+                            <span className={d.kind === "quote" ? "italic text-gray-500" : ""}>
+                              {d.text.trim() || <span className="opacity-40">(vide)</span>}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     )}
 
                     {/* Ajouter une idée enfant. */}
