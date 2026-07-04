@@ -5,11 +5,17 @@
   "locale": "fr-FR",
   "meta": {
     "title": "Design vs Engineering — la refonte qui déchire",
-    "description": "Vous êtes Chief Product Officer de Fluxboard, un SaaS B2B de gestion de projet (250 clients, 25 personnes, série A). La refonte du dashboard, chantier phare du trimestre, a six semaines de retard — et vos deux heads ne se parlent plus que par tickets. Chloé Marchand (Head of Design) refuse de shipper une implémentation qui « trahit les maquettes validées » ; Yann Kowalski (Head of Engineering) refuse trois sprints de pixel-perfect avec une équipe cramée. À vous de mener la médiation : faire émerger les intérêts derrière les positions, et trouver la voie qui protège les deux.",
+    "description": "Vous êtes Chief Product Officer de Fluxboard, un SaaS B2B de gestion de projet (250 clients, 25 personnes, série A). La refonte du dashboard, chantier phare du trimestre, a six semaines de retard — et vos deux heads ne se parlent plus que par tickets. Chloé Marchand (Head of Design) refuse de shipper une implémentation qui « trahit les maquettes validées » ; Yann Kowalski (Head of Engineering) refuse trois sprints de pixel-perfect avec une équipe cramée. À vous de mener la médiation : faire émerger les intérêts derrière les positions, et trouver la voie qui protège les deux.\n\nFin du scénario (test) : il se termine après avoir animé la médiation (au moins 3 messages). L'IA juge seulement gagné/perdu APRÈS coup.",
     "difficulty": "advanced",
     "estimated_minutes": 10
   },
-  "competencies": ["leadership", "communication", "decision", "priorisation", "gestion_stress"],
+  "competencies": [
+    "leadership",
+    "communication",
+    "decision",
+    "priorisation",
+    "gestion_stress"
+  ],
   "actors": [
     {
       "actor_id": "chloe_marchand",
@@ -40,7 +46,10 @@
       "threads": [
         {
           "thread_id": "th_mediation",
-          "participants": ["chloe_marchand", "yann_kowalski"],
+          "participants": [
+            "chloe_marchand",
+            "yann_kowalski"
+          ],
           "title": "Refonte dashboard — Chloé & Yann"
         }
       ],
@@ -52,7 +61,9 @@
       "events": [
         {
           "event_id": "e_ouverture_chloe",
-          "when": { "type": "step_start" },
+          "when": {
+            "type": "step_start"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_mediation",
@@ -62,7 +73,9 @@
         },
         {
           "event_id": "e_ouverture_yann",
-          "when": { "type": "step_start" },
+          "when": {
+            "type": "step_start"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_mediation",
@@ -72,7 +85,9 @@
         },
         {
           "event_id": "e_retry_mediation",
-          "when": { "type": "on_retry" },
+          "when": {
+            "type": "on_retry"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_mediation",
@@ -83,11 +98,8 @@
       ],
       "completion": {
         "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "message_sent", "min_count": 3 },
-            { "type": "criterion_observed", "criterion": "resolution_datee" }
-          ]
+          "type": "message_sent",
+          "min_count": 3
         }
       },
       "evaluation": {
@@ -96,39 +108,58 @@
             "id": "tranche_sans_ecoute",
             "description": "FAUTE À DÉTECTER : le joueur impose une décision (« on shippe », « on fait les trois sprints », « voilà ce qu'on va faire ») AVANT que chaque partie ait pu exprimer sa position et être interrogée sur ce qu'elle cherche à protéger. True UNIQUEMENT si un arbitrage d'autorité est prononcé alors qu'au moins une des deux parties n'a pas été réellement entendue.",
             "severity": "critical",
-            "competencies": ["leadership", "communication"],
+            "competencies": [
+              "leadership",
+              "communication"
+            ],
             "error_type": "autoritarisme"
           },
           {
             "id": "desaveu_public",
             "description": "FAUTE À DÉTECTER : le joueur désavoue, blâme ou ridiculise l'une des parties DEVANT l'autre — par exemple « Chloé, ton pixel-perfect est un caprice » ou « Yann, ton équipe a bâclé l'implémentation, assumez ». Reformuler une position ou poser une question difficile n'est pas un désaveu ; le jugement dévalorisant devant témoin, si. True UNIQUEMENT si un désaveu caractérisé apparaît dans les messages du joueur.",
             "severity": "critical",
-            "competencies": ["leadership", "communication"],
+            "competencies": [
+              "leadership",
+              "communication"
+            ],
             "error_type": "desaveu_public"
           },
           {
             "id": "interets_sous_jacents",
             "description": "Le joueur fait exprimer par CHACUNE des deux parties l'intérêt derrière sa position — pas seulement les positions elles-mêmes. Côté Chloé : la peur que le dégradé shippé devienne définitif et que les validations design perdent tout sens. Côté Yann : la protection d'une équipe au bord de la rupture (week-ends, risque de démission) et le besoin d'un périmètre fermé sans retouches infinies. Ces éléments doivent apparaître dans le dialogue en réponse aux questions du joueur.",
             "severity": "required",
-            "competencies": ["communication", "analyse"]
+            "competencies": [
+              "communication",
+              "analyse"
+            ]
           },
           {
             "id": "voie_double_protection",
             "description": "Le joueur propose (ou fait émerger et reprend à son compte) une voie qui protège les intérêts DES DEUX parties — typiquement un découplage : shipper maintenant une v1 simplifiée dont les coupes sont explicitement validées par Chloé (en priorisant les écrans clés), et planifier le raffinement à une échéance ferme qui respecte la récupération de l'équipe de Yann. Une solution qui sacrifie entièrement l'un des deux (tout shipper tel quel, ou trois sprints de pixel-perfect immédiats) ne satisfait pas ce critère.",
             "severity": "required",
-            "competencies": ["decision", "priorisation", "leadership"]
+            "competencies": [
+              "decision",
+              "priorisation",
+              "leadership"
+            ]
           },
           {
             "id": "resolution_datee",
             "description": "La médiation se conclut sur une résolution atteinte dont les termes sont CONCRETS et DATÉS : ce que contient la v1 (et qui valide les coupes — Chloé), la date ou la fenêtre de ship, et l'échéance du sprint de raffinement (date, numéro de sprint ou délai en semaines). Un accord de principe sans termes vérifiables (« on se recale plus tard ») ne suffit pas.",
             "severity": "required",
-            "competencies": ["organisation", "decision"]
+            "competencies": [
+              "organisation",
+              "decision"
+            ]
           },
           {
             "id": "reformulation_croisee",
             "description": "Le joueur fait reformuler ou reformule lui-même le besoin d'une partie à l'attention de l'autre (« Yann, ce que dit Chloé, c'est que… », « Chloé, ce que protège Yann, c'est… »), et obtient de chacun la reconnaissance d'au moins un point valide chez l'autre.",
             "severity": "bonus",
-            "competencies": ["communication", "leadership"]
+            "competencies": [
+              "communication",
+              "leadership"
+            ]
           }
         ]
       },
@@ -146,7 +177,9 @@
     {
       "id": "success",
       "label": "Découplé, validé, daté — la refonte repart",
-      "requires_passed": ["s1"],
+      "requires_passed": [
+        "s1"
+      ],
       "content": "La v1 simplifiée part en production avec des coupes que Chloé a validées elle-même, et le sprint de raffinement est inscrit au planning — pas au backlog. Vous avez appliqué la grammaire de la médiation : derrière deux positions incompatibles (« pixel-perfect » contre « on shippe tel quel ») se cachaient deux intérêts parfaitement conciliables — l'irréversibilité du dégradé pour elle, la survie de son équipe pour lui. C'est en faisant parler les intérêts que le découplage est devenu évident : la question n'était pas « qui a raison », mais « qu'est-ce qui doit shipper quand, et qui valide quoi ». Notez que vous n'avez pas eu à trancher d'autorité : un accord co-construit engage ses auteurs, un arbitrage imposé fabrique un revanchard. Retenez enfin l'exigence des termes datés : entre deux heads sous tension, tout ce qui n'est pas écrit et daté redeviendra un conflit dans trois semaines."
     },
     {

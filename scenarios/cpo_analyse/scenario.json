@@ -5,11 +5,15 @@
   "locale": "fr-FR",
   "meta": {
     "title": "Le churn de janvier",
-    "description": "Douze comptes ont résilié Fluxboard en janvier. David Osei, votre Lead Data, vous a préparé l'export commenté et les verbatims. Presque tous invoquent le prix — mais les données racontent une autre histoire. À vous de la trouver avant le comité produit.",
+    "description": "Douze comptes ont résilié Fluxboard en janvier. David Osei, votre Lead Data, vous a préparé l'export commenté et les verbatims. Presque tous invoquent le prix — mais les données racontent une autre histoire. À vous de la trouver avant le comité produit.\n\nFin du scénario (test) : il se termine dès que vous envoyez votre diagnostic par mail à Emma Ricci. L'IA n'intervient qu'APRÈS pour un retour structuré sur ce que vous avez réussi ou non — elle ne bloque jamais la fin.",
     "difficulty": "intermediate",
     "estimated_minutes": 8
   },
-  "competencies": ["analyse", "decision", "priorisation"],
+  "competencies": [
+    "analyse",
+    "decision",
+    "priorisation"
+  ],
   "actors": [
     {
       "actor_id": "emma_ricci",
@@ -60,11 +64,16 @@
           "tool": "notes"
         }
       ],
-      "document_ids": ["doc_churn_export", "doc_verbatims"],
+      "document_ids": [
+        "doc_churn_export",
+        "doc_verbatims"
+      ],
       "events": [
         {
           "event_id": "e_mail_mission_emma",
-          "when": { "type": "step_start" },
+          "when": {
+            "type": "step_start"
+          },
           "effect": {
             "type": "mail_received",
             "from_actor": "emma_ricci",
@@ -74,7 +83,9 @@
         },
         {
           "event_id": "e_retry_emma",
-          "when": { "type": "on_retry" },
+          "when": {
+            "type": "on_retry"
+          },
           "effect": {
             "type": "mail_received",
             "from_actor": "emma_ricci",
@@ -85,11 +96,8 @@
       ],
       "completion": {
         "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "mail_sent", "to": "emma_ricci" },
-            { "type": "criterion_observed", "criterion": "pattern_identifie" }
-          ]
+          "type": "mail_sent",
+          "to": "emma_ricci"
         }
       },
       "evaluation": {
@@ -98,37 +106,54 @@
             "id": "pattern_identifie",
             "description": "Dans ses conclusions (mail envoyé à Emma), le joueur identifie le vrai pattern : 9 des 12 comptes perdus sont des comptes SELF-SERVE avec moins de 10 utilisateurs onboardés à J30, qui résilient de façon concentrée autour du 3e mois — un échec d'onboarding/adoption (aucun contact humain, e-mails ignorés, désengagement silencieux), et non un problème de prix. Il s'appuie sur les données (colonne ancienneté, utilisateurs onboardés, verbatims).",
             "severity": "required",
-            "competencies": ["analyse"]
+            "competencies": [
+              "analyse"
+            ]
           },
           {
             "id": "action_coherente",
             "description": "Dans ses conclusions, le joueur propose une action immédiate cohérente avec le pattern self-serve/onboarding : par exemple contacter proactivement les comptes self-serve dans leurs 3 premiers mois, mettre en place un onboarding assisté ou un parcours guidé, réviser la séquence d'e-mails, suivre l'activation à J30 comme signal d'alerte. Une action déconnectée du pattern (baisse de prix générale, campagne d'acquisition, refonte visuelle) ne suffit pas.",
             "severity": "required",
-            "competencies": ["decision", "priorisation"]
+            "competencies": [
+              "decision",
+              "priorisation"
+            ]
           },
           {
             "id": "segment_cible",
             "description": "Dans ses conclusions, le joueur cible comme segment à risque les comptes ENCORE actifs qui présentent le profil du pattern : comptes self-serve récents (dans leurs premiers mois) avec peu d'utilisateurs onboardés/actifs — en cohérence avec le taux d'onboarding à J30 de 24 % en self-serve relevé par David.",
             "severity": "minor",
-            "competencies": ["analyse", "priorisation"]
+            "competencies": [
+              "analyse",
+              "priorisation"
+            ]
           },
           {
             "id": "correlation_causalite",
             "description": "Le joueur distingue explicitement corrélation et causalité : il note que le « prix » déclaré dans les formulaires est un symptôme plausible de la non-adoption plutôt qu'une cause démontrée, et/ou propose un moyen de vérifier la causalité (suivi de cohorte, entretiens avec des comptes actifs au même profil) comme le suggère David.",
             "severity": "bonus",
-            "competencies": ["analyse", "communication"]
+            "competencies": [
+              "analyse",
+              "communication"
+            ]
           },
           {
             "id": "contresens_donnees",
             "description": "FAUTE À DÉTECTER : une conclusion du joueur est CONTREDITE par les données — par exemple affirmer que le prix est la cause principale du churn, que le churn touche d'abord les gros comptes gérés par les sales, qu'il n'y a pas de pattern temporel, ou proposer une baisse de prix généralisée comme réponse au problème. True uniquement si une conclusion contredit les documents.",
             "severity": "critical",
-            "competencies": ["analyse", "decision"],
+            "competencies": [
+              "analyse",
+              "decision"
+            ],
             "error_type": "contresens_donnees"
           }
         ]
       },
       "completion_rules": {
-        "required_criteria": ["pattern_identifie", "action_coherente"]
+        "required_criteria": [
+          "pattern_identifie",
+          "action_coherente"
+        ]
       },
       "max_attempts": 2
     }
@@ -137,7 +162,9 @@
     {
       "id": "success",
       "label": "Le comité produit a son diagnostic",
-      "requires_passed": ["s1"],
+      "requires_passed": [
+        "s1"
+      ],
       "content": "Votre analyse tient : 9 résiliations sur 12 racontent la même histoire — des comptes self-serve jamais vraiment onboardés, qui décrochent en silence et partent au 3e mois en cochant « prix » parce que c'est la case la plus simple. Vous avez fait ce qu'un CPO doit faire devant un tableau de churn : chercher le pattern derrière les raisons déclarées, séparer les 3 gros comptes aux causes externes du signal produit réel, et en tirer une action qui attaque la cause (l'onboarding des self-serve avant M3) plutôt que le symptôme. Gardez le réflexe de David : une raison déclarée n'est pas une cause démontrée — et un client silencieux est souvent plus en danger qu'un client qui se plaint."
     },
     {

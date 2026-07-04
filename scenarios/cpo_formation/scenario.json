@@ -5,11 +5,16 @@
   "locale": "fr-FR",
   "meta": {
     "title": "Onboarder Inès sur la priorisation — RICE façon Fluxboard",
-    "description": "Vous êtes Chief Product Officer de Fluxboard, un SaaS B2B de gestion de projet (250 clients, 25 personnes, série A). Inès Berrada, PM junior arrivée il y a trois semaines, doit prioriser son premier backlog. Votre mission : lui transmettre le framework de priorisation maison — un RICE adapté (Reach pondéré par segment stratégique, Confidence plafonnée sans data) — avec ses limites et la règle d'arbitrage quand le score contredit un sponsor fort. Attention : Inès pose des questions naïves mais redoutables, et elle ne fait jamais semblant d'avoir compris.",
+    "description": "Vous êtes Chief Product Officer de Fluxboard, un SaaS B2B de gestion de projet (250 clients, 25 personnes, série A). Inès Berrada, PM junior arrivée il y a trois semaines, doit prioriser son premier backlog. Votre mission : lui transmettre le framework de priorisation maison — un RICE adapté (Reach pondéré par segment stratégique, Confidence plafonnée sans data) — avec ses limites et la règle d'arbitrage quand le score contredit un sponsor fort. Attention : Inès pose des questions naïves mais redoutables, et elle ne fait jamais semblant d'avoir compris.\n\nFin du scénario (test) : il se termine automatiquement au bout de 10 minutes. L'IA juge seulement gagné/perdu APRÈS coup.",
     "difficulty": "intermediate",
     "estimated_minutes": 9
   },
-  "competencies": ["communication", "priorisation", "leadership", "organisation"],
+  "competencies": [
+    "communication",
+    "priorisation",
+    "leadership",
+    "organisation"
+  ],
   "actors": [
     {
       "actor_id": "ines_berrada",
@@ -53,7 +58,9 @@
       "threads": [
         {
           "thread_id": "th_ines",
-          "participants": ["ines_berrada"],
+          "participants": [
+            "ines_berrada"
+          ],
           "title": "Inès Berrada (PM junior)"
         }
       ],
@@ -62,11 +69,15 @@
           "tool": "notes"
         }
       ],
-      "document_ids": ["doc_rice_fluxboard"],
+      "document_ids": [
+        "doc_rice_fluxboard"
+      ],
       "events": [
         {
           "event_id": "e_ouverture_ines",
-          "when": { "type": "step_start" },
+          "when": {
+            "type": "step_start"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_ines",
@@ -76,7 +87,9 @@
         },
         {
           "event_id": "e_retry_ines",
-          "when": { "type": "on_retry" },
+          "when": {
+            "type": "on_retry"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_ines",
@@ -87,11 +100,8 @@
       ],
       "completion": {
         "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "message_sent", "to_actor": "ines_berrada", "min_count": 4 },
-            { "type": "criterion_observed", "criterion": "objectifs_couverts_honnetement" }
-          ]
+          "type": "timer_elapsed",
+          "seconds": 600
         }
       },
       "evaluation": {
@@ -100,32 +110,48 @@
             "id": "declaration_mensongere",
             "description": "FAUTE À DÉTECTER : à la clôture, le joueur coche comme couverts (objectives_covered) un ou plusieurs objectifs manifestement NON traités dans l'échange — par exemple il coche rice_limites alors qu'aucune limite du framework n'a été abordée dans le transcript, ou arbitrage_conflit alors que la question « qui tranche ? » d'Inès est restée sans réponse. True UNIQUEMENT si au moins un objectif coché ne correspond à aucun contenu réel de la session.",
             "severity": "critical",
-            "competencies": ["leadership", "communication"],
+            "competencies": [
+              "leadership",
+              "communication"
+            ],
             "error_type": "auto_evaluation_faussee"
           },
           {
             "id": "exemple_concret",
             "description": "L'explication s'appuie sur au moins un exemple concret et chiffré : une feature (réelle ou plausible pour Fluxboard) dont le score est calculé devant Inès avec des valeurs explicites de Reach (et son coefficient de segment ×3/×1), Impact, Confidence et Effort. Une formule récitée sans application chiffrée ne suffit pas.",
             "severity": "required",
-            "competencies": ["communication", "priorisation"]
+            "competencies": [
+              "communication",
+              "priorisation"
+            ]
           },
           {
             "id": "verification_comprehension",
             "description": "Le joueur vérifie activement la compréhension d'Inès au lieu de dérouler un monologue : il lui pose des questions en retour, lui fait refaire un calcul ou reformuler un point, et corrige ses éventuelles erreurs (par exemple un coefficient de segment oublié). Le transcript doit montrer au moins une vraie boucle de vérification.",
             "severity": "required",
-            "competencies": ["communication", "leadership"]
+            "competencies": [
+              "communication",
+              "leadership"
+            ]
           },
           {
             "id": "objectifs_couverts_honnetement",
             "description": "Les trois objectifs sont réellement traités dans l'échange : le calcul (formule + adaptations Fluxboard : Reach pondéré ×3 segment stratégique, Confidence plafonnée à 50 % sans data), les deux limites (biais court-termiste contre les gros paris, faux sentiment d'objectivité / scores manipulables), et l'arbitrage en cas de conflit avec un sponsor fort (ré-examiner les inputs, expliciter le désaccord, tracer la décision — y compris en réponse à la question d'Inès « qui tranche si le score contredit la CEO ? »).",
             "severity": "required",
-            "competencies": ["priorisation", "decision", "communication"]
+            "competencies": [
+              "priorisation",
+              "decision",
+              "communication"
+            ]
           },
           {
             "id": "questions_pieges_traitees",
             "description": "Les deux questions pièges d'Inès reçoivent une réponse de fond et non une esquive : « pourquoi pas juste écouter le plus gros client ? » (réponse attendue : coût d'opportunité, différence entre un compte qui crie et un segment qui a besoin, rôle du coefficient de segment) et « qui tranche si le score contredit la CEO ? » (réponse attendue : une règle claire, pas un « ça n'arrive jamais »).",
             "severity": "bonus",
-            "competencies": ["communication", "gestion_stress"]
+            "competencies": [
+              "communication",
+              "gestion_stress"
+            ]
           }
         ]
       },
@@ -143,7 +169,9 @@
     {
       "id": "success",
       "label": "Inès sait prioriser — et sait pourquoi",
-      "requires_passed": ["s1"],
+      "requires_passed": [
+        "s1"
+      ],
       "content": "Deux jours plus tard, Inès vous envoie son backlog priorisé : les scores sont justes, le coefficient de segment est appliqué, et elle a annoté une ligne « Confidence plafonnée à 50 %, il me manque des interviews » — exactement le réflexe que vous vouliez installer. Vous avez fait ce qui distingue une formation d'un exposé : un exemple chiffré plutôt qu'une formule abstraite, des boucles de vérification plutôt qu'un monologue, et des réponses de fond à ses questions naïves — qui étaient en réalité les deux vraies questions de la priorisation. Répondre honnêtement à « qui tranche face à la CEO ? » est particulièrement structurant : un junior qui connaît la règle d'arbitrage n'aura pas peur de défendre un score. Retenez le principe : on n'a pas transmis tant que l'apprenant n'a pas produit quelque chose (un calcul, une reformulation) qu'on a pu vérifier. Et la limite assumée d'un framework enseignée dès le premier jour vaut mieux que découverte au premier conflit."
     },
     {

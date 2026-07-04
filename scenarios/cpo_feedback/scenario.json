@@ -5,11 +5,16 @@
   "locale": "fr-FR",
   "meta": {
     "title": "La feature shippée sans discovery — feedback à Léa",
-    "description": "Vous êtes Chief Product Officer de Fluxboard, un SaaS B2B de gestion de projet (250 clients, 25 personnes, série A). Léa Fontaine, votre PM senior la plus brillante, a shippé « Exports avancés » — une feature réclamée par UN gros client — sans aucune discovery. Résultat : 3 % d'adoption, deux sprints consommés, une roadmap qui glisse. Elle invoque la pression du commercial, et cette pression est en partie réelle. À vous de délivrer un feedback difficile sans casser votre meilleure PM — ni esquiver le problème.",
+    "description": "Vous êtes Chief Product Officer de Fluxboard, un SaaS B2B de gestion de projet (250 clients, 25 personnes, série A). Léa Fontaine, votre PM senior la plus brillante, a shippé « Exports avancés » — une feature réclamée par UN gros client — sans aucune discovery. Résultat : 3 % d'adoption, deux sprints consommés, une roadmap qui glisse. Elle invoque la pression du commercial, et cette pression est en partie réelle. À vous de délivrer un feedback difficile sans casser votre meilleure PM — ni esquiver le problème.\n\nFin du scénario (test) : il se termine après votre échange de feedback avec Léa (au moins 3 messages échangés). L'IA juge seulement gagné/perdu APRÈS coup.",
     "difficulty": "intermediate",
     "estimated_minutes": 8
   },
-  "competencies": ["communication", "leadership", "decision", "organisation"],
+  "competencies": [
+    "communication",
+    "leadership",
+    "decision",
+    "organisation"
+  ],
   "actors": [
     {
       "actor_id": "lea_fontaine",
@@ -34,7 +39,9 @@
       "threads": [
         {
           "thread_id": "th_lea",
-          "participants": ["lea_fontaine"],
+          "participants": [
+            "lea_fontaine"
+          ],
           "title": "Léa Fontaine (PM senior)"
         }
       ],
@@ -46,7 +53,9 @@
       "events": [
         {
           "event_id": "e_ouverture_lea",
-          "when": { "type": "step_start" },
+          "when": {
+            "type": "step_start"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_lea",
@@ -56,7 +65,9 @@
         },
         {
           "event_id": "e_retry_lea",
-          "when": { "type": "on_retry" },
+          "when": {
+            "type": "on_retry"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_lea",
@@ -67,11 +78,9 @@
       ],
       "completion": {
         "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "message_sent", "to_actor": "lea_fontaine", "min_count": 3 },
-            { "type": "criterion_observed", "criterion": "engagements_mutuels" }
-          ]
+          "type": "message_sent",
+          "to_actor": "lea_fontaine",
+          "min_count": 3
         }
       },
       "evaluation": {
@@ -80,45 +89,66 @@
             "id": "attaque_personnelle",
             "description": "FAUTE À DÉTECTER : le joueur porte le feedback sur la PERSONNE et non sur les faits — jugement de valeur (« tu es désinvolte », « c'est amateur », « je suis déçu de toi »), sarcasme, humiliation, menace directe (placard, licenciement) ou procès d'intention. True UNIQUEMENT si au moins une attaque personnelle caractérisée apparaît dans les messages du joueur.",
             "severity": "critical",
-            "competencies": ["communication", "leadership"],
+            "competencies": [
+              "communication",
+              "leadership"
+            ],
             "error_type": "feedback_destructif"
           },
           {
             "id": "evitement_complaisant",
             "description": "FAUTE À DÉTECTER : le joueur évite le conflit en félicitant Léa, en minimisant le problème (« c'est pas grave », « l'important c'est que Nexacorp soit content ») ou en noyant le sujet, sans jamais nommer clairement le dysfonctionnement (feature shippée sans discovery, 3 % d'adoption). True UNIQUEMENT si l'échange se conclut sans que le problème ait été posé frontalement.",
             "severity": "critical",
-            "competencies": ["communication", "leadership"],
+            "competencies": [
+              "communication",
+              "leadership"
+            ],
             "error_type": "evitement_conflit"
           },
           {
             "id": "faits_precis",
             "description": "Le joueur appuie son feedback sur des faits précis et vérifiables, dont au minimum le chiffre de 3 % d'adoption, et au moins un autre élément factuel : absence de discovery (pas d'interviews, pas de critères de succès), deux sprints d'engineering consommés, glissement de la roadmap du trimestre.",
             "severity": "required",
-            "competencies": ["communication", "analyse"]
+            "competencies": [
+              "communication",
+              "analyse"
+            ]
           },
           {
             "id": "impact_explicite",
             "description": "Le joueur explicite l'IMPACT du dysfonctionnement au-delà du constat : coût d'opportunité des deux sprints, crédibilité du process produit auprès de l'engineering, précédent créé (n'importe quel gros client peut désormais court-circuiter la roadmap), ou risque de multiplier les features mortes.",
             "severity": "required",
-            "competencies": ["communication", "priorisation"]
+            "competencies": [
+              "communication",
+              "priorisation"
+            ]
           },
           {
             "id": "ecoute_et_reconnaissance",
             "description": "Le joueur laisse Léa exposer sa version ET reconnaît explicitement la part de vérité de sa défense : la pression de Thomas (Head of Sales) était réelle et documentée. Une simple concession de façade (« oui mais quand même ») ne suffit pas — le joueur doit nommer cette pression comme un vrai problème, distinct de la faute de process.",
             "severity": "required",
-            "competencies": ["communication", "leadership"]
+            "competencies": [
+              "communication",
+              "leadership"
+            ]
           },
           {
             "id": "engagements_mutuels",
             "description": "La clôture formalise des engagements concrets DES DEUX CÔTÉS : côté Léa, un garde-fou de méthode (par exemple discovery minimale systématique : interviews, problème écrit, critères de succès avant tout développement) ; côté CPO/joueur, un engagement propre (par exemple canaliser les demandes commerciales via la roadmap et l'arbitrage, cadrer Thomas, protéger les PM de la pression directe). Des engagements unilatéraux imposés à Léa ne suffisent pas.",
             "severity": "required",
-            "competencies": ["leadership", "organisation"]
+            "competencies": [
+              "leadership",
+              "organisation"
+            ]
           },
           {
             "id": "cadre_pose",
             "description": "Le feedback suit une structure lisible : les faits d'abord, l'impact ensuite, l'écoute, puis la construction de la suite — plutôt qu'un déballage désordonné de reproches et de solutions mélangés.",
             "severity": "bonus",
-            "competencies": ["communication", "organisation"]
+            "competencies": [
+              "communication",
+              "organisation"
+            ]
           }
         ]
       },
@@ -137,7 +167,9 @@
     {
       "id": "success",
       "label": "Exigeant ET juste — Léa repart plus forte",
-      "requires_passed": ["s1"],
+      "requires_passed": [
+        "s1"
+      ],
       "content": "Léa sort du bureau avec un garde-fou qu'elle a co-construit, pas une sanction qu'elle a subie — et vous repartez avec un engagement qui vous oblige aussi : cadrer Thomas et faire passer les demandes commerciales par la roadmap. C'est la marque d'un feedback réussi : des faits incontestables (3 % d'adoption ne se discute pas), un impact explicité, et l'écoute réelle de sa version — car sa défense contenait une vérité qu'il aurait été injuste d'ignorer. Reconnaître la pression du sales n'a pas affaibli votre message : c'est précisément ce qui a permis à Léa d'admettre sa part sans perdre la face. Retenez la règle des engagements mutuels : un feedback qui ne change que le comportement du collaborateur, jamais celui du système autour, produit les mêmes erreurs six mois plus tard. Et gardez le chiffre en tête : une discovery d'une semaine coûte toujours moins cher que deux sprints pour 3 % d'adoption."
     },
     {

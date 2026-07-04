@@ -5,11 +5,16 @@
   "locale": "fr-FR",
   "meta": {
     "title": "L'activation a chuté de 30 % — trouver la cause",
-    "description": "Vous êtes Chief Product Officer de Fluxboard, un SaaS B2B de gestion de projet (250 clients, 25 personnes, série A). L'activation — la part des nouveaux comptes qui créent leur premier projet dans les 7 jours — a chuté de 30 % en trois semaines, et Emma Ricci (CEO) veut une cause identifiée avant le board de vendredi. David Osei, Lead Data, a les chiffres mais pas l'interprétation : à vous de poser les bonnes questions, d'écarter les fausses pistes et de rendre un diagnostic étayé.",
+    "description": "Vous êtes Chief Product Officer de Fluxboard, un SaaS B2B de gestion de projet (250 clients, 25 personnes, série A). L'activation — la part des nouveaux comptes qui créent leur premier projet dans les 7 jours — a chuté de 30 % en trois semaines, et Emma Ricci (CEO) veut une cause identifiée avant le board de vendredi. David Osei, Lead Data, a les chiffres mais pas l'interprétation : à vous de poser les bonnes questions, d'écarter les fausses pistes et de rendre un diagnostic étayé.\n\nFin du scénario (test) : il se termine dès que vous envoyez votre diagnostic par mail à David Osei. L'IA juge seulement gagné/perdu APRÈS coup.",
     "difficulty": "intermediate",
     "estimated_minutes": 8
   },
-  "competencies": ["analyse", "decision", "communication", "priorisation"],
+  "competencies": [
+    "analyse",
+    "decision",
+    "communication",
+    "priorisation"
+  ],
   "actors": [
     {
       "actor_id": "david_osei",
@@ -56,7 +61,9 @@
       "threads": [
         {
           "thread_id": "th_david",
-          "participants": ["david_osei"],
+          "participants": [
+            "david_osei"
+          ],
           "title": "David Osei (Lead Data)"
         }
       ],
@@ -65,11 +72,15 @@
           "tool": "notes"
         }
       ],
-      "document_ids": ["doc_dashboard_activation"],
+      "document_ids": [
+        "doc_dashboard_activation"
+      ],
       "events": [
         {
           "event_id": "e_ouverture_david",
-          "when": { "type": "step_start" },
+          "when": {
+            "type": "step_start"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_david",
@@ -79,7 +90,9 @@
         },
         {
           "event_id": "e_retry_david",
-          "when": { "type": "on_retry" },
+          "when": {
+            "type": "on_retry"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_david",
@@ -90,11 +103,8 @@
       ],
       "completion": {
         "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "message_sent", "to_actor": "david_osei", "min_count": 3 },
-            { "type": "criterion_observed", "criterion": "cause_correcte" }
-          ]
+          "type": "mail_sent",
+          "to": "david_osei"
         }
       },
       "evaluation": {
@@ -103,37 +113,56 @@
             "id": "conclusion_a_l_aveugle",
             "description": "FAUTE À DÉTECTER : le joueur rend son diagnostic sans avoir interrogé David sur les données mobile — ni segmentation par plateforme/device, ni funnel d'onboarding mobile. Le transcript ne contient aucune question du joueur portant sur la répartition mobile/desktop ou la complétion des étapes sur mobile avant la remise du diagnostic. True UNIQUEMENT si le diagnostic est rendu sans cette investigation.",
             "severity": "critical",
-            "competencies": ["analyse", "decision"],
+            "competencies": [
+              "analyse",
+              "decision"
+            ],
             "error_type": "conclusion_hative"
           },
           {
             "id": "cause_correcte",
             "description": "La cause retenue dans le diagnostic formalisé (message de synthèse envoyé à David) est bug_onboarding_mobile : la friction introduite par la release 4.2 (étape de vérification email) qui fait décrocher les utilisateurs mobile pendant l'onboarding.",
             "severity": "required",
-            "competencies": ["analyse", "decision"]
+            "competencies": [
+              "analyse",
+              "decision"
+            ]
           },
           {
             "id": "preuves_citees",
             "description": "Le diagnostic cite au moins DEUX éléments de preuve obtenus de David ou du dashboard, parmi : la chute concentrée sur les signups mobile (41 % → 17 %) avec desktop stable, la coïncidence temporelle exacte avec le déploiement de la release 4.2, le taux de complétion de 40 % de l'étape de vérification email sur mobile (contre 85 % sur desktop), la stabilité du volume de signups qui exclut un problème d'acquisition.",
             "severity": "required",
-            "competencies": ["analyse", "communication"]
+            "competencies": [
+              "analyse",
+              "communication"
+            ]
           },
           {
             "id": "hypothese_ecartee",
             "description": "Le diagnostic écarte explicitement au moins UNE hypothèse alternative avec une raison factuelle : la qualité d'acquisition (volume et mix de canaux stables, aucune campagne récente), le pricing (aucun changement depuis 4 mois) ou la saisonnalité (activation stable à la même période l'an dernier).",
             "severity": "required",
-            "competencies": ["analyse", "decision"]
+            "competencies": [
+              "analyse",
+              "decision"
+            ]
           },
           {
             "id": "investigation_methodique",
             "description": "L'investigation du joueur suit une démarche en entonnoir : il segmente d'abord la chute (par plateforme, cohorte ou canal), puis creuse le segment touché (timing, funnel étape par étape), au lieu de sauter d'une hypothèse à l'autre au hasard.",
             "severity": "bonus",
-            "competencies": ["analyse", "organisation"]
+            "competencies": [
+              "analyse",
+              "organisation"
+            ]
           }
         ]
       },
       "completion_rules": {
-        "required_criteria": ["cause_correcte", "preuves_citees", "hypothese_ecartee"]
+        "required_criteria": [
+          "cause_correcte",
+          "preuves_citees",
+          "hypothese_ecartee"
+        ]
       },
       "max_attempts": 2
     }
@@ -142,7 +171,9 @@
     {
       "id": "success",
       "label": "Cause identifiée, preuves à l'appui",
-      "requires_passed": ["s1"],
+      "requires_passed": [
+        "s1"
+      ],
       "content": "Vendredi, Emma présente au board une cause précise et un plan de correction, pas une liste d'excuses : la vérification email de la 4.2 tue l'onboarding mobile, et un correctif (deep link ou vérification différée) est déjà en route. Vous avez fait exactement ce qu'on attend d'un diagnostic produit : segmenter avant d'interpréter, chercher la coïncidence temporelle avec les changements récents, et descendre dans le funnel jusqu'à l'étape qui casse. Notez que David avait toutes les réponses depuis le début — mais qu'aucune ne serait sortie sans les bonnes questions : c'est le vrai métier, transformer des données brutes en chaîne causale. Vous avez aussi écarté les fausses pistes avec des faits, ce qui rend votre conclusion défendable face à un board sceptique. Retenez le réflexe : quand une métrique globale chute, la première question est toujours « chute-t-elle partout, ou quelque part ? »."
     },
     {

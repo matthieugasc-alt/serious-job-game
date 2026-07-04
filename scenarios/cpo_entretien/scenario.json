@@ -5,11 +5,15 @@
   "locale": "fr-FR",
   "meta": {
     "title": "La cliente qui menace de partir",
-    "description": "Vous êtes CPO de Fluxboard (SaaS B2B de gestion de projet, 250 clients). Sophie Vandenberg, COO de Logimat et l'un de vos dix plus gros comptes, demande « un point sur le renouvellement ». Elle parle prix. Le vrai problème est ailleurs — à vous de le faire émerger.",
+    "description": "Vous êtes CPO de Fluxboard (SaaS B2B de gestion de projet, 250 clients). Sophie Vandenberg, COO de Logimat et l'un de vos dix plus gros comptes, demande « un point sur le renouvellement ». Elle parle prix. Le vrai problème est ailleurs — à vous de le faire émerger.\n\nFin du scénario (test) : il se termine après avoir mené l'entretien avec Sophie (au moins 4 messages échangés). L'IA juge seulement gagné/perdu APRÈS coup.",
     "difficulty": "intermediate",
     "estimated_minutes": 8
   },
-  "competencies": ["relation_client", "communication", "analyse"],
+  "competencies": [
+    "relation_client",
+    "communication",
+    "analyse"
+  ],
   "actors": [
     {
       "actor_id": "sophie_vandenberg",
@@ -33,7 +37,9 @@
       "threads": [
         {
           "thread_id": "th_sophie",
-          "participants": ["sophie_vandenberg"],
+          "participants": [
+            "sophie_vandenberg"
+          ],
           "title": "Sophie Vandenberg (Logimat)"
         }
       ],
@@ -45,7 +51,9 @@
       "events": [
         {
           "event_id": "e_ouverture_sophie",
-          "when": { "type": "step_start" },
+          "when": {
+            "type": "step_start"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_sophie",
@@ -55,7 +63,9 @@
         },
         {
           "event_id": "e_retry_sophie",
-          "when": { "type": "on_retry" },
+          "when": {
+            "type": "on_retry"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_sophie",
@@ -66,11 +76,9 @@
       ],
       "completion": {
         "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "message_sent", "to_actor": "sophie_vandenberg", "min_count": 4 },
-            { "type": "criterion_observed", "criterion": "irritants_reels" }
-          ]
+          "type": "message_sent",
+          "to_actor": "sophie_vandenberg",
+          "min_count": 4
         }
       },
       "evaluation": {
@@ -79,37 +87,55 @@
             "id": "irritants_reels",
             "description": "Sophie a exprimé, en réponse aux questions du joueur, au moins DEUX raisons réelles d'insatisfaction distinctes du prix parmi : l'effondrement de l'adoption terrain (≈15 actifs sur 45 licences, chefs d'équipe revenus à Excel/WhatsApp, application mobile inadaptée aux dépôts), sa charge de consolidation manuelle du lundi, et le démarchage du concurrent Strato (onboarding dédié, -30 %). Il ne suffit pas que le joueur les suppose : Sophie doit les avoir dites.",
             "severity": "required",
-            "competencies": ["relation_client", "communication"]
+            "competencies": [
+              "relation_client",
+              "communication"
+            ]
           },
           {
             "id": "usage_reel_precise",
             "description": "Le joueur a fait préciser l'usage RÉEL de Fluxboard par les équipes de Logimat (qui l'utilise, combien d'actifs, ce que font les chefs d'équipe au quotidien, pourquoi ils ont décroché) et Sophie a donné des éléments concrets (15 actifs sur 45, mobile abandonné, retour à Excel/WhatsApp).",
             "severity": "required",
-            "competencies": ["relation_client", "analyse"]
+            "competencies": [
+              "relation_client",
+              "analyse"
+            ]
           },
           {
             "id": "promesse_premature",
             "description": "FAUTE À DÉTECTER : le joueur propose une remise, un geste commercial, une fonctionnalité ou tout autre engagement pour retenir Sophie AVANT d'avoir fait émerger les vraies raisons de son insatisfaction (adoption terrain, concurrent). True UNIQUEMENT si une telle proposition précède la découverte du vrai problème.",
             "severity": "critical",
-            "competencies": ["relation_client", "decision"],
+            "competencies": [
+              "relation_client",
+              "decision"
+            ],
             "error_type": "biais_solution"
           },
           {
             "id": "reformulation",
             "description": "Le joueur a reformulé explicitement avec ses propres mots le problème exprimé par Sophie (par exemple : « si je comprends bien, le sujet n'est pas le prix mais le fait que vos équipes terrain n'utilisent plus l'outil ») et en a obtenu confirmation.",
             "severity": "bonus",
-            "competencies": ["communication", "relation_client"]
+            "competencies": [
+              "communication",
+              "relation_client"
+            ]
           },
           {
             "id": "prochain_rdv",
             "description": "Le joueur a obtenu de Sophie une prochaine étape concrète avant la décision de renouvellement : rendez-vous de suivi, atelier avec ses chefs d'équipe, visite d'un dépôt, ou délai explicite accordé.",
             "severity": "minor",
-            "competencies": ["relation_client", "organisation"]
+            "competencies": [
+              "relation_client",
+              "organisation"
+            ]
           }
         ]
       },
       "completion_rules": {
-        "required_criteria": ["irritants_reels", "usage_reel_precise"]
+        "required_criteria": [
+          "irritants_reels",
+          "usage_reel_precise"
+        ]
       },
       "max_attempts": 2
     }
@@ -118,7 +144,9 @@
     {
       "id": "success",
       "label": "Le vrai problème est sur la table",
-      "requires_passed": ["s1"],
+      "requires_passed": [
+        "s1"
+      ],
       "content": "Sophie range son téléphone — c'est bon signe. Vous repartez avec ce que le prix cachait : une adoption terrain effondrée, des chefs d'équipe revenus à Excel, et Strato en embuscade. Rien n'est sauvé, mais tout devient jouable : on ne peut traiter que les problèmes qu'un client a acceptés de vous dire. Retenez la mécanique : face à une objection prix, la remise est presque toujours une mauvaise réponse à une question mal posée — questionnez l'usage réel, faites raconter le quotidien, et reformulez avant de proposer quoi que ce soit. C'est l'écoute qui a rouvert la porte, pas une concession."
     },
     {

@@ -5,11 +5,16 @@
   "locale": "fr-FR",
   "meta": {
     "title": "2 slots pour 5 features",
-    "description": "Le Q3 de Fluxboard n'a que 2 slots de développement — et 5 features candidates, chacune avec son parrain. Le chouchou de la CEO, la dette déguisée de l'ingénierie, le pari stratégique… Tranchez, et justifiez avec la capacité et l'impact, pas avec la politique.",
+    "description": "Le Q3 de Fluxboard n'a que 2 slots de développement — et 5 features candidates, chacune avec son parrain. Le chouchou de la CEO, la dette déguisée de l'ingénierie, le pari stratégique… Tranchez, et justifiez avec la capacité et l'impact, pas avec la politique.\n\nFin du scénario (test) : il se termine dès que vous envoyez votre décision par mail à Emma Ricci. L'IA juge seulement gagné/perdu APRÈS coup.",
     "difficulty": "advanced",
     "estimated_minutes": 7
   },
-  "competencies": ["priorisation", "decision", "analyse", "leadership"],
+  "competencies": [
+    "priorisation",
+    "decision",
+    "analyse",
+    "leadership"
+  ],
   "actors": [
     {
       "actor_id": "emma_ricci",
@@ -66,7 +71,9 @@
       "threads": [
         {
           "thread_id": "th_emma",
-          "participants": ["emma_ricci"],
+          "participants": [
+            "emma_ricci"
+          ],
           "title": "Emma Ricci (CEO)"
         }
       ],
@@ -75,11 +82,15 @@
           "tool": "notes"
         }
       ],
-      "document_ids": ["doc_capacite"],
+      "document_ids": [
+        "doc_capacite"
+      ],
       "events": [
         {
           "event_id": "e_ouverture_emma",
-          "when": { "type": "step_start" },
+          "when": {
+            "type": "step_start"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_emma",
@@ -89,7 +100,9 @@
         },
         {
           "event_id": "e_retry_emma",
-          "when": { "type": "on_retry" },
+          "when": {
+            "type": "on_retry"
+          },
           "effect": {
             "type": "message_received",
             "thread_id": "th_emma",
@@ -100,11 +113,8 @@
       ],
       "completion": {
         "trigger": {
-          "type": "all",
-          "of": [
-            { "type": "mail_sent", "to": "emma_ricci" },
-            { "type": "criterion_observed", "criterion": "justification_capacite" }
-          ]
+          "type": "mail_sent",
+          "to": "emma_ricci"
         }
       },
       "evaluation": {
@@ -114,14 +124,20 @@
             "description": "Le Parcours d'onboarding guidé figure parmi les features retenues (d'après le mail d'arbitrage envoyé à Emma) — l'un des deux choix objectivement défendables (activation à 22 %, churn self-serve à M3, risque faible).",
             "severity": "required",
             "weight": 2,
-            "competencies": ["priorisation", "decision"]
+            "competencies": [
+              "priorisation",
+              "decision"
+            ]
           },
           {
             "id": "choice_hub_integrations",
             "description": "Le Hub d'intégrations Slack/Teams/Drive figure parmi les features retenues (d'après le mail d'arbitrage envoyé à Emma) — l'autre choix objectivement défendable (demande n°1 de 68 % des comptes, pression concurrentielle de Strato).",
             "severity": "required",
             "weight": 2,
-            "competencies": ["priorisation", "decision"]
+            "competencies": [
+              "priorisation",
+              "decision"
+            ]
           },
           {
             "id": "choice_studio_rapports",
@@ -129,7 +145,10 @@
             "expected": false,
             "severity": "minor",
             "weight": 1,
-            "competencies": ["priorisation", "leadership"]
+            "competencies": [
+              "priorisation",
+              "leadership"
+            ]
           },
           {
             "id": "choice_notifications_v2",
@@ -137,19 +156,29 @@
             "expected": false,
             "severity": "minor",
             "weight": 1,
-            "competencies": ["priorisation", "analyse"]
+            "competencies": [
+              "priorisation",
+              "analyse"
+            ]
           },
           {
             "id": "justification_capacite",
             "description": "La justification du mail d'arbitrage s'appuie explicitement sur la contrainte de capacité (2 slots, pas de troisième possible, leçon du glissement du Q2) ET sur l'impact attendu des options retenues (activation à 22 %, churn self-serve à M3, demande n°1 des clients à 68 %, contexte concurrentiel) — et non sur des préférences personnelles, l'ancienneté des parrains ou des arguments d'autorité.",
             "severity": "required",
-            "competencies": ["priorisation", "analyse", "communication"]
+            "competencies": [
+              "priorisation",
+              "analyse",
+              "communication"
+            ]
           },
           {
             "id": "dette_non_assumee",
             "description": "FAUTE À DÉTECTER : le joueur a retenu Notifications 2.0 SANS la nommer pour ce qu'elle est dans sa justification — c'est-à-dire sans reconnaître qu'il s'agit essentiellement d'une réécriture du moteur legacy / d'un remboursement de dette technique au bénéfice utilisateur quasi nul à court terme. True UNIQUEMENT si l'option notifications_v2 figure dans les choix ET que la justification la présente comme une simple feature utilisateur sans assumer sa nature de dette.",
             "severity": "critical",
-            "competencies": ["analyse", "decision"],
+            "competencies": [
+              "analyse",
+              "decision"
+            ],
             "error_type": "dette_deguisee_non_identifiee"
           },
           {
@@ -157,12 +186,17 @@
             "description": "La justification assume explicitement au moins un « non » : le joueur explique pourquoi il écarte une option non retenue (par exemple le Studio de rapports IA malgré le parrainage de la CEO, ou l'API publique malgré son intérêt stratégique), avec un argument de reach, de risque ou de timing.",
             "severity": "bonus",
             "weight": 0,
-            "competencies": ["leadership", "communication"]
+            "competencies": [
+              "leadership",
+              "communication"
+            ]
           }
         ]
       },
       "completion_rules": {
-        "required_criteria": ["justification_capacite"],
+        "required_criteria": [
+          "justification_capacite"
+        ],
         "min_criteria_count": 3
       },
       "max_attempts": 2
@@ -172,7 +206,9 @@
     {
       "id": "success",
       "label": "Un arbitrage qui tiendra le trimestre",
-      "requires_passed": ["s1"],
+      "requires_passed": [
+        "s1"
+      ],
       "content": "Votre arbitrage tient debout parce qu'il est adossé à des faits que personne ne peut contester : 2 slots, une activation à 22 %, une demande client à 68 %, un churn concentré sur les self-serve à M3. C'est exactement ce qui protège un CPO quand les parrains déçus reviennent à la charge — et ils reviendront, Emma la première. Retenez les trois réflexes de cet exercice : la capacité est une contrainte, pas une variable d'ajustement (le Q2 l'a assez prouvé) ; l'impact se mesure en reach et en métriques, pas en enthousiasme du parrain ; et un « non » explicite et argumenté coûte moins cher que dix « oui, plus tard ». Prioriser, c'est renoncer en public."
     },
     {
