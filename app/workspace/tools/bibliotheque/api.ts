@@ -27,6 +27,7 @@ import type {
   Folder,
   FolderId,
   LibraryState,
+  SavedDesk,
 } from "./spec";
 import { BIBLIOTHEQUE_TOOL_ID } from "./spec";
 import type { LibraryOpName } from "./model";
@@ -252,6 +253,39 @@ export function unlinkEntries(a: EntryId, b: EntryId): LibraryToolOp {
 
 export function reorderWindows(order: EntryId[]): LibraryToolOp {
   return op("windows_reordered", { order: [...order] });
+}
+
+// ─── Bureaux personnalisés ─────────────────────────────────────────
+export function createDesk(name: string, opts: OpOptions & { entry_ids?: EntryId[] } = {}): LibraryToolOp {
+  const payload: JsonObject = { desk_id: opts.id ?? uid("bureau"), name, at: opts.at ?? Date.now() };
+  if (opts.entry_ids !== undefined) payload.entry_ids = opts.entry_ids;
+  return op("desk_created", payload);
+}
+export function renameDesk(deskId: string, name: string): LibraryToolOp {
+  return op("desk_renamed", { desk_id: deskId, name });
+}
+export function deleteDesk(deskId: string): LibraryToolOp {
+  return op("desk_deleted", { desk_id: deskId });
+}
+export function addToDesk(deskId: string, entryId: EntryId): LibraryToolOp {
+  return op("desk_entry_added", { desk_id: deskId, entry_id: entryId });
+}
+export function removeFromDesk(deskId: string, entryId: EntryId): LibraryToolOp {
+  return op("desk_entry_removed", { desk_id: deskId, entry_id: entryId });
+}
+
+/** Bureaux personnalisés, triés par création. */
+export function selectDesks(state: Json): SavedDesk[] {
+  return Object.values(normalizeLibraryState(state).desks).sort(
+    (a, b) => a.created_at - b.created_at || a.id.localeCompare(b.id),
+  );
+}
+/** Les documents d'un bureau, dans l'ordre où ils y ont été déposés. */
+export function selectDeskEntries(state: Json, deskId: string): DocEntry[] {
+  const s = normalizeLibraryState(state);
+  const d = s.desks[deskId];
+  if (!d) return [];
+  return d.entry_ids.map((id) => s.entries[id]).filter((e): e is DocEntry => Boolean(e));
 }
 
 // ─── Sélecteurs PURS (lecture — app, lecteur, replay/débrief) ──────

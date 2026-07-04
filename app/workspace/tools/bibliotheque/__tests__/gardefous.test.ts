@@ -129,7 +129,7 @@ describe("(c) enregistrement TOOL_REGISTRY", () => {
     expect(tool.icon.length).toBeGreaterThan(0);
     expect(typeof tool.Component).toBe("function");
     expect(tool.applyOp).toBe(applyLibraryOp);
-    expect(tool.initialState({})).toEqual({ entries: {}, folders: {}, desk: { windows: [], layout: "single" } });
+    expect(tool.initialState({})).toEqual({ entries: {}, folders: {}, desk: { windows: [], layout: "single" }, desks: {} });
     expect(tool.describeForObservation(null)).toContain("vide");
   });
 });

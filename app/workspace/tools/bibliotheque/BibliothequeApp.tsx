@@ -15,9 +15,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceAppProps } from "../../apps/types";
 import {
+  addToDesk,
   addTag,
   closeEntry,
+  createDesk,
   createFolder,
+  deleteDesk,
   deleteFolder,
   indexScenarioDoc,
   moveToFolder,
@@ -29,6 +32,8 @@ import {
   selectAllEntries,
   selectAllTags,
   selectCompare,
+  selectDeskEntries,
+  selectDesks,
   selectFolders,
   selectLibrary,
   selectOpenWindows,
@@ -101,6 +106,8 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
   const [openId, setOpenId] = useState<string | null>(null);
   const [dragTab, setDragTab] = useState<string | null>(null);
   const [newFolder, setNewFolder] = useState("");
+  const [newDesk, setNewDesk] = useState("");
+  const [dropDeskId, setDropDeskId] = useState<string | null>(null);
   const handledContext = useRef<string | null>(null);
   const dispatchedIndex = useRef<Set<string>>(new Set());
 
@@ -194,7 +201,21 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
 
   const folders = selectFolders(libState);
   const tags = selectAllTags(libState);
+  const desks = selectDesks(libState);
   const allEntries = selectAllEntries(libState);
+
+  /** Ouvrir un bureau personnalisé : tous ses documents, en grille. */
+  const openDesk = (deskId: string) => {
+    const entries = selectDeskEntries(libState, deskId);
+    if (entries.length === 0) return;
+    for (const e of entries) {
+      dispatch(openEntry(e.id));
+      if (e.source.kind === "scenario_doc") dispatch({ type: "document_opened", document_id: e.source.document_id });
+    }
+    dispatch(setLayout("grid"));
+    setOpenId(entries[0].id);
+    setView("desk");
+  };
 
   // ── Pipeline : recherche → filtre de vue → tri.
   const filtered = useMemo(() => {
@@ -403,6 +424,61 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
           </div>
         </div>
 
+        {/* Bureaux personnalisés : des « boîtes » où l'on dépose des docs
+            (glisser une carte dessus) ; un clic les rouvre tous ensemble. */}
+        <div>
+          <p className="px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Bureaux</p>
+          <div className="flex flex-col gap-1">
+            {desks.map((d) => (
+              <div
+                key={d.id}
+                className={`group flex items-center gap-1 rounded-lg border border-dashed px-1.5 py-1 transition ${
+                  dropDeskId === d.id ? "border-indigo-400 bg-indigo-50" : "border-gray-200"
+                }`}
+                onDragOver={(e) => {
+                  if (e.dataTransfer.types.includes("text/biblio-entry")) {
+                    e.preventDefault();
+                    setDropDeskId(d.id);
+                  }
+                }}
+                onDragLeave={() => setDropDeskId((v) => (v === d.id ? null : v))}
+                onDrop={(e) => {
+                  const entryId = e.dataTransfer.getData("text/biblio-entry");
+                  if (entryId) {
+                    e.preventDefault();
+                    dispatch(addToDesk(d.id, entryId));
+                  }
+                  setDropDeskId(null);
+                }}
+              >
+                <button type="button" className="flex min-w-0 flex-1 items-center gap-1.5 text-left text-sm text-gray-700" title="Ouvrir tous les documents de ce bureau" onClick={() => openDesk(d.id)}>
+                  <span aria-hidden>📦</span>
+                  <span className="min-w-0 flex-1 truncate">{d.name}</span>
+                  <span className="shrink-0 text-[11px] text-gray-400">{d.entry_ids.length}</span>
+                </button>
+                <button type="button" title="Supprimer le bureau" className="rounded px-1 text-xs text-gray-300 opacity-0 transition hover:text-red-500 group-hover:opacity-100" onClick={() => dispatch(deleteDesk(d.id))}>✕</button>
+              </div>
+            ))}
+            <form
+              className="mt-0.5 flex items-center gap-1 px-1"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const name = newDesk.trim();
+                if (name) dispatch(createDesk(name));
+                setNewDesk("");
+              }}
+            >
+              <input
+                value={newDesk}
+                onChange={(e) => setNewDesk(e.target.value)}
+                placeholder="+ bureau"
+                className="w-full rounded-md border border-gray-200 px-2 py-1 text-xs text-gray-800 placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none"
+              />
+            </form>
+            <p className="px-1.5 pt-0.5 text-[10px] text-gray-300">Glissez une carte sur un bureau pour l’y ajouter.</p>
+          </div>
+        </div>
+
         {tags.length > 0 && (
           <div>
             <p className="px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Tags</p>
@@ -566,7 +642,14 @@ function EntryCard(props: EntryCardProps) {
       : [];
 
   return (
-    <div className="group relative flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-3 text-left shadow-sm transition hover:border-indigo-300 hover:shadow">
+    <div
+      draggable
+      onDragStart={(ev) => {
+        ev.dataTransfer.setData("text/biblio-entry", e.id);
+        ev.dataTransfer.effectAllowed = "copy";
+      }}
+      className="group relative flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-3 text-left shadow-sm transition hover:border-indigo-300 hover:shadow"
+    >
       <div className="flex items-start justify-between gap-1">
         <button type="button" className="flex min-w-0 flex-1 items-start gap-2 text-left" onClick={props.onOpen}>
           <span aria-hidden className="text-2xl leading-none">

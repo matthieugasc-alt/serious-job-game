@@ -34,6 +34,7 @@ import type {
   Folder,
   FolderId,
   LibraryState,
+  SavedDesk,
 } from "./spec";
 
 // ─── Ops (union FERMÉE côté dossier — le moteur ne la connaît pas) ──
@@ -62,13 +63,18 @@ export const LIBRARY_OPS = [
   "entries_linked",
   "entries_unlinked",
   "windows_reordered",
+  "desk_created",
+  "desk_renamed",
+  "desk_deleted",
+  "desk_entry_added",
+  "desk_entry_removed",
 ] as const;
 export type LibraryOpName = (typeof LIBRARY_OPS)[number];
 
 // ─── État vide et normalisation défensive ─────────────────────────
 
 export function emptyLibraryState(): LibraryState {
-  return { entries: {}, folders: {}, desk: { windows: [], layout: "single" } };
+  return { entries: {}, folders: {}, desk: { windows: [], layout: "single" }, desks: {} };
 }
 
 const DESK_LAYOUT_SET = new Set<string>(["single", "split-v", "split-h", "grid"]);
@@ -309,7 +315,24 @@ export function normalizeLibraryState(state: Json): LibraryState {
     }
   }
 
-  return { entries, folders, desk: parseDesk(state.desk, entries) };
+  const desks: Record<string, SavedDesk> = {};
+  if (isObject(state.desks)) {
+    for (const [id, raw] of Object.entries(state.desks)) {
+      const d = parseSavedDesk(raw, entries);
+      if (d && d.id === id) desks[id] = d;
+    }
+  }
+
+  return { entries, folders, desk: parseDesk(state.desk, entries), desks };
+}
+
+function parseSavedDesk(v: Json | undefined, entries: Record<EntryId, DocEntry>): SavedDesk | null {
+  if (!isObject(v)) return null;
+  const id = asString(v.id);
+  const name = asString(v.name);
+  if (id === undefined || name === undefined) return null;
+  const entry_ids = asStringArray(v.entry_ids).filter((eid) => eid in entries);
+  return { id, name, entry_ids, created_at: asNumber(v.created_at) ?? 0 };
 }
 
 // ─── Le reducer : applyLibraryOp ───────────────────────────────────
@@ -395,6 +418,21 @@ export function applyLibraryOp(state: Json, op: string, payload: JsonObject): Js
       break;
     case "windows_reordered":
       next = windowsReordered(s, p);
+      break;
+    case "desk_created":
+      next = deskCreated(s, p, at);
+      break;
+    case "desk_renamed":
+      next = deskRenamed(s, p);
+      break;
+    case "desk_deleted":
+      next = deskDeleted(s, p);
+      break;
+    case "desk_entry_added":
+      next = deskEntryAdded(s, p);
+      break;
+    case "desk_entry_removed":
+      next = deskEntryRemoved(s, p);
       break;
     default:
       next = null; // op inconnue → no-op journalisé défensif
@@ -750,6 +788,47 @@ function entriesUnlinked(s: LibraryState, p: JsonObject): LibraryState | null {
       [b]: { ...eb, links: eb.links.filter((l) => l.entry_id !== a) },
     },
   };
+}
+
+// ─── Bureaux personnalisés ─────────────────────────────────────────
+function deskCreated(s: LibraryState, p: JsonObject, at: number): LibraryState | null {
+  const id = asString(p.desk_id);
+  const name = (asString(p.name) ?? "").trim();
+  if (id === undefined || id.length === 0 || id in s.desks || name.length === 0) return null;
+  const seed = asStringArray(p.entry_ids).filter((eid) => eid in s.entries);
+  return { ...s, desks: { ...s.desks, [id]: { id, name, entry_ids: seed, created_at: at } } };
+}
+
+function deskRenamed(s: LibraryState, p: JsonObject): LibraryState | null {
+  const id = asString(p.desk_id);
+  const name = (asString(p.name) ?? "").trim();
+  const d = id !== undefined ? s.desks[id] : undefined;
+  if (!d || name.length === 0 || name === d.name) return null;
+  return { ...s, desks: { ...s.desks, [id!]: { ...d, name } } };
+}
+
+function deskDeleted(s: LibraryState, p: JsonObject): LibraryState | null {
+  const id = asString(p.desk_id);
+  if (id === undefined || !(id in s.desks)) return null;
+  const desks = { ...s.desks };
+  delete desks[id];
+  return { ...s, desks };
+}
+
+function deskEntryAdded(s: LibraryState, p: JsonObject): LibraryState | null {
+  const id = asString(p.desk_id);
+  const entryId = asString(p.entry_id);
+  const d = id !== undefined ? s.desks[id] : undefined;
+  if (!d || entryId === undefined || !(entryId in s.entries) || d.entry_ids.includes(entryId)) return null;
+  return { ...s, desks: { ...s.desks, [id!]: { ...d, entry_ids: [...d.entry_ids, entryId] } } };
+}
+
+function deskEntryRemoved(s: LibraryState, p: JsonObject): LibraryState | null {
+  const id = asString(p.desk_id);
+  const entryId = asString(p.entry_id);
+  const d = id !== undefined ? s.desks[id] : undefined;
+  if (!d || entryId === undefined || !d.entry_ids.includes(entryId)) return null;
+  return { ...s, desks: { ...s.desks, [id!]: { ...d, entry_ids: d.entry_ids.filter((e) => e !== entryId) } } };
 }
 
 function windowsReordered(s: LibraryState, p: JsonObject): LibraryState | null {

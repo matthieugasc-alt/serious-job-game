@@ -107,10 +107,23 @@ export type DeskState = {
   // V2 vue Bureau : positions?: Record<EntryId, {x; y; pile_id?}> — réservé.
 };
 
+export type DeskId = string;
+
+/** Bureau personnalisé : une « boîte » nommée dans laquelle le joueur
+ *  dépose des documents ; un clic les rouvre tous ensemble. */
+export type SavedDesk = {
+  id: DeskId;
+  name: string;
+  entry_ids: EntryId[];
+  created_at: number;
+};
+
 export type LibraryState = {
   entries: Record<EntryId, DocEntry>;
   folders: Record<FolderId, Folder>;
   desk: DeskState;
+  /** Bureaux personnalisés (collections de documents ouvrables en un clic). */
+  desks: Record<DeskId, SavedDesk>;
 };
 
 // ─── Contrat Tool (initialState / describeForObservation / applyOp) ─

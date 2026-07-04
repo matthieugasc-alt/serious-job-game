@@ -282,3 +282,55 @@ describe("applyLibraryOp — robustesse", () => {
     expect(JSON.stringify(s0)).toBe(snapshot);
   });
 });
+
+describe("applyLibraryOp — bureaux personnalisés (boîtes de documents)", () => {
+  const boot = () =>
+    run(emptyLibraryState(), [
+      ["scenario_doc_indexed", { entry_id: "e1", document_id: "d1", at: T }],
+      ["scenario_doc_indexed", { entry_id: "e2", document_id: "d2", at: T }],
+    ]);
+
+  it("crée un bureau, y dépose des docs (dédup), retire, renomme", () => {
+    let s = run(boot(), [
+      ["desk_created", { desk_id: "b1", name: "Mon arbitrage", at: T }],
+      ["desk_entry_added", { desk_id: "b1", entry_id: "e1" }],
+      ["desk_entry_added", { desk_id: "b1", entry_id: "e2" }],
+      ["desk_entry_added", { desk_id: "b1", entry_id: "e1" }], // doublon → no-op
+    ]);
+    expect(s.desks.b1.entry_ids).toEqual(["e1", "e2"]);
+
+    s = run(s, [["desk_entry_removed", { desk_id: "b1", entry_id: "e1" }]]);
+    expect(s.desks.b1.entry_ids).toEqual(["e2"]);
+    s = run(s, [["desk_renamed", { desk_id: "b1", name: "Renommé" }]]);
+    expect(s.desks.b1.name).toBe("Renommé");
+  });
+
+  it("déposer un doc inexistant ou dans un bureau inconnu = no-op", () => {
+    const s = boot();
+    expect(applyLibraryOp(s as never, "desk_entry_added", { desk_id: "ghost", entry_id: "e1" })).toBe(s);
+    let s2 = run(s, [["desk_created", { desk_id: "b1", name: "B", at: T }]]);
+    const before = JSON.stringify(s2);
+    s2 = run(s2, [["desk_entry_added", { desk_id: "b1", entry_id: "ghost" }]]);
+    expect(JSON.stringify(s2)).toBe(before);
+  });
+
+  it("supprimer une entrée la retire des bureaux (normalisation)", () => {
+    const s = run(boot(), [
+      ["desk_created", { desk_id: "b1", name: "B", at: T }],
+      ["desk_entry_added", { desk_id: "b1", entry_id: "e1" }],
+      ["desk_entry_added", { desk_id: "b1", entry_id: "e2" }],
+      ["entry_removed", { entry_id: "e1" }],
+    ]);
+    expect(s.desks.b1.entry_ids).toEqual(["e2"]);
+  });
+
+  it("supprimer un bureau ne touche pas les documents", () => {
+    const s = run(boot(), [
+      ["desk_created", { desk_id: "b1", name: "B", at: T }],
+      ["desk_entry_added", { desk_id: "b1", entry_id: "e1" }],
+      ["desk_deleted", { desk_id: "b1" }],
+    ]);
+    expect(s.desks.b1).toBeUndefined();
+    expect(s.entries.e1).toBeDefined();
+  });
+});
