@@ -20,6 +20,8 @@ import { bibliothequeSpec } from "./bibliotheque/spec";
 import { BibliothequeToolPanel } from "./bibliotheque/components/BibliothequeToolPanel";
 import { decisionEngineSpec } from "./decision-engine/spec";
 import { DecisionEngineToolPanel } from "./decision-engine/components/DecisionEngineToolPanel";
+import { whiteboardSpec } from "./whiteboard/spec";
+import { WhiteboardTool } from "./whiteboard/WhiteboardTool";
 
 export const TOOL_REGISTRY: Record<string, WorkspaceTool> = {
   [notesSpec.id]: { ...notesSpec, Component: NotesTool },
@@ -38,6 +40,9 @@ export const TOOL_REGISTRY: Record<string, WorkspaceTool> = {
   // applyOp (tool_op), jamais réinitialisé. Panneau = aperçu ; l'app
   // complète (DecisionEngineApp) vit dans le dock via APP_REGISTRY.
   [decisionEngineSpec.id]: { ...decisionEngineSpec, Component: DecisionEngineToolPanel },
+  // Tableau blanc (brainstorming) : spec pure + applyOp (tool_op). Épinglé
+  // par le step ; les post-it des coéquipiers IA arrivent via le moteur.
+  [whiteboardSpec.id]: { ...whiteboardSpec, Component: WhiteboardTool },
 };
 
 export type { WorkspaceTool, ToolComponentProps, WorkspaceDispatch } from "./types";
