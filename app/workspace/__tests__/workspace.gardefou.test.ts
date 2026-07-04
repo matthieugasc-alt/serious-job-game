@@ -147,6 +147,33 @@ describe("Bloc-notes Universel — garde-fous du module (TOOL_BLOC_NOTES.md §1)
   });
 });
 
+describe("Gestionnaire Documentaire — garde-fous des hôtes (TOOL_GESTIONNAIRE_DOC.md §1/§5)", () => {
+  it("Mail/Messages n'importent que ArchiveButton du Tool bibliotheque (jamais api/model/spec)", () => {
+    // DocumentsApp est la COQUILLE HÔTE : elle monte BibliothequeApp — c'est
+    // son rôle (contrat §1), donc exclue de cette restriction.
+    const hosts = [
+      join(wsDir, "apps", "messages", "MessagesApp.tsx"),
+      join(wsDir, "apps", "messages", "ThreadConversation.tsx"),
+      join(wsDir, "apps", "mail", "MailApp.tsx"),
+    ];
+    for (const file of hosts) {
+      const src = readFileSync(file, "utf8");
+      const doc = [...src.matchAll(/from\s+["']([^"']*bibliotheque[^"']*)["']/g)].map((m) => m[1]);
+      for (const spec of doc) {
+        expect(
+          /bibliotheque\/ArchiveButton$/.test(spec),
+          `l'app hôte ${file} importe "${spec}" — seul ArchiveButton est permis`,
+        ).toBe(true);
+      }
+    }
+  });
+
+  it("DocumentsApp (coquille hôte) monte bien BibliothequeApp", () => {
+    const src = readFileSync(join(wsDir, "apps", "documents", "DocumentsApp.tsx"), "utf8");
+    expect(/from\s+["'][^"']*bibliotheque\/BibliothequeApp["']/.test(src)).toBe(true);
+  });
+});
+
 describe("TOOL_REGISTRY — garde-fou", () => {
   const toolsDir = join(wsDir, "tools");
   const folders = readdirSync(toolsDir).filter((d) =>

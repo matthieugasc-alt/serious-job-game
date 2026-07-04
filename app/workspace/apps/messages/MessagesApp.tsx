@@ -11,6 +11,7 @@ import { useEffect, useState } from "react";
 import type { ActorDef } from "@/app/lib/engine/mechanics";
 import type { Thread } from "@/app/lib/engine/workspace";
 import { ActorAvatar } from "@/app/workspace/primitives/ui";
+import { ArchiveButton } from "@/app/workspace/tools/bibliotheque/ArchiveButton";
 import { fmtWhen } from "../format";
 import type { WorkspaceAppProps } from "../types";
 import { ThreadConversation } from "./ThreadConversation";
@@ -113,6 +114,27 @@ export function MessagesApp({ workspace, actors, dispatch, busyThreads, context 
                     })
                     .join(" · ")}
                 </p>
+              </div>
+              <div className="ml-auto shrink-0">
+                <ArchiveButton
+                  target={{
+                    kind: "thread",
+                    thread_id: selected.thread_id,
+                    title: titleOf(selected),
+                    snapshot: {
+                      title: titleOf(selected),
+                      messages: selected.messages.map((m) => ({
+                        from: m.actor_id ?? m.from,
+                        at: m.at,
+                        content: m.content,
+                      })),
+                    },
+                  }}
+                  libraryState={workspace.toolStates.bibliotheque ?? null}
+                  dispatch={dispatch}
+                  side="below"
+                  align="right"
+                />
               </div>
             </header>
             <div className="min-h-0 flex-1">

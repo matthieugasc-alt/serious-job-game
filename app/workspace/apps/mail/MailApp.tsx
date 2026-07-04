@@ -13,6 +13,7 @@ import type { WsMail } from "@/app/lib/engine/workspace";
 import { Markdown } from "@/app/workspace/primitives/Markdown";
 import { ActorAvatar, PrimaryButton, SecondaryButton } from "@/app/workspace/primitives/ui";
 import { AnnotateButton, SelectionAnnotate } from "@/app/workspace/tools/bloc-notes/AnnotateButton";
+import { ArchiveButton } from "@/app/workspace/tools/bibliotheque/ArchiveButton";
 import { fmtWhen } from "../format";
 import type { WorkspaceAppProps } from "../types";
 
@@ -269,6 +270,24 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
                   side="below"
                   align="right"
                   title="Annoter ce mail dans le bloc-notes"
+                />
+                <ArchiveButton
+                  target={{
+                    kind: "mail",
+                    mail_id: selected.mail_id,
+                    title: selected.subject,
+                    snapshot: {
+                      from: selected.from,
+                      to: selected.to,
+                      subject: selected.subject,
+                      body: selected.body,
+                      at: selected.at,
+                    },
+                  }}
+                  libraryState={workspace.toolStates.bibliotheque ?? null}
+                  dispatch={dispatch}
+                  side="below"
+                  align="right"
                 />
                 <SecondaryButton className="!px-3 !py-1.5 !text-xs" onClick={() => reply(selected)}>
                   ↩ Répondre

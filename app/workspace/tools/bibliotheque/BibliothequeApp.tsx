@@ -33,7 +33,7 @@ import {
 import type { SortKey } from "./api";
 import { BIBLIOTHEQUE_TOOL_ID } from "./spec";
 import type { DocEntry } from "./spec";
-import { EntryReader } from "./components/EntryReader";
+import { ReaderAugmente } from "./components/ReaderAugmente";
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "added", label: "Ajout récent" },
@@ -203,7 +203,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
           </button>
         </div>
         <div className="min-h-0 flex-1">
-          <EntryReader entry={openEntryObj} documents={documents} dispatch={dispatch} nameOf={nameOf} />
+          <ReaderAugmente entry={openEntryObj} documents={documents} dispatch={dispatch} nameOf={nameOf} />
         </div>
       </div>
     );
