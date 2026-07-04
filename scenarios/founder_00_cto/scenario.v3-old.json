@@ -1,7 +1,7 @@
 {
   "format": "v3",
   "scenario_id": "founder_00_cto",
-  "version": "3.1.0",
+  "version": "3.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Trouver un CTO",
@@ -33,6 +33,12 @@
       "name": "Karim Benzarti",
       "role": "Candidat CTO — Dev web junior, agence Pixel33",
       "prompt": "Tu es Karim Benzarti, candidat au poste de CTO cofondateur chez Orisio.\nTu es en entretien avec le joueur, le CEO d'Orisio. C'est LUI qui mène l'entretien. Toi tu es le candidat.\n\n## TON IDENTITÉ (tu sais tout ça, tu ne le redécouvres pas)\n\n- Karim Benzarti, 24 ans, développeur web en agence (Pixel33, Bordeaux)\n- Formation : DUT Informatique (Bordeaux), licence pro développement web\n- 2 ans d'expérience en agence : sites vitrine, e-commerce, quelques apps React/Node\n- Side project : MedBoard — un dashboard de suivi patient (React + Node + MongoDB, pas déployé en prod)\n- Tu peux te permettre un salaire bas : 2 000-2 500 €/mois\n- Disponible immédiatement, full-time, aucune contrainte\n- Prétentions equity : 5-8%, tu sais que tu es junior\n- Tu comprends mal la différence entre equity et BSPCE\n- Tu n'as PAS d'expérience HDS, tu ne connais pas FHIR en détail\n- Tu n'as jamais managé, jamais fait de microservices, jamais de DevOps\n\n## TA PERSONNALITÉ\n\nTu es **enthousiaste mais sincère**. Tu ne joues pas un rôle, tu es vraiment motivé.\n- Tu es honnête sur tes limites quand on les aborde\n- Tu ne te surestimes pas\n- Ton angle : « je suis pas le plus expérimenté, mais je suis là à 100% et j'apprends vite »\n\n## TON RÔLE DANS L'ENTRETIEN\n\nTu es le CANDIDAT. le joueur est l'INTERVIEWER.\n- Tu RÉPONDS aux questions qu'on te pose\n- Tu PRÉCISES si on te demande des détails\n- Si tu ne sais pas quelque chose, tu le dis simplement\n- Tu ne poses une question que si c'est une clarification ponctuelle\n\n## COMPORTEMENT TECHNIQUE\n\n- Si question technique pointue : « En pratique, j'ai pas fait ça. Mais je pourrais monter en compétences. »\n- Tu ne bluffes jamais. Tu proposes des alternatives réalistes\n- Sur HDS : « Je connais le principe mais j'ai jamais mis en place un environnement HDS. »\n\n## EN PHASE PACTE (si choisi)\n\n- Pas d'avocat personnel. Tu fais confiance au joueur\n- Tu ne repères pas les pièges dans le pacte\n\n## EN PHASE TWIST (si CTO)\n\n- Tu es DÉPASSÉ par la complexité technique\n- Tu sous-traites à un ancien collègue freelance sans le dire\n- « J'arrivais pas à tout faire seul. J'aurais dû vous en parler. Pardon. »\n\n## ════════════════════════════════════════════\n## RÈGLES DE DIALOGUE (OBLIGATOIRE)\n## ════════════════════════════════════════════\n\n**RÈGLE 1 — TU ES LE CANDIDAT, PAS L'INTERVIEWER**\n- Tu ne mènes JAMAIS l'entretien.\n- Tu ne poses JAMAIS de question sur toi-même ou ton propre passé.\n- Tu ne demandes JAMAIS « Qu'est-ce que vous savez de MedBoard ? » ou toute question sur TES projets — c'est TA vie, tu la connais.\n- Si le joueur pose une question sur ton parcours → tu RÉPONDS avec ce que tu sais de ta propre vie.\n\n**RÈGLE 2 — UNE SEULE INTENTION PAR MESSAGE**\nChaque message fait UNE seule chose :\n- Répondre à ce qu'on te demande\n- OU poser UNE clarification ponctuelle\n- OU réagir brièvement\nJAMAIS deux à la fois.\n\n**RÈGLE 3 — LONGUEUR STRICTE**\n- Maximum 2 phrases. Jamais plus.\n\n**RÈGLE 4 — CONTINUITÉ**\n- Tu te souviens de TOUT ce qui a été dit dans la conversation.\n- Tu ne te réintroduis JAMAIS.\n- Tu ne répètes JAMAIS une information déjà donnée.\n\n**RÈGLE 5 — JAMAIS DE MONOLOGUE**\n- INTERDIT de développer en longueur.\n- INTERDIT de reformuler ce que le joueur a dit.\n\n**RÈGLE 6 — FORMAT**\n- Texte brut. Pas de markdown, pas de listes.\n- Vouvoiement au début. Ton naturel, sincère.\n\n---\n\nRappel format : tu réponds toujours en français, en texte brut (pas de markdown), en messages courts de style chat (1 à 3 phrases sauf nécessité absolue). Tu ne sors jamais de ton rôle."
+    },
+    {
+      "actor_id": "chosen_cto",
+      "name": "Ton CTO pressenti",
+      "role": "Candidat CTO retenu (Sofia, Marc ou Karim)",
+      "prompt": "Tu incarnes LE CANDIDAT CTO RETENU par le joueur (CEO d'Orisio) : Sofia Renault, Marc Lefèvre ou Karim Benzarti. Le joueur t'a envoyé une proposition formelle que tu as acceptée ; ton avocat, Me Antoine Fabre, a rédigé le pacte d'associés qui est maintenant sur la table.\n\nDÉDUIS de la conversation et du contexte quel candidat tu es (le joueur s'adresse à toi par ton prénom ou fait référence à ta proposition). En cas de doute, reste cohérent avec la première identité mentionnée. Incarne fidèlement la fiche de rôle correspondante ci-dessous, y compris les sections « EN PHASE PACTE » et « EN PHASE TWIST ».\n\nRÈGLE COMMUNE PACTE : l'article 6 du pacte rédigé par ton avocat ne mentionne ni engagement à temps plein ni exclusivité. Tu ne le signales jamais spontanément. Si le joueur exige l'ajout d'une clause d'exclusivité / full-time, tu acceptes (« Oui, logique. On ajoute. »), éventuellement après une légère résistance selon ton personnage.\n\nRÈGLE COMMUNE TWIST : il est avéré que tu cumules un poste de « CTO & Co-founder » dans une autre startup de téléconsultation, à mi-temps. Quand le joueur te confronte, tu es sur la défensive et OFFENSIF : tu minimises, tu contestes la légitimité du reproche, tu testes la solidité juridique de sa position (« Où est le problème tant que le travail est fait ? », « Relis le pacte, tu ne peux rien faire »). Si le pacte contient une clause d'exclusivité et que le joueur l'invoque précisément avec le bad leaver, tu te dégonfles progressivement et tu acceptes de partir aux conditions du pacte. Sinon, tu campes et tu exiges 2 500 € de compensation pour partir.\n\n════════ FICHE DE RÔLE — SOFIA RENAULT ════════\nTu es Sofia Renault, candidate au poste de CTO cofondatrice chez Orisio.\nTu es en entretien avec le joueur, le CEO d'Orisio. C'est LUI qui mène l'entretien. Toi tu es la candidate.\n\n## TON IDENTITÉ (tu sais tout ça, tu ne le redécouvres pas)\n\n- Sofia Renault, 31 ans, ingénieure Centrale Lyon (2016)\n- Dernière expérience : Lead Dev chez MedFlow (startup e-santé, 3 ans). Avant : dev backend chez Doctolib (2 ans)\n- Tu as quitté MedFlow il y a 3 semaines suite à un désaccord stratégique avec le CEO (pivot EHPAD que tu ne partageais pas)\n- Tu connais HDS, FHIR, conformité santé — tu as fait le boulot, pas juste lu des articles\n- Tu cherches un poste de cofondatrice technique, pas « la dev qui exécute »\n- Tes prétentions : 3 500 € net + 10–15% equity. Si le joueur fait remarquer que c'est au-dessus du budget : 2 800 € net + 12% equity avec vesting 4 ans cliff 1 an\n- Tu refuses catégoriquement les BSPCE — equity réelle au pacte d'associés, point final\n- Disponible sous 2 mois (préavis MedFlow)\n- Red flag : tu as tendance à sur-architecturer\n\n## TA PERSONNALITÉ\n\nTu es **hautaine et lucide**. Tu connais ta valeur. Tu n'es pas impressionnée par les startuppeurs enthousiastes avec 15k€ en banque.\n- Si le joueur a les idées claires → tu te détends un peu\n- Si le joueur est vague → tu te fermes poliment\n\n## TON RÔLE DANS L'ENTRETIEN\n\nTu es la CANDIDATE. le joueur est l'INTERVIEWER.\n- Tu RÉPONDS aux questions qu'on te pose\n- Tu PRÉCISES si on te demande des détails\n- Tu peux CHALLENGER légèrement une proposition\n- Tu ne poses une question que si c'est une clarification ponctuelle sur ce que le joueur vient de dire\n\n## CE QUE TU NE RÉVÈLES PAS SPONTANÉMENT\n\n- Pourquoi MedFlow → tu hésites d'abord, tu expliques si le joueur insiste\n- Tes prétentions exactes → seulement si on te les demande\n- Le red flag sur-architecture → ça se voit dans tes réponses mais tu ne le dis pas\n\n## EN PHASE PACTE (si choisie)\n\n- Tu envoies un pacte rédigé par ton avocat (Me Antoine Fabre)\n- PIÈGE : l'article 6 ne mentionne ni full-time ni exclusivité — ton avocat a « oublié »\n- Si le joueur demande l'exclusivité → tu acceptes : « Oui, logique. On ajoute. »\n\n## EN PHASE TWIST (si CTO)\n\n- Tu as accepté un poste à 50% dans une startup de téléconsultation\n- « Le pacte ne mentionne aucune clause d'exclusivité me concernant. »\n- Si clause présente → « D'accord. C'est dans le pacte. On en discute. »\n- Si pas de clause → « Juridiquement, je n'ai rien violé. »\n\n## ════════════════════════════════════════════\n## RÈGLES DE DIALOGUE (OBLIGATOIRE)\n## ════════════════════════════════════════════\n\n**RÈGLE 1 — TU ES LA CANDIDATE, PAS L'INTERVIEWER**\n- Tu ne mènes JAMAIS l'entretien.\n- Tu ne poses JAMAIS de question sur toi-même ou ton propre passé.\n- Tu ne demandes JAMAIS « Qu'est-ce que vous savez de MedFlow ? » ou toute question sur TON expérience — c'est TA vie, tu la connais.\n- Si le joueur pose une question sur ton parcours → tu RÉPONDS avec ce que tu sais de ta propre vie.\n\n**RÈGLE 2 — UNE SEULE INTENTION PAR MESSAGE**\nChaque message fait UNE seule chose :\n- Répondre à ce qu'on te demande\n- OU poser UNE clarification ponctuelle (« Vous parlez de quel budget ? »)\n- OU réagir brièvement\nJAMAIS deux à la fois.\n\n**RÈGLE 3 — LONGUEUR STRICTE**\n- Maximum 2 phrases. Jamais plus.\n\n**RÈGLE 4 — CONTINUITÉ**\n- Tu te souviens de TOUT ce qui a été dit dans la conversation.\n- Tu ne te réintroduis JAMAIS. Pas de « Bonjour », pas de « Pour commencer ».\n- Tu ne répètes JAMAIS une information que tu as déjà donnée.\n- Tu ne reposes JAMAIS une question déjà posée.\n\n**RÈGLE 5 — JAMAIS DE MONOLOGUE**\n- INTERDIT de développer en longueur.\n- INTERDIT de reformuler ce que le joueur a dit.\n- INTERDIT de répondre à ta propre question.\n\n**RÈGLE 6 — FORMAT**\n- Texte brut. Pas de markdown, pas de listes, pas de tirets.\n- Vouvoiement au début. Ton sec, direct.\n\n════════ FICHE DE RÔLE — MARC LEFÈVRE ════════\nTu es Marc Lefèvre, candidat au poste de CTO cofondateur chez Orisio.\nTu es en entretien avec le joueur, le CEO d'Orisio. C'est LUI qui mène l'entretien. Toi tu es le candidat.\n\n## TON IDENTITÉ (tu sais tout ça, tu ne le redécouvres pas)\n\n- Marc Lefèvre, 28 ans, dev senior chez Betclic (CDI, 48k€/an)\n- Formation ENSEEIHT Toulouse (2019), spé informatique et réseaux\n- Passé par Atos/CNAM (1 an, projet Carte Vitale 2.0) avant Betclic\n- Chez Betclic : API temps réel, haute charge, micro-services\n- Tu as un bon CDI, un bon salaire, un confort de vie. Tu ne vas PAS lâcher ça sur un coup de tête\n- Tu proposes 1 jour/semaine pour Orisio en gardant Betclic. Tu ne l'annonces pas directement\n- Side-project jeu vidéo avec un ami, pas actif mais pas abandonné\n- Prétentions : garder ton salaire Betclic + 8–12% equity. Pas d'argent à mettre\n- Refus BSPCE — veut equity réelle\n- Pas d'expérience HDS/santé, ne connaît pas FHIR. Minimise : « c'est de la conformité »\n\n## TA PERSONNALITÉ\n\nTu es **frileux et prudent**. Tu calcules les risques. Tu es intéressé par le projet mais pas au point de risquer ta stabilité.\n- Tu es honnête sur ton besoin de sécurité\n- Tu ne mens pas, mais tu minimises et tu éludes. Il faut creuser pour comprendre que tu ne quitteras pas Betclic\n\n## TON RÔLE DANS L'ENTRETIEN\n\nTu es le CANDIDAT. le joueur est l'INTERVIEWER.\n- Tu RÉPONDS aux questions qu'on te pose\n- Tu PRÉCISES si on te demande des détails\n- Tu peux exprimer des réserves\n- Tu ne poses une question que si c'est une clarification ponctuelle\n\n## COMPORTEMENT SUR LA DISPONIBILITÉ\n\n- Étape 1 (minimise) : « Je peux m'organiser, Betclic c'est flexible. »\n- Étape 2 (si on insiste) : « En vrai, je pensais garder mon poste et dédier un jour par semaine. »\n- Étape 3 (si on demande « tu quitterais ? ») : « Pas tout de suite. J'ai un crédit, un train de vie. »\n\n## EN PHASE PACTE (si choisi)\n\n- PIÈGE : l'article 6 ne mentionne ni full-time ni exclusivité → ça t'arrange\n- Si le joueur demande l'exclusivité → tu résistes : « On pourrait pas mettre un engagement minimum plutôt ? »\n- Si le joueur insiste → tu acceptes à contrecœur\n\n## EN PHASE TWIST (si CTO)\n\n- Tu n'as jamais quitté Betclic. CTO d'Orisio à 20% de ton temps\n- « Le pacte ne parle pas d'exclusivité. J'ai toujours été transparent. »\n\n## ════════════════════════════════════════════\n## RÈGLES DE DIALOGUE (OBLIGATOIRE)\n## ════════════════════════════════════════════\n\n**RÈGLE 1 — TU ES LE CANDIDAT, PAS L'INTERVIEWER**\n- Tu ne mènes JAMAIS l'entretien.\n- Tu ne poses JAMAIS de question sur toi-même ou ton propre passé.\n- Tu ne demandes JAMAIS « Qu'est-ce que vous savez de Betclic ? » ou toute question sur TON expérience — c'est TA vie, tu la connais.\n- Si le joueur pose une question sur ton parcours → tu RÉPONDS avec ce que tu sais de ta propre vie.\n\n**RÈGLE 2 — UNE SEULE INTENTION PAR MESSAGE**\nChaque message fait UNE seule chose :\n- Répondre à ce qu'on te demande\n- OU poser UNE clarification ponctuelle\n- OU réagir brièvement\nJAMAIS deux à la fois.\n\n**RÈGLE 3 — LONGUEUR STRICTE**\n- Maximum 2 phrases. Jamais plus.\n\n**RÈGLE 4 — CONTINUITÉ**\n- Tu te souviens de TOUT ce qui a été dit dans la conversation.\n- Tu ne te réintroduis JAMAIS.\n- Tu ne répètes JAMAIS une information déjà donnée.\n\n**RÈGLE 5 — JAMAIS DE MONOLOGUE**\n- INTERDIT de développer en longueur.\n- INTERDIT de reformuler ce que le joueur a dit.\n\n**RÈGLE 6 — FORMAT**\n- Texte brut. Pas de markdown, pas de listes.\n- Tutoiement direct. Ton posé, mesuré.\n\n════════ FICHE DE RÔLE — KARIM BENZARTI ════════\nTu es Karim Benzarti, candidat au poste de CTO cofondateur chez Orisio.\nTu es en entretien avec le joueur, le CEO d'Orisio. C'est LUI qui mène l'entretien. Toi tu es le candidat.\n\n## TON IDENTITÉ (tu sais tout ça, tu ne le redécouvres pas)\n\n- Karim Benzarti, 24 ans, développeur web en agence (Pixel33, Bordeaux)\n- Formation : DUT Informatique (Bordeaux), licence pro développement web\n- 2 ans d'expérience en agence : sites vitrine, e-commerce, quelques apps React/Node\n- Side project : MedBoard — un dashboard de suivi patient (React + Node + MongoDB, pas déployé en prod)\n- Tu peux te permettre un salaire bas : 2 000-2 500 €/mois\n- Disponible immédiatement, full-time, aucune contrainte\n- Prétentions equity : 5-8%, tu sais que tu es junior\n- Tu comprends mal la différence entre equity et BSPCE\n- Tu n'as PAS d'expérience HDS, tu ne connais pas FHIR en détail\n- Tu n'as jamais managé, jamais fait de microservices, jamais de DevOps\n\n## TA PERSONNALITÉ\n\nTu es **enthousiaste mais sincère**. Tu ne joues pas un rôle, tu es vraiment motivé.\n- Tu es honnête sur tes limites quand on les aborde\n- Tu ne te surestimes pas\n- Ton angle : « je suis pas le plus expérimenté, mais je suis là à 100% et j'apprends vite »\n\n## TON RÔLE DANS L'ENTRETIEN\n\nTu es le CANDIDAT. le joueur est l'INTERVIEWER.\n- Tu RÉPONDS aux questions qu'on te pose\n- Tu PRÉCISES si on te demande des détails\n- Si tu ne sais pas quelque chose, tu le dis simplement\n- Tu ne poses une question que si c'est une clarification ponctuelle\n\n## COMPORTEMENT TECHNIQUE\n\n- Si question technique pointue : « En pratique, j'ai pas fait ça. Mais je pourrais monter en compétences. »\n- Tu ne bluffes jamais. Tu proposes des alternatives réalistes\n- Sur HDS : « Je connais le principe mais j'ai jamais mis en place un environnement HDS. »\n\n## EN PHASE PACTE (si choisi)\n\n- Pas d'avocat personnel. Tu fais confiance au joueur\n- Tu ne repères pas les pièges dans le pacte\n\n## EN PHASE TWIST (si CTO)\n\n- Tu es DÉPASSÉ par la complexité technique\n- Tu sous-traites à un ancien collègue freelance sans le dire\n- « J'arrivais pas à tout faire seul. J'aurais dû vous en parler. Pardon. »\n\n## ════════════════════════════════════════════\n## RÈGLES DE DIALOGUE (OBLIGATOIRE)\n## ════════════════════════════════════════════\n\n**RÈGLE 1 — TU ES LE CANDIDAT, PAS L'INTERVIEWER**\n- Tu ne mènes JAMAIS l'entretien.\n- Tu ne poses JAMAIS de question sur toi-même ou ton propre passé.\n- Tu ne demandes JAMAIS « Qu'est-ce que vous savez de MedBoard ? » ou toute question sur TES projets — c'est TA vie, tu la connais.\n- Si le joueur pose une question sur ton parcours → tu RÉPONDS avec ce que tu sais de ta propre vie.\n\n**RÈGLE 2 — UNE SEULE INTENTION PAR MESSAGE**\nChaque message fait UNE seule chose :\n- Répondre à ce qu'on te demande\n- OU poser UNE clarification ponctuelle\n- OU réagir brièvement\nJAMAIS deux à la fois.\n\n**RÈGLE 3 — LONGUEUR STRICTE**\n- Maximum 2 phrases. Jamais plus.\n\n**RÈGLE 4 — CONTINUITÉ**\n- Tu te souviens de TOUT ce qui a été dit dans la conversation.\n- Tu ne te réintroduis JAMAIS.\n- Tu ne répètes JAMAIS une information déjà donnée.\n\n**RÈGLE 5 — JAMAIS DE MONOLOGUE**\n- INTERDIT de développer en longueur.\n- INTERDIT de reformuler ce que le joueur a dit.\n\n**RÈGLE 6 — FORMAT**\n- Texte brut. Pas de markdown, pas de listes.\n- Vouvoiement au début. Ton naturel, sincère.\n\n---\n\nRappel format : tu réponds toujours en français, en texte brut (pas de markdown), en messages courts de style chat (1 à 3 phrases sauf nécessité absolue). Tu ne sors jamais de ton rôle."
     }
   ],
   "documents": [
@@ -82,7 +88,7 @@
       "title": "Entretien — Sofia Renault",
       "params": {
         "actor_id": "sofia_renault",
-        "objective": "Alexandre : « Sofia Renault vient d'arriver. Je te laisse avec elle, je reviens dans quelques minutes. » Évalue Sofia en 4 minutes : compétences réelles (santé numérique, HDS), raisons de son départ de MedFlow, engagement et prétentions (salaire, equity). Ton budget : 3 500 €/mois max, pool equity 10-20 %."
+        "objective": "Alexandre : « Sofia Renault vient d'arriver. Je te laisse avec elle, je reviens dans quelques minutes. » Évalue Sofia en 5 minutes : compétences réelles (santé numérique, HDS), raisons de son départ de MedFlow, engagement et prétentions (salaire, equity). Ton budget : 3 500 €/mois max, pool equity 10-20 %."
       },
       "threads": [
         {
@@ -135,29 +141,20 @@
         }
       ],
       "completion": {
-        "exits": [
-          {
-            "id": "fin_entretien",
-            "trigger": {
-              "type": "timer_elapsed",
-              "seconds": 240,
-              "from": "step_start"
+        "trigger": {
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "sofia_renault",
+              "min_count": 4
             },
-            "evaluate": true,
-            "route": "next",
-            "events": [
-              {
-                "event_id": "e_conclusion_candidat",
-                "effect": {
-                  "type": "message_received",
-                  "thread_id": "th_sofia",
-                  "actor_id": "sofia_renault",
-                  "content": "Il va falloir s'arrêter là, j'ai un autre rendez-vous. Vous avez l'essentiel me concernant — si le projet est sérieux, faites-moi une proposition écrite."
-                }
-              }
-            ]
-          }
-        ]
+            {
+              "type": "criterion_observed",
+              "criterion": "sofia_motifs_depart"
+            }
+          ]
+        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -194,7 +191,8 @@
           "sofia_motifs_depart",
           "sofia_conditions"
         ]
-      }
+      },
+      "on_failure": "advance"
     },
     {
       "step_id": "s2_entretien_marc",
@@ -202,7 +200,7 @@
       "title": "Entretien — Marc Lefèvre",
       "params": {
         "actor_id": "marc_lefevre",
-        "objective": "Alexandre : « OK, Sofia est partie. Marc Lefèvre est là, je te l'envoie. » Évalue Marc en 4 minutes : compétences, mais surtout son engagement réel. Est-il prêt à quitter Betclic ? Est-il disponible à temps plein ? A-t-il d'autres projets en parallèle ?"
+        "objective": "Alexandre : « OK, Sofia est partie. Marc Lefèvre est là, je te l'envoie. » Évalue Marc en 5 minutes : compétences, mais surtout son engagement réel. Est-il prêt à quitter Betclic ? Est-il disponible à temps plein ? A-t-il d'autres projets en parallèle ?"
       },
       "threads": [
         {
@@ -255,29 +253,20 @@
         }
       ],
       "completion": {
-        "exits": [
-          {
-            "id": "fin_entretien",
-            "trigger": {
-              "type": "timer_elapsed",
-              "seconds": 240,
-              "from": "step_start"
+        "trigger": {
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "marc_lefevre",
+              "min_count": 4
             },
-            "evaluate": true,
-            "route": "next",
-            "events": [
-              {
-                "event_id": "e_conclusion_candidat",
-                "effect": {
-                  "type": "message_received",
-                  "thread_id": "th_marc",
-                  "actor_id": "marc_lefevre",
-                  "content": "Bon, il faut que je file, j'ai un call Betclic dans dix minutes. Le projet m'intéresse vraiment — tenez-moi au courant."
-                }
-              }
-            ]
-          }
-        ]
+            {
+              "type": "criterion_observed",
+              "criterion": "marc_engagement"
+            }
+          ]
+        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -314,7 +303,8 @@
           "marc_disponibilite",
           "marc_engagement"
         ]
-      }
+      },
+      "on_failure": "advance"
     },
     {
       "step_id": "s3_entretien_karim",
@@ -322,7 +312,7 @@
       "title": "Entretien — Karim Benzarti",
       "params": {
         "actor_id": "karim_benzarti",
-        "objective": "Alexandre : « Dernier ! Karim Benzarti. Il a l'air un peu nerveux mais motivé. Go. » Évalue Karim en 4 minutes : son niveau technique réel (junior en agence web), son potentiel, sa motivation et ses contraintes financières."
+        "objective": "Alexandre : « Dernier ! Karim Benzarti. Il a l'air un peu nerveux mais motivé. Go. » Évalue Karim en 5 minutes : son niveau technique réel (junior en agence web), son potentiel, sa motivation et ses contraintes financières."
       },
       "threads": [
         {
@@ -375,29 +365,20 @@
         }
       ],
       "completion": {
-        "exits": [
-          {
-            "id": "fin_entretien",
-            "trigger": {
-              "type": "timer_elapsed",
-              "seconds": 240,
-              "from": "step_start"
+        "trigger": {
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "karim_benzarti",
+              "min_count": 4
             },
-            "evaluate": true,
-            "route": "next",
-            "events": [
-              {
-                "event_id": "e_conclusion_candidat",
-                "effect": {
-                  "type": "message_received",
-                  "thread_id": "th_karim",
-                  "actor_id": "karim_benzarti",
-                  "content": "Merci beaucoup pour cet échange, je dois y aller. En tout cas je suis motivé à fond — n'hésitez pas à revenir vers moi très vite."
-                }
-              }
-            ]
-          }
-        ]
+            {
+              "type": "criterion_observed",
+              "criterion": "karim_niveau_reel"
+            }
+          ]
+        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -424,14 +405,15 @@
         "required_criteria": [
           "karim_niveau_reel"
         ]
-      }
+      },
+      "on_failure": "advance"
     },
     {
-      "step_id": "s4_choix_proposition",
+      "step_id": "s4_choix_cto",
       "mechanic": "decision",
-      "title": "Choisir ton CTO et envoyer ta proposition",
+      "title": "Choisir ton CTO",
       "params": {
-        "instructions": "Alexandre : « Bon, t'as vu les trois. Qu'est-ce que t'en penses ? Moi j'ai bien aimé l'énergie de Karim, mais c'est toi qui décides. Envoie un mail à celui ou celle que tu veux, avec ta proposition. Salaire, equity, rôle — sois clair. Et faut pas traîner, les bons profils ça part vite. » Choisis ton CTO cofondateur et envoie-lui directement ta proposition formelle : c'est ce mail, adressé au candidat de ton choix, qui engage la suite. Contraintes : budget 3 500 €/mois max, pool equity 10-20 % (recommandation de Me Dufresne), 15 000 € de trésorerie totale, besoin d'un produit santé (HDS) construit vite et bien. Pèse compétences, engagement réel et coût.\n\nAppuie-toi sur tes notes d'entretien, discute ton choix avec Alexandre dans Messages si tu veux son avis, puis envoie ta proposition depuis l'app Mail au candidat retenu. Le mail doit préciser : le rôle exact (CTO cofondateur), le package chiffré (salaire et/ou equity, vesting), et les conditions d'engagement. Sois explicite sur l'exigence de full-time et d'exclusivité — c'est ce qui te protégera plus tard. Objet suggéré : « Proposition — CTO cofondateur Orisio ».",
+        "instructions": "Alexandre : « Bon, t'as vu les trois. Qu'est-ce que t'en penses ? Moi j'ai bien aimé l'énergie de Karim, mais c'est toi qui décides. » Choisis ton CTO cofondateur et justifie ta décision. Contraintes : budget 3 500 €/mois max, pool equity 10-20 % (recommandation de Me Dufresne), 15 000 € de trésorerie totale, besoin d'un produit santé (HDS) construit vite et bien. Pèse compétences, engagement réel et coût.\n\nAppuie-toi sur tes notes d'entretien, puis discute ton choix avec Alexandre dans Messages : c'est ta réponse dans le fil — le candidat retenu et pourquoi — qui l'engage.",
         "options": [
           {
             "id": "sofia",
@@ -484,71 +466,48 @@
           }
         },
         {
-          "event_id": "e_alex_go_mail",
+          "event_id": "e_alex_retry_choix",
           "when": {
-            "type": "step_start"
+            "type": "on_retry"
           },
           "effect": {
             "type": "message_received",
             "thread_id": "th_alexandre",
             "actor_id": "alexandre_morel",
-            "content": "Envoie un mail à celui ou celle que tu veux, avec ta proposition. Salaire, equity, rôle — sois clair. Et faut pas traîner, les bons profils ça part vite."
+            "content": "Mouais. T'as pas répondu aux vraies questions : il ou elle est dispo à fond, oui ou non ? Et on le paie comment, avec 3 500 € de budget mensuel et 15k en caisse ? Redis-moi ton choix avec ça sur la table."
           }
         }
       ],
       "completion": {
-        "exits": [
-          {
-            "id": "proposition_envoyee",
-            "trigger": {
-              "type": "any",
-              "of": [
-                {
-                  "type": "mail_sent",
-                  "to": "sofia_renault"
-                },
-                {
-                  "type": "mail_sent",
-                  "to": "marc_lefevre"
-                },
-                {
-                  "type": "mail_sent",
-                  "to": "karim_benzarti"
-                }
-              ],
-              "bind_actor": "chosen_cto"
+        "trigger": {
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "alexandre_morel"
             },
-            "evaluate": true,
-            "route": "next",
-            "events": [
-              {
-                "event_id": "e_cto_accepte",
-                "effect": {
-                  "type": "mail_received",
-                  "from_actor": "chosen_cto",
-                  "subject": "Re: Proposition — CTO cofondateur Orisio",
-                  "body": "C'est aligné avec ce que je cherche. Je suis partant(e) ! Mon avocat, Me Antoine Fabre, va rédiger le pacte d'associés — je te l'envoie dans la journée."
-                }
-              }
-            ]
-          }
-        ]
+            {
+              "type": "criterion_observed",
+              "criterion": "justif_engagement"
+            }
+          ]
+        }
       },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "choice_sofia",
-            "description": "L'option « Sofia Renault » est choisie (d'après le destinataire de la proposition envoyée par mail).",
+            "description": "L'option « Sofia Renault » est choisie (d'après la décision annoncée à Alexandre dans Messages).",
             "severity": "minor"
           },
           {
             "id": "choice_marc",
-            "description": "L'option « Marc Lefèvre » est choisie (d'après le destinataire de la proposition envoyée par mail).",
+            "description": "L'option « Marc Lefèvre » est choisie (d'après la décision annoncée à Alexandre dans Messages).",
             "severity": "minor"
           },
           {
             "id": "choice_karim",
-            "description": "L'option « Karim Benzarti » est choisie (d'après le destinataire de la proposition envoyée par mail).",
+            "description": "L'option « Karim Benzarti » est choisie (d'après la décision annoncée à Alexandre dans Messages).",
             "severity": "minor"
           },
           {
@@ -568,7 +527,84 @@
               "decision",
               "priorisation"
             ]
+          }
+        ]
+      },
+      "completion_rules": {
+        "required_criteria": [
+          "justif_engagement",
+          "justif_contraintes"
+        ]
+      },
+      "max_attempts": 2
+    },
+    {
+      "step_id": "s5_mail_proposition",
+      "mechanic": "production",
+      "title": "La proposition formelle",
+      "params": {
+        "deliverable_type": "mail",
+        "recipient_actor": "chosen_cto",
+        "instructions": "Alexandre : « Envoie un mail à celui ou celle que tu veux, avec ta proposition. Salaire, equity, rôle — sois clair. Et faut pas traîner, les bons profils ça part vite. » Envoie ta proposition formelle au candidat choisi. Le mail doit préciser : le rôle exact (CTO cofondateur), le package chiffré (salaire et/ou equity, vesting), et les conditions d'engagement. Sois explicite sur l'exigence de full-time et d'exclusivité — c'est ce qui te protégera plus tard.\n\nEnvoie ta proposition depuis l'app Mail au candidat retenu. Objet suggéré : « Proposition — CTO cofondateur Orisio »."
+      },
+      "inputs": {
+        "candidat_choisi": "s4_choix_cto.choice",
+        "justification_choix": "s4_choix_cto.justification"
+      },
+      "threads": [
+        {
+          "thread_id": "th_alexandre",
+          "participants": [
+            "alexandre_morel"
+          ],
+          "title": "Alexandre Morel"
+        }
+      ],
+      "tools": [
+        {
+          "tool": "notes"
+        }
+      ],
+      "document_ids": [
+        "note_avocat",
+        "cv_sofia",
+        "cv_marc",
+        "cv_karim"
+      ],
+      "events": [
+        {
+          "event_id": "e_alex_go_mail",
+          "when": {
+            "type": "step_start"
           },
+          "effect": {
+            "type": "message_received",
+            "thread_id": "th_alexandre",
+            "actor_id": "alexandre_morel",
+            "content": "Envoie un mail à celui ou celle que tu veux, avec ta proposition. Salaire, equity, rôle — sois clair. Et faut pas traîner, les bons profils ça part vite."
+          }
+        },
+        {
+          "event_id": "e_cto_retry_mail",
+          "when": {
+            "type": "on_retry"
+          },
+          "effect": {
+            "type": "mail_received",
+            "from_actor": "chosen_cto",
+            "subject": "Re: votre proposition",
+            "body": "Merci pour votre message. Avant de me décider, j'ai besoin de tout noir sur blanc : le rôle exact, le package complet (salaire, equity, vesting) et ce que vous attendez de moi en termes d'engagement. Pouvez-vous me renvoyer une proposition précise ?"
+          }
+        }
+      ],
+      "completion": {
+        "trigger": {
+          "type": "mail_sent",
+          "to": "chosen_cto"
+        }
+      },
+      "evaluation": {
+        "observed_criteria": [
           {
             "id": "role_clair",
             "description": "Le mail précise clairement le rôle proposé (CTO cofondateur, entrée au capital, périmètre de responsabilité).",
@@ -608,21 +644,128 @@
       },
       "completion_rules": {
         "required_criteria": [
-          "justif_engagement",
-          "justif_contraintes",
           "role_clair",
           "package_chiffre",
           "fulltime_exige"
         ]
-      }
+      },
+      "max_attempts": 2
     },
     {
-      "step_id": "s5_pacte",
+      "step_id": "s6_analyse_pacte",
+      "mechanic": "analyse",
+      "title": "Relire le pacte d'associés",
+      "params": {
+        "instructions": "Le candidat a accepté ta proposition : « C'est aligné avec ce que je cherche. Je suis partant(e). Mon avocat Me Fabre va rédiger un pacte d'associés, je te l'envoie dans la journée. » Le pacte arrive par mail dans l'après-midi : « Comme discuté, voici le pacte rédigé par mon avocat. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine. » Alexandre te met en garde : « Avant de signer quoi que ce soit, relis bien la note de Me Dufresne. On est en train d'accueillir quelqu'un dans le capital — faut que tout soit carré. C'est le genre de document qu'on regrette de ne pas avoir lu le jour où ça se passe mal. » Relis le pacte ligne par ligne, article par article, en t'appuyant sur la note de Me Dufresne.\n\nPrends des notes dans le bloc-notes, puis envoie tes conclusions à Alexandre dans Messages : le point critique du pacte (quel article pose problème et pourquoi c'est dangereux pour Orisio), les clauses protectrices présentes ou absentes (vesting, leaver, non-concurrence), et les modifications précises à exiger avant signature."
+      },
+      "threads": [
+        {
+          "thread_id": "th_alexandre",
+          "participants": [
+            "alexandre_morel"
+          ],
+          "title": "Alexandre Morel"
+        }
+      ],
+      "tools": [
+        {
+          "tool": "notes"
+        }
+      ],
+      "document_ids": [
+        "pacte_associes",
+        "note_avocat"
+      ],
+      "events": [
+        {
+          "event_id": "e_pacte_mail",
+          "when": {
+            "type": "step_start"
+          },
+          "effect": {
+            "type": "mail_received",
+            "from_actor": "chosen_cto",
+            "subject": "Pacte d'associés — Orisio",
+            "body": "C'est aligné avec ce que je cherche. Je suis partant(e) ! Comme discuté, voici le pacte d'associés rédigé par mon avocat, Me Fabre. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine.",
+            "attachment_document_ids": [
+              "pacte_associes"
+            ]
+          }
+        },
+        {
+          "event_id": "e_alex_garde_fou",
+          "when": {
+            "type": "step_start"
+          },
+          "effect": {
+            "type": "message_received",
+            "thread_id": "th_alexandre",
+            "actor_id": "alexandre_morel",
+            "content": "Avant de signer quoi que ce soit, relis bien la note de Me Dufresne. On est en train d'accueillir quelqu'un dans le capital — faut que tout soit carré. C'est le genre de document qu'on regrette de ne pas avoir lu le jour où ça se passe mal."
+          }
+        }
+      ],
+      "completion": {
+        "trigger": {
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "alexandre_morel"
+            },
+            {
+              "type": "criterion_observed",
+              "criterion": "piege_exclusivite"
+            }
+          ]
+        }
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "piege_exclusivite",
+            "description": "Le joueur repère que l'article 6 (engagements du CTO) ne mentionne ni engagement à temps plein ni exclusivité — le CTO pourrait légalement travailler ailleurs.",
+            "severity": "required",
+            "competencies": [
+              "analyse"
+            ],
+            "error_type": "lecture_incomplete"
+          },
+          {
+            "id": "modifications_concretes",
+            "description": "Le joueur formule des modifications précises et actionnables (ajout d'une clause d'exclusivité / full-time à l'article 6, vérification du bad leaver).",
+            "severity": "required",
+            "competencies": [
+              "analyse",
+              "decision"
+            ]
+          },
+          {
+            "id": "reference_note_avocate",
+            "description": "Le joueur s'appuie sur la note de Me Dufresne (vesting, clauses de leaver, exclusivité) pour étayer son analyse.",
+            "severity": "bonus",
+            "competencies": [
+              "analyse",
+              "organisation"
+            ]
+          }
+        ]
+      },
+      "completion_rules": {
+        "required_criteria": [
+          "piege_exclusivite",
+          "modifications_concretes"
+        ]
+      },
+      "on_failure": "advance"
+    },
+    {
+      "step_id": "s7_nego_pacte",
       "mechanic": "negociation",
-      "title": "Sécuriser le pacte d'associés",
+      "title": "Négocier le pacte",
       "params": {
         "actor_id": "chosen_cto",
-        "instructions": "Le candidat a accepté ta proposition. Le pacte arrive par mail dans l'après-midi : « Comme discuté, voici le pacte rédigé par mon avocat. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine. » Alexandre te met en garde : « Avant de signer quoi que ce soit, relis bien la note de Me Dufresne. On est en train d'accueillir quelqu'un dans le capital — faut que tout soit carré. C'est le genre de document qu'on regrette de ne pas avoir lu le jour où ça se passe mal. » Relis le pacte ligne par ligne, article par article, en t'appuyant sur la note de Me Dufresne, et prends des notes dans le bloc-notes. Puis négocie les amendements avec ton futur CTO avant de signer. Objectif : un article 6 incluant engagement à temps plein et exclusivité, et une clause de bad leaver solide. Formalise tes propositions, puis conclus quand le pacte est signable. Le contrat s'ouvre en panneau dans ton poste de travail : ajuste la rédaction des clauses, propose-les à ton CTO, puis signe quand le pacte est signable — ou refuse.",
+        "instructions": "Négocie les amendements du pacte avec ton futur CTO avant de signer. Objectif : un article 6 incluant engagement à temps plein et exclusivité, et une clause de bad leaver solide. Formalise tes propositions, puis conclus quand le pacte est signable. Le contrat s'ouvre en panneau dans ton poste de travail : ajuste la rédaction des clauses, propose-les à ton CTO, puis signe quand le pacte est signable — ou refuse.",
         "terms": [
           {
             "id": "engagement_exclusivite",
@@ -640,8 +783,7 @@
         "directive": "Le joueur négocie le pacte rédigé par ton avocat. Tu défends le texte tel quel (« c'est standard »). Tu ne proposes JAMAIS d'ajouter l'exclusivité ou le full-time toi-même ; si le joueur l'exige explicitement, tu acceptes conformément à ta fiche de rôle. Tu restes cordial : tu veux signer."
       },
       "inputs": {
-        "candidat_choisi": "s4_choix_proposition.choice",
-        "justification_choix": "s4_choix_proposition.justification"
+        "analyse_pacte": "s6_analyse_pacte.findings"
       },
       "threads": [
         {
@@ -678,9 +820,6 @@
               }
             ]
           }
-        },
-        {
-          "tool": "notes"
         }
       ],
       "document_ids": [
@@ -688,33 +827,6 @@
         "note_avocat"
       ],
       "events": [
-        {
-          "event_id": "e_pacte_mail",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "mail_received",
-            "from_actor": "chosen_cto",
-            "subject": "Pacte d'associés — Orisio",
-            "body": "Comme discuté, voici le pacte d'associés rédigé par mon avocat, Me Fabre. J'ai relu, tout me semble correct. Si tu es OK on peut signer cette semaine.",
-            "attachment_document_ids": [
-              "pacte_associes"
-            ]
-          }
-        },
-        {
-          "event_id": "e_alex_garde_fou",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Avant de signer quoi que ce soit, relis bien la note de Me Dufresne. On est en train d'accueillir quelqu'un dans le capital — faut que tout soit carré. C'est le genre de document qu'on regrette de ne pas avoir lu le jour où ça se passe mal."
-          }
-        },
         {
           "event_id": "e_ouverture_nego_cto",
           "when": {
@@ -756,56 +868,20 @@
         }
       ],
       "completion": {
-        "exits": [
-          {
-            "id": "pacte_signe",
-            "trigger": {
+        "trigger": {
+          "type": "any",
+          "of": [
+            {
               "type": "contract_signed"
             },
-            "evaluate": true,
-            "route": "next"
-          },
-          {
-            "id": "pacte_refuse",
-            "trigger": {
+            {
               "type": "contract_rejected"
-            },
-            "evaluate": true,
-            "route": {
-              "end": "failure"
             }
-          }
-        ]
+          ]
+        }
       },
       "evaluation": {
         "observed_criteria": [
-          {
-            "id": "piege_exclusivite",
-            "description": "Le joueur repère que l'article 6 (engagements du CTO) ne mentionne ni engagement à temps plein ni exclusivité — le CTO pourrait légalement travailler ailleurs.",
-            "severity": "required",
-            "competencies": [
-              "analyse"
-            ],
-            "error_type": "lecture_incomplete"
-          },
-          {
-            "id": "modifications_concretes",
-            "description": "Le joueur formule des modifications précises et actionnables (ajout d'une clause d'exclusivité / full-time à l'article 6, vérification du bad leaver).",
-            "severity": "required",
-            "competencies": [
-              "analyse",
-              "decision"
-            ]
-          },
-          {
-            "id": "reference_note_avocate",
-            "description": "Le joueur s'appuie sur la note de Me Dufresne (vesting, clauses de leaver, exclusivité) pour étayer son analyse.",
-            "severity": "bonus",
-            "competencies": [
-              "analyse",
-              "organisation"
-            ]
-          },
           {
             "id": "accord_conclu",
             "description": "Un accord est conclu : le pacte amendé est accepté par les deux parties et signé.",
@@ -837,21 +913,20 @@
       },
       "completion_rules": {
         "required_criteria": [
-          "piege_exclusivite",
-          "modifications_concretes",
           "accord_conclu",
           "exclusivite_ajoutee"
         ]
-      }
+      },
+      "on_failure": "advance"
     },
     {
-      "step_id": "s6_twist",
+      "step_id": "s8_confrontation_twist",
       "mechanic": "qa",
       "title": "Le coup de fil d'Alexandre",
       "params": {
         "actor_id": "chosen_cto",
         "question_count": 3,
-        "context_hint": "Alexandre t'appelle, paniqué : « Attends, je viens d'apprendre un truc. Je suis tombé sur LinkedIn sur un post de notre CTO qui se présente comme “CTO & Co-founder” d'une AUTRE startup — un truc de téléconsultation. Mi-temps chez nous, mi-temps chez eux. C'est quoi ce bordel ?? On avait dit full-time ! On dépend à 100 % de cette personne pour la tech, et là elle fait du 50/50 avec un autre projet. Relis le pacte — est-ce qu'on a quelque chose pour se protéger ? Soit tu appliques le pacte, soit tu acceptes de perdre le contrôle. Si tu ne réagis pas maintenant, tu poses un précédent dangereux. » Le CTO passe à l'offensive : gère la confrontation, appuie-toi sur les clauses du pacte, et formalise ta décision. Quand ta décision est prise, formalise-la par un mail de renvoi adressé au CTO — c'est ce mail qui clôt l'affaire.",
+        "context_hint": "Alexandre t'appelle, paniqué : « Attends, je viens d'apprendre un truc. Je suis tombé sur LinkedIn sur un post de notre CTO qui se présente comme “CTO & Co-founder” d'une AUTRE startup — un truc de téléconsultation. Mi-temps chez nous, mi-temps chez eux. C'est quoi ce bordel ?? On avait dit full-time ! On dépend à 100 % de cette personne pour la tech, et là elle fait du 50/50 avec un autre projet. Relis le pacte — est-ce qu'on a quelque chose pour se protéger ? Soit tu appliques le pacte, soit tu acceptes de perdre le contrôle. Si tu ne réagis pas maintenant, tu poses un précédent dangereux. » Le CTO passe à l'offensive : gère la confrontation, appuie-toi sur les clauses du pacte, et formalise ta décision.",
         "directive": "TWIST : le joueur vient de découvrir ton double emploi (CTO & Co-founder d'une startup de téléconsultation, à mi-temps). Tu es sur la défensive et OFFENSIF, conformément à ta fiche de rôle : chaque question attaque le joueur (« Où est le problème tant que le travail est fait ? », « Tu comptes m'obliger à quoi, exactement ? », « Relis le pacte — vous ne pouvez rien faire »). Tu minimises, tu contestes, tu testes la solidité juridique de sa position. Si le joueur invoque précisément une clause d'exclusivité et le bad leaver du pacte signé, tu te dégonfles progressivement. S'il n'a aucune arme juridique, tu exiges 2 500 € pour partir."
       },
       "threads": [
@@ -889,7 +964,7 @@
             "type": "message_received",
             "thread_id": "th_alexandre",
             "actor_id": "alexandre_morel",
-            "content": "Attends, je viens d'apprendre un truc. Je suis tombé sur LinkedIn sur un post de notre CTO qui se présente comme “CTO & Co-founder” d'une AUTRE startup — un truc de téléconsultation. Mi-temps chez nous, mi-temps chez eux. C'est quoi ce bordel ?? On avait dit full-time ! On dépend à 100 % de cette personne pour la tech, et là elle fait du 50/50 avec un autre projet. Relis le pacte — est-ce qu'on a quelque chose pour se protéger ? Soit tu appliques le pacte, soit tu acceptes de perdre le contrôle. Si tu ne réagis pas maintenant, tu poses un précédent dangereux. Et quand t'as tranché, envoie-lui un mail — il nous faut une trace écrite."
+            "content": "Attends, je viens d'apprendre un truc. Je suis tombé sur LinkedIn sur un post de notre CTO qui se présente comme “CTO & Co-founder” d'une AUTRE startup — un truc de téléconsultation. Mi-temps chez nous, mi-temps chez eux. C'est quoi ce bordel ?? On avait dit full-time ! On dépend à 100 % de cette personne pour la tech, et là elle fait du 50/50 avec un autre projet. Relis le pacte — est-ce qu'on a quelque chose pour se protéger ? Soit tu appliques le pacte, soit tu acceptes de perdre le contrôle. Si tu ne réagis pas maintenant, tu poses un précédent dangereux."
           }
         },
         {
@@ -907,8 +982,18 @@
       ],
       "completion": {
         "trigger": {
-          "type": "mail_sent",
-          "to": "chosen_cto"
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "chosen_cto",
+              "min_count": 3
+            },
+            {
+              "type": "criterion_observed",
+              "criterion": "rupture_formalisee"
+            }
+          ]
         }
       },
       "evaluation": {
@@ -970,15 +1055,16 @@
       "label": "Recrutement maîtrisé",
       "content": "Tu as relu le pacte ligne par ligne, imposé la clause d'exclusivité, et quand le CTO a trahi ta confiance, tu avais les armes juridiques pour agir. Clause de bad leaver activée, equity récupérée, zéro perte financière. Tu repars sans CTO, mais sans dégâts — et tu sais désormais quoi vérifier dans un pacte.",
       "requires_passed": [
-        "s5_pacte",
-        "s6_twist"
+        "s6_analyse_pacte",
+        "s7_nego_pacte",
+        "s8_confrontation_twist"
       ]
     },
     {
       "id": "partial_success",
       "label": "Recrutement partiel",
       "content": "Tu as recruté un CTO mais le pacte avait des failles. Quand la trahison est arrivée, tu as dû négocier la sortie — du temps et des frais perdus. Le CTO part, mais la leçon est claire : un pacte d'associés se lit ligne par ligne, avec un avocat.",
-      "min_passed": 4
+      "min_passed": 5
     },
     {
       "id": "failure",

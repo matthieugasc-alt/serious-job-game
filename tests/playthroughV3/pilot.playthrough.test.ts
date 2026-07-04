@@ -12,12 +12,13 @@
  *
  * Ce que ces tests PROUVENT :
  *  A. validateScenarioV3 = 0 issue (+ params valides pour chaque spec) ;
- *  B. happy path → ending "success" : s1 (message + critère observé),
- *     s2 (mail de cadrage à Thomas), s3 (contrat signé), outputs
- *     conformes aux output_keys, chaîne d'inputs s2 → s3 résolue ;
+ *  B. happy path → ending "success" : s1 (mail de debrief à Alexandre),
+ *     s2 (mail de cadrage à Thomas), s3 (EXIT contrat signé → next),
+ *     outputs conformes aux output_keys, chaîne d'inputs s2 → s3 résolue ;
  *  C. échec s1 → RETRY DIÉGÉTIQUE (event on_retry d'Alexandre, pas de
  *     bannière) puis chemin dégradé → ending "partial_success" ;
- *  D. tout raté → ending "failure" (default) — chaque ending atteignable.
+ *  D. tout raté → ending "failure" : s3 route l'EXIT contract_rejected
+ *     vers {end: "failure"} — chaque ending atteignable.
  */
 
 import * as fs from "node:fs";
@@ -36,7 +37,6 @@ import {
   completeStepV3,
   enterStep,
   recordActorMessage,
-  recordStepObservation,
   type StepCompletionOutcome,
 } from "@/app/lib/engine/workspaceReducer";
 import { validateScenarioV3, resolveStepInputsV3 } from "@/app/lib/engine/composerV3";
@@ -59,18 +59,21 @@ const OPTS = { specs: MECHANIC_SPECS };
 const opts = (now: number) => ({ now, ...OPTS });
 
 /** Oracle : verdict moteur avec observation synthétique + output RÉEL
- *  (buildOutput de la spec headless du step, depuis le workspace). */
+ *  (buildOutput de la spec headless du step, depuis le workspace).
+ *  `exitId` (chantier A) : verdict d'une SORTIE — la route déclarée de
+ *  l'exit s'applique après enregistrement du verdict. */
 function evaluate(
   session: SessionV3State,
   criteria: Record<string, boolean>,
   now: number,
+  exitId?: string,
 ): StepCompletionOutcome {
   const step = getCurrentStepV3(session)!;
   const spec = MECHANIC_SPECS[step.mechanic];
   expect(spec, `spec headless manquante pour ${step.mechanic}`).toBeDefined();
   const observation: StepObservation = { criteria };
   const output = spec.buildOutput(session.workspace, step, observation, session.actionLog);
-  return completeStepV3(session, observation, output, opts(now));
+  return completeStepV3(session, observation, output, opts(now), exitId);
 }
 
 const S2_MINORS = {
@@ -113,12 +116,14 @@ describe("B. happy path — journée complète, contrat signé", () => {
     const scenario = loadScenario();
     const session = initializeSessionV3(scenario, T0);
 
-    // ── s1 : Alexandre ouvre la journée dans Messages (verbatim v2).
+    // ── s1 : Alexandre ouvre la journée dans Messages (verbatim v2) et
+    //         annonce EXPLICITEMENT la remise attendue (mail de debrief).
     const entry = enterStep(session, opts(T0));
     expect(entry.completionFired).toBe(false);
     const alexThread = session.workspace.threads.th_alexandre;
     expect(alexThread.messages).toHaveLength(1);
     expect(alexThread.messages[0].content).toMatch(/Grosse session de boulot/);
+    expect(alexThread.messages[0].content).toMatch(/envoie-moi un mail de debrief/);
     expect(alexThread.unread).toBe(1);
 
     // Le joueur lit le data pack et prend des notes (Tool notes).
@@ -135,7 +140,8 @@ describe("B. happy path — journée complète, contrat signé", () => {
       opts(T0 + 2_000),
     );
 
-    // Conclusions envoyées à Alexandre → réponse IA + observation demandée.
+    // Le joueur discute avec Alexandre dans Messages — ça ne complète PAS
+    // le step (seul le mail de debrief avance).
     const msg = applyWorkspaceAction(
       session,
       {
@@ -147,21 +153,26 @@ describe("B. happy path — journée complète, contrat signé", () => {
       opts(T0 + 3_000),
     );
     expect(msg.completionFired).toBe(false);
-    expect(kinds(msg.effects)).toEqual(["actor_reply", "observe_step"]);
+    expect(kinds(msg.effects)).toEqual(["actor_reply"]);
     const reply = msg.effects[0];
     expect(reply).toMatchObject({ thread_id: "th_alexandre", actor_id: "alexandre_morel" });
     // Directive = cadrage universel de la mécanique analyse.
     expect(reply.kind === "actor_reply" && reply.directive).toMatch(/analyse documentaire/);
-
-    // L'orchestrateur (simulé) : Alexandre répond, puis observation fraîche.
     recordActorMessage(session, "th_alexandre", "alexandre_morel", "Ok. Et donc, on garde quoi ?", opts(T0 + 4_000));
-    const observed = recordStepObservation(
+
+    // Le mail de debrief à Alexandre — c'est LUI le trigger de complétion.
+    const debrief = applyWorkspaceAction(
       session,
-      { criteria: { pain_point_identifie: true, budget_confronte: true, bruit_ecarte: true } },
+      {
+        type: "mail_sent",
+        to: ["alexandre_morel"],
+        subject: "Debrief data pack — pain point et budget",
+        body: "Pain point universel : la gestion des annulations + le planning temps réel. Le devis à 32k est infinançable avec 15k de tréso : on coupe le scope, le reste passe en V2.",
+      },
       opts(T0 + 5_000),
     );
-    expect(observed.completionFired).toBe(true);
-    expect(kinds(observed.effects)).toContain("evaluate_step");
+    expect(debrief.completionFired).toBe(true);
+    expect(kinds(debrief.effects)).toContain("evaluate_step");
 
     const v1 = evaluate(
       session,
@@ -277,7 +288,7 @@ describe("B. happy path — journée complète, contrat signé", () => {
     expect(kinds(prop2.effects)).toContain("actor_reply");
     recordActorMessage(session, "th_thomas", "thomas_novadev", "OK ça me va. On part là-dessus.", opts(T0 + 23_000));
 
-    // Signature aux termes convenus → trigger any[contract_signed, …].
+    // Signature aux termes convenus → EXIT "contrat_signe" (chantier A).
     applyWorkspaceAction(
       session,
       {
@@ -293,6 +304,10 @@ describe("B. happy path — journée complète, contrat signé", () => {
       opts(T0 + 24_500),
     );
     expect(sign.completionFired).toBe(true);
+    expect(sign.effects).toContainEqual({ kind: "evaluate_step", exit_id: "contrat_signe" });
+    expect(session.exitLog).toContainEqual(
+      expect.objectContaining({ step_id: "s3_nego_novadev", exit_id: "contrat_signe", route: "next" }),
+    );
 
     const v3 = evaluate(
       session,
@@ -304,6 +319,7 @@ describe("B. happy path — journée complète, contrat signé", () => {
         relation_professionnelle: true,
       },
       T0 + 25_000,
+      "contrat_signe",
     );
     expect(v3.outcome).toBe("ended");
     expect(session.isFinished).toBe(true);
@@ -337,18 +353,18 @@ describe("C. échec s1 → retry diégétique → ending dégradé", () => {
     const session = initializeSessionV3(loadScenario(), T0);
     enterStep(session, opts(T0));
 
-    // Tentative 1 : conclusions incomplètes (pain point ok, budget absent).
-    applyWorkspaceAction(
+    // Tentative 1 : mail de debrief incomplet (pain point ok, budget absent).
+    const bad = applyWorkspaceAction(
       session,
-      { type: "message_sent", thread_id: "th_alexandre", content: "Le vrai sujet c'est les annulations." },
+      {
+        type: "mail_sent",
+        to: ["alexandre_morel"],
+        subject: "Debrief",
+        body: "Le vrai sujet c'est les annulations.",
+      },
       opts(T0 + 1_000),
     );
-    const obs1 = recordStepObservation(
-      session,
-      { criteria: { pain_point_identifie: true, budget_confronte: false, bruit_ecarte: false } },
-      opts(T0 + 2_000),
-    );
-    expect(obs1.completionFired).toBe(true); // le trigger tire, le verdict tranche
+    expect(bad.completionFired).toBe(true); // le trigger tire, le verdict tranche
 
     const beforeRetry = session.workspace.threads.th_alexandre.messages.length;
     const v1 = evaluate(
@@ -367,17 +383,18 @@ describe("C. échec s1 → retry diégétique → ending dégradé", () => {
     const tick = applyWorkspaceAction(session, { type: "clock_tick", now: T0 + 4_000 }, OPTS);
     expect(tick.completionFired).toBe(false);
 
-    // Tentative 2 : conclusions complètes → passe.
-    const msg2 = applyWorkspaceAction(
+    // Tentative 2 : mail de debrief complet → passe.
+    const mail2 = applyWorkspaceAction(
       session,
       {
-        type: "message_sent",
-        thread_id: "th_alexandre",
-        content: "Annulations + planning, et le devis 32k est intenable avec 15k : on coupe.",
+        type: "mail_sent",
+        to: ["alexandre_morel"],
+        subject: "Debrief (complet)",
+        body: "Annulations + planning, et le devis 32k est intenable avec 15k : on coupe.",
       },
       opts(T0 + 5_000),
     );
-    expect(msg2.completionFired).toBe(true); // criterion déjà observé + nouveau message
+    expect(mail2.completionFired).toBe(true); // nouveau mail dans la tentative réarmée
     const v2 = evaluate(
       session,
       { pain_point_identifie: true, budget_confronte: true, bruit_ecarte: false },
@@ -401,7 +418,7 @@ describe("C. échec s1 → retry diégétique → ending dégradé", () => {
     expect(v3.outcome).toBe("advanced");
     expect(session.stepResults.s2_scope_mvp.passed).toBe(false);
 
-    // s3 réussit → 2 steps passés → partial_success.
+    // s3 réussit (exit contrat_signe → next = fin) → 2 steps passés → partial_success.
     applyWorkspaceAction(
       session,
       { type: "contract_signed", tool_id: "contrat", terms: { prix: 13000, delai_semaines: 8, equity_pct: 0 } },
@@ -417,6 +434,7 @@ describe("C. échec s1 → retry diégétique → ending dégradé", () => {
         relation_professionnelle: true,
       },
       T0 + 21_000,
+      "contrat_signe",
     );
     expect(v4.outcome).toBe("ended");
     expect(session.ending?.id).toBe("partial_success");
@@ -434,10 +452,17 @@ describe("D. échec généralisé → failure (default)", () => {
 
     const failS1 = { pain_point_identifie: true, budget_confronte: false, bruit_ecarte: false };
     // Tentative 1 → retry ; tentative 2 → advance en échec (max_attempts: 2).
-    applyWorkspaceAction(session, { type: "message_sent", thread_id: "th_alexandre", content: "…" }, opts(T0 + 1_000));
-    recordStepObservation(session, { criteria: failS1 }, opts(T0 + 2_000));
+    applyWorkspaceAction(
+      session,
+      { type: "mail_sent", to: ["alexandre_morel"], subject: "Debrief", body: "…" },
+      opts(T0 + 1_000),
+    );
     expect(evaluate(session, failS1, T0 + 3_000).outcome).toBe("retry");
-    applyWorkspaceAction(session, { type: "message_sent", thread_id: "th_alexandre", content: "…" }, opts(T0 + 4_000));
+    applyWorkspaceAction(
+      session,
+      { type: "mail_sent", to: ["alexandre_morel"], subject: "Debrief 2", body: "…" },
+      opts(T0 + 4_000),
+    );
     expect(evaluate(session, failS1, T0 + 5_000).outcome).toBe("advanced");
     expect(session.stepResults.s1_analyse_terrain.passed).toBe(false);
 
@@ -455,13 +480,14 @@ describe("D. échec généralisé → failure (default)", () => {
       ).outcome,
     ).toBe("advanced");
 
-    // s3 : contrat REFUSÉ → le trigger any[…] tire aussi sur contract_rejected.
+    // s3 : contrat REFUSÉ → l'EXIT "contrat_refuse" route vers {end: "failure"}.
     const reject = applyWorkspaceAction(
       session,
       { type: "contract_rejected", tool_id: "contrat", reason: "Trop cher" },
       opts(T0 + 8_000),
     );
     expect(reject.completionFired).toBe(true);
+    expect(reject.effects).toContainEqual({ kind: "evaluate_step", exit_id: "contrat_refuse" });
     const v = evaluate(
       session,
       {
@@ -472,6 +498,7 @@ describe("D. échec généralisé → failure (default)", () => {
         relation_professionnelle: true,
       },
       T0 + 9_000,
+      "contrat_refuse",
     );
     expect(v.outcome).toBe("ended");
     expect(session.isFinished).toBe(true);

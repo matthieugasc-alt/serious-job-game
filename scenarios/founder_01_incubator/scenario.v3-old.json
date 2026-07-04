@@ -1,7 +1,7 @@
 {
   "format": "v3",
   "scenario_id": "founder_01_incubator",
-  "version": "3.1.0",
+  "version": "3.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Entrée en incubateur",
@@ -213,38 +213,10 @@
         }
       ],
       "completion": {
-        "exits": [
-          {
-            "id": "pitch_rendu",
-            "trigger": {
-              "type": "deliverable_submitted",
-              "tool": "reunion"
-            },
-            "evaluate": true,
-            "route": "next"
-          },
-          {
-            "id": "temps_ecoule",
-            "trigger": {
-              "type": "timer_elapsed",
-              "seconds": 180,
-              "from": "step_start"
-            },
-            "evaluate": true,
-            "route": "next",
-            "events": [
-              {
-                "event_id": "e_temps_ecoule_pitch",
-                "effect": {
-                  "type": "message_received",
-                  "thread_id": "th_alexandre",
-                  "actor_id": "alexandre_morel",
-                  "content": "C'est bon, le jury enchaîne — trop tard pour peaufiner. On passe aux questions, accroche-toi."
-                }
-              }
-            ]
-          }
-        ]
+        "trigger": {
+          "type": "deliverable_submitted",
+          "tool": "reunion"
+        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -290,7 +262,8 @@
           "solution_enoncee",
           "legitimite_equipe"
         ]
-      }
+      },
+      "on_failure": "advance"
     },
     {
       "step_id": "s3_questions_jury",
@@ -344,9 +317,18 @@
       ],
       "completion": {
         "trigger": {
-          "type": "message_sent",
-          "to_actor": "jury_technowest",
-          "min_count": 5
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "jury_technowest",
+              "min_count": 5
+            },
+            {
+              "type": "criterion_observed",
+              "criterion": "reponses_business"
+            }
+          ]
         }
       },
       "evaluation": {

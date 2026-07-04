@@ -1,7 +1,7 @@
 {
   "format": "v3",
   "scenario_id": "founder_02_mvp",
-  "version": "3.1.0",
+  "version": "3.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Construire le MVP",
@@ -55,7 +55,7 @@
       "mechanic": "analyse",
       "title": "Le signal et le bruit",
       "params": {
-        "instructions": "Alexandre : « Franchement c'est du solide, je pense qu'on tient un truc. Le devis est à 32k, c'est un investissement mais le produit sera complet. On lance ? » Alexandre t'envoie trois documents : la synthèse de ses 10 entretiens avec des chirurgiens, sa note de cadrage produit (7 modules, 30 semaines de dev) et le devis NovaDev à 32 150 € HT. Ta trésorerie : environ 15 000 €. Lis tout et sépare le signal du bruit : qu'est-ce que les utilisateurs demandent VRAIMENT, et qu'est-ce qui est réalisable avec ton budget ?\n\nPrends des notes dans le bloc-notes, puis envoie tes conclusions à Alexandre par mail de debrief : le pain point universel, le signal vs le bruit dans sa note de cadrage, et ta marge de manœuvre budgétaire réelle."
+        "instructions": "Alexandre : « Franchement c'est du solide, je pense qu'on tient un truc. Le devis est à 32k, c'est un investissement mais le produit sera complet. On lance ? » Alexandre t'envoie trois documents : la synthèse de ses 10 entretiens avec des chirurgiens, sa note de cadrage produit (7 modules, 30 semaines de dev) et le devis NovaDev à 32 150 € HT. Ta trésorerie : environ 15 000 €. Lis tout et sépare le signal du bruit : qu'est-ce que les utilisateurs demandent VRAIMENT, et qu'est-ce qui est réalisable avec ton budget ?\n\nPrends des notes dans le bloc-notes, puis envoie tes conclusions à Alexandre dans Messages : le pain point universel, le signal vs le bruit dans sa note de cadrage, et ta marge de manœuvre budgétaire réelle."
       },
       "threads": [
         {
@@ -86,7 +86,7 @@
             "type": "message_received",
             "thread_id": "th_alexandre",
             "actor_id": "alexandre_morel",
-            "content": "Grosse session de boulot ! Je t'envoie tout : la synthèse des 10 entretiens, ma note de cadrage pour le produit, et le devis de NovaDev que j'ai demandé. Franchement c'est du solide, je pense qu'on tient un truc. Le devis est à 32k€ HT, c'est un investissement mais le produit sera complet. On lance ? Quand tu as fini, envoie-moi un mail de debrief."
+            "content": "Grosse session de boulot ! Je t'envoie tout : la synthèse des 10 entretiens, ma note de cadrage pour le produit, et le devis de NovaDev que j'ai demandé. Franchement c'est du solide, je pense qu'on tient un truc. Le devis est à 32k€ HT, c'est un investissement mais le produit sera complet. On lance ?"
           }
         },
         {
@@ -98,14 +98,23 @@
             "type": "message_received",
             "thread_id": "th_alexandre",
             "actor_id": "alexandre_morel",
-            "content": "Mouais, il manque un morceau là. C'est quoi LE problème qui revient chez quasiment tous les chirurgiens ? Et le devis à 32k face à nos 15k de tréso, t'en fais quoi ? Reprends la synthèse et le devis, et renvoie-moi ton mail de debrief."
+            "content": "Mouais, il manque un morceau là. C'est quoi LE problème qui revient chez quasiment tous les chirurgiens ? Et le devis à 32k face à nos 15k de tréso, t'en fais quoi ? Reprends la synthèse et le devis, et reviens vers moi."
           }
         }
       ],
       "completion": {
         "trigger": {
-          "type": "mail_sent",
-          "to": "alexandre_morel"
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "alexandre_morel"
+            },
+            {
+              "type": "criterion_observed",
+              "criterion": "pain_point_identifie"
+            }
+          ]
         }
       },
       "evaluation": {
@@ -419,26 +428,17 @@
         }
       ],
       "completion": {
-        "exits": [
-          {
-            "id": "contrat_signe",
-            "trigger": {
+        "trigger": {
+          "type": "any",
+          "of": [
+            {
               "type": "contract_signed"
             },
-            "evaluate": true,
-            "route": "next"
-          },
-          {
-            "id": "contrat_refuse",
-            "trigger": {
+            {
               "type": "contract_rejected"
-            },
-            "evaluate": true,
-            "route": {
-              "end": "failure"
             }
-          }
-        ]
+          ]
+        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -495,7 +495,8 @@
           "prix_maitrise",
           "equity_cedee"
         ]
-      }
+      },
+      "on_failure": "advance"
     }
   ],
   "endings": [

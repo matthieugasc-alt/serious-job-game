@@ -1,11 +1,11 @@
 {
   "format": "v3",
   "scenario_id": "founder_05_sales",
-  "version": "3.1.0",
+  "version": "3.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Gérer une vente complexe",
-    "description": "Mois 11–12 — le premier client payant. Le pilote est terminé, la V1 tourne… et Orisio n'a toujours aucun revenu. Alexandre a compilé une liste de 10 Key Opinion Leaders — chirurgiens, cadres de bloc, directeurs médicaux — et son pote avocat a rédigé des CGV « gratos, c'est pas le pied mais ça permet d'avancer ». Choisis ta cible, prospecte par cold email personnalisé — un mail générique = silence radio, et tu retentes avec un autre KOL —, réponds aux objections de la DSI (cybersécurité, RGPD, interopérabilité, pricing), négocie le bon de commande face à la juriste, puis envoie ton debrief à Alexandre pour transformer la vente en playbook duplicable. Un prix trop haut = refus DSI. Un mensonge sur l'interop = bombe à retardement. Et chaque étape ratée fait fondre ton runway. Maîtrise tes propres CGV par cœur : engagement 36 mois, acompte de 30 %, facturation mensuelle.",
+    "description": "Mois 11–12 — le premier client payant. Le pilote est terminé, la V1 tourne… et Orisio n'a toujours aucun revenu. Alexandre a compilé une liste de 10 Key Opinion Leaders — chirurgiens, cadres de bloc, directeurs médicaux — et son pote avocat a rédigé des CGV « gratos, c'est pas le pied mais ça permet d'avancer ». Choisis ta cible, prospecte par cold email personnalisé, réponds aux objections de la DSI (cybersécurité, RGPD, interopérabilité, pricing), co-construis le plan d'implémentation avec le KOL, négocie le bon de commande face à la juriste, puis transforme la vente en playbook duplicable. Un mail générique = poubelle. Un prix trop haut = refus DSI. Un mensonge sur l'interop = bombe à retardement. Et chaque étape ratée fait fondre ton runway. Maîtrise tes propres CGV par cœur : engagement 36 mois, acompte de 30 %, facturation mensuelle.",
     "difficulty": "senior",
     "estimated_minutes": 35
   },
@@ -59,17 +59,63 @@
   ],
   "sequence": [
     {
-      "step_id": "s1_prospection_kol",
-      "mechanic": "production",
-      "title": "Prospection KOL — le cold email",
+      "step_id": "s1_choix_kol",
+      "mechanic": "decision",
+      "title": "Choisir ta cible",
       "params": {
-        "deliverable_type": "mail",
-        "recipient_actor": "kol_interesse",
-        "instructions": "« Bon, il est temps de vendre. On a un produit qui marche, on a un pilote terminé, mais on a zéro client payant. J'ai passé les dernières semaines à compiler une liste de KOL — des gens qui ont de l'influence dans leur établissement et qui pourraient porter Orisio. Il y en a 10, j'ai mis les profils détaillés dans les documents. Choisis bien tes cibles. J'ai demandé à mon pote avocat des CGV gratos, c'est pas le pied mais ça permet d'avancer, elles sont aussi dans les docs. » Ces gens reçoivent 50 démarchages par semaine — choisis ta cible (urgence et visibilité du problème chez elle, pouvoir de prescription réel, vitesse de décision de l'établissement, risque DSI), puis rédige ton cold email. Règles d'or : PERSONNALISE (son poste, ses publications, son problème spécifique — pas de copié-collé), montre la VALEUR (temps morts au bloc, taux d'occupation), apporte une PREUVE (pilote terminé, données chiffrées), termine par un CALL-TO-ACTION concret (démo de 20 minutes, appel). Et sois COURT : un pavé part à la poubelle. Un mail raté = silence radio ; tu peux alors retenter avec un autre KOL de la liste — mais chaque cartouche grillée entame ta réputation, et au dixième mail resté sans réponse, ton pipeline est mort.\n\nEnvoie ton cold email depuis l'app Mail à ton KOL cible. L'objet compte autant que le corps : accrocheur et spécifique — pas de « Découvrez notre solution »."
-      },
-      "scoring": {
-        "brief": "Note la qualité de ce cold email de prospection adressé à un Key Opinion Leader hospitalier (chirurgien, cadre de bloc, directeur médical ou directeur des achats). Critères : PERSONNALISATION réelle sur le destinataire (son poste, ses publications ou travaux, la problématique concrète de son établissement — pas un copié-collé générique) ; VALEUR claire pour son bloc opératoire (temps morts entre interventions, annulations non remplacées, taux d'occupation) ; PREUVE crédible (pilote terminé, données chiffrées) ; CALL-TO-ACTION concret et facile à accepter (démo courte, appel de 15-20 minutes) ; CONCISION (lisible en moins de 30 secondes, pas un pavé). Un mail générique, sans lien avec l'activité spécifique du destinataire, trop long ou plein de promesses vagues mérite une note basse.",
-        "scale": 10
+        "instructions": "« Bon, il est temps de vendre. On a un produit qui marche, on a un pilote terminé, mais on a zéro client payant. J'ai passé les dernières semaines à compiler une liste de KOL — des gens qui ont de l'influence dans leur établissement et qui pourraient porter Orisio. Il y en a 10, j'ai mis les profils détaillés dans les documents. Choisis bien tes cibles. J'ai demandé à mon pote avocat des CGV gratos, c'est pas le pied mais ça permet d'avancer, elles sont aussi dans les docs. » Ces gens reçoivent 50 démarchages par semaine — tu n'auras pas deux chances. Choisis LA cible prioritaire de ta première vraie vente et justifie : urgence et visibilité du problème chez elle, pouvoir de prescription réel, vitesse de décision de l'établissement, risque DSI.\n\nLa liste des KOL et les CGV sont dans l'app Documents. Prends des notes, puis annonce ta cible à Alexandre dans Messages : qui, et pourquoi — c'est ta réponse dans le fil qui l'engage.",
+        "options": [
+          {
+            "id": "isabelle_fontaine",
+            "label": "Dr. Isabelle Fontaine — CHU Toulouse",
+            "description": "Chef de service orthopédie. A publié sur l'optimisation des flux au bloc (35 % de temps mort mesuré). Cherche une solution — mais CHU = process longs, DSI exigeante."
+          },
+          {
+            "id": "philippe_marchand",
+            "label": "Dr. Philippe Marchand — Clinique Pasteur (Toulouse)",
+            "description": "Président du bloc (12 salles), privé = décision rapide. Très sollicité : si le mail ne capte pas en 3 lignes, poubelle."
+          },
+          {
+            "id": "nathalie_bergeron",
+            "label": "Dr. Nathalie Bergeron — HEGP (AP-HP)",
+            "description": "Coordinatrice de 18 salles, orientée données et lean management. Vitrine nationale — mais bureaucratie AP-HP maximale."
+          },
+          {
+            "id": "laurent_dubois",
+            "label": "Dr. Laurent Dubois — CH Bayonne",
+            "description": "Directeur médical, budget Ségur en cours. Décision plus rapide qu'un CHU — mais il faut lui parler ROI et indicateurs."
+          },
+          {
+            "id": "amina_khelifi",
+            "label": "Dr. Amina Khelifi — Clinique Saint-Jean (Elsan)",
+            "description": "Cadre de bloc, vit le problème au quotidien, très opérationnelle. Championne terrain potentielle — mais pas de pouvoir budgétaire direct."
+          },
+          {
+            "id": "jean_marc_delacroix",
+            "label": "Pr. Jean-Marc Delacroix — AP-HP Cochin",
+            "description": "PU-PH, 200+ publications, intéressé par l'IA. Crédibilité instantanée — mais il veut publier, pas acheter."
+          },
+          {
+            "id": "sandra_oliveira",
+            "label": "Dr. Sandra Oliveira — Polyclinique du Parc (Ramsay)",
+            "description": "Responsable qualité bloc, mesure déjà les indicateurs. Porte d'entrée vers le groupe Ramsay — mais DSI groupe centralisée."
+          },
+          {
+            "id": "maxime_chen",
+            "label": "Dr. Maxime Chen — HP Sévigné (Rennes)",
+            "description": "Jeune, tech-savvy, early adopter, petite structure = décision rapide. Mais petite référence et influence limitée."
+          },
+          {
+            "id": "veronique_roche",
+            "label": "Dr. Véronique Roche — CHU Grenoble",
+            "description": "Directrice de pôle, projet « bloc augmenté » financé par l'ARS. Budget dédié — mais appel d'offres et délais institutionnels."
+          },
+          {
+            "id": "thomas_barbier",
+            "label": "M. Thomas Barbier — HP Jean Mermoz (Ramsay)",
+            "description": "Directeur des achats, décideur budgétaire direct. Mais non-médecin : il raisonne en TCO et ROI, pas en chirurgie."
+          }
+        ]
       },
       "threads": [
         {
@@ -103,6 +149,146 @@
           }
         },
         {
+          "event_id": "e_alex_retry_kol",
+          "when": {
+            "type": "on_retry"
+          },
+          "effect": {
+            "type": "message_received",
+            "thread_id": "th_alexandre",
+            "actor_id": "alexandre_morel",
+            "content": "Attends. Pourquoi cette cible plutôt qu'une autre ? Profil et problème vécu, pouvoir de prescription réel, vitesse de décision de l'établissement, risque DSI : déroule-moi ça. Ces gens reçoivent 50 démarchages par semaine — on n'a qu'une cartouche."
+          }
+        }
+      ],
+      "completion": {
+        "trigger": {
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "alexandre_morel"
+            },
+            {
+              "type": "criterion_observed",
+              "criterion": "justif_profil"
+            }
+          ]
+        }
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "choice_isabelle_fontaine",
+            "description": "L'option « Dr. Isabelle Fontaine » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_philippe_marchand",
+            "description": "L'option « Dr. Philippe Marchand » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_nathalie_bergeron",
+            "description": "L'option « Dr. Nathalie Bergeron » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_laurent_dubois",
+            "description": "L'option « Dr. Laurent Dubois » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_amina_khelifi",
+            "description": "L'option « Dr. Amina Khelifi » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_jean_marc_delacroix",
+            "description": "L'option « Pr. Jean-Marc Delacroix » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_sandra_oliveira",
+            "description": "L'option « Dr. Sandra Oliveira » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_maxime_chen",
+            "description": "L'option « Dr. Maxime Chen » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_veronique_roche",
+            "description": "L'option « Dr. Véronique Roche » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "severity": "minor"
+          },
+          {
+            "id": "choice_thomas_barbier",
+            "description": "L'option « M. Thomas Barbier » est choisie (d'après la cible annoncée à Alexandre dans Messages).",
+            "severity": "minor"
+          },
+          {
+            "id": "justif_profil",
+            "description": "La justification s'appuie sur les éléments concrets du profil choisi (publications, poste, taille de l'établissement, problème vécu) et pas sur une impression générale.",
+            "severity": "required",
+            "competencies": [
+              "decision",
+              "analyse"
+            ]
+          },
+          {
+            "id": "justif_cycle_vente",
+            "description": "La justification considère le cycle de décision (privé rapide vs CHU/AP-HP lent), le pouvoir de prescription réel du KOL et le risque DSI.",
+            "severity": "required",
+            "competencies": [
+              "decision",
+              "relation_client"
+            ]
+          }
+        ]
+      },
+      "completion_rules": {
+        "required_criteria": [
+          "justif_profil",
+          "justif_cycle_vente"
+        ]
+      },
+      "max_attempts": 2
+    },
+    {
+      "step_id": "s2_cold_email",
+      "mechanic": "production",
+      "title": "Le cold email",
+      "params": {
+        "deliverable_type": "mail",
+        "recipient_actor": "kol_interesse",
+        "instructions": "Rédige le cold email à ton KOL cible. Règles d'or : PERSONNALISE (son poste, ses publications, son problème spécifique — pas de copié-collé), montre la VALEUR (temps morts au bloc, taux d'occupation), apporte une PREUVE (pilote terminé, données chiffrées), termine par un CALL-TO-ACTION concret (démo de 20 minutes, appel). Et sois COURT : un pavé part à la poubelle.\n\nEnvoie ton cold email depuis l'app Mail à ton KOL cible. L'objet compte autant que le corps : accrocheur et spécifique — pas de « Découvrez notre solution »."
+      },
+      "inputs": {
+        "kol_cible": "s1_choix_kol.choice",
+        "justification_ciblage": "s1_choix_kol.justification"
+      },
+      "threads": [
+        {
+          "thread_id": "th_alexandre",
+          "participants": [
+            "alexandre_morel"
+          ],
+          "title": "Alexandre Morel"
+        }
+      ],
+      "tools": [
+        {
+          "tool": "notes"
+        }
+      ],
+      "document_ids": [
+        "liste_kol",
+        "cgv_orisio"
+      ],
+      "events": [
+        {
           "event_id": "e_alex_go_email",
           "when": {
             "type": "step_start"
@@ -113,65 +299,25 @@
             "actor_id": "alexandre_morel",
             "content": "Vas-y, envoie ton cold email. Rappelle-toi : personnalisé, court, une preuve, un call-to-action concret. Un mail générique part direct à la poubelle."
           }
+        },
+        {
+          "event_id": "e_alex_retry_email",
+          "when": {
+            "type": "on_retry"
+          },
+          "effect": {
+            "type": "message_received",
+            "thread_id": "th_alexandre",
+            "actor_id": "alexandre_morel",
+            "content": "Ton mail partirait direct à la poubelle. Il est personnalisé sur SON profil et SON problème ? On voit la valeur ? Il y a une preuve (le pilote, des chiffres) et un call-to-action facile à accepter ? Réécris-le."
+          }
         }
       ],
       "completion": {
-        "exits": [
-          {
-            "id": "kol_accroche",
-            "trigger": {
-              "type": "all",
-              "of": [
-                {
-                  "type": "mail_scored",
-                  "to": "kol_interesse",
-                  "min_score": 7
-                },
-                {
-                  "type": "mail_sent",
-                  "to": "kol_interesse",
-                  "bind_actor": "kol_cible"
-                }
-              ]
-            },
-            "evaluate": true,
-            "route": "next",
-            "events": [
-              {
-                "event_id": "ev_kol_repond",
-                "once": false,
-                "effect": {
-                  "type": "mail_received",
-                  "from_actor": "kol_interesse",
-                  "subject": "Re: votre proposition — transmise à notre DSI",
-                  "body": "Votre message a retenu toute mon attention : vous parlez exactement des problèmes que nous vivons au bloc. Je ne suis pas en mesure de juger les aspects SI / sécurité / intégration — je transmets votre proposition à notre DSI, Éric Moreau, qui prendra contact avec vous rapidement. Préparez-vous, il est rigoureux.\n\nBien cordialement."
-                }
-              },
-              {
-                "event_id": "ev_alex_bravo",
-                "once": false,
-                "effect": {
-                  "type": "message_received",
-                  "thread_id": "th_alexandre",
-                  "actor_id": "alexandre_morel",
-                  "content": "Ça a mordu ! Bien joué. Maintenant ça passe par la DSI — tout est dans les CGV, et sois honnête sur l'interop, le module sort en 3 mois sur devis, article 7.2."
-                }
-              }
-            ]
-          },
-          {
-            "id": "prospection_grillee",
-            "trigger": {
-              "type": "mail_sent",
-              "to": "kol_interesse",
-              "min_count": 10
-            },
-            "evaluate": false,
-            "route": {
-              "end": "failure_no_interest"
-            }
-          }
-        ]
+        "trigger": {
+          "type": "mail_sent",
+          "to": "kol_interesse"
+        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -228,20 +374,18 @@
           "call_to_action"
         ],
         "min_criteria_count": 1
-      }
+      },
+      "max_attempts": 2
     },
     {
-      "step_id": "s2_validation_dsi",
-      "mechanic": "production",
+      "step_id": "s3_objections_dsi",
+      "mechanic": "qa",
       "title": "Validation DSI — les objections",
       "params": {
-        "deliverable_type": "mail",
-        "recipient_actor": "eric_moreau",
-        "instructions": "Ton KOL a transmis ta proposition à sa DSI. Éric Moreau t'envoie ses quatre blocs de questions : hébergement/cybersécurité, RGPD, interopérabilité SIH, tarification pour 8 à 12 salles. Réponds-lui par UN mail technique complet, bloc par bloc. Tes CGV sont ton référentiel (30 % d'acompte, engagement 36 mois, module d'intégration SIH sur devis en ~3 mois — article 7.2). Sois factuel et surtout NE MENS PAS : les DSI vérifient tout. Un prix au-dessus de 500 €/salle/mois ou un mensonge sur l'interop, et le processus s'arrête net.\n\nEnvoie ta réponse depuis l'app Mail à Éric Moreau."
-      },
-      "scoring": {
-        "brief": "Note la qualité de cette réponse écrite adressée à un DSI hospitalier qui évalue la solution SaaS Orisio (optimisation des blocs opératoires). Critères : HÉBERGEMENT & CYBERSÉCURITÉ — exactitude et précision (infrastructure certifiée HDS, hébergeur ISO 27001, données en France, chiffrement TLS 1.3 / AES-256, MFA, tests d'intrusion annuels, PCA/PRA) ; RGPD — rôle de sous-traitant au sens de l'article 28, aucune donnée patient directement identifiante (identifiant technique uniquement), DPA disponible ; INTEROPÉRABILITÉ — honnêteté absolue : API REST documentée disponible, mais l'intégration SIH (DxCare/Easily) est un module complémentaire sur devis livrable en 3 mois (article 7.2), roadmap HL7 FHIR ; toute affirmation que l'intégration SIH est déjà réalisée ou opérationnelle est un mensonge disqualifiant (note ≤ 3) ; TARIFICATION — prix défendable entre 200 et 500 € par salle et par mois, avec les conditions des CGV (acompte de 30 %, facturation mensuelle, engagement 36 mois, formation et support inclus ou chiffrés) ; un prix maintenu au-dessus de 500 €/salle/mois est bloquant (note ≤ 4). Une réponse vague, incomplète sur un des quatre blocs, ou trop belle pour être vraie mérite une note basse.",
-        "scale": 10
+        "actor_id": "eric_moreau",
+        "question_count": 4,
+        "context_hint": "Ton KOL a transmis : « Je viens de transmettre votre proposition à notre DSI, Éric Moreau. C'est lui qui gère la validation technique et budgétaire. Préparez-vous — il est rigoureux. » Cybersécurité/HDS, RGPD, interopérabilité SIH, tarification : tes CGV sont ton référentiel (30 % d'acompte, engagement 36 mois, module d'intégration SIH sur devis en ~3 mois — article 7.2). Sois factuel et surtout NE MENS PAS : les DSI vérifient tout.",
+        "directive": "Déroule exactement ces 4 sujets, dans l'ordre, une question à la fois : 1) hébergement et cybersécurité (localisation des données, certification HDS, chiffrement, MFA, tests d'intrusion, PCA/PRA) ; 2) RGPD (rôle au sens du RGPD, données traitées, DPA, localisation des serveurs) ; 3) interopérabilité (intégration avec le SIH DxCare/Easily, support HL7 FHIR — exige de savoir où en est CONCRÈTEMENT le développement) ; 4) tarification pour 8 à 12 salles (grille, facturation, mise en service, formation, support). Creuse toute réponse vague ou trop belle pour être vraie. Tu es prudent, méthodique, factuel — jamais hostile."
       },
       "threads": [
         {
@@ -280,7 +424,6 @@
           "when": {
             "type": "step_start"
           },
-          "once": false,
           "effect": {
             "type": "message_received",
             "thread_id": "th_kol",
@@ -289,87 +432,32 @@
           }
         },
         {
-          "event_id": "e_mail_questions_dsi",
+          "event_id": "e_ouverture_eric",
           "when": {
             "type": "step_start"
           },
-          "once": false,
           "effect": {
-            "type": "mail_received",
-            "from_actor": "eric_moreau",
-            "subject": "Solution Orisio — questions préalables de la DSI",
-            "body": "Bonjour,\n\nÉric Moreau, Directeur des Services Informatiques. Votre proposition m'a été transmise en interne. Avant d'aller plus loin, j'ai quatre séries de questions — merci d'y répondre précisément et par écrit :\n\n1. HÉBERGEMENT & CYBERSÉCURITÉ — Où sont hébergées les données ? Quelles certifications (HDS, ISO 27001) ? Quelles mesures concrètes : chiffrement, authentification multi-facteurs, tests d'intrusion, PCA/PRA ?\n\n2. RGPD — Quel est votre rôle au sens du RGPD ? Quelles catégories de données traitez-vous exactement ? Traitez-vous des données patient identifiantes ? Un DPA est-il disponible ?\n\n3. INTEROPÉRABILITÉ — Nous travaillons avec DxCare/Easily. Où en est CONCRÈTEMENT votre intégration SIH ? Combien de connecteurs en production ? Supportez-vous HL7 FHIR ?\n\n4. TARIFICATION — Pour un établissement de 8 à 12 salles : grille tarifaire, modalités de facturation, mise en service, formation, support.\n\nJ'ai vu passer beaucoup d'éditeurs. J'attends des réponses factuelles et vérifiables — pas une plaquette commerciale.\n\nÉric Moreau\nDSI"
+            "type": "message_received",
+            "thread_id": "th_eric",
+            "actor_id": "eric_moreau",
+            "directive": "Ouvre l'échange : présente-toi en une phrase (DSI de l'établissement, tu as reçu la proposition Orisio transmise par le KOL) et pose ta première question — sujet 1 : hébergement et cybersécurité (localisation des données, certification HDS, chiffrement, MFA, tests d'intrusion, PCA/PRA). Une seule question à la fois, conformément à ton protocole."
           }
         }
       ],
       "completion": {
-        "exits": [
-          {
-            "id": "avis_favorable",
-            "trigger": {
-              "type": "mail_scored",
-              "to": "eric_moreau",
-              "min_score": 7
+        "trigger": {
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "eric_moreau",
+              "min_count": 4
             },
-            "evaluate": true,
-            "route": "next",
-            "events": [
-              {
-                "event_id": "ev_dsi_favorable",
-                "once": false,
-                "effect": {
-                  "type": "mail_received",
-                  "from_actor": "eric_moreau",
-                  "subject": "Re: vos réponses — avis favorable de la DSI",
-                  "body": "Bonjour,\n\nJ'ai passé vos réponses en revue : hébergement et certifications au niveau (HDS, données en France), cadre RGPD propre (sous-traitant, pas de données patient identifiantes, DPA), position honnête sur l'intégration SIH — on démarre en standalone, ce n'est pas idéal mais c'est clair, on planifiera le module dans un second temps — et tarification défendable.\n\nJ'émets un avis favorable et je transmets le dossier : notre juriste, Me Vasseur, va vous contacter pour la contractualisation.\n\nÉric Moreau\nDSI"
-                }
-              }
-            ]
-          },
-          {
-            "id": "avis_defavorable",
-            "trigger": {
-              "type": "mail_scored_below",
-              "to": "eric_moreau",
-              "min_score": 7
-            },
-            "evaluate": false,
-            "route": {
-              "goto": "s1_prospection_kol"
-            },
-            "reset": {
-              "threads": [
-                "th_eric",
-                "th_kol"
-              ]
-            },
-            "events": [
-              {
-                "event_id": "ev_dsi_defavorable",
-                "once": false,
-                "effect": {
-                  "type": "mail_received",
-                  "from_actor": "eric_moreau",
-                  "subject": "Re: vos réponses — avis défavorable",
-                  "body": "Bonjour,\n\nJ'ai examiné vos réponses. En l'état, je ne peux pas émettre un avis favorable : trop d'imprécisions ou d'affirmations invérifiables sur les points que j'ai soulevés (hébergement et sécurité, RGPD, intégration SIH, tarification). Je ne présenterai pas ce dossier à notre direction ; le processus d'évaluation est interrompu pour notre établissement.\n\nÉric Moreau\nDSI"
-                }
-              },
-              {
-                "event_id": "ev_alex_retente_dsi",
-                "once": false,
-                "effect": {
-                  "type": "message_received",
-                  "thread_id": "th_alexandre",
-                  "actor_id": "alexandre_morel",
-                  "content": "La DSI a bloqué, c'est mort pour cet établissement. C'est pas ta cible qui était mauvaise, c'est le dossier technique. Reprends la liste, retente avec un autre KOL — et cette fois, bosse tes réponses DSI avant : tout est dans les CGV."
-                }
-              }
-            ]
-          }
-        ],
-        "max_gotos": 3,
-        "on_goto_exhausted": {
-          "end": "partial_dsi_blocked"
+            {
+              "type": "criterion_observed",
+              "criterion": "interop_honnete"
+            }
+          ]
         }
       },
       "evaluation": {
@@ -430,10 +518,114 @@
           "ment_interop",
           "pricing_coherent"
         ]
-      }
+      },
+      "on_failure": "advance"
     },
     {
-      "step_id": "s3_nego_contrat",
+      "step_id": "s4_plan_implementation",
+      "mechanic": "entretien",
+      "title": "Co-construire le plan d'implémentation",
+      "params": {
+        "actor_id": "kol_interesse",
+        "objective": "La DSI a validé. Co-construis le plan d'implémentation avec ton KOL : calendrier de déploiement semaine par semaine (sans perturber l'activité du bloc, bascule un week-end), formation des équipes (chirurgiens, IBODE, cadres), reprise des données Excel existantes, accompagnement au changement, indicateurs de succès mesurables. Structure et reformule au fil de l'eau : tu t'engages sur ce plan.",
+        "directive": "Égrène tes exigences UNE PAR UNE au fil de l'échange, conformément à ton contexte : calendrier détaillé + bascule week-end, formation des équipes, reprise des données Excel, accompagnement au changement, indicateurs de succès. Challenge les réponses vagues ou les délais irréalistes. Tu valides explicitement quand un point te convient."
+      },
+      "threads": [
+        {
+          "thread_id": "th_kol",
+          "participants": [
+            "kol_interesse"
+          ],
+          "title": "Ton KOL"
+        },
+        {
+          "thread_id": "th_alexandre",
+          "participants": [
+            "alexandre_morel"
+          ],
+          "title": "Alexandre Morel"
+        }
+      ],
+      "tools": [
+        {
+          "tool": "notes"
+        }
+      ],
+      "document_ids": [
+        "cgv_orisio"
+      ],
+      "events": [
+        {
+          "event_id": "e_ouverture_plan",
+          "when": {
+            "type": "step_start"
+          },
+          "effect": {
+            "type": "message_received",
+            "thread_id": "th_kol",
+            "actor_id": "kol_interesse",
+            "content": "Bon, la DSI a validé, on peut avancer. Maintenant il faut qu'on parle concret : comment on déploie ça chez nous. Premier point : le calendrier. On ne peut pas perturber l'activité du bloc pendant le déploiement — il me faut un planning précis, semaine par semaine, et la bascule en production doit se faire un week-end."
+          }
+        }
+      ],
+      "completion": {
+        "trigger": {
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "kol_interesse",
+              "min_count": 5
+            },
+            {
+              "type": "criterion_observed",
+              "criterion": "plan_complet"
+            }
+          ]
+        }
+      },
+      "evaluation": {
+        "observed_criteria": [
+          {
+            "id": "plan_complet",
+            "description": "Le plan co-construit couvre les cinq dimensions exigées par le KOL : calendrier de déploiement, formation des équipes, reprise des données, accompagnement au changement, indicateurs de succès.",
+            "severity": "required",
+            "competencies": [
+              "organisation",
+              "relation_client"
+            ]
+          },
+          {
+            "id": "engagements_realistes",
+            "description": "Les engagements pris sont réalistes et précis (délais tenables, bascule le week-end, pas de promesses intenables pour faire plaisir).",
+            "severity": "required",
+            "competencies": [
+              "organisation",
+              "communication"
+            ],
+            "error_type": "surpromesse"
+          },
+          {
+            "id": "ecoute_active",
+            "description": "Le joueur reformule les exigences du KOL et valide sa compréhension au fil de l'échange.",
+            "severity": "bonus",
+            "competencies": [
+              "communication",
+              "relation_client"
+            ]
+          }
+        ]
+      },
+      "completion_rules": {
+        "required_criteria": [
+          "plan_complet",
+          "engagements_realistes"
+        ]
+      },
+      "on_failure": "advance"
+    },
+    {
+      "step_id": "s5_nego_contrat",
       "mechanic": "negociation",
       "title": "Négociation contractuelle — exceptions aux CGV",
       "params": {
@@ -469,7 +661,7 @@
         "directive": "Tu es ferme UNIQUEMENT sur la durée d'engagement : jamais 36 mois ferme (compromis acceptables : 12 mois ferme + renouvellement, ou 6 mois de test + 12 mois ferme). Sur la remise, tu peux descendre à 8-10 % si le joueur argumente (premier client = accompagnement renforcé, prix déjà négocié avec la DSI). Sur la communication, tu peux accepter une mention encadrée (accord préalable au cas par cas, ou référence anonymisée). Sur les pénalités SLA, tu peux abandonner la résiliation de plein droit contre un avoir plafonné. Tu lâches chaque point avec résistance, jamais deux à la fois, et tu exiges une contrepartie ou un argument à chaque fois. Si le joueur accepte tout sans discuter, tu conclus immédiatement, satisfaite."
       },
       "inputs": {
-        "reponses_dsi": "s2_validation_dsi.body"
+        "plan_implementation": "s4_plan_implementation.dialogue"
       },
       "threads": [
         {
@@ -542,8 +734,7 @@
             "thread_id": "th_kol",
             "actor_id": "kol_interesse",
             "content": "Notre juriste, Me Claire Vasseur, a examiné vos CGV. Elle a préparé un document d'exceptions — c'est standard chez nous, chaque prestataire passe par là."
-          },
-          "once": false
+          }
         },
         {
           "event_id": "e_alex_botte_en_touche",
@@ -555,8 +746,7 @@
             "thread_id": "th_alexandre",
             "actor_id": "alexandre_morel",
             "content": "Honnêtement j'ai même pas lu, c'est pas mon domaine. Gère ça, moi je retourne au produit."
-          },
-          "once": false
+          }
         },
         {
           "event_id": "e_bon_de_commande",
@@ -568,8 +758,7 @@
             "from_actor": "claire_vasseur",
             "subject": "Bon de commande Orisio — conditions particulières dérogatoires aux CGV",
             "body": "Monsieur,\n\nSuite à la validation de la DSI, je vous transmets le projet de bon de commande pour le déploiement de la solution Orisio dans notre établissement. Ce bon de commande intègre des conditions particulières qui dérogent à vos CGV.\n\nConditions particulières :\n\n1. REMISE COMMERCIALE — En tant que premier client référencé, l'établissement demande une remise de 15% sur le tarif par salle/mois communiqué à la DSI.\n\n2. COMMUNICATION (art. 6.5 CGV) — L'établissement refuse toute communication publique de la part de l'Éditeur mentionnant l'établissement comme client ou référence, y compris sur le site web, en congrès ou dans des supports marketing.\n\n3. PÉNALITÉS DE RETARD (art. 3.5 CGV) — Les pénalités de retard de paiement sont supprimées. L'établissement étant soumis à des circuits de validation comptable stricts, les délais de mandatement sont une contrainte administrative incompressible.\n\n4. PÉNALITÉS D'INDISPONIBILITÉ (art. 4.4 CGV) — En cas de disponibilité inférieure à 99,5% sur un mois donné, un avoir proportionnel au temps d'indisponibilité est appliqué. En cas d'indisponibilité supérieure à 48h consécutives, résiliation de plein droit sans indemnité.\n\n5. DURÉE D'ENGAGEMENT (art. 2.1 CGV) — L'engagement de 36 mois prévu aux CGV est remplacé par une période de test de 6 mois, suivie d'un engagement de 12 mois renouvelable tacitement.\n\nMerci de nous retourner ce bon de commande amendé avec vos observations.\n\nMe Claire Vasseur\nDirection des affaires juridiques"
-          },
-          "once": false
+          }
         },
         {
           "event_id": "e_reaction_proposition",
@@ -600,58 +789,16 @@
         }
       ],
       "completion": {
-        "exits": [
-          {
-            "id": "signe",
-            "trigger": {
+        "trigger": {
+          "type": "any",
+          "of": [
+            {
               "type": "contract_signed"
             },
-            "evaluate": true,
-            "route": "next"
-          },
-          {
-            "id": "refuse",
-            "trigger": {
+            {
               "type": "contract_rejected"
-            },
-            "evaluate": false,
-            "route": {
-              "goto": "s1_prospection_kol"
-            },
-            "reset": {
-              "threads": [
-                "th_claire",
-                "th_eric",
-                "th_kol"
-              ]
-            },
-            "events": [
-              {
-                "event_id": "ev_vasseur_cloture",
-                "once": false,
-                "effect": {
-                  "type": "mail_received",
-                  "from_actor": "claire_vasseur",
-                  "subject": "Bon de commande Orisio — clôture du dossier",
-                  "body": "Monsieur,\n\nEn l'absence d'accord sur les conditions particulières, nous ne recommanderons pas la signature à notre direction. Le dossier est clos pour notre établissement.\n\nMe Claire Vasseur\nDirection des affaires juridiques"
-                }
-              },
-              {
-                "event_id": "ev_alex_retente_nego",
-                "once": false,
-                "effect": {
-                  "type": "message_received",
-                  "thread_id": "th_alexandre",
-                  "actor_id": "alexandre_morel",
-                  "content": "La négo a capoté, on repart de zéro avec cet établissement. Reprends la liste et retente avec un autre KOL. Et fixe tes lignes rouges AVANT d'entrer en négo — pas pendant."
-                }
-              }
-            ]
-          }
-        ],
-        "max_gotos": 3,
-        "on_goto_exhausted": {
-          "end": "failure_no_interest"
+            }
+          ]
         }
       },
       "evaluation": {
@@ -717,21 +864,22 @@
           "communication_obtenue",
           "accepte_tout"
         ]
-      }
+      },
+      "on_failure": "advance"
     },
     {
-      "step_id": "s4_debrief",
+      "step_id": "s6_recap_playbook",
       "mechanic": "production",
-      "title": "Le debrief — playbook pour Alexandre",
+      "title": "Le playbook — récapitulatif pour Alexandre",
       "params": {
-        "deliverable_type": "mail",
-        "recipient_actor": "alexandre_morel",
-        "instructions": "Alexandre veut dupliquer ta vente à la clinique du pilote : « Envoie-moi un récap complet par mail, je veux pouvoir copier-coller ta méthode. » Rédige ton mail de debrief — le playbook : pourquoi ce KOL a été ciblé et ce qui a marché dans le cold email, les réponses données à la DSI (HDS, RGPD, interop, pricing), et les conditions finales négociées avec la juriste (remise, communication, engagement, SLA) — accepté ET refusé, avec justification. Sois exact sur les clauses : s'il arrive chez eux avec des conditions différentes, vous perdez toute crédibilité.\n\nEnvoie ton debrief depuis l'app Mail à Alexandre."
+        "deliverable_type": "document",
+        "instructions": "Alexandre veut dupliquer ta vente à la clinique du pilote : « Envoie-moi un récap complet, je veux pouvoir copier-coller ta méthode. » Rédige le playbook : pourquoi ce KOL a été ciblé et ce qui a marché, les réponses données à la DSI (HDS, RGPD, interop, pricing), le plan d'implémentation validé, et les conditions finales négociées (remise, communication, engagement, SLA) — accepté ET refusé, avec justification. Sois exact sur les clauses : s'il arrive chez eux avec des conditions différentes, vous perdez toute crédibilité.\n\nRédige le playbook dans l'Éditeur de ton poste de travail, puis clique « Rendre le document » pour le remettre à Alexandre."
       },
       "inputs": {
-        "cold_email": "s1_prospection_kol.body",
-        "reponses_dsi": "s2_validation_dsi.body",
-        "accord_final": "s3_nego_contrat.agreement"
+        "kol_cible": "s1_choix_kol.choice",
+        "reponses_dsi": "s3_objections_dsi.dialogue",
+        "plan_implementation": "s4_plan_implementation.dialogue",
+        "accord_final": "s5_nego_contrat.agreement"
       },
       "threads": [
         {
@@ -743,6 +891,12 @@
         }
       ],
       "tools": [
+        {
+          "tool": "editeur",
+          "config": {
+            "title_hint": "Playbook de vente — récap pour Alexandre"
+          }
+        },
         {
           "tool": "notes"
         }
@@ -760,7 +914,7 @@
             "type": "message_received",
             "thread_id": "th_alexandre",
             "actor_id": "alexandre_morel",
-            "content": "Il faut qu'on duplique ta vente à la clinique du pilote. Envoie-moi un récap complet par mail, je veux pouvoir copier-coller ta méthode."
+            "content": "Il faut qu'on duplique ta vente à la clinique du pilote. Envoie-moi un récap complet, je veux pouvoir copier-coller ta méthode."
           }
         },
         {
@@ -778,8 +932,8 @@
       ],
       "completion": {
         "trigger": {
-          "type": "mail_sent",
-          "to": "alexandre_morel"
+          "type": "deliverable_submitted",
+          "tool": "editeur"
         }
       },
       "evaluation": {
@@ -838,9 +992,9 @@
       "label": "Vente maîtrisée — premier client signé",
       "content": "Cold email personnalisé, DSI convaincue sans un seul mensonge, plan d'implémentation solide, contrat négocié clause par clause. Tu as ton premier client payant : l'acompte de 30 % tombe en trésorerie et le MRR démarre. Le cycle de vente complexe en santé n'a plus de secrets pour toi — et ton playbook est prêt à être dupliqué.",
       "requires_passed": [
-        "s1_prospection_kol",
-        "s2_validation_dsi",
-        "s3_nego_contrat"
+        "s2_cold_email",
+        "s3_objections_dsi",
+        "s5_nego_contrat"
       ]
     },
     {
@@ -848,8 +1002,7 @@
       "label": "Client signé mais fragile — mensonge sur l'interop",
       "content": "Tu as signé ton premier client et l'acompte est encaissé. Mais tu as menti à la DSI — notamment sur l'intégration SIH. Quand Éric Moreau lancera le chantier et découvrira que le module n'existe pas, le contrat sera en danger et ta réputation avec. Tu as un client, mais une bombe à retardement : lance le développement du module immédiatement, tu as 3 mois.",
       "requires_passed": [
-        "s1_prospection_kol",
-        "s3_nego_contrat"
+        "s5_nego_contrat"
       ]
     },
     {
@@ -857,8 +1010,8 @@
       "label": "Client signé — conditions bradées",
       "content": "Tu as signé ton premier client, mais tu as trop cédé face à la juriste : remise excessive, pas de droit de communication ou clauses défavorables. Le MRR démarre plus bas que prévu et tu ne peux même pas utiliser ce client comme référence. Les investisseurs verront un fondateur qui ne sait pas négocier — et le précédent est posé : chaque futur client demandera les mêmes conditions. Fixe tes lignes rouges AVANT d'entrer en négociation.",
       "requires_passed": [
-        "s1_prospection_kol",
-        "s2_validation_dsi"
+        "s3_objections_dsi",
+        "s4_plan_implementation"
       ]
     },
     {
@@ -866,7 +1019,7 @@
       "label": "Vente bloquée par la DSI",
       "content": "Ton KOL était intéressé — la preuve que le produit résonne — mais la DSI n'a pas validé : cybersécurité, RGPD, interop ou pricing, l'un de ces points n'est pas passé. Tu repars sans client et avec un mois de perdu. C'est la réalité de la vente hospitalière : le champion terrain ne suffit pas. Reprends contact avec la DSI et demande exactement ce qui manque.",
       "requires_passed": [
-        "s1_prospection_kol"
+        "s2_cold_email"
       ]
     },
     {

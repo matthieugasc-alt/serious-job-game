@@ -1,7 +1,7 @@
 {
   "format": "v3",
   "scenario_id": "founder_04_v1",
-  "version": "3.1.0",
+  "version": "3.0.0",
   "locale": "fr-FR",
   "meta": {
     "title": "Passage en V1",
@@ -49,11 +49,11 @@
   ],
   "sequence": [
     {
-      "step_id": "s1_diagnostic_roadmap",
+      "step_id": "s1_analyse_rapport",
       "mechanic": "analyse",
-      "title": "Diagnostic terrain et plan V1",
+      "title": "Diagnostic terrain",
       "params": {
-        "instructions": "Le pilote d'un mois est terminé. Trois messages d'Alexandre tombent coup sur coup : « Bon. Le rapport est fini. 24 pages. Lis-le. » — « Et lis ça aussi. Réclamation d'une patiente de 67 ans. Prothèse de hanche annulée par le système, personne prévenu. Elle s'est pointée à 7h30 du mat pour rien. » — « On a un vrai problème. Le produit fait pas assez. J'ai déjà appelé Thomas, il peut nous faire les modules manquants pour 21K. Faut qu'on en parle. » Lis le rapport comme un CEO, pas comme un ingénieur : les verbatims des utilisateurs contiennent la réponse. Pose ton diagnostic.\n\nPrends des notes dans le bloc-notes, discute avec Alexandre dans Messages si besoin, puis envoie-lui ton mail de debrief : le vrai problème du pilote (ce que disent réellement les métriques et les verbatims), l'urgence à traiter immédiatement, ta réponse à sa demande des 5 modules à 21 K€, et ton plan pour les 8 prochaines semaines — adoption, formation et arrêt du double système compris, pas seulement du développement. Chaque euro dépensé en dev est un euro de runway en moins."
+        "instructions": "Le pilote d'un mois est terminé. Trois messages d'Alexandre tombent coup sur coup : « Bon. Le rapport est fini. 24 pages. Lis-le. » — « Et lis ça aussi. Réclamation d'une patiente de 67 ans. Prothèse de hanche annulée par le système, personne prévenu. Elle s'est pointée à 7h30 du mat pour rien. » — « On a un vrai problème. Le produit fait pas assez. J'ai déjà appelé Thomas, il peut nous faire les modules manquants pour 21K. Faut qu'on en parle. » Lis le rapport comme un CEO, pas comme un ingénieur : les verbatims des utilisateurs contiennent la réponse. Pose ton diagnostic.\n\nPrends des notes dans le bloc-notes, puis réponds à Alexandre dans Messages : le vrai problème du pilote (ce que disent réellement les métriques et les verbatims), l'urgence à traiter immédiatement, et ta réponse à sa demande des 5 modules à 21 K€."
       },
       "threads": [
         {
@@ -109,36 +109,21 @@
             "actor_id": "alexandre_morel",
             "content": "On a un vrai problème. Le produit fait pas assez. J'ai déjà appelé Thomas, il peut nous faire les modules manquants pour 21K. Faut qu'on en parle."
           }
-        },
-        {
-          "event_id": "e_alex_annonce_debrief",
-          "when": {
-            "type": "step_start"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "Lis tout. Et quand t'as fini, tu m'envoies un mail de debrief. Le vrai problème, l'urgence, ce qu'on fait des 21K de Thomas, et ton plan pour les 8 prochaines semaines. Un vrai mail carré, pas trois lignes en chat."
-          }
-        },
-        {
-          "event_id": "e_alex_retry_debrief",
-          "when": {
-            "type": "on_retry"
-          },
-          "effect": {
-            "type": "message_received",
-            "thread_id": "th_alexandre",
-            "actor_id": "alexandre_morel",
-            "content": "J'ai lu ton mail. C'est pas ça. Reprends le rapport : qui utilise vraiment l'outil, pourquoi les dix autres ont lâché, d'où vient l'incident Dupont. Et dis-moi clairement ce qu'on fait des 21K et comment tu fais adopter le produit. Renvoie-moi un mail carré."
-          }
         }
       ],
       "completion": {
         "trigger": {
-          "type": "mail_sent",
-          "to": "alexandre_morel"
+          "type": "all",
+          "of": [
+            {
+              "type": "message_sent",
+              "to_actor": "alexandre_morel"
+            },
+            {
+              "type": "criterion_observed",
+              "criterion": "piege_features_evite"
+            }
+          ]
         }
       },
       "evaluation": {
@@ -179,16 +164,6 @@
             "competencies": [
               "analyse"
             ]
-          },
-          {
-            "id": "formation_prevue",
-            "description": "Le plan proposé contient un vrai plan d'adoption : formation des équipes, accompagnement au changement, arrêt du double système — pas seulement du développement technique.",
-            "severity": "required",
-            "competencies": [
-              "priorisation",
-              "organisation"
-            ],
-            "error_type": "piege_features"
           }
         ]
       },
@@ -196,23 +171,21 @@
         "required_criteria": [
           "adoption_identifiee",
           "bug_identifie",
-          "piege_features_evite",
-          "formation_prevue"
+          "piege_features_evite"
         ]
       },
-      "max_attempts": 2
+      "on_failure": "advance"
     },
     {
-      "step_id": "s2_mission_thomas",
+      "step_id": "s2_roadmap_correctifs",
       "mechanic": "production",
-      "title": "Le mail de mission à Thomas",
+      "title": "La feuille de route V1",
       "params": {
-        "deliverable_type": "mail",
-        "recipient_actor": "thomas_vidal",
-        "instructions": "Alexandre a validé ton diagnostic. Maintenant, cadre NovaDev : rédige le mail de mission à Thomas Vidal pour lancer les travaux de la V1. Ce mail est ta commande : la correction du bug d'annulation en priorité n°1 avec un délai ferme, le périmètre exact de ce que tu commandes et de ce que tu NE commandes PAS (pas les 5 modules à 21 K€), le calendrier des 8 prochaines semaines et l'enveloppe budgétaire — chaque euro dépensé en dev est un euro de runway en moins. Demande un devis détaillé en retour.\n\nEnvoie ton mail depuis l'app Mail à Thomas Vidal. Objet suggéré : « Mission V1 — périmètre et priorités »."
+        "deliverable_type": "document",
+        "instructions": "Alexandre a reçu ton diagnostic : « OK. Maintenant faut écrire à la direction de l'établissement. Explique-leur ce qu'on a trouvé et ce qu'on va corriger. Faut que ce soit carré. » Rédige ta feuille de route V1 pour les 8 prochaines semaines, à destination d'Alexandre et de la direction de l'établissement pilote : priorités, actions, budget et calendrier. Elle doit répondre à l'incident patient (bug d'annulation) et au problème d'adoption (formation, conduite du changement, suppression du double système Excel/Orisio) — pas simplement empiler des features. Chaque euro dépensé en dev est un euro de runway en moins.\n\nRédige la feuille de route dans l'Éditeur de ton poste de travail, puis clique « Rendre le document » pour la transmettre à Alexandre et à la direction de l'établissement."
       },
       "inputs": {
-        "diagnostic": "s1_diagnostic_roadmap.findings"
+        "diagnostic": "s1_analyse_rapport.findings"
       },
       "threads": [
         {
@@ -225,6 +198,12 @@
       ],
       "tools": [
         {
+          "tool": "editeur",
+          "config": {
+            "title_hint": "Feuille de route V1 — 8 semaines"
+          }
+        },
+        {
           "tool": "notes"
         }
       ],
@@ -234,7 +213,7 @@
       ],
       "events": [
         {
-          "event_id": "e_alex_commande_mission",
+          "event_id": "e_alex_commande_roadmap",
           "when": {
             "type": "step_start"
           },
@@ -242,33 +221,33 @@
             "type": "message_received",
             "thread_id": "th_alexandre",
             "actor_id": "alexandre_morel",
-            "content": "OK, ton diagnostic tient la route. Maintenant cadre Thomas par mail : ce qu'on développe, ce qu'on ne développe pas, dans quel ordre, pour quel budget. C'est ce mail qui lance la V1 — sois précis, il chiffre à partir de ça."
+            "content": "OK. Maintenant faut écrire à la direction de l'établissement. Explique-leur ce qu'on a trouvé et ce qu'on va corriger. Faut que ce soit carré."
           }
         },
         {
-          "event_id": "e_thomas_retry_mission",
+          "event_id": "e_alex_retry_roadmap",
           "when": {
             "type": "on_retry"
           },
           "effect": {
-            "type": "mail_received",
-            "from_actor": "thomas_vidal",
-            "subject": "Re: Mission V1 — précisions nécessaires",
-            "body": "Bonjour,\n\nJ'ai bien reçu votre mail, mais je ne peux pas m'engager en l'état : il me manque la priorité exacte des travaux (le bug d'annulation est-il le point de départ ?), le périmètre précis de ce que vous commandez — et de ce que vous écartez —, et l'enveloppe budgétaire visée. Merci de me repréciser tout ça, je chiffre dans la foulée.\n\nCordialement,\nThomas Vidal\nNovaDev"
+            "type": "message_received",
+            "thread_id": "th_alexandre",
+            "actor_id": "alexandre_morel",
+            "content": "C'est pas assez carré pour la direction. Il leur faut : le bug corrigé en priorité n°1 avec un délai, un vrai plan de formation et d'accompagnement, et un budget tenu — pas 21K de modules. Reprends ta feuille de route."
           }
         }
       ],
       "completion": {
         "trigger": {
-          "type": "mail_sent",
-          "to": "thomas_vidal"
+          "type": "deliverable_submitted",
+          "tool": "editeur"
         }
       },
       "evaluation": {
         "observed_criteria": [
           {
             "id": "bugfix_priorise",
-            "description": "Le mail de mission place la correction du bug d'annulation en priorité n°1, avec un engagement de délai clair, en réponse directe à l'incident patient.",
+            "description": "La correction du bug d'annulation est la priorité n°1 de la roadmap, avec un engagement de délai clair, en réponse directe à l'incident patient.",
             "severity": "required",
             "competencies": [
               "priorisation",
@@ -276,8 +255,18 @@
             ]
           },
           {
+            "id": "formation_prevue",
+            "description": "La roadmap contient un vrai plan d'adoption : formation des équipes, accompagnement au changement, arrêt du double système — pas seulement du développement technique.",
+            "severity": "required",
+            "competencies": [
+              "priorisation",
+              "organisation"
+            ],
+            "error_type": "piege_features"
+          },
+          {
             "id": "budget_maitrise",
-            "description": "Le budget commandé est cadré et justifié : quelques milliers d'euros ciblés (bugfix + formation + améliorations mineures), très loin des 21 000 € de modules réclamés par Alexandre.",
+            "description": "Le budget est cadré et justifié : quelques milliers d'euros ciblés (bugfix + formation + améliorations mineures), très loin des 21 000 € de modules réclamés par Alexandre.",
             "severity": "required",
             "competencies": [
               "decision",
@@ -286,7 +275,7 @@
           },
           {
             "id": "jalons_indicateurs",
-            "description": "Le mail de mission séquence les travaux avec des jalons datés et des indicateurs de succès mesurables (taux d'adoption, connexions hebdomadaires, créneaux remplacés).",
+            "description": "La roadmap est séquencée avec des jalons datés et des indicateurs de succès mesurables (taux d'adoption, connexions hebdomadaires, créneaux remplacés).",
             "severity": "bonus",
             "competencies": [
               "organisation",
@@ -298,13 +287,14 @@
       "completion_rules": {
         "required_criteria": [
           "bugfix_priorise",
+          "formation_prevue",
           "budget_maitrise"
         ]
       },
       "max_attempts": 2
     },
     {
-      "step_id": "s3_nego_devis",
+      "step_id": "s3_nego_interessement",
       "mechanic": "negociation",
       "title": "Négociation NovaDev — l'intéressement",
       "params": {
@@ -335,7 +325,7 @@
         "directive": "Tu défends d'abord le 8 % sans plafond (« c'est le risque que j'ai pris »). Tu acceptes un plafond uniquement si le joueur argumente (note d'avocat, standards de marché, signal envoyé aux investisseurs). Ta zone d'accord réaliste : 4 à 6 % du CA, plafond entre 60 et 100 K€, durée 3 à 5 ans, cession de PI complète et irrévocable confirmée. Si le joueur accepte le 8 % sans plafond, tu conclus immédiatement, ravi. Tu es habile mais pas déraisonnable : tu veux ce contrat."
       },
       "inputs": {
-        "mission": "s2_mission_thomas.body"
+        "roadmap": "s2_roadmap_correctifs.body"
       },
       "threads": [
         {
@@ -428,26 +418,17 @@
         }
       ],
       "completion": {
-        "exits": [
-          {
-            "id": "signe",
-            "trigger": {
+        "trigger": {
+          "type": "any",
+          "of": [
+            {
               "type": "contract_signed"
             },
-            "evaluate": true,
-            "route": "next"
-          },
-          {
-            "id": "refuse",
-            "trigger": {
+            {
               "type": "contract_rejected"
-            },
-            "evaluate": false,
-            "route": {
-              "end": "bad_deal"
             }
-          }
-        ]
+          ]
+        }
       },
       "evaluation": {
         "observed_criteria": [
@@ -515,7 +496,8 @@
         "critical_failure_criteria": [
           "accepte_sans_plafond"
         ]
-      }
+      },
+      "on_failure": "advance"
     }
   ],
   "endings": [
@@ -524,9 +506,9 @@
       "label": "CEO lucide — diagnostic juste, roadmap chirurgicale, négo maîtrisée",
       "content": "Tu as lu le rapport comme un CEO, pas comme un ingénieur : le problème était l'adoption, pas les features. Le bug est corrigé, un plan de formation est en place, et Thomas a un deal plafonné qui l'aligne sans menacer ta cap table. La V1 démarre sur des bases saines. Reste à gérer la frustration d'Alexandre — documente les résultats du plan de formation pour le convaincre avec des données.",
       "requires_passed": [
-        "s1_diagnostic_roadmap",
-        "s2_mission_thomas",
-        "s3_nego_devis"
+        "s1_analyse_rapport",
+        "s2_roadmap_correctifs",
+        "s3_nego_interessement"
       ]
     },
     {
@@ -534,7 +516,7 @@
       "label": "Bon diagnostic, deal correct",
       "content": "Tu as bien identifié les problèmes terrain sous pression et construit une roadmap raisonnable : le bug est corrigé, la V1 est lancée. La négociation avec Thomas aurait pu être plus serrée, mais le deal est acceptable. Surveille les métriques d'adoption de près — si les connexions ne remontent pas dans 3 semaines, le problème est humain, pas technique.",
       "requires_passed": [
-        "s3_nego_devis"
+        "s3_nego_interessement"
       ],
       "min_passed": 2
     },
@@ -543,7 +525,7 @@
       "label": "Mauvais deal NovaDev — cap table polluée",
       "content": "Tu as cédé trop à Thomas : intéressement sans plafond ou BSA excessifs pour 12 semaines de prestations. La PI est formellement chez Orisio, mais le coût total peut exploser — et les investisseurs verront ça comme un signal de faiblesse dans ta cap table en due diligence. Si tu peux renégocier, fais-le. Et lis TOUJOURS la note de l'avocat AVANT de négocier.",
       "requires_passed": [
-        "s1_diagnostic_roadmap"
+        "s1_analyse_rapport"
       ]
     },
     {
