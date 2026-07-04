@@ -16,6 +16,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { WorkspaceAppProps } from "../../apps/types";
 import {
   addTag,
+  clearCompare,
+  closeEntry,
   createFolder,
   deleteFolder,
   indexScenarioDoc,
@@ -26,14 +28,19 @@ import {
   searchEntries,
   selectAllEntries,
   selectAllTags,
+  selectCompare,
   selectFolders,
+  selectLibrary,
+  selectOpenWindows,
+  setCompare,
+  setLayout,
   toggleFavorite,
   togglePin,
 } from "./api";
 import type { SortKey } from "./api";
 import { BIBLIOTHEQUE_TOOL_ID } from "./spec";
-import type { DocEntry } from "./spec";
-import { ReaderAugmente } from "./components/ReaderAugmente";
+import type { DeskLayout, DocEntry } from "./spec";
+import { DeskView } from "./components/DeskView";
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "added", label: "Ajout récent" },
@@ -48,6 +55,13 @@ const KIND_ICON: Record<string, string> = {
   archived_mail: "📧",
   archived_messages: "💬",
 };
+
+const LAYOUT_OPTIONS: { key: DeskLayout; icon: string; label: string }[] = [
+  { key: "single", icon: "▭", label: "Une fenêtre" },
+  { key: "split-v", icon: "▥", label: "Deux colonnes" },
+  { key: "split-h", icon: "▤", label: "Deux lignes" },
+  { key: "grid", icon: "▦", label: "Grille" },
+];
 
 type Selection =
   | { type: "all" }
@@ -84,6 +98,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<SortKey>("added");
   const [sel, setSel] = useState<Selection>({ type: "all" });
+  const [view, setView] = useState<"library" | "desk">("library");
   const [openId, setOpenId] = useState<string | null>(null);
   const [newFolder, setNewFolder] = useState("");
   const [tagFor, setTagFor] = useState<string | null>(null);
@@ -137,6 +152,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
   const open = useCallback(
     (entry: DocEntry) => {
       setOpenId(entry.id);
+      setView("desk");
       dispatch(openEntry(entry.id));
       // Préserve le suivi moteur (triggers/critères basés sur l'ouverture).
       if (entry.source.kind === "scenario_doc") {
@@ -185,25 +201,114 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
     return sortEntries(kept, sel.type === "recent" ? "opened" : sort);
   }, [libState, query, resolveContent, sel, sort]);
 
-  const openEntryObj = openId ? allEntries.find((e) => e.id === openId) ?? null : null;
-
   const countFor = (predicate: (e: DocEntry) => boolean) => allEntries.filter(predicate).length;
 
-  // ── Lecteur plein cadre quand une entrée est ouverte.
-  if (openEntryObj) {
+  // ── Bureau multi-fenêtres (piloté par l'état du Tool : desk.windows/compare).
+  const openWindows = selectOpenWindows(libState);
+  const compareEntries = selectCompare(libState);
+  const deskLayout = selectLibrary(libState).desk.layout;
+  const showDesk = view === "desk" && (openWindows.length > 0 || compareEntries !== null);
+  const focusedId = openWindows.some((w) => w.id === openId) ? openId : openWindows[0]?.id ?? null;
+  const otherWindow = openWindows.find((w) => w.id !== focusedId);
+
+  const closeWindow = (id: string) => {
+    dispatch(closeEntry(id));
+    const rest = openWindows.filter((w) => w.id !== id);
+    if (id === focusedId) setOpenId(rest[0]?.id ?? null);
+    if (rest.length === 0 && !compareEntries) setView("library");
+  };
+
+  if (showDesk) {
     return (
-      <div className="flex h-full min-h-0 flex-col bg-white">
-        <div className="shrink-0 border-b border-gray-100 px-3 py-2">
+      <div className="flex h-full min-h-0 flex-col bg-gray-100">
+        <div className="flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-2 py-1.5">
           <button
             type="button"
-            className="rounded-lg px-2 py-1 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-50"
-            onClick={() => setOpenId(null)}
+            className="shrink-0 rounded-lg px-2 py-1 text-xs font-semibold text-indigo-600 transition hover:bg-indigo-50"
+            onClick={() => setView("library")}
           >
-            ← Dossier documentaire
+            ← Bibliothèque
           </button>
+
+          {/* Onglets des fenêtres ouvertes. */}
+          <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
+            {openWindows.map((w) => (
+              <span
+                key={w.id}
+                className={`inline-flex max-w-[180px] shrink-0 items-center gap-1 rounded-lg border px-2 py-1 text-xs transition ${
+                  w.id === focusedId && !compareEntries
+                    ? "border-indigo-300 bg-indigo-50 text-indigo-800"
+                    : "border-gray-200 bg-white text-gray-600 hover:border-gray-300"
+                }`}
+              >
+                <button type="button" className="min-w-0 truncate" onClick={() => setOpenId(w.id)}>
+                  {w.title || "(sans titre)"}
+                </button>
+                <button
+                  type="button"
+                  title="Fermer la fenêtre"
+                  className="shrink-0 text-gray-400 hover:text-red-500"
+                  onClick={() => closeWindow(w.id)}
+                >
+                  ✕
+                </button>
+              </span>
+            ))}
+          </div>
+
+          {/* Comparaison. */}
+          {compareEntries ? (
+            <button
+              type="button"
+              className="shrink-0 rounded-lg bg-amber-100 px-2 py-1 text-xs font-semibold text-amber-800 transition hover:bg-amber-200"
+              onClick={() => dispatch(clearCompare())}
+            >
+              Fin de comparaison
+            </button>
+          ) : (
+            <button
+              type="button"
+              disabled={!otherWindow}
+              title={otherWindow ? "Comparer deux fenêtres" : "Ouvrez au moins deux documents"}
+              className="shrink-0 rounded-lg border border-gray-200 px-2 py-1 text-xs font-medium text-gray-600 transition hover:border-indigo-300 hover:text-indigo-700 disabled:opacity-40"
+              onClick={() => focusedId && otherWindow && dispatch(setCompare(focusedId, otherWindow.id))}
+            >
+              ⇄ Comparer
+            </button>
+          )}
+
+          {/* Dispositions (masquées en comparaison). */}
+          {!compareEntries && (
+            <div className="flex shrink-0 items-center gap-0.5 rounded-lg border border-gray-200 p-0.5">
+              {LAYOUT_OPTIONS.map((o) => (
+                <button
+                  key={o.key}
+                  type="button"
+                  title={o.label}
+                  aria-pressed={deskLayout === o.key}
+                  className={`rounded px-1.5 py-0.5 text-sm transition ${
+                    deskLayout === o.key ? "bg-indigo-100 text-indigo-700" : "text-gray-500 hover:bg-gray-100"
+                  }`}
+                  onClick={() => dispatch(setLayout(o.key))}
+                >
+                  {o.icon}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+
         <div className="min-h-0 flex-1">
-          <ReaderAugmente entry={openEntryObj} documents={documents} dispatch={dispatch} nameOf={nameOf} />
+          <DeskView
+            windows={openWindows}
+            layout={deskLayout}
+            compareEntries={compareEntries}
+            focusedId={focusedId}
+            documents={documents}
+            dispatch={dispatch}
+            nameOf={nameOf}
+            onFocus={setOpenId}
+          />
         </div>
       </div>
     );
@@ -309,6 +414,15 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
               </option>
             ))}
           </select>
+          {(openWindows.length > 0 || compareEntries) && (
+            <button
+              type="button"
+              className="shrink-0 rounded-lg bg-indigo-600 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+              onClick={() => setView("desk")}
+            >
+              Bureau · {openWindows.length || 2}
+            </button>
+          )}
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-4">

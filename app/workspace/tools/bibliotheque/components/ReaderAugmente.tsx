@@ -113,15 +113,18 @@ export function ReaderAugmente({
   documents,
   dispatch,
   nameOf,
+  defaultShowPanel = true,
 }: {
   entry: DocEntry;
   documents: DocumentDef[];
   dispatch: Dispatch;
   nameOf?: (id: string) => string;
+  /** Panneau d'annotations replié par défaut (fenêtres multiples / comparaison). */
+  defaultShowPanel?: boolean;
 }) {
   const who = (id: string) => (nameOf ? nameOf(id) : id);
   const bodyRef = useRef<HTMLDivElement>(null);
-  const [showPanel, setShowPanel] = useState(true);
+  const [showPanel, setShowPanel] = useState(defaultShowPanel);
   const [sel, setSel] = useState<{ text: string; anchor: string; x: number; y: number } | null>(null);
   const [commenting, setCommenting] = useState(false);
   const [commentText, setCommentText] = useState("");
