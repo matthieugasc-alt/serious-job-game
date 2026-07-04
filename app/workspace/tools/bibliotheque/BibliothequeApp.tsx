@@ -101,8 +101,6 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
   const [view, setView] = useState<"library" | "desk">("library");
   const [openId, setOpenId] = useState<string | null>(null);
   const [newFolder, setNewFolder] = useState("");
-  const [tagFor, setTagFor] = useState<string | null>(null);
-  const [tagDraft, setTagDraft] = useState("");
   const handledContext = useRef<string | null>(null);
   const dispatchedIndex = useRef<Set<string>>(new Set());
 
@@ -162,6 +160,20 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
     [dispatch],
   );
 
+  /** Ouvrir un document À CÔTÉ : l'ouvre et bascule en deux colonnes. */
+  const openBeside = useCallback(
+    (entry: DocEntry) => {
+      setView("desk");
+      dispatch(openEntry(entry.id));
+      dispatch(setLayout("split-v"));
+      if (entry.source.kind === "scenario_doc") {
+        dispatch({ type: "document_opened", document_id: entry.source.document_id });
+      }
+      setOpenId(entry.id);
+    },
+    [dispatch],
+  );
+
   useEffect(() => {
     if (!requestedDoc || requestedDoc === handledContext.current) return;
     const entry = entriesByDocId[requestedDoc];
@@ -198,7 +210,9 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
           return true;
       }
     });
-    return sortEntries(kept, sel.type === "recent" ? "opened" : sort);
+    // Les épinglés remontent TOUJOURS en tête (accès rapide), quel que soit le tri.
+    const sorted = sortEntries(kept, sel.type === "recent" ? "opened" : sort);
+    return [...sorted].sort((a, b) => Number(b.pinned) - Number(a.pinned));
   }, [libState, query, resolveContent, sel, sort]);
 
   const countFor = (predicate: (e: DocEntry) => boolean) => allEntries.filter(predicate).length;
@@ -439,26 +453,15 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
                   entry={e}
                   folderName={e.folder_id ? folders.find((f) => f.id === e.folder_id)?.name : undefined}
                   folders={folders}
+                  allTags={tags.map((t) => t.tag)}
                   onOpen={() => open(e)}
+                  onOpenBeside={() => openBeside(e)}
                   onTogglePin={() => dispatch(togglePin(e.id))}
                   onToggleFav={() => dispatch(toggleFavorite(e.id))}
                   onMove={(fid) => dispatch(moveToFolder(e.id, fid))}
                   onRemove={() => dispatch(removeEntry(e.id))}
                   onRemoveTag={(t) => dispatch(removeTag(e.id, t))}
-                  tagOpen={tagFor === e.id}
-                  tagDraft={tagFor === e.id ? tagDraft : ""}
-                  onTagOpen={() => {
-                    setTagFor(e.id);
-                    setTagDraft("");
-                  }}
-                  onTagChange={setTagDraft}
-                  onTagSubmit={() => {
-                    const t = tagDraft.trim();
-                    if (t) dispatch(addTag(e.id, t));
-                    setTagFor(null);
-                    setTagDraft("");
-                  }}
-                  onTagCancel={() => setTagFor(null)}
+                  onAddTag={(t) => dispatch(addTag(e.id, t))}
                 />
               ))}
             </div>
@@ -506,23 +509,43 @@ interface EntryCardProps {
   entry: DocEntry;
   folderName?: string;
   folders: { id: string; name: string }[];
+  allTags: string[];
   onOpen: () => void;
+  onOpenBeside: () => void;
   onTogglePin: () => void;
   onToggleFav: () => void;
   onMove: (folderId: string | null) => void;
   onRemove: () => void;
   onRemoveTag: (tag: string) => void;
-  tagOpen: boolean;
-  tagDraft: string;
-  onTagOpen: () => void;
-  onTagChange: (v: string) => void;
-  onTagSubmit: () => void;
-  onTagCancel: () => void;
+  onAddTag: (tag: string) => void;
 }
 
 function EntryCard(props: EntryCardProps) {
   const { entry: e, folderName, folders } = props;
   const [menu, setMenu] = useState(false);
+  const [adding, setAdding] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  // Valider = garder le tag (déclenché à la frappe d'Entrée OU au clic
+  // ailleurs / perte de focus). Vide → on ferme sans rien ajouter.
+  const commit = (value: string) => {
+    const t = value.trim();
+    if (t) props.onAddTag(t);
+    setAdding(false);
+    setDraft("");
+  };
+
+  const suggestions =
+    adding && draft.trim().length >= 1
+      ? props.allTags
+          .filter(
+            (t) =>
+              t.toLowerCase().startsWith(draft.trim().toLowerCase()) &&
+              t.toLowerCase() !== draft.trim().toLowerCase() &&
+              !e.tags.includes(t),
+          )
+          .slice(0, 5)
+      : [];
 
   return (
     <div className="group relative flex flex-col gap-2 rounded-2xl border border-gray-200 bg-white p-3 text-left shadow-sm transition hover:border-indigo-300 hover:shadow">
@@ -538,6 +561,14 @@ function EntryCard(props: EntryCardProps) {
         <div className="flex shrink-0 items-center">
           <button
             type="button"
+            title="Ouvrir à côté (deux documents côte à côte)"
+            className="rounded px-1 text-sm text-gray-300 opacity-0 transition hover:bg-gray-100 hover:text-indigo-600 group-hover:opacity-100"
+            onClick={props.onOpenBeside}
+          >
+            ⧉
+          </button>
+          <button
+            type="button"
             title={e.favorite ? "Retirer des favoris" : "Favori"}
             className={`rounded px-1 text-sm transition hover:bg-gray-100 ${e.favorite ? "text-amber-500" : "text-gray-300"}`}
             onClick={props.onToggleFav}
@@ -546,8 +577,8 @@ function EntryCard(props: EntryCardProps) {
           </button>
           <button
             type="button"
-            title={e.pinned ? "Désépingler" : "Épingler"}
-            className={`rounded px-1 text-sm transition hover:bg-gray-100 ${e.pinned ? "opacity-100" : "opacity-40"}`}
+            title={e.pinned ? "Désépingler (garde en haut de la liste)" : "Épingler en haut de la liste"}
+            className={`rounded px-1 text-sm transition hover:bg-gray-100 ${e.pinned ? "text-indigo-600" : "text-gray-300"}`}
             onClick={props.onTogglePin}
           >
             📌
@@ -584,29 +615,49 @@ function EntryCard(props: EntryCardProps) {
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        {props.tagOpen ? (
-          <form
-            className="flex flex-1 items-center gap-1"
-            onSubmit={(ev) => {
-              ev.preventDefault();
-              props.onTagSubmit();
-            }}
-          >
+      <div className="relative flex items-center gap-2">
+        {adding ? (
+          <div className="relative flex-1">
             <input
+              // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
-              value={props.tagDraft}
-              onChange={(ev) => props.onTagChange(ev.target.value)}
-              onBlur={props.onTagCancel}
-              placeholder="tag…"
+              value={draft}
+              onChange={(ev) => setDraft(ev.target.value)}
+              onBlur={() => commit(draft)}
+              onKeyDown={(ev) => {
+                if (ev.key === "Enter") {
+                  ev.preventDefault();
+                  commit(suggestions.length === 1 ? suggestions[0] : draft);
+                }
+                if (ev.key === "Escape") {
+                  setAdding(false);
+                  setDraft("");
+                }
+              }}
+              placeholder="tag… (Entrée ou clic ailleurs pour garder)"
               className="w-full rounded-md border border-gray-300 px-2 py-0.5 text-xs focus:border-indigo-400 focus:outline-none"
             />
-          </form>
+            {suggestions.length > 0 && (
+              <div className="absolute left-0 top-full z-20 mt-0.5 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                {suggestions.map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    className="block w-full truncate px-2 py-1 text-left text-[11px] text-gray-700 hover:bg-indigo-50"
+                    onMouseDown={(ev) => ev.preventDefault() /* garde le focus, évite le blur */}
+                    onClick={() => commit(t)}
+                  >
+                    #{t}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         ) : (
           <button
             type="button"
             className="text-[11px] font-medium text-gray-400 transition hover:text-indigo-600"
-            onClick={props.onTagOpen}
+            onClick={() => setAdding(true)}
           >
             + tag
           </button>
