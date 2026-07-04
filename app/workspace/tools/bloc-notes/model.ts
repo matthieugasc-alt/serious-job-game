@@ -421,23 +421,43 @@ function todoToggled(s: NotebookState, p: JsonObject, at: number): NotebookState
   return withNote(s, { ...note, blocks, updated_at: at });
 }
 
+/** Clé de regroupement d'une source : toutes les annotations d'un même
+ *  fil / mail / document atterrissent dans LA MÊME note. */
+function sourceKey(src: SourceRef): string {
+  if (src.kind === "message") return `message:${src.thread_id}`;
+  if (src.kind === "mail") return `mail:${src.mail_id}`;
+  return `document:${src.document_id}`;
+}
+
 function annotationAdded(s: NotebookState, p: JsonObject, at: number): NotebookState | null {
   const id = asString(p.note_id);
   const excerpt = asString(p.excerpt);
   const source = parseSourceRef(p.source);
-  if (id === undefined || id.length === 0 || id in s.notes) return null;
+  if (id === undefined || id.length === 0) return null;
   if (excerpt === undefined || excerpt.trim().length === 0 || !source) return null;
   const comment = (asString(p.comment) ?? "").trim();
-  const compact = excerpt.replace(/\s+/g, " ").trim();
-  const title = compact.length > 60 ? `${compact.slice(0, 59)}…` : compact;
-  const blocks: Block[] = [{ id: `${id}_quote`, kind: "quote", text: excerpt }];
+  const newBlocks: Block[] = [{ id: `${id}_quote`, kind: "quote", text: excerpt }];
   if (comment.length > 0) {
-    blocks.push({ id: `${id}_comment`, kind: "paragraph", text: comment });
+    newBlocks.push({ id: `${id}_comment`, kind: "paragraph", text: comment });
   }
+
+  // Une note existe déjà pour cette source → on y AJOUTE (incrémental).
+  const key = sourceKey(source);
+  const existing = s.order
+    .map((oid) => s.notes[oid])
+    .find((n): n is Note => Boolean(n) && Boolean(n.source) && sourceKey(n.source!) === key);
+  if (existing) {
+    return withNote(s, { ...existing, blocks: [...existing.blocks, ...newBlocks], updated_at: at });
+  }
+
+  if (id in s.notes) return null;
+  const providedTitle = asString(p.title);
+  const compact = excerpt.replace(/\s+/g, " ").trim();
+  const title = providedTitle ?? (compact.length > 60 ? `${compact.slice(0, 59)}…` : compact);
   return insertNote(s, {
     id,
     title,
-    blocks,
+    blocks: newBlocks,
     tags: asStringArray(p.tags),
     source,
     created_at: at,

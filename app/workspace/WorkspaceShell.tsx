@@ -22,6 +22,7 @@ import { APP_ORDER, APP_REGISTRY, TOOL_REGISTRY, type AppNavContext } from "./ap
 import { ChatDock } from "./ChatDock";
 import { QuickPanel } from "./tools/bloc-notes/QuickPanel";
 import { Toasts } from "./Toasts";
+import { useAppShortcuts } from "./useAppShortcuts";
 
 interface Props {
   workspace: WorkspaceState;
@@ -79,6 +80,7 @@ export function WorkspaceShell({
     setActiveApp(appId);
     setAppContext(context);
   };
+  useAppShortcuts(APP_ORDER, openApp);
 
   const app = APP_REGISTRY[activeApp] ?? APP_REGISTRY[APP_ORDER[0]];
   const tools = activeTools
@@ -126,7 +128,7 @@ export function WorkspaceShell({
       <div className="flex min-h-0 flex-1">
         {/* Rail latéral : apps puis tools du moment. */}
         <nav className="flex w-[76px] shrink-0 flex-col items-center gap-1 border-r border-gray-200 bg-white py-3">
-          {APP_ORDER.map((id) => {
+          {APP_ORDER.map((id, i) => {
             const a = APP_REGISTRY[id];
             if (!a) return null;
             const badge = a.badge(workspace);
@@ -135,7 +137,7 @@ export function WorkspaceShell({
               <button
                 key={id}
                 type="button"
-                title={a.title}
+                title={`${a.title} (⌘⌥${i + 1})`}
                 aria-pressed={active}
                 className={`relative flex w-16 flex-col items-center gap-0.5 rounded-xl px-1 py-2 transition ${
                   active ? "bg-indigo-50 text-indigo-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"

@@ -43,6 +43,7 @@ describe("WorkspaceShell — garde-fous", () => {
       /^\.\/apps\/registry$/,
       /^\.\/ChatDock$/,
       /^\.\/Toasts$/,
+      /^\.\/useAppShortcuts$/,
       /^\.\/tools\/bloc-notes\/QuickPanel$/,
       /^@\/app\/player\/primitives\/ui$/,
       /^@\/app\/lib\/engine\//,

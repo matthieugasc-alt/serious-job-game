@@ -43,6 +43,11 @@ export function ThreadConversation({
   dispatch,
   placeholder,
 }: Props) {
+  // Libellé de la source : toutes les annotations du fil vont dans la
+  // même note « Messages de … ».
+  const threadLabel =
+    thread.title ??
+    thread.participants.map((p) => actors.find((a) => a.actor_id === p)?.name ?? p).join(", ");
   return (
     <ChatPanel
       key={thread.thread_id}
@@ -65,6 +70,7 @@ export function ThreadConversation({
               at: e.at,
               excerpt: e.content,
             }}
+            sourceTitle={`Messages de ${threadLabel}`}
             dispatch={dispatch}
             side="above"
             align="right"

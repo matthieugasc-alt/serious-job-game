@@ -26,8 +26,8 @@ type Tab = "notes" | "kanban" | "base";
 
 const TABS: [Tab, string][] = [
   ["notes", "Notes"],
+  ["base", "Tâches"],
   ["kanban", "Kanban"],
-  ["base", "Base de données"],
 ];
 
 export function BlocNotesApp({ workspace, dispatch, openApp, context }: WorkspaceAppProps) {

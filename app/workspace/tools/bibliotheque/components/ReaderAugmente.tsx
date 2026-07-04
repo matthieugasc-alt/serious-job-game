@@ -268,11 +268,18 @@ export function ReaderAugmente({
     window.getSelection()?.removeAllRanges();
   }, []);
 
+  const sourceLabel = (): string => {
+    const src = entry.source;
+    if (src.kind === "archived_mail") return `Mail : ${src.snapshot.subject}`;
+    if (src.kind === "archived_messages") return `Messages de ${src.snapshot.title}`;
+    return `Document : ${entry.title}`;
+  };
+
   const doHighlight = (color: string) => {
     if (!sel) return;
     dispatch(addHighlight(entry.id, { anchor: sel.anchor, excerpt: sel.text, color }));
-    // Auto-import dans le Bloc-notes (le carnet garde toutes les actions).
-    dispatch(blocNotesAnnotate({ source: makeSource(sel.text), excerpt: sel.text }));
+    // Auto-import dans le Bloc-notes (une note par source, incrémentale).
+    dispatch(blocNotesAnnotate({ source: makeSource(sel.text), excerpt: sel.text, title: sourceLabel() }));
     setChip("Surligné · ajouté au bloc-notes");
     clearSelection();
   };
@@ -288,7 +295,7 @@ export function ReaderAugmente({
     const text = commentText.trim();
     if (text) {
       dispatch(addComment(entry.id, { text, anchor: sel.anchor, excerpt: sel.text }));
-      dispatch(blocNotesAnnotate({ source: makeSource(sel.text), excerpt: sel.text, comment: text }));
+      dispatch(blocNotesAnnotate({ source: makeSource(sel.text), excerpt: sel.text, comment: text, title: sourceLabel() }));
     }
     setChip("Commentaire ajouté · ajouté au bloc-notes");
     clearSelection();

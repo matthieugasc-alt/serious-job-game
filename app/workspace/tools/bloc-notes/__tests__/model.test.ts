@@ -312,6 +312,33 @@ describe("annotation_added — quote + commentaire + source + heure", () => {
     expect(n.notes.a1.blocks).toEqual([{ id: "a1_quote", kind: "quote", text: "extrait" }]);
   });
 
+  it("regroupe par source : deux annotations du même fil → une seule note incrémentée", () => {
+    let n = apply(emptyNotebookState() as Json, "annotation_added", {
+      note_id: "a1",
+      source: SOURCES.message as unknown as Json,
+      excerpt: "premier",
+      title: "Messages de Emma Ricci",
+      at: T0,
+    });
+    n = apply(n as unknown as Json, "annotation_added", {
+      note_id: "a2",
+      source: SOURCES.message as unknown as Json,
+      excerpt: "deuxième",
+      comment: "à creuser",
+      at: T0 + 5,
+    });
+    expect(Object.keys(n.notes)).toEqual(["a1"]); // pas de note "a2" : on a incrémenté
+    expect(n.notes.a1.title).toBe("Messages de Emma Ricci"); // titre = libellé de source
+    expect(n.notes.a1.blocks.map((b) => b.text)).toEqual(["premier", "deuxième", "à creuser"]);
+    expect(n.notes.a1.updated_at).toBe(T0 + 5);
+  });
+
+  it("sources différentes → notes distinctes", () => {
+    let n = apply(emptyNotebookState() as Json, "annotation_added", { note_id: "a1", source: SOURCES.message as unknown as Json, excerpt: "x", at: T0 });
+    n = apply(n as unknown as Json, "annotation_added", { note_id: "a2", source: SOURCES.mail as unknown as Json, excerpt: "y", at: T0 + 1 });
+    expect(Object.keys(n.notes).sort()).toEqual(["a1", "a2"]);
+  });
+
   it("titre tronqué à 60 caractères (extrait long, espaces compactés)", () => {
     const long = `Un   extrait ${"très ".repeat(30)}long`;
     const n = apply(emptyNotebookState() as Json, "annotation_added", {

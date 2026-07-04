@@ -123,6 +123,8 @@ interface AnnotateButtonProps {
   side?: "above" | "below";
   align?: "left" | "right";
   title?: string;
+  /** Titre de la note groupée par source (ex. « Messages de Emma Ricci »). */
+  sourceTitle?: string;
 }
 
 export function AnnotateButton({
@@ -133,6 +135,7 @@ export function AnnotateButton({
   side = "below",
   align = "left",
   title = "Ajouter au bloc-notes",
+  sourceTitle,
 }: AnnotateButtonProps) {
   const [phase, setPhase] = useState<"idle" | "open" | "done">("idle");
   const text = excerpt ?? source.excerpt;
@@ -144,7 +147,7 @@ export function AnnotateButton({
   }, [phase]);
 
   const submit = (comment: string) => {
-    dispatch(annotate({ source, excerpt: text, comment }));
+    dispatch(annotate({ source, excerpt: text, comment, title: sourceTitle }));
     setPhase("done");
   };
 
@@ -186,9 +189,11 @@ interface SelectionAnnotateProps {
   /** Construit la SourceRef à partir de l'extrait sélectionné. */
   makeSource: (excerpt: string) => SourceRef;
   dispatch: Dispatch;
+  /** Titre de la note groupée par source. */
+  sourceTitle?: string;
 }
 
-export function SelectionAnnotate({ containerRef, makeSource, dispatch }: SelectionAnnotateProps) {
+export function SelectionAnnotate({ containerRef, makeSource, dispatch, sourceTitle }: SelectionAnnotateProps) {
   const [sel, setSel] = useState<{ text: string; x: number; y: number } | null>(null);
   const [open, setOpen] = useState(false);
   const [done, setDone] = useState(false);
@@ -233,7 +238,7 @@ export function SelectionAnnotate({ containerRef, makeSource, dispatch }: Select
 
   const submit = (comment: string) => {
     if (!sel) return;
-    dispatch(annotate({ source: makeSource(sel.text), excerpt: sel.text, comment }));
+    dispatch(annotate({ source: makeSource(sel.text), excerpt: sel.text, comment, title: sourceTitle }));
     setOpen(false);
     setSel(null);
     setDone(true);

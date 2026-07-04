@@ -107,16 +107,19 @@ export function toggleTodo(noteId: NoteId, blockId: string, opts: OpOptions = {}
  * note « quote (extrait) + commentaire + source + heure » (contrat §5).
  */
 export function annotate(
-  input: { source: SourceRef; excerpt: string; comment?: string },
+  input: { source: SourceRef; excerpt: string; comment?: string; title?: string },
   opts: OpOptions = {},
 ): NotebookToolOp {
-  return op("annotation_added", {
+  const payload: JsonObject = {
     note_id: opts.id ?? uid("note"),
     source: input.source as unknown as Json,
     excerpt: input.excerpt,
     comment: input.comment ?? "",
     at: opts.at ?? Date.now(),
-  });
+  };
+  // Titre de la note groupée par source (ex. « Messages de Emma Ricci »).
+  if (input.title !== undefined) payload.title = input.title;
+  return op("annotation_added", payload);
 }
 
 export interface CreateTaskInput {

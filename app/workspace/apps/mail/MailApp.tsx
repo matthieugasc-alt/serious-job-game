@@ -266,6 +266,7 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
                 </div>
                 <AnnotateButton
                   source={mailSource(selected, selected.subject)}
+                  sourceTitle={`Mail : ${selected.subject}`}
                   dispatch={dispatch}
                   side="below"
                   align="right"
@@ -319,6 +320,7 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
               <SelectionAnnotate
                 containerRef={bodyRef}
                 dispatch={dispatch}
+                sourceTitle={`Mail : ${selected.subject}`}
                 makeSource={(excerpt) => mailSource(selected, excerpt)}
               />
             </div>

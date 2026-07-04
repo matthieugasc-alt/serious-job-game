@@ -424,7 +424,7 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
         : b.kind === "heading2"
           ? "text-lg font-semibold text-gray-900"
           : b.kind === "quote"
-            ? "italic text-gray-600"
+            ? "italic text-gray-400"
             : "text-[15px] text-gray-800";
     const marks = `${b.marks?.bold ? " font-semibold" : ""}${b.marks?.italic ? " italic" : ""}${
       b.marks?.underline ? " underline" : ""
