@@ -24,6 +24,9 @@ import { DocumentViewer } from "@/app/workspace/primitives/DocumentViewer";
 import type { DocumentDef } from "@/app/lib/engine/mechanics";
 import { annotate as blocNotesAnnotate } from "@/app/workspace/tools/bloc-notes/api";
 import type { SourceRef } from "@/app/workspace/tools/bloc-notes/spec";
+import { LinkToDecisionButton } from "@/app/workspace/tools/decision-engine/LinkToDecisionButton";
+import type { SourceLink } from "@/app/workspace/tools/decision-engine/spec";
+import type { Json } from "@/app/lib/engine/mechanics";
 import {
   addBookmark,
   addComment,
@@ -114,6 +117,7 @@ export function ReaderAugmente({
   dispatch,
   nameOf,
   defaultShowPanel = true,
+  decisionState,
 }: {
   entry: DocEntry;
   documents: DocumentDef[];
@@ -121,8 +125,19 @@ export function ReaderAugmente({
   nameOf?: (id: string) => string;
   /** Panneau d'annotations replié par défaut (fenêtres multiples / comparaison). */
   defaultShowPanel?: boolean;
+  /** État brut du Decision Engine (toolStates["decision-engine"]) pour le
+   *  bouton « → Décision » — fourni par l'hôte, optionnel. */
+  decisionState?: Json;
 }) {
   const who = (id: string) => (nameOf ? nameOf(id) : id);
+
+  const decisionLink = (): SourceLink => {
+    const src = entry.source;
+    if (src.kind === "archived_mail") return { kind: "mail", mail_id: src.mail_id, label: entry.title };
+    if (src.kind === "archived_messages") return { kind: "message", thread_id: src.thread_id, label: entry.title };
+    if (src.kind === "scenario_doc") return { kind: "document", document_id: src.document_id, label: entry.title };
+    return { kind: "library", entry_id: entry.id, label: entry.title };
+  };
   const bodyRef = useRef<HTMLDivElement>(null);
   const [showPanel, setShowPanel] = useState(defaultShowPanel);
   const [sel, setSel] = useState<{ text: string; anchor: string; x: number; y: number } | null>(null);
@@ -247,6 +262,9 @@ export function ReaderAugmente({
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1">
+            {decisionState !== undefined && (
+              <LinkToDecisionButton link={decisionLink()} decisionState={decisionState} dispatch={dispatch} />
+            )}
             <button
               type="button"
               title={entry.favorite ? "Retirer des favoris" : "Ajouter aux favoris"}

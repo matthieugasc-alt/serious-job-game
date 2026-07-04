@@ -20,6 +20,15 @@ import {
 import { DECISION_ENGINE_TOOL_ID } from "./spec";
 import { DecisionEditor } from "./components/DecisionEditor";
 import { MatrixBoard } from "./components/MatrixBoard";
+import { RegistryBoard } from "./components/RegistryBoard";
+import { TableBoard } from "./components/TableBoard";
+import type { Board } from "./spec";
+
+function BoardView({ board, dispatch }: { board: Board; dispatch: WorkspaceAppProps["dispatch"] }) {
+  if (board.engine === "registry") return <RegistryBoard board={board} dispatch={dispatch} />;
+  if (board.engine === "table") return <TableBoard board={board} dispatch={dispatch} />;
+  return <MatrixBoard board={board} dispatch={dispatch} />;
+}
 
 const STATUS_LABEL: Record<string, string> = {
   draft: "Brouillon",
@@ -108,7 +117,7 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
               <span className="text-sm font-medium text-gray-800">{openBoard.title || openBoard.engine}</span>
             </header>
             <div className="min-h-0 flex-1">
-              <MatrixBoard board={openBoard} dispatch={dispatch} />
+              <BoardView board={openBoard} dispatch={dispatch} />
             </div>
           </>
         ) : (
@@ -123,7 +132,7 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
               />
             </header>
             <div className="min-h-0 flex-1">
-              <DecisionEditor key={selected.id} decision={selected} boards={boards} dispatch={dispatch} onOpenBoard={setOpenBoardId} />
+              <DecisionEditor key={selected.id} decision={selected} boards={boards} dispatch={dispatch} onOpenBoard={setOpenBoardId} onSelectDecision={setSelectedId} />
             </div>
           </>
         )}

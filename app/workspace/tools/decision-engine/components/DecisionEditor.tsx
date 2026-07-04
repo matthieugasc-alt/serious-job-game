@@ -23,26 +23,33 @@ import {
   scoreOption,
   updateCriterionWeight,
   updateDecision,
+  updateRisk,
   weightedScoreOf,
 } from "../api";
 import { PRESETS } from "../presets";
+import { createTaskFromDecision, exportDecisionToNotebook, reviseDecision } from "../integrations";
 import type { Board, DecisionObject } from "../spec";
+import { RiskMatrix } from "./RiskMatrix";
 
 type Dispatch = (action: WorkspaceAction) => void;
 
 const BAND_COLOR: Record<string, string> = { low: "#bbf7d0", moderate: "#fde68a", high: "#fecaca" };
+const PI_SCALE = [1, 2, 3, 4, 5];
 
 export function DecisionEditor({
   decision,
   boards,
   dispatch,
   onOpenBoard,
+  onSelectDecision,
 }: {
   decision: DecisionObject;
   boards: Board[];
   dispatch: Dispatch;
   onOpenBoard: (boardId: string) => void;
+  onSelectDecision: (decisionId: string) => void;
 }) {
+  const [riskView, setRiskView] = useState<"registre" | "matrice">("registre");
   // État local initialisé aux props ; le parent remonte le composant
   // (key={decision.id}) au changement de décision — pas d'effet de synchro.
   const [context, setContext] = useState(decision.context);
@@ -160,29 +167,68 @@ export function DecisionEditor({
         )}
       </section>
 
-      {/* Risques. */}
+      {/* Risques — registre ↔ matrice (conversion sur le même decision.risks). */}
       <section className="border-b border-gray-100 px-4 py-3">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-xs font-semibold text-gray-700">Risques</h3>
-          <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => dispatch(createRisk(decision.id, { label: "Nouveau risque", probability: 3, impact: 3 }))}>
-            + Risque
-          </button>
+          <div className="flex items-center gap-1.5">
+            <div className="flex rounded-lg border border-gray-200 p-0.5 text-[11px]">
+              {(["registre", "matrice"] as const).map((v) => (
+                <button key={v} type="button" aria-pressed={riskView === v} className={`rounded px-1.5 py-0.5 font-medium transition ${riskView === v ? "bg-indigo-100 text-indigo-700" : "text-gray-500 hover:bg-gray-100"}`} onClick={() => setRiskView(v)}>
+                  {v === "registre" ? "Registre" : "Matrice"}
+                </button>
+              ))}
+            </div>
+            <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => dispatch(createRisk(decision.id, { label: "Nouveau risque", probability: 3, impact: 3 }))}>
+              + Risque
+            </button>
+          </div>
         </div>
-        {decision.risks.length === 0 ? (
+        {riskView === "matrice" ? (
+          <div className="h-72"><RiskMatrix decision={decision} dispatch={dispatch} /></div>
+        ) : decision.risks.length === 0 ? (
           <p className="text-[11px] text-gray-400">Aucun risque identifié.</p>
         ) : (
-          <ul className="flex flex-col gap-1">
-            {decision.risks.map((r) => {
-              const { score, band } = riskLevel(r.probability, r.impact);
-              return (
-                <li key={r.id} className="flex items-center gap-2 rounded-lg bg-gray-50 px-2 py-1 text-xs">
-                  <span className="inline-flex h-4 w-6 items-center justify-center rounded text-[10px] font-bold text-gray-800" style={{ backgroundColor: BAND_COLOR[band] }}>{score}</span>
-                  <span className="min-w-0 flex-1 truncate text-gray-800">{r.label}</span>
-                  <span className="shrink-0 text-[10px] text-gray-400">P{r.probability}·I{r.impact}</span>
-                </li>
-              );
-            })}
-          </ul>
+          <table className="w-full border-collapse text-xs">
+            <thead>
+              <tr className="text-gray-500">
+                <th className="px-1 py-1 text-left font-medium">Risque</th>
+                <th className="px-1 py-1 font-medium">P</th>
+                <th className="px-1 py-1 font-medium">I</th>
+                <th className="px-1 py-1 text-left font-medium">Mitigation</th>
+                <th className="px-1 py-1 font-medium">Crit.</th>
+                <th className="w-6" />
+              </tr>
+            </thead>
+            <tbody>
+              {decision.risks.map((r) => {
+                const { score, band } = riskLevel(r.probability, r.impact);
+                return (
+                  <tr key={r.id} className="group border-t border-gray-100">
+                    <td className="px-1 py-1">
+                      <input value={r.label} onChange={(e) => dispatch(updateRisk(decision.id, r.id, { label: e.target.value }))} className="w-full min-w-[120px] bg-transparent text-gray-800 focus:outline-none" placeholder="Risque…" />
+                    </td>
+                    {(["probability", "impact"] as const).map((k) => (
+                      <td key={k} className="px-1 py-1 text-center">
+                        <select value={r[k]} onChange={(e) => dispatch(updateRisk(decision.id, r.id, { [k]: Number(e.target.value) }))} className="bg-transparent text-center focus:outline-none">
+                          {PI_SCALE.map((n) => <option key={n} value={n}>{n}</option>)}
+                        </select>
+                      </td>
+                    ))}
+                    <td className="px-1 py-1">
+                      <input value={r.mitigation ?? ""} onChange={(e) => dispatch(updateRisk(decision.id, r.id, { mitigation: e.target.value }))} className="w-full min-w-[100px] bg-transparent text-gray-700 focus:outline-none" placeholder="—" />
+                    </td>
+                    <td className="px-1 py-1 text-center">
+                      <span className="inline-flex h-4 w-6 items-center justify-center rounded text-[10px] font-bold text-gray-800" style={{ backgroundColor: BAND_COLOR[band] }}>{score}</span>
+                    </td>
+                    <td className="px-1 py-1 text-center">
+                      <button type="button" title="Retirer" className="text-gray-300 opacity-0 transition hover:text-red-500 group-hover:opacity-100" onClick={() => dispatch(updateRisk(decision.id, r.id, { status: "closed" }))}>✓</button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         )}
       </section>
 
@@ -190,13 +236,12 @@ export function DecisionEditor({
       <section className="border-b border-gray-100 px-4 py-3">
         <div className="mb-2 flex items-center justify-between">
           <h3 className="text-xs font-semibold text-gray-700">Tableaux d’arbitrage</h3>
-          <div className="flex gap-1.5">
-            <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => { const o = openPreset("matrix.impact_effort", { decision_id: decision.id }); if (o) dispatch(o); }}>
-              + Impact / Effort
-            </button>
-            <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => { const o = openPreset("matrix.prob_impact", { decision_id: decision.id }); if (o) dispatch(o); }}>
-              + Probabilité / Impact
-            </button>
+          <div className="flex flex-wrap gap-1.5">
+            {(["matrix.impact_effort", "swot", "registry.decisions"] as const).map((pid) => (
+              <button key={pid} type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => { const o = openPreset(pid, { decision_id: decision.id }); if (o) dispatch(o); }}>
+                + {PRESETS[pid].title}
+              </button>
+            ))}
           </div>
         </div>
         {boards.length === 0 ? (
@@ -223,20 +268,44 @@ export function DecisionEditor({
           placeholder="Dans le contexte de…, nous décidons… pour…, en acceptant…"
           className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none"
         />
-        <div className="mt-2 flex items-center justify-between">
+        <div className="mt-2 flex flex-wrap items-center gap-2">
           <span className={`text-[11px] font-medium ${decision.status === "finalized" ? "text-emerald-600" : "text-gray-400"}`}>
             {decision.status === "finalized" ? "✓ Décision actée" : "Brouillon"}
           </span>
-          {decision.status !== "finalized" && (
+          <div className="ml-auto flex flex-wrap gap-1.5">
             <button
               type="button"
-              disabled={final.trim().length === 0}
-              className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
-              onClick={() => dispatch(finalizeDecision(decision.id, { final_decision: final }))}
+              className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition hover:border-indigo-300 hover:text-indigo-700"
+              onClick={() => exportDecisionToNotebook(decision).forEach((a) => dispatch(a))}
             >
-              Acter la décision
+              → Bloc-notes
             </button>
-          )}
+            <button
+              type="button"
+              className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition hover:border-indigo-300 hover:text-indigo-700"
+              onClick={() => dispatch(createTaskFromDecision(decision))}
+            >
+              → Tâche
+            </button>
+            {decision.status === "finalized" ? (
+              <button
+                type="button"
+                className="rounded-lg border border-amber-200 bg-amber-50 px-2.5 py-1.5 text-xs font-semibold text-amber-800 transition hover:bg-amber-100"
+                onClick={() => { const { newId, actions } = reviseDecision(decision); actions.forEach((a) => dispatch(a)); onSelectDecision(newId); }}
+              >
+                Réviser (nouvelle version)
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled={final.trim().length === 0}
+                className="rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:opacity-40"
+                onClick={() => dispatch(finalizeDecision(decision.id, { final_decision: final }))}
+              >
+                Acter la décision
+              </button>
+            )}
+          </div>
         </div>
       </section>
     </div>

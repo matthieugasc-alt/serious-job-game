@@ -11,7 +11,7 @@
  * par l'API publique depuis la barre d'outils de BibliothequeApp.
  */
 
-import type { DocumentDef } from "@/app/lib/engine/mechanics";
+import type { DocumentDef, Json } from "@/app/lib/engine/mechanics";
 import type { WorkspaceAction } from "@/app/lib/engine/workspace";
 import { ReaderAugmente } from "./ReaderAugmente";
 import type { DeskLayout, DocEntry } from "../spec";
@@ -26,6 +26,7 @@ function Pane({
   focused,
   onFocus,
   showPanel = false,
+  decisionState,
 }: {
   entry: DocEntry;
   documents: DocumentDef[];
@@ -34,6 +35,7 @@ function Pane({
   focused?: boolean;
   onFocus?: () => void;
   showPanel?: boolean;
+  decisionState?: Json;
 }) {
   return (
     <div
@@ -48,6 +50,7 @@ function Pane({
         dispatch={dispatch}
         nameOf={nameOf}
         defaultShowPanel={showPanel}
+        decisionState={decisionState}
       />
     </div>
   );
@@ -62,6 +65,7 @@ export function DeskView({
   dispatch,
   nameOf,
   onFocus,
+  decisionState,
 }: {
   windows: DocEntry[];
   layout: DeskLayout;
@@ -71,13 +75,14 @@ export function DeskView({
   dispatch: Dispatch;
   nameOf?: (id: string) => string;
   onFocus: (id: string) => void;
+  decisionState?: Json;
 }) {
   // ── Comparaison : deux entrées côte à côte, scroll indépendant.
   if (compareEntries) {
     return (
       <div className="grid h-full min-h-0 grid-cols-2 gap-2 p-2">
         {compareEntries.map((e, i) => (
-          <Pane key={`cmp_${e.id}_${i}`} entry={e} documents={documents} dispatch={dispatch} nameOf={nameOf} />
+          <Pane key={`cmp_${e.id}_${i}`} entry={e} documents={documents} dispatch={dispatch} nameOf={nameOf} decisionState={decisionState} />
         ))}
       </div>
     );
@@ -126,6 +131,7 @@ export function DeskView({
           focused={multi && e.id === focused.id}
           onFocus={() => onFocus(e.id)}
           showPanel={!multi}
+          decisionState={decisionState}
         />
       ))}
     </div>

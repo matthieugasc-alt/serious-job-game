@@ -308,6 +308,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
             dispatch={dispatch}
             nameOf={nameOf}
             onFocus={setOpenId}
+            decisionState={workspace.toolStates["decision-engine"] ?? null}
           />
         </div>
       </div>
