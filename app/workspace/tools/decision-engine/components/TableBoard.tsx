@@ -8,12 +8,13 @@
  */
 
 import type { WorkspaceAction } from "@/app/lib/engine/workspace";
-import type { JsonObject } from "@/app/lib/engine/mechanics";
-import { addItem, boardItemsOf, moveItem, removeItem, updateItem } from "../api";
+import type { Json, JsonObject } from "@/app/lib/engine/mechanics";
+import { addItem, boardItemsOf, moveItem, removeItem, setCell, updateBoard, updateItem } from "../api";
 import type { Board } from "../spec";
 
 type Dispatch = (action: WorkspaceAction) => void;
 type Zone = { id: string; label: string; color?: string };
+type Head = { id: string; label: string };
 
 function zonesOf(board: Board): Zone[] {
   const z = (board.config as JsonObject).zones;
@@ -25,7 +26,91 @@ function zonesOf(board: Board): Zone[] {
     : [];
 }
 
+function headsOf(board: Board, key: "columns" | "rows"): Head[] {
+  const h = (board.config as JsonObject)[key];
+  return Array.isArray(h)
+    ? h
+        .filter((x): x is JsonObject => Boolean(x) && typeof x === "object" && !Array.isArray(x))
+        .map((x) => ({ id: String(x.id ?? ""), label: String(x.label ?? "") }))
+        .filter((x) => x.id.length > 0)
+    : [];
+}
+
+function localId(p: string): string {
+  return `${p}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`;
+}
+
+// ─── Mode grille (RACI, comparatif) ────────────────────────────────
+function TableGrid({ board, dispatch }: { board: Board; dispatch: Dispatch }) {
+  const config = board.config as JsonObject;
+  const columns = headsOf(board, "columns");
+  const rows = headsOf(board, "rows");
+  const cells = (board.data as JsonObject).cells;
+  const cellOptions = Array.isArray(config.cell_options)
+    ? config.cell_options.filter((o): o is string => typeof o === "string")
+    : null;
+  const cellVal = (rowId: string, colId: string): string => {
+    const v = cells && typeof cells === "object" && !Array.isArray(cells) ? (cells as JsonObject)[`${rowId}:${colId}`] : undefined;
+    return typeof v === "string" ? v : "";
+  };
+  const renameHead = (key: "columns" | "rows", id: string, label: string) => {
+    const list = headsOf(board, key).map((h) => (h.id === id ? { ...h, label } : h));
+    dispatch(updateBoard(board.id, { config: { ...config, [key]: list as unknown as Json } }));
+  };
+  const addHead = (key: "columns" | "rows") => {
+    const list = [...headsOf(board, key), { id: localId(key), label: key === "columns" ? "Colonne" : "Ligne" }];
+    dispatch(updateBoard(board.id, { config: { ...config, [key]: list as unknown as Json } }));
+  };
+
+  return (
+    <div className="flex h-full min-h-0 flex-col p-3">
+      <div className="mb-2 flex items-center gap-1.5">
+        <h3 className="text-xs font-semibold text-gray-700">{board.title || "Grille"}</h3>
+        <button type="button" className="rounded-lg border border-gray-200 px-2 py-0.5 text-[11px] text-gray-600 hover:border-indigo-300" onClick={() => addHead("rows")}>+ Ligne</button>
+        <button type="button" className="rounded-lg border border-gray-200 px-2 py-0.5 text-[11px] text-gray-600 hover:border-indigo-300" onClick={() => addHead("columns")}>+ Colonne</button>
+      </div>
+      <div className="min-h-0 flex-1 overflow-auto rounded-xl border border-gray-200">
+        <table className="w-full border-collapse text-xs">
+          <thead>
+            <tr>
+              <th className="border-b border-r border-gray-200 bg-gray-50 px-2 py-1" />
+              {columns.map((c) => (
+                <th key={c.id} className="border-b border-gray-200 bg-gray-50 px-1 py-1">
+                  <input value={c.label} onChange={(e) => renameHead("columns", c.id, e.target.value)} className="w-full min-w-[70px] bg-transparent text-center font-semibold text-gray-700 focus:outline-none" />
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <th className="border-r border-gray-200 bg-gray-50 px-1 py-1 text-left">
+                  <input value={r.label} onChange={(e) => renameHead("rows", r.id, e.target.value)} className="w-full min-w-[90px] bg-transparent font-medium text-gray-700 focus:outline-none" />
+                </th>
+                {columns.map((c) => (
+                  <td key={c.id} className="border-b border-gray-100 px-1 py-1 text-center">
+                    {cellOptions ? (
+                      <select value={cellVal(r.id, c.id)} onChange={(e) => dispatch(setCell(board.id, `${r.id}:${c.id}`, e.target.value))} className="bg-transparent text-center focus:outline-none">
+                        <option value="">—</option>
+                        {cellOptions.map((o) => <option key={o} value={o}>{o}</option>)}
+                      </select>
+                    ) : (
+                      <input value={cellVal(r.id, c.id)} onChange={(e) => dispatch(setCell(board.id, `${r.id}:${c.id}`, e.target.value))} className="w-full min-w-[70px] bg-transparent text-center text-gray-800 focus:outline-none" />
+                    )}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function TableBoard({ board, dispatch }: { board: Board; dispatch: Dispatch }) {
+  if (((board.config as JsonObject).mode ?? "zones") === "grid") return <TableGrid board={board} dispatch={dispatch} />;
+
   const zones = zonesOf(board);
   const items = boardItemsOf(board);
 
