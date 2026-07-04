@@ -45,13 +45,31 @@ const VALID_PARAMS: Record<string, JsonObject> = {
       { id: "b", label: "Option B", description: "…" },
     ],
   },
+  diagnostic: { situation: "Le churn des vétérinaires explose.", actor_id: "acteur_test" },
+  entretien: { actor_id: "acteur_test", objective: "Comprendre le besoin réel." },
+  feedback: { actor_id: "acteur_test", context_brief: "Retards répétés sur les livraisons." },
+  formation: {
+    actor_id: "acteur_test",
+    topic: "Onboarding produit",
+    objectives: [
+      { id: "obj_valeur", label: "Comprendre la proposition de valeur" },
+      { id: "obj_process", label: "Connaître le process de vente" },
+    ],
+  },
+  mediation: {
+    party_a_actor: "acteur_test",
+    party_b_actor: "acteur_b",
+    conflict_brief: "Conflit de priorités entre tech et sales.",
+  },
   negociation: {
     actor_id: "acteur_test",
     instructions: "Négocie le devis.",
     terms: [{ id: "prix", label: "Prix", type: "number", opening: 21000 }],
     directive: "Plancher : 11 000 €.",
   },
+  presentation: { brief: "Pitch du MVP en 3 minutes devant le board." },
   production: { deliverable_type: "mail", instructions: "Rédige le mail." },
+  qa: { actor_id: "acteur_test", question_count: 3 },
 };
 
 function makeWorkspace(): WorkspaceState {
@@ -119,6 +137,15 @@ function makeLog(): LoggedAction[] {
     },
     {
       at: 6,
+      step_id: "s_test",
+      action: {
+        type: "deliverable_submitted",
+        tool_id: "reunion",
+        payload: { speech: "Voici mon exposé sur le MVP.", duration_s: 95 },
+      },
+    },
+    {
+      at: 7,
       step_id: "autre_step",
       action: { type: "mail_sent", to: ["x"], subject: "hors step", body: "…" },
     },
@@ -224,5 +251,133 @@ describe("(c) contrat comportemental minimal", () => {
     const output = spec.buildOutput(makeWorkspace(), step, { criteria: {} }, makeLog());
     expect(output.body).toContain("Scope retenu");
     expect((output.deliverable as JsonObject).subject).toBe("Cadrage");
+  });
+
+  it("production (document) : le livrable vient du payload du tool editeur", () => {
+    const spec = MECHANIC_SPECS.production;
+    const step = makeStep("production");
+    step.params = { deliverable_type: "document", instructions: "Rédige le one-pager." };
+    const log = [
+      ...makeLog(),
+      {
+        at: 8,
+        step_id: "s_test",
+        action: {
+          type: "deliverable_submitted" as const,
+          tool_id: "editeur",
+          payload: { title: "One-pager MVP", body: "Recommandation : scope A + B." },
+        },
+      },
+    ];
+    const output = spec.buildOutput(makeWorkspace(), step, { criteria: {} }, log);
+    expect(output.deliverable).toEqual({
+      type: "document",
+      title: "One-pager MVP",
+      body: "Recommandation : scope A + B.",
+    });
+    expect(output.body).toBe("Recommandation : scope A + B.");
+  });
+
+  it("entretien : dialogue depuis le fil, exchange_count depuis le journal", () => {
+    const spec = MECHANIC_SPECS.entretien;
+    const output = spec.buildOutput(
+      makeWorkspace(),
+      makeStep("entretien"),
+      { criteria: {} },
+      makeLog(),
+    );
+    expect(output.dialogue).toContain("Joueur : Voici mes conclusions");
+    expect(output.dialogue).toContain("acteur_test : Bonjour.");
+    expect(output.exchange_count).toBe(1);
+  });
+
+  it("qa : answers_count = messages du joueur pendant le step", () => {
+    const spec = MECHANIC_SPECS.qa;
+    const output = spec.buildOutput(
+      makeWorkspace(),
+      makeStep("qa"),
+      { criteria: {} },
+      makeLog(),
+    );
+    expect(output.answers_count).toBe(1);
+    expect(output.dialogue).toContain("Voici mes conclusions");
+  });
+
+  it("diagnostic : diagnosis dérivé de la formalisation (mail) et des notes", () => {
+    const spec = MECHANIC_SPECS.diagnostic;
+    const output = spec.buildOutput(
+      makeWorkspace(),
+      makeStep("diagnostic"),
+      { criteria: {} },
+      makeLog(),
+    );
+    const diagnosis = output.diagnosis as JsonObject;
+    expect(diagnosis.cause).toContain("Scope retenu");
+    expect(diagnosis.evidence).toContain("annulations = pain point");
+  });
+
+  it("feedback : commitments = notes si présentes, sinon la formalisation", () => {
+    const spec = MECHANIC_SPECS.feedback;
+    const ws = makeWorkspace();
+    const output = spec.buildOutput(ws, makeStep("feedback"), { criteria: {} }, makeLog());
+    expect(output.commitments).toContain("annulations = pain point");
+    // Sans notes : repli sur la dernière formalisation (mail de cadrage).
+    ws.toolStates.notes = { content: "" };
+    const fallback = spec.buildOutput(ws, makeStep("feedback"), { criteria: {} }, makeLog());
+    expect(fallback.commitments).toContain("Scope retenu");
+  });
+
+  it("formation : objectives_covered = critères observés alignés sur les ids d'objectifs", () => {
+    const spec = MECHANIC_SPECS.formation;
+    const output = spec.buildOutput(
+      makeWorkspace(),
+      makeStep("formation"),
+      { criteria: { obj_valeur: true, obj_process: false, c1: true } },
+      makeLog(),
+    );
+    expect(output.objectives_covered).toEqual(["obj_valeur"]);
+  });
+
+  it("mediation : resolution suit la convention accord_atteint, sinon la formalisation", () => {
+    const spec = MECHANIC_SPECS.mediation;
+    const ws = makeWorkspace();
+    const step = makeStep("mediation");
+    // Critère conventionnel déclaré et observé faux → reached false.
+    const refused = spec.buildOutput(ws, step, { criteria: { accord_atteint: false } }, makeLog());
+    expect((refused.resolution as JsonObject).reached).toBe(false);
+    // Sans critère conventionnel : reached = une formalisation existe.
+    const byDefault = spec.buildOutput(ws, step, { criteria: {} }, makeLog());
+    expect((byDefault.resolution as JsonObject).reached).toBe(true);
+    expect((byDefault.resolution as JsonObject).terms).toContain("Scope retenu");
+  });
+
+  it("mediation : la directive scope chaque partie du fil partagé", () => {
+    const directive = MECHANIC_SPECS.mediation.directive(VALID_PARAMS.mediation);
+    expect(directive).toContain("acteur_test");
+    expect(directive).toContain("acteur_b");
+    expect(directive).toContain("UNE SEULE");
+  });
+
+  it("presentation : speech/duration_s depuis le payload du tool reunion", () => {
+    const spec = MECHANIC_SPECS.presentation;
+    const output = spec.buildOutput(
+      makeWorkspace(),
+      makeStep("presentation"),
+      { criteria: {} },
+      makeLog(),
+    );
+    expect(output.speech).toBe("Voici mon exposé sur le MVP.");
+    expect(output.duration_s).toBe(95);
+    // Sans payload : repli sur l'état du tool reunion.
+    const ws = makeWorkspace();
+    ws.toolStates.reunion = {
+      phase: "active",
+      prepare_started_at: null,
+      active_started_at: 1,
+      speech: "Brouillon d'exposé.",
+    };
+    const fallback = spec.buildOutput(ws, makeStep("presentation"), { criteria: {} }, []);
+    expect(fallback.speech).toBe("Brouillon d'exposé.");
+    expect(fallback.duration_s).toBe(0);
   });
 });

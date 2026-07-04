@@ -15,6 +15,8 @@ import type { WorkspaceState } from "@/app/lib/engine/workspace";
 import { APP_ORDER, APP_REGISTRY, TOOL_REGISTRY } from "../apps/registry";
 import { notesSpec } from "../tools/notes/spec";
 import { contratSpec } from "../tools/contrat/spec";
+import { editeurSpec } from "../tools/editeur/spec";
+import { reunionSpec } from "../tools/reunion/spec";
 
 const wsDir = join(__dirname, "..");
 const shellSource = readFileSync(join(wsDir, "WorkspaceShell.tsx"), "utf8");
@@ -39,6 +41,7 @@ describe("WorkspaceShell — garde-fous", () => {
     const whitelist = [
       /^react$/,
       /^\.\/apps\/registry$/,
+      /^\.\/ChatDock$/,
       /^@\/app\/player\/primitives\/ui$/,
       /^@\/app\/lib\/engine\//,
     ];
@@ -49,6 +52,22 @@ describe("WorkspaceShell — garde-fous", () => {
         `import interdit dans WorkspaceShell : "${spec}"`,
       ).toBe(true);
     }
+  });
+});
+
+describe("ChatDock — garde-fou (aucune logique dupliquée avec Messages)", () => {
+  it("réutilise le rendu de fil partagé et ne construit jamais message_sent lui-même", () => {
+    const src = readFileSync(join(wsDir, "ChatDock.tsx"), "utf8");
+    // Le rendu de conversation vient de l'app Messages (composant partagé).
+    expect(src).toMatch(/from\s+["']\.\/apps\/messages\/ThreadConversation["']/);
+    // L'envoi passe UNIQUEMENT par ThreadConversation (même dispatch) :
+    // le dock ne construit jamais lui-même une action message_sent.
+    expect(/type:\s*["']message_sent["']/.test(src)).toBe(false);
+  });
+
+  it("MessagesApp utilise le même rendu de fil (ThreadConversation)", () => {
+    const src = readFileSync(join(wsDir, "apps", "messages", "MessagesApp.tsx"), "utf8");
+    expect(src).toMatch(/from\s+["']\.\/ThreadConversation["']/);
   });
 });
 
@@ -111,6 +130,37 @@ describe("TOOL_REGISTRY — garde-fou", () => {
     expect(notesSpec.describeForObservation({ content: "hypothèse : churn vétos" })).toContain(
       "churn vétos",
     );
+  });
+
+  it("describeForObservation est pur et lisible (editeur)", () => {
+    const s0 = editeurSpec.initialState({ template: "## Plan\n- contexte\n- reco" });
+    expect(s0.title).toBe("");
+    expect(s0.body).toContain("## Plan"); // le template préremplit le corps
+    expect(editeurSpec.describeForObservation(null)).toBe("Document vide.");
+    expect(editeurSpec.describeForObservation({ title: "", body: "" })).toBe("Document vide.");
+    const state = { title: "One-pager MVP", body: "Recommandation : scope A + B." };
+    const snapshot = JSON.stringify(state);
+    const described = editeurSpec.describeForObservation(state);
+    expect(described).toContain("Titre : One-pager MVP");
+    expect(described).toContain("Recommandation : scope A + B.");
+    // Pureté : l'état n'est pas muté, deux appels donnent le même résultat.
+    expect(JSON.stringify(state)).toBe(snapshot);
+    expect(editeurSpec.describeForObservation(state)).toBe(described);
+  });
+
+  it("describeForObservation est pur et lisible (reunion)", () => {
+    const config = { brief: "Pitch MVP", time_limit_s: 120, preparation_s: 60, mode: "presentation" };
+    const s0 = reunionSpec.initialState(config);
+    expect(s0.phase).toBe("prepare"); // preparation_s > 0 → phase préparation
+    expect(reunionSpec.initialState({ brief: "x", time_limit_s: 60, mode: "qa" }).phase).toBe("active");
+    expect(reunionSpec.describeForObservation(s0)).toContain("préparation");
+    const done = { phase: "done", prepare_started_at: 1, active_started_at: 2, speech: "Voici mon exposé." };
+    const snapshot = JSON.stringify(done);
+    const described = reunionSpec.describeForObservation(done);
+    expect(described).toContain("Voici mon exposé.");
+    expect(described).toContain("terminée");
+    expect(JSON.stringify(done)).toBe(snapshot);
+    expect(reunionSpec.describeForObservation(done)).toBe(described);
   });
 
   it("describeForObservation est pur et lisible (contrat)", () => {

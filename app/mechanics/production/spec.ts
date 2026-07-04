@@ -7,15 +7,21 @@
  *    output construit depuis le brouillon du composant.
  *  - v3 : le livrable est produit dans le workspace RÉEL — un mail
  *    s'envoie depuis l'app Mail (le dernier mail envoyé au destinataire
- *    est le livrable) ; un document s'écrit dans le Tool notes. Output
- *    { deliverable, body } de même forme qu'en v2
- *    ({ type, to?, subject?, title?, body }).
+ *    est le livrable) ; un document se rédige dans le Tool `editeur`
+ *    (deliverable_submitted { title, body }), avec repli sur son état
+ *    puis sur le Tool notes (compat jalon 1). Output { deliverable, body }
+ *    de même forme qu'en v2 ({ type, to?, subject?, title?, body }).
  */
 
 import type { JsonObject } from "@/app/lib/engine/mechanics";
 import type { MechanicSpec } from "@/app/lib/engine/workspace";
 import {
+  EDITEUR_TOOL_ID,
+  normalizeEditeurState,
+} from "@/app/workspace/tools/editeur/spec";
+import {
   formatMail,
+  lastDeliverablePayload,
   lastSentMail,
   notesForObservation,
   playerMessages,
@@ -28,6 +34,38 @@ function recipientActor(params: JsonObject): string | undefined {
   return typeof params.recipient_actor === "string"
     ? params.recipient_actor
     : undefined;
+}
+
+/**
+ * Livrable document : payload deliverable_submitted du Tool editeur
+ * (rendu explicite), repli sur l'état de l'éditeur (brouillon), puis
+ * sur le Tool notes (compat jalon 1, avant l'existence de l'éditeur).
+ */
+function documentDeliverable(
+  ws: Parameters<MechanicSpec["buildOutput"]>[0],
+  step: Parameters<MechanicSpec["buildOutput"]>[1],
+  log: Parameters<MechanicSpec["buildOutput"]>[3],
+): { title: string; body: string } {
+  const fallbackTitle = step.title ?? step.step_id;
+  const payload = lastDeliverablePayload(log, step, EDITEUR_TOOL_ID);
+  if (payload) {
+    const title =
+      typeof payload.title === "string" && payload.title.trim().length > 0
+        ? payload.title.trim()
+        : fallbackTitle;
+    return {
+      title,
+      body: typeof payload.body === "string" ? payload.body : "",
+    };
+  }
+  const draft = normalizeEditeurState(ws.toolStates[EDITEUR_TOOL_ID] ?? null, {});
+  if (draft.title.trim().length > 0 || draft.body.trim().length > 0) {
+    return {
+      title: draft.title.trim().length > 0 ? draft.title.trim() : fallbackTitle,
+      body: draft.body,
+    };
+  }
+  return { title: fallbackTitle, body: rawNotes(ws) };
 }
 
 export const productionSpec: MechanicSpec = {
@@ -58,12 +96,18 @@ export const productionSpec: MechanicSpec = {
   },
 
   /** L'observable réel : le dernier mail envoyé au destinataire (livrable
-   *  mail) ou les notes (livrable document), + les échanges du step. */
+   *  mail) ou le document de l'éditeur (livrable document, repli notes),
+   *  + les échanges du step. */
   buildArtifacts(ws, step, log): JsonObject {
     const to = recipientActor(step.params);
     const mail = lastSentMail(log, step, to);
+    const doc = documentDeliverable(ws, step, log);
     return {
       livrable_mail: mail ? formatMail(mail) : "(aucun mail envoyé)",
+      livrable_document:
+        doc.body.length > 0
+          ? `Titre : ${doc.title}\n\n${doc.body}`
+          : "(aucun document rédigé)",
       mails_envoyes: sentMails(log, step).length,
       notes: notesForObservation(ws),
       messages_envoyes: playerMessages(ws, log, step).map((m) => m.content),
@@ -84,10 +128,10 @@ export const productionSpec: MechanicSpec = {
       };
       return { deliverable, body: mail?.body ?? "" };
     }
-    const body = rawNotes(ws);
+    const doc = documentDeliverable(ws, step, log);
     return {
-      deliverable: { type: "document", title: step.title ?? step.step_id, body },
-      body,
+      deliverable: { type: "document", title: doc.title, body: doc.body },
+      body: doc.body,
     };
   },
 

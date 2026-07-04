@@ -3,7 +3,8 @@
 /**
  * WorkspaceShell — layout du poste de travail v3 (contrat §1).
  * Rail d'apps (badges non-lus), zone principale = app active, panneau
- * latéral droit pour un Tool épinglé, toasts de notifications.
+ * latéral droit pour un Tool épinglé, ChatDock (bulles de chat
+ * flottantes, masquées quand Messages est ouvert), toasts.
  * AUCUNE logique métier : il reçoit l'état, monte les apps du registre
  * et transmet chaque action au moteur via `dispatch`.
  * Garde-fous : ≤ 250 lignes, imports sur liste blanche
@@ -18,6 +19,7 @@ import type {
   WorkspaceState,
 } from "@/app/lib/engine/workspace";
 import { APP_ORDER, APP_REGISTRY, TOOL_REGISTRY, type AppNavContext } from "./apps/registry";
+import { ChatDock } from "./ChatDock";
 
 interface Props {
   workspace: WorkspaceState;
@@ -169,9 +171,19 @@ export function WorkspaceShell({
         )}
       </div>
 
-      {/* Toasts de notifications — coin bas-droit, cliquables → app source. */}
+      {/* ChatDock : bulles de chat flottantes — masqué quand Messages est ouvert. */}
+      {activeApp !== "messages" && (
+        <ChatDock
+          workspace={workspace}
+          actors={actors}
+          busyThreads={busyThreads}
+          dispatch={dispatch}
+        />
+      )}
+
+      {/* Toasts de notifications — au-dessus du ChatDock, cliquables → app source. */}
       {toasts.length > 0 && (
-        <div className="pointer-events-none fixed bottom-4 right-4 z-50 flex w-80 flex-col gap-2">
+        <div className="pointer-events-none fixed bottom-24 right-4 z-50 flex w-80 flex-col gap-2">
           {toasts.map((n) => (
             <div
               key={n.notif_id}

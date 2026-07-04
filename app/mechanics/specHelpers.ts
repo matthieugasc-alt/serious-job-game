@@ -83,6 +83,55 @@ export function threadTranscript(ws: WorkspaceState, threadId: string): string {
     .join("\n");
 }
 
+/**
+ * Fils pertinents pour un step : ceux qu'il déclare (step.threads),
+ * sinon ceux où participe l'un des acteurs donnés, sinon tous les fils.
+ * Les threads persistent entre steps — les specs ne supposent jamais
+ * qu'un fil leur appartient.
+ */
+export function stepThreadIds(
+  ws: WorkspaceState,
+  step: StepInvocationV3,
+  actorIds: readonly string[] = [],
+): string[] {
+  const declared = (step.threads ?? [])
+    .map((t) => t.thread_id)
+    .filter((id) => Boolean(ws.threads[id]));
+  if (declared.length > 0) return declared;
+  const withActors = Object.keys(ws.threads).filter((id) =>
+    actorIds.some((a) => ws.threads[id].participants.includes(a)),
+  );
+  return withActors.length > 0 ? withActors : Object.keys(ws.threads);
+}
+
+/**
+ * Dialogue des fils du step, format compact « Joueur : … / <actor_id> : … »
+ * (successeur v3 du buildDialogue des Runtime v2). "" si rien ne s'est dit.
+ */
+export function stepDialogue(
+  ws: WorkspaceState,
+  step: StepInvocationV3,
+  actorIds: readonly string[] = [],
+): string {
+  return stepThreadIds(ws, step, actorIds)
+    .filter((id) => (ws.threads[id]?.messages.length ?? 0) > 0)
+    .map((id) => threadTranscript(ws, id))
+    .join("\n\n");
+}
+
+/** Même dialogue, mais préfixé par fil — la vue de l'observateur IA. */
+export function threadsForObservation(
+  ws: WorkspaceState,
+  step: StepInvocationV3,
+  actorIds: readonly string[] = [],
+): string {
+  const ids = stepThreadIds(ws, step, actorIds);
+  if (ids.length === 0) return "(aucun fil de discussion)";
+  return ids
+    .map((id) => `— Fil ${id} —\n${threadTranscript(ws, id)}`)
+    .join("\n\n");
+}
+
 // ─── Mails ────────────────────────────────────────────────────────
 
 export interface SentMail {
@@ -120,10 +169,83 @@ export function formatMail(mail: SentMail): string {
   return `À : ${mail.to.join(", ")}\nObjet : ${mail.subject}\n\n${mail.body}`;
 }
 
+/**
+ * Dernière formalisation du joueur pendant le step : dernier mail
+ * envoyé (prioritaire, comme la spec decision), sinon dernier message.
+ */
+export function lastFormalisation(
+  ws: WorkspaceState,
+  log: readonly LoggedAction[],
+  step: StepInvocationV3,
+): string {
+  const mail = lastSentMail(log, step);
+  if (mail) return `Objet : ${mail.subject}\n\n${mail.body}`;
+  const messages = playerMessages(ws, log, step);
+  return messages[messages.length - 1]?.content ?? "";
+}
+
+// ─── Livrables (payload du journal — les tools ne sont pas requis) ─
+
+/** Dernier payload deliverable_submitted du step (du tool donné). */
+export function lastDeliverablePayload(
+  log: readonly LoggedAction[],
+  step: StepInvocationV3,
+  toolId?: string,
+): JsonObject | null {
+  let out: JsonObject | null = null;
+  for (const e of stepLog(log, step)) {
+    if (e.action.type !== "deliverable_submitted") continue;
+    if (toolId !== undefined && e.action.tool_id !== toolId) continue;
+    out = e.action.payload;
+  }
+  return out;
+}
+
 // ─── Validation de params (mêmes messages que les Runtime v2) ─────
 
 export function requireInstructions(params: JsonObject, errors: string[]): void {
   if (typeof params.instructions !== "string" || params.instructions.trim().length === 0) {
     errors.push("params.instructions doit être une string non vide");
   }
+}
+
+/** Param string non vide requis — même message que les Runtime v2. */
+export function requireString(
+  params: JsonObject,
+  key: string,
+  errors: string[],
+): void {
+  if (typeof params[key] !== "string" || (params[key] as string).trim().length === 0) {
+    errors.push(`params.${key} doit être une string non vide`);
+  }
+}
+
+/** Param string optionnel — même message que les Runtime v2. */
+export function optionalString(
+  params: JsonObject,
+  key: string,
+  errors: string[],
+): void {
+  if (params[key] !== undefined && typeof params[key] !== "string") {
+    errors.push(`params.${key} doit être une string`);
+  }
+}
+
+/**
+ * Consigne spécifique du scénario (params.directive), explicitement
+ * scopée à un acteur : les threads persistent entre steps, un AUTRE
+ * acteur peut recevoir ce cadrage (même règle que la spec negociation).
+ */
+export function scopedScenarioDirective(
+  params: JsonObject,
+  actorKey = "actor_id",
+): string {
+  const directive =
+    typeof params.directive === "string" ? params.directive.trim() : "";
+  if (directive.length === 0) return "";
+  const actorId =
+    typeof params[actorKey] === "string" ? (params[actorKey] as string) : "";
+  return actorId
+    ? `Consigne spécifique pour l'acteur « ${actorId} » (à ignorer si tu joues un autre personnage) : ${directive}`
+    : directive;
 }

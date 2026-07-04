@@ -2,31 +2,21 @@
 
 /**
  * MessagesApp — messagerie interne type Teams.
- * Liste des fils à gauche, conversation à droite (réutilise ChatPanel :
- * bulles, avatars initiales, indicateur de frappe). Envoyer un message
- * dispatch `message_sent` — le moteur fait tout le reste.
+ * Liste des fils à gauche, conversation à droite (ThreadConversation,
+ * partagée avec le ChatDock : bulles, avatars, indicateur de frappe).
+ * Envoyer un message dispatch `message_sent` — le moteur fait le reste.
  */
 
 import { useState } from "react";
-import type { ActorDef, TranscriptEvent } from "@/app/lib/engine/mechanics";
+import type { ActorDef } from "@/app/lib/engine/mechanics";
 import type { Thread } from "@/app/lib/engine/workspace";
-import { ChatPanel } from "@/app/player/primitives/ChatPanel";
 import { ActorAvatar } from "@/app/player/primitives/ui";
 import { fmtWhen } from "../format";
 import type { WorkspaceAppProps } from "../types";
+import { ThreadConversation } from "./ThreadConversation";
 
 function lastAt(t: Thread): number {
   return t.messages[t.messages.length - 1]?.at ?? 0;
-}
-
-function toTranscript(t: Thread): TranscriptEvent[] {
-  return t.messages.map((m) => ({
-    at: m.at,
-    channel: "chat" as const,
-    role: m.from === "player" ? ("player" as const) : m.from === "system" ? ("system" as const) : ("actor" as const),
-    actor_id: m.actor_id,
-    content: m.content,
-  }));
 }
 
 export function MessagesApp({ workspace, actors, dispatch, busyThreads }: WorkspaceAppProps) {
@@ -120,15 +110,11 @@ export function MessagesApp({ workspace, actors, dispatch, busyThreads }: Worksp
               </div>
             </header>
             <div className="min-h-0 flex-1">
-              <ChatPanel
-                key={selected.thread_id}
-                transcript={toTranscript(selected)}
+              <ThreadConversation
+                thread={selected}
                 actors={actors}
                 busy={busyThreads?.includes(selected.thread_id)}
-                placeholder="Écrivez votre message…"
-                onSend={(text) =>
-                  dispatch({ type: "message_sent", thread_id: selected.thread_id, content: text })
-                }
+                dispatch={dispatch}
               />
             </div>
           </>
