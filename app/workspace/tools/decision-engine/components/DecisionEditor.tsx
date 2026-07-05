@@ -95,10 +95,10 @@ export function DecisionEditor({
                 Charger critères par défaut
               </button>
             )}
-            <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => dispatch(addCriterion(decision.id, { label: "Nouveau critère", weight: 1 }))}>
+            <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => dispatch(addCriterion(decision.id, { label: "", weight: 1 }))}>
               + Critère
             </button>
-            <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => dispatch(addOption(decision.id, "Nouvelle option"))}>
+            <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => dispatch(addOption(decision.id, ""))}>
               + Option
             </button>
           </div>

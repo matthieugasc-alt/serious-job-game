@@ -130,10 +130,10 @@ export function ReaderAugmente({
   const bodyRef = useRef<HTMLDivElement>(null);
   const instanceId = useId().replace(/[^a-zA-Z0-9]/g, "");
   // Panneau d'annotations : masqué par défaut (le document prend toute la
-  // largeur). Épinglé au clic sur ✎, ou révélé au survol de sa poignée.
+  // largeur). Basculé au clic sur ✎ — EN FLUX (le document se reformate à
+  // côté), jamais en superposition : il ne masque donc plus le texte.
   const [panelPinned, setPanelPinned] = useState(defaultShowPanel);
-  const [panelHover, setPanelHover] = useState(false);
-  const showPanel = panelPinned || panelHover;
+  const showPanel = panelPinned;
   const [sel, setSel] = useState<{ text: string; anchor: string; x: number; y: number } | null>(null);
   const [commenting, setCommenting] = useState(false);
   const [commentText, setCommentText] = useState("");
@@ -330,11 +330,10 @@ export function ReaderAugmente({
             </button>
             <button
               type="button"
-              title={panelPinned ? "Détacher le panneau d'annotations" : "Épingler le panneau (survol pour l'aperçu)"}
+              title={showPanel ? "Masquer le panneau d'annotations" : "Afficher les annotations (surlignages, commentaires, signets)"}
               aria-pressed={showPanel}
-              className={`rounded-md px-1.5 py-1 text-sm transition hover:bg-gray-100 ${showPanel ? "text-indigo-600" : "text-gray-400"}`}
+              className={`rounded-md px-1.5 py-1 text-sm transition hover:bg-gray-100 ${showPanel ? "bg-indigo-50 text-indigo-600" : "text-gray-400"}`}
               onClick={() => setPanelPinned((v) => !v)}
-              onMouseEnter={() => setPanelHover(true)}
             >
               ✎ {entry.annotations.length + entry.bookmarks.length || ""}
             </button>
@@ -371,11 +370,7 @@ export function ReaderAugmente({
       </div>
 
       {showPanel && (
-        <aside
-          className="absolute right-0 top-0 z-30 flex h-full w-64 flex-col gap-3 overflow-y-auto border-l border-gray-200 bg-gray-50/95 px-3 py-3 shadow-xl backdrop-blur-sm"
-          onMouseEnter={() => setPanelHover(true)}
-          onMouseLeave={() => setPanelHover(false)}
-        >
+        <aside className="flex h-full w-64 shrink-0 flex-col gap-3 overflow-y-auto border-l border-gray-200 bg-gray-50/80 px-3 py-3">
           <AnnotationSection title="Surlignages" count={highlights.length} empty="Sélectionnez du texte pour surligner.">
             {highlights.map((a) => (
               <AnnotationRow key={a.id} onRemove={() => dispatch(removeAnnotation(entry.id, a.id))}>
