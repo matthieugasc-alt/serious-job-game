@@ -17,7 +17,7 @@
  * publique `bloc-notes/api` (contrat §4).
  */
 
-import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import type { WorkspaceAction } from "@/app/lib/engine/workspace";
 import { Markdown } from "@/app/workspace/primitives/Markdown";
 import { DocumentViewer } from "@/app/workspace/primitives/DocumentViewer";
@@ -126,7 +126,7 @@ export function ReaderAugmente({
   defaultShowPanel?: boolean;
   decisionState?: Json;
 }) {
-  const who = (id: string) => (nameOf ? nameOf(id) : id);
+  const who = useCallback((id: string) => (nameOf ? nameOf(id) : id), [nameOf]);
   const bodyRef = useRef<HTMLDivElement>(null);
   const instanceId = useId().replace(/[^a-zA-Z0-9]/g, "");
   // Panneau d'annotations : masqué par défaut (le document prend toute la
@@ -304,6 +304,16 @@ export function ReaderAugmente({
   const highlights = entry.annotations.filter((a) => a.kind === "highlight");
   const comments = entry.annotations.filter((a) => a.kind === "comment");
 
+  // Le corps du document est MÉMOÏSÉ : il ne doit pas se re-rendre quand
+  // l'état de sélection (sel/commenting/chip) change, sinon react-markdown
+  // recrée les nœuds DOM et la sélection native du navigateur saute au
+  // relâchement de la souris (barre flottante inutilisable). Il ne se
+  // recalcule que si le document, ses pièces ou le résolveur de noms change.
+  const body = useMemo(
+    () => <EntryBody entry={entry} documents={documents} who={who} />,
+    [entry, documents, who],
+  );
+
   return (
     <div className="relative flex h-full min-h-0 bg-white">
       {hlStyle && <style dangerouslySetInnerHTML={{ __html: hlStyle }} />}
@@ -341,7 +351,7 @@ export function ReaderAugmente({
         </header>
 
         <div ref={bodyRef} className="relative min-h-0 flex-1 overflow-y-auto">
-          <EntryBody entry={entry} documents={documents} who={who} />
+          {body}
 
           {sel && !commenting && (
             <div className="absolute z-40 flex items-center gap-0.5 rounded-xl border border-gray-200 bg-white px-1 py-1 shadow-lg" style={{ left: sel.x, top: sel.y }} onMouseDown={(e) => e.preventDefault()}>
