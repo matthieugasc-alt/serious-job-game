@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LoggedAction, ScenarioV3, WorkspaceState } from "@/app/lib/engine/workspace";
 import { collectDebrief } from "@/app/lib/debrief/collect";
-import { getLatestForScenario, saveGameRecord } from "@/app/lib/gameHistory";
+import { saveGameRecord } from "@/app/lib/gameHistory";
 import { DebriefView, type FinalDebrief } from "./DebriefView";
 
 function endingFromScore(avg: number): "success" | "partial_success" | "failure" {
@@ -37,12 +37,11 @@ export function ScenarioDebrief({
   const bundle = useMemo(() => collectDebrief(scenario, workspace, actionLog), [scenario, workspace, actionLog]);
   const hasData = Object.keys(bundle.signals).length > 0;
 
-  // Déjà généré pour ce scénario → réouverture instantanée, sans IA
-  // (lu à l'initialisation pour éviter un setState dans l'effet).
-  const [debrief, setDebrief] = useState<FinalDebrief | null>(() => {
-    if (typeof window === "undefined" || !hasData) return null;
-    return (getLatestForScenario(scenario.scenario_id)?.debrief as FinalDebrief) ?? null;
-  });
+  // TOUJOURS analyser la PARTIE COURANTE (workspace + actionLog de cette
+  // session), jamais recharger un ancien bilan par scenario_id : sinon un
+  // rejeu (raté) afficherait le débrief d'une partie précédente (réussie).
+  // La réouverture d'un ancien bilan se fait, elle, via /debriefs/[id].
+  const [debrief, setDebrief] = useState<FinalDebrief | null>(null);
   const [phase, setPhase] = useState<"idle" | "loading" | "error">("idle");
   const started = useRef(false);
 
