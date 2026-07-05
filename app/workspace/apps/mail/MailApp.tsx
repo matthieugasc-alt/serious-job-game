@@ -72,7 +72,7 @@ const firstLine = (s: string) => s.replace(/[#>*_`]/g, "").split("\n").find((l) 
 
 export function MailApp({ workspace, actors, documents, dispatch, openApp, context }: WorkspaceAppProps) {
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [composing, setComposing] = useState(false);
+  const [composeMode, setComposeMode] = useState<ComposeMode | null>(null);
   const [query, setQuery] = useState("");
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [showAttach, setShowAttach] = useState(false);
@@ -83,7 +83,28 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
       : EMPTY_DRAFT;
   });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  // Refs pour flusher le brouillon AU DÉMONTAGE (changement d'app) : sinon
+  // le debounce en attente est annulé et les dernières frappes sont perdues.
+  const latestDraft = useRef(draft);
+  latestDraft.current = draft;
+  const dispatchRef = useRef(dispatch);
+  dispatchRef.current = dispatch;
+  useEffect(
+    () => () => {
+      if (!timer.current) return; // rien en attente : déjà persisté
+      clearTimeout(timer.current);
+      const d = latestDraft.current;
+      dispatchRef.current({
+        type: "mail_draft_saved",
+        draft_id: DRAFT_ID,
+        to: d.to,
+        subject: d.subject,
+        body: d.body,
+        artifact_refs: d.artifactRefs.length > 0 ? d.artifactRefs : undefined,
+      });
+    },
+    [],
+  );
 
   const nameOf = (id: string) => (id === "player" ? "Vous" : actors.find((a) => a.actor_id === id)?.name ?? id);
 
@@ -124,7 +145,7 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
 
   const openConversation = (c: Conversation) => {
     setSelectedKey(c.key);
-    setComposing(false);
+    setComposeMode(null);
     setExpandedIds(new Set([c.latest.mail_id]));
     for (const m of c.messages) if (isReceived(m) && !m.read) dispatch({ type: "mail_opened", mail_id: m.mail_id });
   };
@@ -175,7 +196,7 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
       for (const r of missing) if (!body.includes(buildArtifactHref(r))) body = `${body}${body.trim() ? "\n\n" : ""}${artifactLinkMarkdown(r)}`;
       return { ...prev, body, artifactRefs: [...prev.artifactRefs, ...missing] };
     });
-    if (added) setComposing(true);
+    if (added) setComposeMode((m) => m ?? "new");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [persistedRefsSig]);
 
@@ -206,7 +227,7 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
       }
     }
     setShowAttach(false);
-    setComposing(true);
+    setComposeMode(mode);
   };
 
   const send = () => {
@@ -227,7 +248,7 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
     });
     dispatch({ type: "mail_draft_saved", draft_id: DRAFT_ID, to: [], subject: "", body: "" });
     setDraft(EMPTY_DRAFT);
-    setComposing(false);
+    setComposeMode(null);
     // Rester sur la conversation pour VOIR le mail envoyé s'ajouter au fil.
     setSelectedKey(convKey(draft.subject));
     setExpandedIds(new Set());
@@ -239,8 +260,8 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
       if (e.metaKey || e.ctrlKey || e.altKey) return;
       const t = e.target as HTMLElement | null;
       const typing = !!t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable);
-      if (composing) {
-        if (e.key === "Escape" && !typing) setComposing(false);
+      if (composeMode) {
+        if (e.key === "Escape" && !typing) setComposeMode(null);
         return;
       }
       if (typing) return;
@@ -274,7 +295,7 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [composing, selected, filtered]);
+  }, [composeMode, selected, filtered]);
 
   return (
     <div className="flex h-full min-h-0">
@@ -302,7 +323,7 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
           )}
           {filtered.map((c) => {
             const unread = c.unread > 0;
-            const active = selectedKey === c.key && !composing;
+            const active = selectedKey === c.key && !composeMode;
             const who = c.participants.length ? c.participants.map(nameOf).join(", ") : "Vous";
             return (
               <li key={c.key}>
@@ -334,7 +355,7 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
 
       {/* Volet lecture / composeur. */}
       <section className="flex min-w-0 flex-1 flex-col bg-gray-50/60">
-        {composing ? (
+        {composeMode === "new" ? (
           <Composer
             draft={draft}
             actors={actors}
@@ -345,7 +366,7 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
             toggleIn={toggleIn}
             canSend={canSend}
             send={send}
-            onClose={() => setComposing(false)}
+            onClose={() => setComposeMode(null)}
           />
         ) : selected ? (
           <article className="flex min-h-0 flex-1 flex-col bg-white">
@@ -378,14 +399,31 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
                   />
                 ))}
 
-                {/* Barre d'actions de réponse (bas du fil, façon Gmail). */}
-                <div className="mt-2 flex flex-wrap gap-2">
-                  <PrimaryButton className="!px-3 !py-1.5 !text-xs" onClick={() => startCompose("reply", selected)}>↩ Répondre</PrimaryButton>
-                  {selected.participants.length > 1 && (
-                    <SecondaryButton className="!px-3 !py-1.5 !text-xs" onClick={() => startCompose("replyall", selected)}>↩ Répondre à tous</SecondaryButton>
-                  )}
-                  <SecondaryButton className="!px-3 !py-1.5 !text-xs" onClick={() => startCompose("forward", selected)}>➡ Transférer</SecondaryButton>
-                </div>
+                {/* Réponse INLINE (bas du fil, façon Gmail) : le fil reste
+                    visible au-dessus. Barre d'actions sinon. */}
+                {composeMode ? (
+                  <Composer
+                    inline
+                    draft={draft}
+                    actors={actors}
+                    documents={documents}
+                    showAttach={showAttach}
+                    setShowAttach={setShowAttach}
+                    editDraft={editDraft}
+                    toggleIn={toggleIn}
+                    canSend={canSend}
+                    send={send}
+                    onClose={() => setComposeMode(null)}
+                  />
+                ) : (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <PrimaryButton className="!px-3 !py-1.5 !text-xs" onClick={() => startCompose("reply", selected)}>↩ Répondre</PrimaryButton>
+                    {selected.participants.length > 1 && (
+                      <SecondaryButton className="!px-3 !py-1.5 !text-xs" onClick={() => startCompose("replyall", selected)}>↩ Répondre à tous</SecondaryButton>
+                    )}
+                    <SecondaryButton className="!px-3 !py-1.5 !text-xs" onClick={() => startCompose("forward", selected)}>➡ Transférer</SecondaryButton>
+                  </div>
+                )}
               </div>
             </div>
           </article>
@@ -537,6 +575,7 @@ function Composer({
   canSend,
   send,
   onClose,
+  inline = false,
 }: {
   draft: Draft;
   actors: WorkspaceAppProps["actors"];
@@ -548,14 +587,16 @@ function Composer({
   canSend: boolean;
   send: () => void;
   onClose: () => void;
+  /** Rendu carte compacte au bas d'un fil (réponse Gmail) vs plein écran. */
+  inline?: boolean;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col bg-white">
+    <div className={inline ? "mt-3 flex flex-col rounded-xl border border-indigo-200 bg-white shadow-sm" : "flex min-h-0 flex-1 flex-col bg-white"}>
       <header className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
-        <h2 className="text-sm font-semibold text-gray-900">{draft.subject ? draft.subject : "Nouveau message"}</h2>
+        <h2 className="text-sm font-semibold text-gray-900">{inline ? "Votre réponse" : draft.subject || "Nouveau message"}</h2>
         <p className="text-[11px] text-gray-400">Brouillon enregistré automatiquement</p>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4">
+      <div className={inline ? "flex flex-col gap-3 p-4" : "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4"}>
         <div>
           <p className="mb-1 text-xs font-medium text-gray-600">À :</p>
           <div className="flex flex-wrap gap-1.5">
@@ -584,7 +625,7 @@ function Composer({
         />
         <textarea
           autoFocus
-          className="min-h-[200px] flex-1 resize-none rounded-lg border border-gray-300 px-3 py-2.5 text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+          className={`${inline ? "min-h-[140px]" : "min-h-[200px] flex-1"} resize-none rounded-lg border border-gray-300 px-3 py-2.5 text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100`}
           placeholder="Rédigez votre mail…"
           value={draft.body}
           onChange={(e) => editDraft({ body: e.target.value })}

@@ -46,7 +46,10 @@ export function NoteMarker({ workspace, source, side = "below", align = "left", 
   if (!note) return null;
 
   const lines = note.blocks.filter((b) => b.kind !== "separator" && (b.text.trim() || b.kind === "todo"));
-  const count = lines.length;
+  // Nombre d'ANNOTATIONS = nombre d'extraits (chaque annotation ajoute un
+  // bloc « quote » ; un éventuel commentaire est un bloc paragraphe RATTACHÉ,
+  // pas une annotation de plus). Évite le « 2 » trompeur pour 1 annotation.
+  const count = note.blocks.filter((b) => b.kind === "quote").length || lines.length;
 
   return (
     <span className={`group/marker relative inline-flex shrink-0 ${className}`}>

@@ -79,3 +79,13 @@ input::placeholder, textarea::placeholder {
     min-width: 200px !important;
   }
 }
+
+/* ── Badge du rail : « pop » quand le compteur augmente (ex : un doc
+   archivé au porte-documents). Rejoué via key={badge} côté React. ── */
+@keyframes railBadgePop {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.6); }
+  70% { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+.rail-badge-pop { animation: railBadgePop 0.5s ease-out; }

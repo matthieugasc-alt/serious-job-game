@@ -10,6 +10,7 @@ import { MailApp } from "./mail/MailApp";
 import { DocumentsApp } from "./documents/DocumentsApp";
 import { BlocNotesApp } from "../tools/bloc-notes/BlocNotesApp";
 import { DecisionEngineApp } from "../tools/decision-engine/DecisionEngineApp";
+import { selectAllEntries } from "../tools/bibliotheque/api";
 
 export const APP_REGISTRY: Record<string, WorkspaceApp> = {
   messages: {
@@ -30,7 +31,10 @@ export const APP_REGISTRY: Record<string, WorkspaceApp> = {
     id: "documents",
     title: "Documents",
     icon: "📁",
-    badge: (ws) => Object.values(ws.documents).filter((d) => !d.opened).length,
+    // Nombre de documents dans le porte-documents (bibliothèque) : le badge
+    // grimpe quand le joueur archive un mail / un fil. Reflète le total visible
+    // (« Tous les documents »), pas seulement les pièces du scénario.
+    badge: (ws) => selectAllEntries(ws.toolStates?.bibliotheque ?? null).length,
     Component: DocumentsApp,
   },
   // Bloc-notes Universel (docs/TOOL_BLOC_NOTES.md) — remplace l'ancienne

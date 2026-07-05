@@ -148,7 +148,7 @@ export function WorkspaceShell({
                 <span className="text-[10px] font-medium">{a.title}</span>
                 <span aria-hidden className="text-[8px] leading-none text-gray-400">⌘⌥{i + 1}</span>
                 {badge > 0 && (
-                  <span className="absolute right-1.5 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
+                  <span key={badge} className="rail-badge-pop absolute right-1.5 top-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white">
                     {badge > 9 ? "9+" : badge}
                   </span>
                 )}
