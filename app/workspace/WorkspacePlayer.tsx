@@ -34,15 +34,7 @@ import {
 import { MECHANIC_SPECS, MECHANIC_SPEC_MANIFESTS } from "@/app/mechanics/specs";
 import { ActorAvatar, PrimaryButton } from "@/app/workspace/primitives/ui";
 import { WorkspaceShell } from "./WorkspaceShell";
-import { EntretienDebriefSection } from "./debrief/EntretienDebriefSection";
-import { DocSynthesisDebriefSection } from "./debrief/DocSynthesisDebriefSection";
-import { ArbitrageDebriefSection } from "./debrief/ArbitrageDebriefSection";
-import { ProductionDebriefSection } from "./debrief/ProductionDebriefSection";
-import { PresentationDebriefSection } from "./debrief/PresentationDebriefSection";
-import { PlanningDebriefSection } from "./debrief/PlanningDebriefSection";
-import { NegotiationDebriefSection, type TermDef } from "./debrief/NegotiationDebriefSection";
-import { FacilitationDebriefSection } from "./debrief/FacilitationDebriefSection";
-import { BrainstormDebriefSection } from "./debrief/BrainstormDebriefSection";
+import { ScenarioDebrief } from "./debrief/ScenarioDebrief";
 import { TOOL_REGISTRY } from "./apps/registry";
 import { buildCompletionPayload, runPendingEffects } from "./orchestrator";
 import { useNavigationGuard, requestScenarioExit } from "@/app/workspace/useNavigationGuard";
@@ -292,66 +284,10 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
               )}
             </div>
           )}
-          {scenario.sequence?.some((s) => s.mechanic === "entretien") && (
-            <EntretienDebriefSection
-              workspace={session.workspace}
-              nameOf={(id) => scenario.actors.find((a) => a.actor_id === id)?.name ?? id}
-            />
-          )}
-          {scenario.sequence?.some((s) => s.mechanic === "analyse") && (
-            <DocSynthesisDebriefSection
-              workspace={session.workspace}
-              actionLog={session.actionLog}
-              documents={scenario.documents.map((d) => ({ id: d.id, title: d.title }))}
-            />
-          )}
-          {scenario.sequence?.some((s) => s.mechanic === "decision") && (
-            <ArbitrageDebriefSection workspace={session.workspace} />
-          )}
-          {(() => {
-            const prod = scenario.sequence?.find((s) => s.mechanic === "production");
-            if (!prod) return null;
-            const params = (prod.params ?? {}) as { instructions?: string; deliverable_type?: string };
-            return (
-              <ProductionDebriefSection
-                workspace={session.workspace}
-                instructions={typeof params.instructions === "string" ? params.instructions : ""}
-                deliverableType={typeof params.deliverable_type === "string" ? params.deliverable_type : ""}
-                documents={scenario.documents.map((d) => ({ id: d.id, title: d.title }))}
-              />
-            );
-          })()}
-          {scenario.sequence?.some((s) => s.mechanic === "presentation") && (
-            <PresentationDebriefSection
-              workspace={session.workspace}
-              actionLog={session.actionLog}
-              documents={scenario.documents.map((d) => ({ id: d.id, title: d.title }))}
-            />
-          )}
-          {(() => {
-            const nego = scenario.sequence?.find((s) => s.mechanic === "negociation");
-            if (!nego) return null;
-            const contrat = nego.tools?.find((t) => t.tool === "contrat");
-            const terms = (contrat?.config as { terms?: TermDef[] } | undefined)?.terms ?? [];
-            const params = (nego.params ?? {}) as { instructions?: string; objective?: string };
-            return (
-              <NegotiationDebriefSection
-                workspace={session.workspace}
-                terms={terms}
-                objective={typeof params.instructions === "string" ? params.instructions : typeof params.objective === "string" ? params.objective : ""}
-              />
-            );
-          })()}
-          {/* Planification : pas de mécanique dédiée → s'affiche si un plan existe. */}
-          <PlanningDebriefSection workspace={session.workspace} />
-          {/* Facilitation : pas de mécanique dédiée → s'affiche si réunion multi-acteurs. */}
-          <FacilitationDebriefSection
-            workspace={session.workspace}
-            actionLog={session.actionLog}
-            nameOf={(id) => scenario.actors.find((a) => a.actor_id === id)?.name ?? id}
-          />
-          {/* Brainstorming : pas de mécanique dédiée → s'affiche si des idées existent. */}
-          <BrainstormDebriefSection workspace={session.workspace} brief={scenario.meta?.description ?? ""} />
+          {/* Bilan unifié : une seule analyse d'un bloc, écrite par l'IA à
+              partir des pré-analyses de toute la session. Le joueur ne voit
+              jamais les mécaniques du moteur. */}
+          <ScenarioDebrief scenario={scenario} workspace={session.workspace} actionLog={session.actionLog} />
           {!savingOutcome && (
             <div className="mt-6 text-center">
               <Link
