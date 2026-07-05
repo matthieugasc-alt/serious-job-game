@@ -10,6 +10,7 @@
 
 import type { MechanicSpec, MechanicSpecManifest } from "@/app/lib/engine/workspace";
 import { analyseSpec } from "./analyse/spec";
+import { debatSpec } from "./debat/spec";
 import { decisionSpec } from "./decision/spec";
 import { diagnosticSpec } from "./diagnostic/spec";
 import { entretienSpec } from "./entretien/spec";
@@ -25,6 +26,7 @@ import { qaSpec } from "./qa/spec";
 
 export const MECHANIC_SPECS: Record<string, MechanicSpec> = {
   [analyseSpec.manifest.id]: analyseSpec,
+  [debatSpec.manifest.id]: debatSpec,
   [decisionSpec.manifest.id]: decisionSpec,
   [diagnosticSpec.manifest.id]: diagnosticSpec,
   [entretienSpec.manifest.id]: entretienSpec,

@@ -105,6 +105,17 @@ function stepTranscript(session: SessionV3State): TranscriptEventBody[] {
     });
 }
 
+/** Objet de réponse « Re: <objet de base> » (préfixes Re:/Tr: retirés). */
+function replySubject(subject: string): string {
+  let s = (subject ?? "").trim();
+  let prev: string;
+  do {
+    prev = s;
+    s = s.replace(/^\s*(re|r[ée]p|fwd|fw|tr|tf)\s*:\s*/i, "");
+  } while (s !== prev);
+  return `Re: ${s.trim() || "(sans objet)"}`;
+}
+
 // ─── Appels IA ──────────────────────────────────────────────────────
 
 async function callActor(
@@ -217,6 +228,23 @@ async function executeEffect(
       } finally {
         hooks.onThreadBusy(effect.thread_id, false);
       }
+    }
+
+    case "mail_reply": {
+      // Débat par mail : l'acteur répond au dernier mail du joueur. Il voit
+      // tout l'échange via le transcript de step (mails inclus). Réponse
+      // réinjectée comme un mail entrant « Re: <objet> » de l'acteur.
+      const actor = session.scenario.actors.find((a) => a.actor_id === effect.actor_id);
+      if (!actor) return [];
+      const content = await callActor(actor, stepTranscript(session), effect.directive);
+      const current = getSession();
+      if (!current || current.isFinished || content.trim().length === 0) return [];
+      return applyNarrativeEffect(current, {
+        type: "mail_received",
+        from_actor: effect.actor_id,
+        subject: replySubject(effect.in_reply_to_subject),
+        body: content,
+      }).effects;
     }
 
     case "mail_incoming":

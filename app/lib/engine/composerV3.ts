@@ -288,6 +288,13 @@ export function validateScenarioV3(
       }
     }
 
+    // ── v3 : mail_actors (débat par mail) ──
+    for (const a of step.mail_actors ?? []) {
+      if (!actorOk(a)) {
+        push("UNKNOWN_ACTOR_REF", step.step_id, `mail_actors : acteur inconnu "${a}"`);
+      }
+    }
+
     // ── v3 : tools ──
     for (const tc of step.tools ?? []) {
       if (!toolIds.has(tc.tool)) {

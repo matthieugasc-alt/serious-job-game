@@ -25,6 +25,21 @@
       "default_tools": []
     },
     {
+      "id": "debat",
+      "version": "3.0.0",
+      "title": "Débat par mail",
+      "description": "Le joueur argumente par mail avec un acteur IA qui lui répond par mail (échange écrit, asynchrone). L'observateur regarde le fil de mails : qualité des arguments, réponses aux objections, progression vers l'objectif.",
+      "output_keys": [
+        "dialogue",
+        "exchange_count"
+      ],
+      "required_params": [
+        "actor_id",
+        "objective"
+      ],
+      "default_tools": []
+    },
+    {
       "id": "decision",
       "version": "3.0.0",
       "title": "Décision",

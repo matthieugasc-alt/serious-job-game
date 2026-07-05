@@ -187,6 +187,20 @@ export function applyWorkspaceAction(
     }
   }
 
+  // Débat par mail : un mail du joueur vers un acteur déclaré dans
+  // step.mail_actors fait RÉPONDRE cet acteur par mail (une réponse par
+  // mail envoyé). Pas de boucle : seul un mail DU JOUEUR déclenche ceci.
+  if (action.type === "mail_sent") {
+    const mailActors = step.mail_actors ?? [];
+    for (const actorId of action.to) {
+      if (!mailActors.includes(actorId)) continue;
+      const already = effects.some((e) => e.kind === "mail_reply" && e.actor_id === actorId);
+      if (!already) {
+        effects.push({ kind: "mail_reply", actor_id: actorId, in_reply_to_subject: action.subject });
+      }
+    }
+  }
+
   // Directive = celle de la mécanique du step + celle de l'event éventuel.
   mergeMechanicDirective(session, effects, step, opts.specs);
 
@@ -850,7 +864,7 @@ function mergeMechanicDirective(
   }
   if (!mechDirective) return;
   for (const e of effects) {
-    if (e.kind !== "actor_reply") continue;
+    if (e.kind !== "actor_reply" && e.kind !== "mail_reply") continue;
     e.directive = e.directive ? `${mechDirective}\n\n${e.directive}` : mechDirective;
   }
 }

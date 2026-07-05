@@ -38,6 +38,7 @@ const registry = JSON.parse(
 /** Params minimaux VALIDES par mécanique (pour le smoke comportemental). */
 const VALID_PARAMS: Record<string, JsonObject> = {
   analyse: { instructions: "Analyse les pièces." },
+  debat: { actor_id: "acteur_test", objective: "Obtenir une baisse de prix de 15 %." },
   decision: {
     instructions: "Tranche le scope.",
     options: [

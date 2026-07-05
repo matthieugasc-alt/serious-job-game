@@ -330,6 +330,10 @@ export interface StepInvocationV3 {
   tools?: StepToolConfig[];
   /** Fils de discussion / acteurs joignables pendant ce step. */
   threads?: { thread_id: string; participants: string[]; title?: string }[];
+  /** Acteurs qui RÉPONDENT PAR MAIL au joueur pendant ce step (débat par
+   *  mail) — analogue mail des participants d'un thread. Un mail du joueur
+   *  vers l'un d'eux déclenche une réponse IA (effet mail_reply). */
+  mail_actors?: string[];
   document_ids?: string[];
   events?: NarrativeEvent[];
   /** Cadre de notation IA des mails du step (chantier C) — requis dès
@@ -390,6 +394,9 @@ export interface MechanicSpec<P extends JsonObject = JsonObject, O extends JsonO
 /** Effets async à exécuter par l'orchestrateur client (I/O IA). */
 export type PendingEffect =
   | { kind: "actor_reply"; thread_id: string; actor_id: string; directive?: string }
+  /** Débat par mail (chantier B mail) : un acteur RÉPOND par mail au dernier
+   *  mail du joueur. Résolu par l'orchestrateur (callActor → mail_received). */
+  | { kind: "mail_reply"; actor_id: string; in_reply_to_subject: string; directive?: string }
   | { kind: "mail_incoming"; from_actor: string; subject: string; body: string; attachment_document_ids?: string[]; directive?: string }
   | { kind: "observe_step" }
   /** exit_id présent : le verdict route par la sortie nommée (chantier A). */

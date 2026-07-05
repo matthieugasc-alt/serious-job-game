@@ -198,6 +198,26 @@ export function formatMail(mail: SentMail): string {
 }
 
 /**
+ * Fil de mails du step (débat par mail) : mails envoyés par le joueur ET
+ * reçus des acteurs depuis le début du step, dans l'ordre chronologique.
+ * Lit la boîte mail (pas de Tool) — sérialisable pour l'observation IA.
+ * Chaque entrée : { from: "player"|"actor", actor_id?, subject, body }.
+ */
+export function mailThread(ws: WorkspaceState): JsonObject[] {
+  const since = ws.stepStartedAt ?? 0;
+  const rows: { at: number; entry: JsonObject }[] = [];
+  for (const m of ws.mailbox?.sent ?? []) {
+    if (m.at >= since) rows.push({ at: m.at, entry: { from: "player", subject: m.subject, body: m.body } });
+  }
+  for (const m of ws.mailbox?.inbox ?? []) {
+    if (m.at >= since && m.from !== "player") {
+      rows.push({ at: m.at, entry: { from: "actor", actor_id: m.from, subject: m.subject, body: m.body } });
+    }
+  }
+  return rows.sort((a, b) => a.at - b.at).map((r) => r.entry);
+}
+
+/**
  * Dernière formalisation du joueur pendant le step : dernier mail
  * envoyé (prioritaire, comme la spec decision), sinon dernier message.
  */
