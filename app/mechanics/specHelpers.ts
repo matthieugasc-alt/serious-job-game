@@ -134,10 +134,20 @@ export function threadsForObservation(
 
 // ─── Mails ────────────────────────────────────────────────────────
 
+export interface SentMailArtifact {
+  title: string;
+  /** Snapshot textuel exhaustif de l'artefact, figé à l'envoi. */
+  snapshot: string;
+}
+
 export interface SentMail {
   to: string[];
   subject: string;
   body: string;
+  /** Artefacts joints (note/mind map/décision/tableau/tableau blanc). Leur
+   *  contenu exhaustif entre dans l'analyse — le snapshot voyage dans
+   *  l'action, aucun Tool n'est lu ici (invariant préservé). */
+  artifacts?: SentMailArtifact[];
 }
 
 /** Mails envoyés par le joueur pendant ce step (journal, pas la boîte). */
@@ -148,9 +158,27 @@ export function sentMails(
   const out: SentMail[] = [];
   for (const e of stepLog(log, step)) {
     if (e.action.type !== "mail_sent") continue;
-    out.push({ to: [...e.action.to], subject: e.action.subject, body: e.action.body });
+    const artifacts = (e.action.attachment_artifacts ?? []).map((a) => ({
+      title: a.title,
+      snapshot: a.snapshot,
+    }));
+    out.push({
+      to: [...e.action.to],
+      subject: e.action.subject,
+      body: e.action.body,
+      artifacts: artifacts.length > 0 ? artifacts : undefined,
+    });
   }
   return out;
+}
+
+/** Rend les artefacts joints en texte, pour l'analyse IA. */
+function formatArtifacts(artifacts: SentMailArtifact[] | undefined): string {
+  if (!artifacts || artifacts.length === 0) return "";
+  const blocks = artifacts.map(
+    (a) => `— Pièce jointe : ${a.title} —\n${a.snapshot}`,
+  );
+  return `\n\n[Artefacts joints au mail — contenu intégral]\n${blocks.join("\n\n")}`;
 }
 
 /** Dernier mail envoyé pendant le step (au destinataire donné si précisé). */
@@ -166,7 +194,7 @@ export function lastSentMail(
 }
 
 export function formatMail(mail: SentMail): string {
-  return `À : ${mail.to.join(", ")}\nObjet : ${mail.subject}\n\n${mail.body}`;
+  return `À : ${mail.to.join(", ")}\nObjet : ${mail.subject}\n\n${mail.body}${formatArtifacts(mail.artifacts)}`;
 }
 
 /**
@@ -179,7 +207,7 @@ export function lastFormalisation(
   step: StepInvocationV3,
 ): string {
   const mail = lastSentMail(log, step);
-  if (mail) return `Objet : ${mail.subject}\n\n${mail.body}`;
+  if (mail) return `Objet : ${mail.subject}\n\n${mail.body}${formatArtifacts(mail.artifacts)}`;
   const messages = playerMessages(ws, log, step);
   return messages[messages.length - 1]?.content ?? "";
 }

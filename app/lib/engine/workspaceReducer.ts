@@ -18,6 +18,7 @@
 
 import { applyStepObservation } from "./criteria";
 import type { StepEvaluationResult, StepObservation } from "./criteria";
+import { artifactLinkMarkdown, buildArtifactHref } from "./artifactLink";
 import type { JsonObject } from "./mechanics";
 import type {
   DispatchResult,
@@ -653,6 +654,9 @@ function applyActionToWorkspace(
         attachment_document_ids: action.attachment_document_ids
           ? [...action.attachment_document_ids]
           : undefined,
+        attachment_artifacts: action.attachment_artifacts
+          ? action.attachment_artifacts.map((a) => ({ ...a }))
+          : undefined,
         read: true,
       });
       break;
@@ -666,8 +670,27 @@ function applyActionToWorkspace(
         to: [...action.to],
         subject: action.subject,
         body: action.body,
+        artifact_refs: action.artifact_refs
+          ? action.artifact_refs.map((r) => ({ ...r }))
+          : undefined,
       };
       break;
+    case "artifact_attached_to_mail": {
+      const draft = ws.mailbox.drafts.compose ?? { to: [], subject: "", body: "" };
+      const href = buildArtifactHref(action.ref);
+      // Dédup du lien dans le corps (le href est unique par tool+id+kind).
+      const alreadyLinked = draft.body.includes(href);
+      const body = alreadyLinked
+        ? draft.body
+        : `${draft.body}${draft.body.trim() ? "\n\n" : ""}${artifactLinkMarkdown(action.ref)}`;
+      // Dédup de la référence (par tool+id).
+      const refs = [...(draft.artifact_refs ?? [])];
+      if (!refs.some((r) => r.tool === action.ref.tool && r.id === action.ref.id)) {
+        refs.push({ ...action.ref });
+      }
+      ws.mailbox.drafts.compose = { ...draft, body, artifact_refs: refs };
+      break;
+    }
     case "document_opened":
       ensureDocument(ws, action.document_id).opened = true;
       break;

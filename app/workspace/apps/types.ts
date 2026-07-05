@@ -17,6 +17,9 @@ export interface AppNavContext {
   thread_id?: string;
   mail_id?: string;
   note_id?: string;
+  /** Ouverture d'un artefact du Decision Engine depuis un lien de mail. */
+  decision_id?: string;
+  board_id?: string;
 }
 
 export interface WorkspaceAppProps {

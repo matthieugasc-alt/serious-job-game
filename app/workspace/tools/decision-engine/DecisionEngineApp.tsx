@@ -8,8 +8,9 @@
  * Tout passe par l'API publique — aucune logique décisionnelle ici.
  */
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import type { WorkspaceAppProps } from "../../apps/types";
+import { AttachToMailButton } from "../../artifacts/AttachToMailButton";
 import {
   addDependency,
   createDecision,
@@ -58,13 +59,30 @@ function localId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
-export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
+export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceAppProps) {
   const state = workspace.toolStates[DECISION_ENGINE_TOOL_ID] ?? null;
   const decisions = listDecisions(state);
 
   const [railFilter, setRailFilter] = useState<"all" | "decisions" | "boards">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openBoardId, setOpenBoardId] = useState<string | null>(null);
+
+  // Navigation entrante (lien d'artefact depuis un mail) : ouvrir la
+  // décision ou le tableau ciblé.
+  const requestedDecision = context?.decision_id;
+  const requestedBoard = context?.board_id;
+  useEffect(() => {
+    // Sélection pilotée par une navigation entrante (lien d'artefact) —
+    // même pattern que BlocNotesApp (context?.note_id).
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (requestedBoard) {
+      setOpenBoardId(requestedBoard);
+    } else if (requestedDecision) {
+      setSelectedId(requestedDecision);
+      setOpenBoardId(null);
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [requestedDecision, requestedBoard]);
   const [showNew, setShowNew] = useState(false);
   const [dragBoardId, setDragBoardId] = useState<string | null>(null);
   const [dragDecId, setDragDecId] = useState<string | null>(null);
@@ -297,6 +315,16 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
               </button>
               <span aria-hidden>{ENGINE_ICON[openBoard.engine] ?? "📊"}</span>
               <span className="text-sm font-medium text-gray-800">{openBoard.title || openBoard.engine}</span>
+              <div className="ml-auto">
+                <AttachToMailButton
+                  tool={DECISION_ENGINE_TOOL_ID}
+                  id={openBoard.id}
+                  kind="board"
+                  title={openBoard.title || `Tableau ${openBoard.engine}`}
+                  dispatch={dispatch}
+                  compact
+                />
+              </div>
             </header>
             <div className="min-h-0 flex-1">
               <BoardView board={openBoard} dispatch={dispatch} />
@@ -310,13 +338,21 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
           </div>
         ) : (
           <>
-            <header className="shrink-0 border-b border-gray-200 px-4 py-2.5">
+            <header className="flex shrink-0 items-center gap-2 border-b border-gray-200 px-4 py-2.5">
               <input
                 key={selected.id}
                 defaultValue={selected.title}
                 onBlur={(e) => e.target.value.trim() !== selected.title && dispatch(updateDecision(selected.id, { title: e.target.value.trim() || "Sans titre" }))}
-                className="w-full bg-transparent text-base font-semibold text-gray-900 focus:outline-none"
+                className="min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-900 focus:outline-none"
                 placeholder="Titre de la décision"
+              />
+              <AttachToMailButton
+                tool={DECISION_ENGINE_TOOL_ID}
+                id={selected.id}
+                kind="decision"
+                title={selected.title || "Décision"}
+                dispatch={dispatch}
+                compact
               />
             </header>
             <div className="min-h-0 flex-1">

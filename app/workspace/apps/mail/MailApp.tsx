@@ -9,7 +9,9 @@
  */
 
 import { useEffect, useRef, useState } from "react";
-import type { WsMail } from "@/app/lib/engine/workspace";
+import type { ArtifactAttachment, ArtifactRef, WsMail } from "@/app/lib/engine/workspace";
+import { artifactLinkMarkdown, buildArtifactHref, type ParsedArtifactHref } from "@/app/lib/engine/artifactLink";
+import { serializeArtifact } from "@/app/workspace/artifacts/serialize";
 import { Markdown } from "@/app/workspace/primitives/Markdown";
 import { ActorAvatar, PrimaryButton, SecondaryButton } from "@/app/workspace/primitives/ui";
 import { AnnotateButton, SelectionAnnotate } from "@/app/workspace/tools/bloc-notes/AnnotateButton";
@@ -22,9 +24,17 @@ const DRAFT_ID = "compose";
 const DRAFT_DEBOUNCE_MS = 800;
 
 type Tab = "inbox" | "sent";
-type Draft = { to: string[]; subject: string; body: string; attachments: string[] };
+type Draft = {
+  to: string[];
+  subject: string;
+  body: string;
+  attachments: string[];
+  artifactRefs: ArtifactRef[];
+};
 
-const EMPTY_DRAFT: Draft = { to: [], subject: "", body: "", attachments: [] };
+const EMPTY_DRAFT: Draft = { to: [], subject: "", body: "", attachments: [], artifactRefs: [] };
+
+const refKey = (r: Pick<ArtifactRef, "tool" | "id">) => `${r.tool}:${r.id}`;
 
 export function MailApp({ workspace, actors, documents, dispatch, openApp, context }: WorkspaceAppProps) {
   const [tab, setTab] = useState<Tab>("inbox");
@@ -33,7 +43,15 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
   const bodyRef = useRef<HTMLDivElement>(null);
   const [draft, setDraft] = useState<Draft>(() => {
     const saved = workspace.mailbox.drafts[DRAFT_ID];
-    return saved ? { ...EMPTY_DRAFT, ...saved, attachments: [] } : EMPTY_DRAFT;
+    return saved
+      ? {
+          to: saved.to,
+          subject: saved.subject,
+          body: saved.body,
+          attachments: [],
+          artifactRefs: saved.artifact_refs ?? [],
+        }
+      : EMPTY_DRAFT;
   });
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
@@ -73,10 +91,53 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
       const next = { ...prev, ...patch };
       if (timer.current) clearTimeout(timer.current);
       timer.current = setTimeout(() => {
-        dispatch({ type: "mail_draft_saved", draft_id: DRAFT_ID, to: next.to, subject: next.subject, body: next.body });
+        dispatch({
+          type: "mail_draft_saved",
+          draft_id: DRAFT_ID,
+          to: next.to,
+          subject: next.subject,
+          body: next.body,
+          artifact_refs: next.artifactRefs.length > 0 ? next.artifactRefs : undefined,
+        });
       }, DRAFT_DEBOUNCE_MS);
       return next;
     });
+  };
+
+  // Réconciliation : un artefact joint depuis un Tool (action
+  // artifact_attached_to_mail) enrichit le brouillon persisté. Si ce
+  // composeur est déjà monté, on fusionne les nouvelles références et on
+  // ajoute leur lien au corps LOCAL (sans écraser la frappe en cours),
+  // puis on ouvre le composeur.
+  const persistedRefs = workspace.mailbox.drafts[DRAFT_ID]?.artifact_refs ?? [];
+  const persistedRefsSig = persistedRefs.map(refKey).join("|");
+  useEffect(() => {
+    if (persistedRefs.length === 0) return;
+    let added = false;
+    setDraft((prev) => {
+      const have = new Set(prev.artifactRefs.map(refKey));
+      const missing = persistedRefs.filter((r) => !have.has(refKey(r)));
+      if (missing.length === 0) return prev;
+      added = true;
+      let body = prev.body;
+      for (const r of missing) {
+        if (!body.includes(buildArtifactHref(r))) {
+          body = `${body}${body.trim() ? "\n\n" : ""}${artifactLinkMarkdown(r)}`;
+        }
+      }
+      return { ...prev, body, artifactRefs: [...prev.artifactRefs, ...missing] };
+    });
+    if (added) setComposing(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [persistedRefsSig]);
+
+  /** Ouvre l'artefact vivant ciblé par un lien de mail (in-app). */
+  const openArtifact = (ref: ParsedArtifactHref) => {
+    if (ref.tool === "bloc-notes") openApp("bloc-notes", { note_id: ref.id });
+    else if (ref.tool === "decision-engine")
+      openApp("decision", ref.kind === "board" ? { board_id: ref.id } : { decision_id: ref.id });
+    // whiteboard : pas d'app plein écran dédiée — le contenu reste lisible
+    // via le snapshot joint ; rien à ouvrir.
   };
 
   const toggle = (list: string[], id: string) =>
@@ -87,13 +148,25 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
   const send = () => {
     if (!canSend) return;
     if (timer.current) clearTimeout(timer.current);
+    // Snapshot exhaustif FIGÉ à l'envoi : chaque référence est résolue
+    // depuis l'état vivant de son Tool. Une référence orpheline (artefact
+    // supprimé depuis) est simplement ignorée.
+    const artifacts: ArtifactAttachment[] = [];
+    for (const r of draft.artifactRefs) {
+      const snapshot = serializeArtifact(r.tool, r.kind, workspace.toolStates[r.tool], r.id);
+      if (snapshot != null) artifacts.push({ ...r, snapshot });
+    }
     dispatch({
       type: "mail_sent",
       to: draft.to,
       subject: draft.subject.trim(),
       body: draft.body,
       attachment_document_ids: draft.attachments.length > 0 ? draft.attachments : undefined,
+      attachment_artifacts: artifacts.length > 0 ? artifacts : undefined,
     });
+    // Vide le brouillon persisté (sinon les références rouvriraient le
+    // composeur à la prochaine visite).
+    dispatch({ type: "mail_draft_saved", draft_id: DRAFT_ID, to: [], subject: "", body: "" });
     setDraft(EMPTY_DRAFT);
     setComposing(false);
     setTab("sent");
@@ -106,6 +179,7 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
       subject: m.subject.startsWith("Re:") ? m.subject : `Re: ${m.subject}`,
       body: "",
       attachments: [],
+      artifactRefs: [],
     });
     setComposing(true);
   };
@@ -222,6 +296,35 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
                 value={draft.body}
                 onChange={(e) => editDraft({ body: e.target.value })}
               />
+              {draft.artifactRefs.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-medium text-gray-600">Artefacts joints (contenu analysé) :</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {draft.artifactRefs.map((r) => (
+                      <span
+                        key={refKey(r)}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-amber-300 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800"
+                      >
+                        📎 {r.title}
+                        <button
+                          type="button"
+                          aria-label={`Retirer ${r.title}`}
+                          title="Retirer cet artefact (le lien reste dans le corps si vous ne l'effacez pas)"
+                          className="text-amber-400 transition hover:text-amber-700"
+                          onClick={() =>
+                            editDraft({
+                              artifactRefs: draft.artifactRefs.filter((x) => refKey(x) !== refKey(r)),
+                              body: draft.body.split("\n").filter((l) => !l.includes(buildArtifactHref(r))).join("\n"),
+                            })
+                          }
+                        >
+                          ✕
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
               {documents.length > 0 && (
                 <div>
                   <p className="mb-1 text-xs font-medium text-gray-600">Pièces jointes :</p>
@@ -318,11 +421,25 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
                   })}
                 </div>
               )}
+              {(selected.attachment_artifacts?.length ?? 0) > 0 && (
+                <div className="mt-3 flex flex-wrap gap-1.5">
+                  {selected.attachment_artifacts!.map((a) => (
+                    <button
+                      key={refKey(a)}
+                      type="button"
+                      className="inline-flex items-center gap-1.5 rounded-full border border-amber-200 bg-amber-50 px-2.5 py-1 text-xs font-medium text-amber-800 transition hover:border-amber-400 hover:bg-amber-100"
+                      onClick={() => openArtifact({ tool: a.tool, id: a.id, kind: a.kind })}
+                    >
+                      📎 {a.title}
+                    </button>
+                  ))}
+                </div>
+              )}
             </header>
             {/* Corps du mail : icône 📓 flottante sur sélection de texte. */}
             <div ref={bodyRef} className="relative min-h-0 flex-1 overflow-y-auto px-5 py-4">
               <div className="mx-auto w-full max-w-[72ch]">
-                <Markdown>{selected.body}</Markdown>
+                <Markdown onArtifactClick={openArtifact}>{selected.body}</Markdown>
               </div>
               <SelectionAnnotate
                 containerRef={bodyRef}

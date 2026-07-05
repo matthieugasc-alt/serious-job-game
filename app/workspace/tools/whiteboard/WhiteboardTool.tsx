@@ -9,8 +9,9 @@
 
 import { useRef, useState, type FC } from "react";
 import type { ToolComponentProps } from "../types";
+import { AttachToMailButton } from "../../artifacts/AttachToMailButton";
 import { addNote, editNote, moveNote, recolorNote, removeNote, selectNotes } from "./api";
-import { STICKY_COLORS, type StickyColor } from "./spec";
+import { STICKY_COLORS, WHITEBOARD_TOOL_ID, type StickyColor } from "./spec";
 
 const BG: Record<StickyColor, string> = {
   yellow: "bg-yellow-200",
@@ -60,6 +61,14 @@ export const WhiteboardTool: FC<ToolComponentProps> = ({ state, dispatch }) => {
           ))}
         </div>
         <span className="ml-auto text-[11px] text-gray-400">{notes.length} idée(s)</span>
+        <AttachToMailButton
+          tool={WHITEBOARD_TOOL_ID}
+          id={WHITEBOARD_TOOL_ID}
+          kind="whiteboard"
+          title="Tableau blanc"
+          dispatch={dispatch}
+          compact
+        />
       </div>
 
       <div

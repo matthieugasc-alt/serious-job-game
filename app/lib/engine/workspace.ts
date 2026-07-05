@@ -37,6 +37,30 @@ export interface Thread {
   unread: number;
 }
 
+/**
+ * Pièce jointe « artefact » d'un mail : le joueur attache une note, une
+ * mind map, une décision, un tableau ou un post-it produit dans un Tool.
+ * Le corps du mail porte un lien cliquable `artifact://<tool>/<id>` qui
+ * ouvre l'artefact vivant ; la pièce jointe, elle, porte un SNAPSHOT
+ * textuel EXHAUSTIF figé au moment de l'envoi — c'est ce snapshot que
+ * l'IA analyse (déterministe, et sans que le moteur/les mécaniques aient
+ * à lire l'état des Tools : le snapshot est produit côté UI par le Tool
+ * lui-même, puis voyage dans l'action comme du texte).
+ */
+export type ArtifactKind = "note" | "mindmap" | "decision" | "board" | "whiteboard";
+
+export interface ArtifactRef {
+  tool: string; // "bloc-notes" | "decision-engine" | "whiteboard"
+  id: string; // identifiant de l'artefact dans son Tool
+  kind: ArtifactKind;
+  title: string;
+}
+
+export interface ArtifactAttachment extends ArtifactRef {
+  /** Contenu textuel exhaustif de l'artefact, figé à l'envoi du mail. */
+  snapshot: string;
+}
+
 export interface WsMail {
   mail_id: string;
   at: number;
@@ -45,6 +69,7 @@ export interface WsMail {
   subject: string;
   body: string;
   attachment_document_ids?: string[];
+  attachment_artifacts?: ArtifactAttachment[];
   read: boolean;
 }
 
@@ -69,7 +94,10 @@ export interface WorkspaceState {
   mailbox: {
     inbox: WsMail[];
     sent: WsMail[];
-    drafts: Record<string, { to: string[]; subject: string; body: string }>;
+    drafts: Record<
+      string,
+      { to: string[]; subject: string; body: string; artifact_refs?: ArtifactRef[] }
+    >;
   };
   /** Suivi par document : ouvert ? annotations (Tool surligneur plus tard). */
   documents: Record<string, { opened: boolean; annotations: Json[] }>;
@@ -85,9 +113,27 @@ export interface WorkspaceState {
 
 export type WorkspaceAction =
   | { type: "message_sent"; thread_id: string; content: string }
-  | { type: "mail_sent"; to: string[]; subject: string; body: string; attachment_document_ids?: string[] }
+  | {
+      type: "mail_sent";
+      to: string[];
+      subject: string;
+      body: string;
+      attachment_document_ids?: string[];
+      attachment_artifacts?: ArtifactAttachment[];
+    }
   | { type: "mail_opened"; mail_id: string }
-  | { type: "mail_draft_saved"; draft_id: string; to: string[]; subject: string; body: string }
+  /** Le joueur joint un artefact (note/mind map/décision/tableau/tableau
+   *  blanc) au brouillon de mail « compose » : le reducer insère le lien
+   *  cliquable dans le corps et enregistre la référence. */
+  | { type: "artifact_attached_to_mail"; ref: ArtifactRef }
+  | {
+      type: "mail_draft_saved";
+      draft_id: string;
+      to: string[];
+      subject: string;
+      body: string;
+      artifact_refs?: ArtifactRef[];
+    }
   | { type: "document_opened"; document_id: string }
   | { type: "document_annotated"; document_id: string; annotations: Json[] }
   | { type: "tool_state_changed"; tool_id: string; state: Json }

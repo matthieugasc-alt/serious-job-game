@@ -12,6 +12,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { WorkspaceAppProps } from "../../apps/types";
+import { AttachToMailButton } from "../../artifacts/AttachToMailButton";
 import { addTag, createNote, deleteNote, removeTag, renameNote, updateBlocks } from "./api";
 import type { Note } from "./spec";
 import { BlockEditor } from "./components/BlockEditor";
@@ -281,6 +282,16 @@ function NoteEditorPane({
                 {label}
               </button>
             ))}
+          </div>
+          <div className="mt-1 shrink-0">
+            <AttachToMailButton
+              tool="bloc-notes"
+              id={note.id}
+              kind={view === "mind" ? "mindmap" : "note"}
+              title={note.title.trim() || (view === "mind" ? "Mind map" : "Note")}
+              dispatch={dispatch}
+              compact
+            />
           </div>
           <button
             type="button"

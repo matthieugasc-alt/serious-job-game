@@ -8,8 +8,16 @@
 
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { parseArtifactHref, type ParsedArtifactHref } from "@/app/lib/engine/artifactLink";
 
-export function Markdown({ children }: { children: string }) {
+export function Markdown({
+  children,
+  onArtifactClick,
+}: {
+  children: string;
+  /** Intercepte les liens `artifact://…` (artefacts joints à un mail). */
+  onArtifactClick?: (ref: ParsedArtifactHref) => void;
+}) {
   return (
     <div className="text-sm leading-relaxed text-gray-800">
       <ReactMarkdown
@@ -51,14 +59,32 @@ export function Markdown({ children }: { children: string }) {
             <strong className="font-semibold text-gray-900" {...props} />
           ),
           em: (props) => <em className="italic" {...props} />,
-          a: (props) => (
-            <a
-              className="font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
-              target="_blank"
-              rel="noreferrer"
-              {...props}
-            />
-          ),
+          a: ({ href, children, ...props }) => {
+            const artifact = href ? parseArtifactHref(href) : null;
+            if (artifact) {
+              return (
+                <button
+                  type="button"
+                  onClick={() => onArtifactClick?.(artifact)}
+                  className="inline items-center rounded font-medium text-amber-700 underline decoration-dotted underline-offset-2 transition hover:text-amber-900"
+                  title="Ouvrir l'artefact joint"
+                >
+                  {children}
+                </button>
+              );
+            }
+            return (
+              <a
+                href={href}
+                className="font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-800"
+                target="_blank"
+                rel="noreferrer"
+                {...props}
+              >
+                {children}
+              </a>
+            );
+          },
           blockquote: (props) => (
             <blockquote
               className="my-2 border-l-4 border-indigo-200 pl-3 italic text-gray-600"

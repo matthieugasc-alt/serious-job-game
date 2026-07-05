@@ -151,10 +151,25 @@ const SECTIONS_DOC = [
 function deliverableSignal(ws: WorkspaceState): unknown | null {
   const ed = ws.toolStates?.["editeur"] as { title?: string; body?: string } | null | undefined;
   let type = "document", title = "", body = "";
+  let hasArtifacts = false;
   if (ed && typeof ed.body === "string" && ed.body.trim()) { title = ed.title || "Document"; body = ed.body; }
   else {
     const sent = ws.mailbox?.sent ?? [];
-    if (sent.length > 0) { const m = [...sent].sort((a, b) => b.at - a.at)[0]; type = "mail"; title = m.subject; body = m.body; }
+    if (sent.length > 0) {
+      const m = [...sent].sort((a, b) => b.at - a.at)[0];
+      type = "mail";
+      title = m.subject;
+      body = m.body;
+      // Vue exhaustive : le contenu intégral des artefacts joints (note,
+      // décision, tableau…) fait partie du livrable analysé.
+      const arts = m.attachment_artifacts ?? [];
+      if (arts.length > 0) {
+        hasArtifacts = true;
+        body += `\n\n[Artefacts joints — contenu intégral]\n${arts
+          .map((a) => `— ${a.title} —\n${a.snapshot}`)
+          .join("\n\n")}`;
+      }
+    }
     else {
       const bloc = ws.toolStates?.["bloc-notes"] ?? null;
       const notes = bloc ? selectAll(bloc) : [];
@@ -170,7 +185,7 @@ function deliverableSignal(ws: WorkspaceState): unknown | null {
     title,
     wordCount: words(body),
     structure: SECTIONS_DOC.filter(([, re]) => re.test(body)).map(([label]) => label),
-    sample: trunc(body, 1400),
+    sample: trunc(body, hasArtifacts ? 4000 : 1400),
   };
 }
 
