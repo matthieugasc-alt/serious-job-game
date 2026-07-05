@@ -18,7 +18,8 @@ export interface DebriefPoint {
   point: string;
   example: string;
 }
-export type Verdict = "victoire_complete" | "victoire_partielle" | "defaite";
+import { VERDICT_LABEL, type Verdict } from "@/app/lib/debrief/verdict";
+export type { Verdict };
 
 export interface FinalDebrief {
   /** Verdict 3 niveaux du juge unique (optionnel : bilans d'avant l'ajout). */
@@ -33,10 +34,10 @@ export interface FinalDebrief {
   recommendations: string[];
 }
 
-const VERDICT_META: Record<Verdict, { label: string; icon: string; classes: string }> = {
-  victoire_complete: { label: "Victoire complète", icon: "🏆", classes: "border-emerald-200 bg-emerald-50 text-emerald-800" },
-  victoire_partielle: { label: "Victoire partielle", icon: "🎯", classes: "border-amber-200 bg-amber-50 text-amber-800" },
-  defaite: { label: "Défaite", icon: "🔁", classes: "border-rose-200 bg-rose-50 text-rose-800" },
+const VERDICT_CLASSES: Record<Verdict, string> = {
+  victoire_complete: "border-emerald-200 bg-emerald-50 text-emerald-800",
+  victoire_partielle: "border-amber-200 bg-amber-50 text-amber-800",
+  defaite: "border-rose-200 bg-rose-50 text-rose-800",
 };
 
 function Note({ label, value }: { label: string; value?: number }) {
@@ -51,9 +52,9 @@ function Note({ label, value }: { label: string; value?: number }) {
 
 function VerdictBanner({ debrief }: { debrief: FinalDebrief }) {
   if (!debrief.verdict) return null;
-  const m = VERDICT_META[debrief.verdict];
+  const m = VERDICT_LABEL[debrief.verdict];
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${m.classes}`}>
+    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${VERDICT_CLASSES[debrief.verdict]}`}>
       <span className="inline-flex items-center gap-2 text-base font-bold">
         <span aria-hidden>{m.icon}</span>
         {m.label}

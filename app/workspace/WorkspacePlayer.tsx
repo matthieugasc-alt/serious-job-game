@@ -35,6 +35,7 @@ import { MECHANIC_SPECS, MECHANIC_SPEC_MANIFESTS } from "@/app/mechanics/specs";
 import { ActorAvatar, PrimaryButton } from "@/app/workspace/primitives/ui";
 import { WorkspaceShell } from "./WorkspaceShell";
 import { ScenarioDebrief } from "./debrief/ScenarioDebrief";
+import { pickEndingForVerdict, VERDICT_LABEL, type Verdict } from "@/app/lib/debrief/verdict";
 import { TOOL_REGISTRY } from "./apps/registry";
 import { buildCompletionPayload, runPendingEffects } from "./orchestrator";
 import { useNavigationGuard, requestScenarioExit } from "@/app/workspace/useNavigationGuard";
@@ -102,6 +103,9 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
   const [busyThreads, setBusyThreads] = useState<string[]>([]);
   const [microDebrief, setMicroDebrief] = useState<MicroDebrief | null>(null);
   const [savingOutcome, setSavingOutcome] = useState(false);
+  // Verdict IA (juge unique) : pilote la fin AFFICHÉE. L'économie founder
+  // (/api/v2/complete) reste sur l'ending déterministe (Phase 2b).
+  const [aiVerdict, setAiVerdict] = useState<Verdict | null>(null);
 
   // Retour arrière / refresh accidentels : garde tant que la partie est en cours.
   useNavigationGuard(session !== null && !session.isFinished && briefingDone);
@@ -258,15 +262,23 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
   }
 
   if (session.isFinished) {
+    // La fin AFFICHÉE suit le verdict IA dès qu'il arrive ; en attendant (ou
+    // si l'IA échoue), on retombe sur l'ending déterministe déjà calculé.
+    const displayEnding = aiVerdict
+      ? pickEndingForVerdict(scenario.endings, aiVerdict, session.ending)
+      : session.ending;
+    const headline = aiVerdict
+      ? `${VERDICT_LABEL[aiVerdict].icon} ${VERDICT_LABEL[aiVerdict].label}`
+      : session.ending?.label ?? "Terminé";
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-10">
         <div className="w-full max-w-2xl">
           <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm sm:p-10">
             <div aria-hidden className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-indigo-50 text-2xl">🏁</div>
             <p className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600">Fin du scénario</p>
-            <h1 className="mt-2 text-xl font-semibold text-gray-900">{session.ending?.label ?? "Terminé"}</h1>
+            <h1 className="mt-2 text-xl font-semibold text-gray-900">{headline}</h1>
             <p className="mx-auto mt-4 max-w-prose whitespace-pre-wrap text-left text-sm leading-relaxed text-gray-700">
-              {session.ending?.content}
+              {displayEnding?.content}
             </p>
           </div>
           {savingOutcome && (
@@ -287,7 +299,7 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
           {/* Bilan unifié : une seule analyse d'un bloc, écrite par l'IA à
               partir des pré-analyses de toute la session. Le joueur ne voit
               jamais les mécaniques du moteur. */}
-          <ScenarioDebrief scenario={scenario} workspace={session.workspace} actionLog={session.actionLog} stepResults={Object.values(session.stepResults)} />
+          <ScenarioDebrief scenario={scenario} workspace={session.workspace} actionLog={session.actionLog} stepResults={Object.values(session.stepResults)} onVerdict={setAiVerdict} />
           {!savingOutcome && (
             <div className="mt-6 text-center">
               <Link

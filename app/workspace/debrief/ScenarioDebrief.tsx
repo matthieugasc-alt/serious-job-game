@@ -53,12 +53,15 @@ export function ScenarioDebrief({
   actionLog,
   stepResults = [],
   playerName = "",
+  onVerdict,
 }: {
   scenario: ScenarioV3;
   workspace: WorkspaceState;
   actionLog: LoggedAction[];
   stepResults?: StepResult[];
   playerName?: string;
+  /** Remonte le verdict 3 niveaux au player (fin affichée pilotée par l'IA). */
+  onVerdict?: (v: NonNullable<FinalDebrief["verdict"]>) => void;
 }) {
   const bundle = useMemo(() => collectDebrief(scenario, workspace, actionLog), [scenario, workspace, actionLog]);
   const gardeFous = useMemo(() => collectGardeFous(scenario, stepResults), [scenario, stepResults]);
@@ -132,6 +135,7 @@ export function ScenarioDebrief({
       if (!res.ok) throw new Error("ai");
       const d = (await res.json()) as FinalDebrief;
       setDebrief(d);
+      if (d.verdict) onVerdict?.(d.verdict);
       persist(d);
       setPhase("idle");
     } catch {

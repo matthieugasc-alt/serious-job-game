@@ -69,6 +69,9 @@ export interface EndingRule {
   min_passed?: number;
   /** Ending par défaut si rien d'autre ne matche (un seul autorisé). */
   default?: boolean;
+  /** Optionnel : niveau de verdict que cet ending représente, pour que le
+   *  juge IA (doctrine d'évaluation) choisisse l'ending à AFFICHER. */
+  verdict?: "victoire_complete" | "victoire_partielle" | "defaite";
 }
 
 // ─── Résultat de step persisté ────────────────────────────────────
