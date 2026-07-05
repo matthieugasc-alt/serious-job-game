@@ -8,17 +8,20 @@
  * Tout passe par l'API publique — aucune logique décisionnelle ici.
  */
 
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import type { WorkspaceAppProps } from "../../apps/types";
 import {
+  addDependency,
   createDecision,
   getBoard,
   listBoards,
   listDecisions,
   listPresets,
   openPreset,
+  removeDependency,
   reparentBoard,
   selectBoardsForDecision,
+  selectDependenciesFor,
   updateDecision,
 } from "./api";
 import { DECISION_ENGINE_TOOL_ID } from "./spec";
@@ -29,10 +32,11 @@ import { TableBoard } from "./components/TableBoard";
 import { KanbanBoard } from "./components/KanbanBoard";
 import { TimelineBoard } from "./components/TimelineBoard";
 import { GraphBoard } from "./components/GraphBoard";
-import type { Board } from "./spec";
+import type { Board, DecisionObject } from "./spec";
 
 const ENGINE_ICON: Record<string, string> = { matrix: "📊", registry: "📋", table: "🗂️", kanban: "🧱", timeline: "📅", graph: "🕸️" };
 const BOARD_MIME = "application/decision-board";
+const DECISION_MIME = "application/decision-node";
 
 function BoardView({ board, dispatch }: { board: Board; dispatch: WorkspaceAppProps["dispatch"] }) {
   if (board.engine === "registry") return <RegistryBoard board={board} dispatch={dispatch} />;
@@ -63,6 +67,7 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
   const [openBoardId, setOpenBoardId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
   const [dragBoardId, setDragBoardId] = useState<string | null>(null);
+  const [dragDecId, setDragDecId] = useState<string | null>(null);
   const [dropDecId, setDropDecId] = useState<string | null>(null);
 
   // Sélection par défaut : la décision la plus récente.
@@ -104,6 +109,93 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
       standaloneBoards.push(b);
     }
   }
+
+  // Hiérarchie des décisions (lien parent-enfant du graphe de dépendances,
+  // limité à UN parent = arbre). Racines = décisions sans parent-décision.
+  const decisionParent = new Map<string, string>();
+  const childDecisions = new Map<string, DecisionObject[]>();
+  for (const d of decisions) {
+    const { parents } = selectDependenciesFor(state, { type: "decision", id: d.id });
+    const p = parents.find((x) => x.ref.type === "decision" && decisionIds.has(x.ref.id));
+    if (p) {
+      decisionParent.set(d.id, p.ref.id);
+      const arr = childDecisions.get(p.ref.id) ?? [];
+      arr.push(d);
+      childDecisions.set(p.ref.id, arr);
+    }
+  }
+  const rootDecisions = decisions.filter((d) => !decisionParent.has(d.id));
+
+  /** parentId est-il dans le sous-arbre de childId ? (anti-cycle côté UI). */
+  const isDescendantDecision = (ancestorId: string, maybeId: string): boolean => {
+    const stack = [...(childDecisions.get(ancestorId) ?? [])];
+    while (stack.length) {
+      const n = stack.pop()!;
+      if (n.id === maybeId) return true;
+      stack.push(...(childDecisions.get(n.id) ?? []));
+    }
+    return false;
+  };
+
+  const detachDecisionParent = (childId: string) => {
+    const { parents } = selectDependenciesFor(state, { type: "decision", id: childId });
+    const cur = parents.find((x) => x.ref.type === "decision");
+    if (cur) dispatch(removeDependency(cur.dep.id));
+  };
+
+  const reparentDecision = (childId: string, parentId: string) => {
+    if (childId === parentId || isDescendantDecision(childId, parentId)) return; // cycle refusé
+    detachDecisionParent(childId);
+    dispatch(addDependency({ type: "decision", id: parentId }, { type: "decision", id: childId }, "parent-child"));
+  };
+
+  const clearDrag = () => { setDragBoardId(null); setDragDecId(null); setDropDecId(null); };
+
+  // Rendu récursif d'une décision + ses tableaux + ses sous-décisions.
+  const renderDecision = (d: DecisionObject, depth: number): ReactNode => {
+    const dBoards = boardsByDecision.get(d.id) ?? [];
+    const kids = childDecisions.get(d.id) ?? [];
+    const active = !openBoardId && selected?.id === d.id;
+    return (
+      <div key={d.id}>
+        <button
+          type="button"
+          aria-pressed={active}
+          draggable
+          onDragStart={(e) => { e.dataTransfer.setData(DECISION_MIME, d.id); e.dataTransfer.effectAllowed = "move"; setDragDecId(d.id); }}
+          onDragEnd={clearDrag}
+          onDragOver={(e) => {
+            const okBoard = !!dragBoardId;
+            const okDec = !!dragDecId && dragDecId !== d.id && !isDescendantDecision(dragDecId, d.id);
+            if (okBoard || okDec) { e.preventDefault(); if (dropDecId !== d.id) setDropDecId(d.id); }
+          }}
+          onDragLeave={() => setDropDecId((x) => (x === d.id ? null : x))}
+          onDrop={(e) => {
+            e.preventDefault();
+            const boardId = e.dataTransfer.getData(BOARD_MIME);
+            if (boardId) dispatch(reparentBoard(boardId, d.id));
+            const decId = e.dataTransfer.getData(DECISION_MIME);
+            if (decId) reparentDecision(decId, d.id);
+            clearDrag();
+          }}
+          onClick={() => openDecisionNode(d.id)}
+          style={{ paddingLeft: 12 + depth * 14 }}
+          title="Glisser sur une autre décision pour l'imbriquer"
+          className={`block w-full cursor-grab py-2 pr-3 text-left transition active:cursor-grabbing ${dropDecId === d.id ? "bg-indigo-100 ring-2 ring-inset ring-indigo-400" : active ? "bg-indigo-50/70" : "hover:bg-gray-50"}`}
+        >
+          <span className="flex items-center gap-1.5">
+            <span aria-hidden>🧭</span>
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">{d.title || "(sans titre)"}</span>
+          </span>
+          <span className="mt-0.5 block pl-5 text-[11px] text-gray-400">{STATUS_LABEL[d.status]} · {d.options.length} opt · {d.risks.length} risq</span>
+        </button>
+        {railFilter === "all" && dBoards.map((b) => (
+          <BoardRow key={b.id} board={b} depth={depth + 1} active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} onDragStartBoard={() => setDragBoardId(b.id)} onDragEndBoard={clearDrag} />
+        ))}
+        {kids.map((k) => renderDecision(k, depth + 1))}
+      </div>
+    );
+  };
 
   // Presets groupés par moteur pour le menu « + Nouveau ».
   const presetGroups: [string, ReturnType<typeof listPresets>][] = ["matrix", "table", "registry", "kanban", "timeline", "graph"].map(
@@ -158,56 +250,38 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
             allBoards.length === 0 ? (
               <p className="px-4 py-6 text-center text-[11px] text-gray-400">Aucun tableau.</p>
             ) : (
-              allBoards.map((b) => <BoardRow key={b.id} board={b} active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} onDragStartBoard={() => setDragBoardId(b.id)} onDragEndBoard={() => { setDragBoardId(null); setDropDecId(null); }} />)
+              allBoards.map((b) => <BoardRow key={b.id} board={b} active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} onDragStartBoard={() => setDragBoardId(b.id)} onDragEndBoard={clearDrag} />)
             )
           ) : (
             <>
-              {decisions.map((d) => {
-                const dBoards = boardsByDecision.get(d.id) ?? [];
-                const active = !openBoardId && selected?.id === d.id;
-                return (
-                  <div key={d.id}>
-                    <button
-                      type="button"
-                      aria-pressed={active}
-                      onDragOver={(e) => { if (dragBoardId) { e.preventDefault(); if (dropDecId !== d.id) setDropDecId(d.id); } }}
-                      onDragLeave={() => setDropDecId((x) => (x === d.id ? null : x))}
-                      onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData(BOARD_MIME); if (id) dispatch(reparentBoard(id, d.id)); setDropDecId(null); setDragBoardId(null); }}
-                      className={`block w-full px-3 py-2 text-left transition ${dropDecId === d.id ? "bg-indigo-100 ring-2 ring-inset ring-indigo-400" : active ? "bg-indigo-50/70" : "hover:bg-gray-50"}`}
-                      onClick={() => openDecisionNode(d.id)}
-                    >
-                      <span className="flex items-center gap-1.5">
-                        <span aria-hidden>🧭</span>
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">{d.title || "(sans titre)"}</span>
-                      </span>
-                      <span className="mt-0.5 block pl-5 text-[11px] text-gray-400">{STATUS_LABEL[d.status]} · {d.options.length} opt · {d.risks.length} risq</span>
-                    </button>
-                    {railFilter === "all" && dBoards.map((b) => (
-                      <BoardRow key={b.id} board={b} indented active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} onDragStartBoard={() => setDragBoardId(b.id)} onDragEndBoard={() => { setDragBoardId(null); setDropDecId(null); }} />
-                    ))}
-                  </div>
-                );
-              })}
+              {rootDecisions.map((d) => renderDecision(d, 0))}
 
               {railFilter === "all" && standaloneBoards.length > 0 && (
                 <>
                   <p className="px-3 pb-0.5 pt-2 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Tableaux libres</p>
                   {standaloneBoards.map((b) => (
-                    <BoardRow key={b.id} board={b} active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} onDragStartBoard={() => setDragBoardId(b.id)} onDragEndBoard={() => { setDragBoardId(null); setDropDecId(null); }} />
+                    <BoardRow key={b.id} board={b} active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} onDragStartBoard={() => setDragBoardId(b.id)} onDragEndBoard={clearDrag} />
                   ))}
                 </>
               )}
             </>
           )}
 
-          {/* Zone de détachement — visible pendant un glisser de tableau. */}
-          {dragBoardId && (
+          {/* Zone de détachement — visible pendant un glisser. */}
+          {(dragBoardId || dragDecId) && (
             <div
               onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData(BOARD_MIME); if (id) dispatch(reparentBoard(id, null)); setDropDecId(null); setDragBoardId(null); }}
+              onDrop={(e) => {
+                e.preventDefault();
+                const bId = e.dataTransfer.getData(BOARD_MIME);
+                if (bId) dispatch(reparentBoard(bId, null));
+                const dId = e.dataTransfer.getData(DECISION_MIME);
+                if (dId) detachDecisionParent(dId);
+                clearDrag();
+              }}
               className="m-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2 py-2.5 text-center text-[11px] text-gray-500"
             >
-              Déposer ici pour détacher (tableau libre)
+              {dragDecId ? "Déposer ici pour remettre la décision à la racine" : "Déposer ici pour détacher (tableau libre)"}
             </div>
           )}
         </div>
@@ -260,14 +334,14 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
 function BoardRow({
   board,
   active,
-  indented,
+  depth = 0,
   onClick,
   onDragStartBoard,
   onDragEndBoard,
 }: {
   board: Board;
   active: boolean;
-  indented?: boolean;
+  depth?: number;
   onClick: () => void;
   onDragStartBoard?: () => void;
   onDragEndBoard?: () => void;
@@ -281,7 +355,8 @@ function BoardRow({
       onDragEnd={() => onDragEndBoard?.()}
       onClick={onClick}
       title="Glisser vers une décision pour rattacher"
-      className={`flex w-full cursor-grab items-center gap-1.5 py-1.5 pr-3 text-left text-xs transition active:cursor-grabbing ${indented ? "pl-8" : "pl-3"} ${active ? "bg-indigo-50 text-indigo-800" : "text-gray-600 hover:bg-gray-100"}`}
+      style={{ paddingLeft: 12 + depth * 14 }}
+      className={`flex w-full cursor-grab items-center gap-1.5 py-1.5 pr-3 text-left text-xs transition active:cursor-grabbing ${active ? "bg-indigo-50 text-indigo-800" : "text-gray-600 hover:bg-gray-100"}`}
     >
       <span aria-hidden>{ENGINE_ICON[board.engine] ?? "📊"}</span>
       <span className="min-w-0 flex-1 truncate">{board.title || board.engine}</span>
