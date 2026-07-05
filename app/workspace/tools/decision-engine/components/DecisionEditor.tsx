@@ -21,8 +21,10 @@ import {
   removeOption,
   riskLevel,
   scoreOption,
+  updateCriterion,
   updateCriterionWeight,
   updateDecision,
+  updateOption,
   updateRisk,
   weightedScoreOf,
 } from "../api";
@@ -98,8 +100,8 @@ export function DecisionEditor({
           </div>
         </div>
 
-        {decision.options.length === 0 ? (
-          <p className="text-[11px] text-gray-400">Ajoutez des options et des critères pour arbitrer.</p>
+        {decision.options.length === 0 && decision.criteria.length === 0 ? (
+          <p className="text-[11px] text-gray-400">Ajoutez des options (les choix possibles) et des critères (ce qui compte) pour arbitrer.</p>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full border-collapse text-xs">
@@ -109,7 +111,14 @@ export function DecisionEditor({
                   {decision.criteria.map((c) => (
                     <th key={c.id} className="px-1 py-1 text-center font-medium text-gray-500">
                       <div className="flex flex-col items-center gap-0.5">
-                        <span className="max-w-[90px] truncate" title={c.label}>{c.label}</span>
+                        <input
+                          value={c.label}
+                          onFocus={(e) => e.currentTarget.select()}
+                          onChange={(e) => dispatch(updateCriterion(decision.id, c.id, { label: e.target.value }))}
+                          className="w-[92px] rounded border border-transparent bg-transparent px-1 text-center text-gray-700 hover:border-gray-200 focus:border-indigo-300 focus:outline-none"
+                          placeholder="Critère…"
+                          title={c.label}
+                        />
                         <span className="inline-flex items-center gap-0.5">
                           <span className="text-[9px] text-gray-400">poids</span>
                           <input
@@ -133,8 +142,15 @@ export function DecisionEditor({
                   <tr key={option.id} className={option.id === bestId ? "bg-emerald-50/60" : ""}>
                     <td className="px-2 py-1">
                       <div className="flex items-center gap-1">
-                        <span className="max-w-[160px] truncate font-medium text-gray-800" title={option.label}>{option.label}</span>
-                        <button type="button" title="Retirer l'option" className="text-gray-300 hover:text-red-500" onClick={() => dispatch(removeOption(decision.id, option.id))}>✕</button>
+                        <input
+                          value={option.label}
+                          onFocus={(e) => e.currentTarget.select()}
+                          onChange={(e) => dispatch(updateOption(decision.id, option.id, { label: e.target.value }))}
+                          className="w-full min-w-[140px] rounded border border-transparent bg-transparent px-1 font-medium text-gray-800 hover:border-gray-200 focus:border-indigo-300 focus:outline-none"
+                          placeholder="Nommer l'option…"
+                          title={option.label}
+                        />
+                        <button type="button" title="Retirer l'option" className="shrink-0 text-gray-300 hover:text-red-500" onClick={() => dispatch(removeOption(decision.id, option.id))}>✕</button>
                       </div>
                     </td>
                     {decision.criteria.map((c) => {
@@ -158,6 +174,12 @@ export function DecisionEditor({
                 ))}
               </tbody>
             </table>
+            {decision.options.length === 0 && (
+              <p className="mt-1.5 text-[11px] text-amber-600">Ajoutez au moins une option (bouton « + Option ») pour pouvoir noter.</p>
+            )}
+            {decision.criteria.length === 0 && decision.options.length > 0 && (
+              <p className="mt-1.5 text-[11px] text-amber-600">Ajoutez au moins un critère (bouton « + Critère ») pour arbitrer.</p>
+            )}
             {bestId && (
               <p className="mt-1.5 text-[11px] text-gray-500">
                 En tête de <em>votre</em> pondération : « {ranked[0].option.label} ». Le score classe, il ne décide pas — vérifiez les dépendances et testez la sensibilité des poids.
