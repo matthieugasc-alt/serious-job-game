@@ -87,7 +87,7 @@ describe("(c) enregistrement TOOL_REGISTRY", () => {
     expect(tool.icon.length).toBeGreaterThan(0);
     expect(typeof tool.Component).toBe("function");
     expect(tool.applyOp).toBe(applyDecisionOp);
-    expect(tool.initialState({})).toEqual({ decisions: {}, boards: {}, ui: {} });
+    expect(tool.initialState({})).toEqual({ decisions: {}, boards: {}, dependencies: [], ui: {} });
     expect(tool.describeForObservation(null)).toContain("vide");
   });
 });

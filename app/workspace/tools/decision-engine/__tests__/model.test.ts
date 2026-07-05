@@ -139,6 +139,41 @@ describe("Risques & hypothèses", () => {
     expect(r.impact).toBe(4);
   });
 
+  it("dépendances : mère-fille + sœur-sœur, refus doublon/cycle/auto-lien, purge à la suppression", () => {
+    let s = run(emptyDecisionEngineState(), [
+      ["decision_created", { decision_id: "d1", title: "D1", at: T }],
+      ["board_created", { board_id: "b1", engine: "matrix", title: "B1", config: {}, data: { items: [] }, at: T }],
+      ["board_created", { board_id: "b2", engine: "kanban", title: "B2", config: {}, data: { items: [] }, at: T }],
+    ]);
+    const dec = { type: "decision", id: "d1" };
+    const b1 = { type: "board", id: "b1" };
+    const b2 = { type: "board", id: "b2" };
+    // mère-fille : d1 → b1
+    s = run(s, [["dependency_added", { dependency_id: "dep1", from: dec, to: b1, relation: "parent-child", at: T }]]);
+    expect(s.dependencies).toHaveLength(1);
+    // doublon → no-op
+    s = run(s, [["dependency_added", { dependency_id: "dep1b", from: dec, to: b1, relation: "parent-child", at: T }]]);
+    expect(s.dependencies).toHaveLength(1);
+    // cycle (b1 → d1) → refusé
+    s = run(s, [["dependency_added", { dependency_id: "dep2", from: b1, to: dec, relation: "parent-child", at: T }]]);
+    expect(s.dependencies).toHaveLength(1);
+    // auto-lien → refusé
+    s = run(s, [["dependency_added", { dependency_id: "dep3", from: b1, to: b1, relation: "sibling", at: T }]]);
+    expect(s.dependencies).toHaveLength(1);
+    // sœur-sœur b1 ↔ b2
+    s = run(s, [["dependency_added", { dependency_id: "dep4", from: b1, to: b2, relation: "sibling", at: T }]]);
+    expect(s.dependencies).toHaveLength(2);
+    // sœur symétrique (b2 ↔ b1) → doublon
+    s = run(s, [["dependency_added", { dependency_id: "dep5", from: b2, to: b1, relation: "sibling", at: T }]]);
+    expect(s.dependencies).toHaveLength(2);
+    // suppression de b2 → ses liens tombent
+    s = run(s, [["board_deleted", { board_id: "b2", at: T }]]);
+    expect(s.dependencies).toHaveLength(1);
+    // suppression explicite du lien restant
+    s = run(s, [["dependency_removed", { dependency_id: "dep1", at: T }]]);
+    expect(s.dependencies).toHaveLength(0);
+  });
+
   it("crée une hypothèse avec confiance", () => {
     const s = run(emptyDecisionEngineState(), [
       ["decision_created", { decision_id: "d1", title: "A", at: T }],

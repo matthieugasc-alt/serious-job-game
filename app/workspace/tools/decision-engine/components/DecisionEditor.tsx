@@ -30,7 +30,9 @@ import {
 } from "../api";
 import { PRESETS } from "../presets";
 import { createTaskFromDecision, exportDecisionToNotebook, reviseDecision } from "../integrations";
+import type { Json } from "@/app/lib/engine/mechanics";
 import type { Board, DecisionObject, RiskEntry } from "../spec";
+import { DependencyPanel } from "./DependencyPanel";
 import { RiskMatrix } from "./RiskMatrix";
 
 type Dispatch = (action: WorkspaceAction) => void;
@@ -41,12 +43,14 @@ const PI_SCALE = [1, 2, 3, 4, 5];
 export function DecisionEditor({
   decision,
   boards,
+  engineState,
   dispatch,
   onOpenBoard,
   onSelectDecision,
 }: {
   decision: DecisionObject;
   boards: Board[];
+  engineState: Json;
   dispatch: Dispatch;
   onOpenBoard: (boardId: string) => void;
   onSelectDecision: (decisionId: string) => void;
@@ -243,6 +247,11 @@ export function DecisionEditor({
             ))}
           </div>
         )}
+      </section>
+
+      {/* Dépendances (décision ↔ tableaux / autres décisions). */}
+      <section className="border-b border-gray-100 px-4 py-3">
+        <DependencyPanel state={engineState} node={{ type: "decision", id: decision.id }} dispatch={dispatch} />
       </section>
 
       {/* Décision finale. */}

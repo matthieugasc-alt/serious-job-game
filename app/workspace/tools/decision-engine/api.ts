@@ -15,6 +15,9 @@ import type {
   DecisionItem,
   DecisionObject,
   DecisionOption,
+  Dependency,
+  DependencyRelation,
+  DepNodeRef,
   EngineKind,
   GraphEdge,
   OptionId,
@@ -329,6 +332,66 @@ export function addEdge(
 export function updateEdge(boardId: BoardId, edgeId: string, patch: Partial<{ label: string; kind: string; directed: boolean }>, opts: OpOptions = {}): DecisionToolOp {
   return op("edge_updated", { board_id: boardId, edge_id: edgeId, patch: patch as unknown as Json, at: now(opts) });
 }
+// ─── Dépendances entre objets (décisions ↔ tableaux) ──────────────
+
+export function addDependency(
+  from: DepNodeRef,
+  to: DepNodeRef,
+  relation: DependencyRelation,
+  opts: OpOptions = {},
+): DecisionToolOp {
+  return op("dependency_added", {
+    dependency_id: opts.id ?? uid("dep"),
+    from: from as unknown as Json,
+    to: to as unknown as Json,
+    relation,
+    at: now(opts),
+  });
+}
+
+export function removeDependency(dependencyId: string, opts: OpOptions = {}): DecisionToolOp {
+  return op("dependency_removed", { dependency_id: dependencyId, at: now(opts) });
+}
+
+/** Toutes les dépendances. */
+export function listDependencies(state: Json): Dependency[] {
+  return normalizeDecisionEngineState(state).dependencies;
+}
+
+const sameRef = (a: DepNodeRef, b: DepNodeRef): boolean => a.type === b.type && a.id === b.id;
+
+/** Voisins d'un nœud : mères (parents), filles (enfants), sœurs. */
+export function selectDependenciesFor(
+  state: Json,
+  node: DepNodeRef,
+): {
+  parents: { dep: Dependency; ref: DepNodeRef }[];
+  children: { dep: Dependency; ref: DepNodeRef }[];
+  siblings: { dep: Dependency; ref: DepNodeRef }[];
+} {
+  const deps = normalizeDecisionEngineState(state).dependencies;
+  const parents: { dep: Dependency; ref: DepNodeRef }[] = [];
+  const children: { dep: Dependency; ref: DepNodeRef }[] = [];
+  const siblings: { dep: Dependency; ref: DepNodeRef }[] = [];
+  for (const dep of deps) {
+    if (dep.relation === "parent-child") {
+      if (sameRef(dep.to, node)) parents.push({ dep, ref: dep.from });
+      else if (sameRef(dep.from, node)) children.push({ dep, ref: dep.to });
+    } else {
+      if (sameRef(dep.from, node)) siblings.push({ dep, ref: dep.to });
+      else if (sameRef(dep.to, node)) siblings.push({ dep, ref: dep.from });
+    }
+  }
+  return { parents, children, siblings };
+}
+
+/** Titre lisible d'un nœud (décision ou tableau). */
+export function labelOfNode(state: Json, ref: DepNodeRef): string {
+  const s = normalizeDecisionEngineState(state);
+  if (ref.type === "decision") return s.decisions[ref.id]?.title || "(décision)";
+  return s.boards[ref.id]?.title || s.boards[ref.id]?.engine || "(tableau)";
+}
+
 export function removeEdge(boardId: BoardId, edgeId: string, opts: OpOptions = {}): DecisionToolOp {
   return op("edge_removed", { board_id: boardId, edge_id: edgeId, at: now(opts) });
 }

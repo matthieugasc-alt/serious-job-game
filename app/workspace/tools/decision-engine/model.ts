@@ -19,6 +19,9 @@ import type {
   DecisionObject,
   DecisionOption,
   DecisionStatus,
+  Dependency,
+  DependencyRelation,
+  DepNodeRef,
   EngineKind,
   Hypothesis,
   HypothesisStatus,
@@ -57,11 +60,13 @@ export const DECISION_OPS = [
   "edge_added",
   "edge_updated",
   "edge_removed",
+  "dependency_added",
+  "dependency_removed",
 ] as const;
 export type DecisionOpName = (typeof DECISION_OPS)[number];
 
 export function emptyDecisionEngineState(): DecisionEngineState {
-  return { decisions: {}, boards: {}, ui: {} };
+  return { decisions: {}, boards: {}, dependencies: [], ui: {} };
 }
 
 // ─── Helpers de parsing défensif ───────────────────────────────────
@@ -289,7 +294,106 @@ export function normalizeDecisionEngineState(state: Json): DecisionEngineState {
     if (ob !== undefined && ob in boards) ui.open_board_id = ob;
     if (od !== undefined && od in decisions) ui.open_decision_id = od;
   }
-  return { decisions, boards, ui };
+  // Dépendances : on ne garde que celles dont les DEUX nœuds existent
+  // encore (suppression d'un objet → ses liens tombent d'eux-mêmes).
+  const nodeExists = (n: DepNodeRef): boolean =>
+    n.type === "decision" ? n.id in decisions : n.id in boards;
+  const dependencies: Dependency[] = [];
+  const seen = new Set<string>();
+  if (Array.isArray(state.dependencies)) {
+    for (const raw of state.dependencies) {
+      const dep = parseDependency(raw);
+      if (!dep || !nodeExists(dep.from) || !nodeExists(dep.to)) continue;
+      // Dédoublonnage (sibling = symétrique).
+      const key = depKey(dep);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      dependencies.push(dep);
+    }
+  }
+  return { decisions, boards, dependencies, ui };
+}
+
+const DEP_RELATION_SET = new Set<string>(["parent-child", "sibling"]);
+
+function parseNodeRef(v: Json | undefined): DepNodeRef | null {
+  if (!isObject(v)) return null;
+  const type = asString(v.type);
+  const id = asString(v.id);
+  if ((type !== "decision" && type !== "board") || id === undefined || id.length === 0) return null;
+  return { type, id };
+}
+
+function parseDependency(v: Json | undefined): Dependency | null {
+  if (!isObject(v)) return null;
+  const id = asString(v.id);
+  const from = parseNodeRef(v.from);
+  const to = parseNodeRef(v.to);
+  const relation = asString(v.relation);
+  if (id === undefined || !from || !to || relation === undefined || !DEP_RELATION_SET.has(relation)) return null;
+  if (from.type === to.type && from.id === to.id) return null; // pas d'auto-lien
+  return { id, from, to, relation: relation as DependencyRelation };
+}
+
+const refKey = (n: DepNodeRef): string => `${n.type}:${n.id}`;
+
+/** Clé de dédoublonnage : sibling symétrique (tri des deux bouts). */
+function depKey(dep: Dependency): string {
+  if (dep.relation === "sibling") {
+    const [a, b] = [refKey(dep.from), refKey(dep.to)].sort();
+    return `sibling|${a}|${b}`;
+  }
+  return `parent-child|${refKey(dep.from)}|${refKey(dep.to)}`;
+}
+
+/** Y a-t-il un chemin parent→enfant de `start` vers `target` ? (anti-cycle). */
+function reachableViaParentChild(deps: Dependency[], start: DepNodeRef, target: DepNodeRef): boolean {
+  const targetKey = refKey(target);
+  const stack = [start];
+  const visited = new Set<string>();
+  while (stack.length > 0) {
+    const node = stack.pop()!;
+    const k = refKey(node);
+    if (k === targetKey) return true;
+    if (visited.has(k)) continue;
+    visited.add(k);
+    for (const d of deps) {
+      if (d.relation === "parent-child" && refKey(d.from) === k) stack.push(d.to);
+    }
+  }
+  return false;
+}
+
+function dependencyAdded(s: DecisionEngineState, p: JsonObject): DecisionEngineState | null {
+  const id = asString(p.dependency_id);
+  const from = parseNodeRef(p.from);
+  const to = parseNodeRef(p.to);
+  const relation = asString(p.relation);
+  if (id === undefined || id.length === 0 || !from || !to || relation === undefined || !DEP_RELATION_SET.has(relation)) return null;
+  if (from.type === to.type && from.id === to.id) return null;
+  const nodeExists = (n: DepNodeRef): boolean =>
+    n.type === "decision" ? n.id in s.decisions : n.id in s.boards;
+  if (!nodeExists(from) || !nodeExists(to)) return null;
+  const dep: Dependency = { id, from, to, relation: relation as DependencyRelation };
+  // Doublon (sibling symétrique compris) → no-op.
+  const key = depKey(dep);
+  if (s.dependencies.some((d) => depKey(d) === key)) return null;
+  // Anti-cycle sur parent-child : `to` ne doit pas déjà atteindre `from`.
+  if (dep.relation === "parent-child" && reachableViaParentChild(s.dependencies, to, from)) return null;
+  return { ...s, dependencies: [...s.dependencies, dep] };
+}
+
+function dependencyRemoved(s: DecisionEngineState, p: JsonObject): DecisionEngineState | null {
+  const id = asString(p.dependency_id);
+  if (id === undefined) return null;
+  if (!s.dependencies.some((d) => d.id === id)) return null;
+  return { ...s, dependencies: s.dependencies.filter((d) => d.id !== id) };
+}
+
+/** Retire les liens touchant un nœud supprimé (état toujours cohérent). */
+function pruneDepsFor(deps: Dependency[], ref: DepNodeRef): Dependency[] {
+  const k = refKey(ref);
+  return deps.filter((d) => refKey(d.from) !== k && refKey(d.to) !== k);
 }
 
 // ─── Reducer ───────────────────────────────────────────────────────
@@ -328,6 +432,8 @@ export function applyDecisionOp(state: Json, op: string, payload: JsonObject): J
     case "edge_added": next = edgeAdded(s, p, at); break;
     case "edge_updated": next = edgeUpdated(s, p, at); break;
     case "edge_removed": next = edgeRemoved(s, p, at); break;
+    case "dependency_added": next = dependencyAdded(s, p); break;
+    case "dependency_removed": next = dependencyRemoved(s, p); break;
     default: next = null;
   }
   return (next ?? state) as Json;
@@ -412,7 +518,7 @@ function decisionDeleted(s: DecisionEngineState, p: JsonObject): DecisionEngineS
       boards[bid] = rest;
     }
   }
-  return { ...s, decisions, boards };
+  return { ...s, decisions, boards, dependencies: pruneDepsFor(s.dependencies, { type: "decision", id }) };
 }
 
 function decisionFinalized(s: DecisionEngineState, p: JsonObject, at: number): DecisionEngineState | null {
@@ -677,7 +783,7 @@ function boardDeleted(s: DecisionEngineState, p: JsonObject): DecisionEngineStat
     const d = s.decisions[board.decision_id];
     decisions = { ...s.decisions, [d.id]: { ...d, board_ids: d.board_ids.filter((b) => b !== id) } };
   }
-  return { ...s, boards, decisions };
+  return { ...s, boards, decisions, dependencies: pruneDepsFor(s.dependencies, { type: "board", id }) };
 }
 
 /** Items d'un board (data.items), lus défensivement. */

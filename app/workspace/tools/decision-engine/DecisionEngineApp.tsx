@@ -22,6 +22,7 @@ import {
 } from "./api";
 import { DECISION_ENGINE_TOOL_ID } from "./spec";
 import { DecisionEditor } from "./components/DecisionEditor";
+import { DependencyPanel } from "./components/DependencyPanel";
 import { MatrixBoard } from "./components/MatrixBoard";
 import { RegistryBoard } from "./components/RegistryBoard";
 import { TableBoard } from "./components/TableBoard";
@@ -60,6 +61,7 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openBoardId, setOpenBoardId] = useState<string | null>(null);
   const [showPresets, setShowPresets] = useState(false);
+  const [showBoardDeps, setShowBoardDeps] = useState(false);
 
   // Sélection par défaut : la décision la plus récente.
   const selected = decisions.find((d) => d.id === selectedId) ?? decisions[0] ?? null;
@@ -188,7 +190,20 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
               </button>
               <span aria-hidden>{ENGINE_ICON[openBoard.engine] ?? "📊"}</span>
               <span className="text-sm font-medium text-gray-800">{openBoard.title || openBoard.engine}</span>
+              <button
+                type="button"
+                aria-pressed={showBoardDeps}
+                className={`ml-auto rounded-lg border px-2 py-1 text-[11px] font-medium transition ${showBoardDeps ? "border-indigo-300 bg-indigo-50 text-indigo-700" : "border-gray-200 text-gray-600 hover:border-indigo-300 hover:text-indigo-700"}`}
+                onClick={() => setShowBoardDeps((v) => !v)}
+              >
+                🔗 Dépendances
+              </button>
             </header>
+            {showBoardDeps && (
+              <div className="shrink-0 border-b border-gray-100 bg-gray-50/60 px-3 py-2">
+                <DependencyPanel state={state} node={{ type: "board", id: openBoard.id }} dispatch={dispatch} />
+              </div>
+            )}
             <div className="min-h-0 flex-1">
               <BoardView board={openBoard} dispatch={dispatch} />
             </div>
@@ -217,7 +232,7 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
               />
             </header>
             <div className="min-h-0 flex-1">
-              <DecisionEditor key={selected.id} decision={selected} boards={boards} dispatch={dispatch} onOpenBoard={setOpenBoardId} onSelectDecision={setSelectedId} />
+              <DecisionEditor key={selected.id} decision={selected} boards={boards} engineState={state} dispatch={dispatch} onOpenBoard={setOpenBoardId} onSelectDecision={setSelectedId} />
             </div>
           </>
         )}

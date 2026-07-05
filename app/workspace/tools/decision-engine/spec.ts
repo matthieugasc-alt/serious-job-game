@@ -157,9 +157,26 @@ export type Board = {
   updated_at: number;
 };
 
+// ─── Dépendances arbitraires entre objets (décisions ET tableaux) ──
+/** Un nœud du graphe de dépendances : une décision ou un tableau. */
+export type DepNodeRef = { type: "decision" | "board"; id: string };
+
+export const DEPENDENCY_RELATIONS = ["parent-child", "sibling"] as const;
+export type DependencyRelation = (typeof DEPENDENCY_RELATIONS)[number];
+
+/** Un lien : pour parent-child, `from` = mère, `to` = fille (orienté) ;
+ *  pour sibling, la relation est symétrique (ordre indifférent). */
+export type Dependency = {
+  id: string;
+  from: DepNodeRef;
+  to: DepNodeRef;
+  relation: DependencyRelation;
+};
+
 export type DecisionEngineState = {
   decisions: Record<DecisionId, DecisionObject>;
   boards: Record<BoardId, Board>;
+  dependencies: Dependency[];
   ui: { open_board_id?: BoardId; open_decision_id?: DecisionId };
 };
 
