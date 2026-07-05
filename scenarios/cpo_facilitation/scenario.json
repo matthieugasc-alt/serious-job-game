@@ -5,7 +5,7 @@
   "locale": "fr-FR",
   "meta": {
     "title": "COPIL de crise — la bêta a pris feu",
-    "description": "Vous êtes Chief Product Officer de Fluxboard. À 4 jours de la démo du SaaS Summit, la bêta du Hub d'intégrations part en vrille : Logimat, client pilote, menace de témoigner négativement. Vous réunissez en urgence vos trois responsables — Design, Engineering, Customer Success — dans le même fil. Chacun tire la couverture à soi. À vous d'animer : distribuer la parole, faire parler ceux qui se taisent, recentrer sur l'objectif et sortir de la réunion avec un plan d'action partagé, pas avec trois monologues.\n\nFin du scénario (test) : il se termine après avoir animé la réunion (au moins 3 messages). L'IA juge la qualité de l'animation APRÈS coup.",
+    "description": "Vous êtes Chief Product Officer de Fluxboard. À 4 jours de la démo du SaaS Summit, la bêta du Hub d'intégrations part en vrille : Logimat, client pilote, menace de témoigner négativement. Vous réunissez en urgence vos trois responsables — Design, Engineering, Customer Success — dans le même fil. Chacun tire la couverture à soi. À vous d'animer : distribuer la parole, faire parler ceux qui se taisent, recentrer sur l'objectif et sortir de la réunion avec un plan d'action partagé, pas avec trois monologues.\n\nLa réunion est chronométrée : 5 minutes, chrono visible à l'écran. Quand le temps est écoulé, la réunion se termine — comme dans la vraie vie. À vous de faire converger le groupe AVANT le buzzer. L'IA juge la qualité de l'animation APRÈS coup.",
     "difficulty": "advanced",
     "estimated_minutes": 10
   },
@@ -102,8 +102,9 @@
       ],
       "completion": {
         "trigger": {
-          "type": "message_sent",
-          "min_count": 3
+          "type": "timer_elapsed",
+          "seconds": 300,
+          "from": "step_start"
         }
       },
       "evaluation": {
