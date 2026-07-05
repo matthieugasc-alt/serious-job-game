@@ -66,3 +66,9 @@ export function getGameRecord(id: string): GameRecord | null {
   const records = getGameHistory();
   return records.find((r) => r.id === id) || null;
 }
+
+/** Le bilan le plus récent pour un scénario donné (pour éviter de
+ *  re-générer et pour la réouverture depuis l'espace perso). */
+export function getLatestForScenario(scenarioId: string): GameRecord | null {
+  return getGameHistory().find((r) => r.scenarioId === scenarioId) ?? null;
+}

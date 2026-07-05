@@ -284,6 +284,22 @@ export default function HistoryPage() {
                   {/* Actions */}
                   <div style={{ display: "flex", gap: 8, flexShrink: 0 }}>
                     <button
+                      onClick={() => router.push(`/debriefs/${record.id}`)}
+                      title="Rouvrir le bilan"
+                      style={{
+                        padding: "8px 16px",
+                        background: "#fff",
+                        color: "#4f46e5",
+                        border: "1px solid #c3cee0",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        fontWeight: 600,
+                        fontSize: 13,
+                      }}
+                    >
+                      Voir le bilan
+                    </button>
+                    <button
                       onClick={() => handleDownload(record)}
                       disabled={isDownloading}
                       title="Telecharger le debrief en PDF"
