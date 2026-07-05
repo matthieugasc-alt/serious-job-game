@@ -40,6 +40,7 @@ import { ArbitrageDebriefSection } from "./debrief/ArbitrageDebriefSection";
 import { ProductionDebriefSection } from "./debrief/ProductionDebriefSection";
 import { PresentationDebriefSection } from "./debrief/PresentationDebriefSection";
 import { PlanningDebriefSection } from "./debrief/PlanningDebriefSection";
+import { NegotiationDebriefSection, type TermDef } from "./debrief/NegotiationDebriefSection";
 import { TOOL_REGISTRY } from "./apps/registry";
 import { buildCompletionPayload, runPendingEffects } from "./orchestrator";
 import { useNavigationGuard, requestScenarioExit } from "@/app/workspace/useNavigationGuard";
@@ -325,6 +326,20 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
               documents={scenario.documents.map((d) => ({ id: d.id, title: d.title }))}
             />
           )}
+          {(() => {
+            const nego = scenario.sequence?.find((s) => s.mechanic === "negociation");
+            if (!nego) return null;
+            const contrat = nego.tools?.find((t) => t.tool === "contrat");
+            const terms = (contrat?.config as { terms?: TermDef[] } | undefined)?.terms ?? [];
+            const params = (nego.params ?? {}) as { instructions?: string; objective?: string };
+            return (
+              <NegotiationDebriefSection
+                workspace={session.workspace}
+                terms={terms}
+                objective={typeof params.instructions === "string" ? params.instructions : typeof params.objective === "string" ? params.objective : ""}
+              />
+            );
+          })()}
           {/* Planification : pas de mécanique dédiée → s'affiche si un plan existe. */}
           <PlanningDebriefSection workspace={session.workspace} />
           {!savingOutcome && (
