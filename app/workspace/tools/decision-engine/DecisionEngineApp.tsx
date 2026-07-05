@@ -56,6 +56,7 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
   const state = workspace.toolStates[DECISION_ENGINE_TOOL_ID] ?? null;
   const decisions = listDecisions(state);
 
+  const [railTab, setRailTab] = useState<"decisions" | "boards">("decisions");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openBoardId, setOpenBoardId] = useState<string | null>(null);
   const [showPresets, setShowPresets] = useState(false);
@@ -66,6 +67,7 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
   const newDecision = () => {
     const id = localId("dec");
     dispatch(createDecision({ title: "Nouvelle décision" }, { id }));
+    setRailTab("decisions");
     setSelectedId(id);
     setOpenBoardId(null);
   };
@@ -74,6 +76,7 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
     const id = localId("board");
     const opAction = openPreset(presetId, {}, { id });
     if (opAction) dispatch(opAction);
+    setRailTab("boards");
     setOpenBoardId(id);
     setShowPresets(false);
   };
@@ -89,76 +92,90 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
 
   return (
     <div className="flex h-full min-h-0 bg-gray-50/60">
-      {/* Rail des décisions. */}
+      {/* Rail : deux onglets — Décisions | Tableaux. */}
       <aside className="flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white">
-        <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 px-3 py-2.5">
-          <h2 className="text-sm font-semibold text-gray-900">🧭 Décisions</h2>
-          <button
-            type="button"
-            className="rounded-lg bg-indigo-600 px-2 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700"
-            onClick={newDecision}
-          >
-            + Nouvelle
-          </button>
-        </div>
-        <ul className="min-h-0 flex-1 overflow-y-auto">
-          {decisions.length === 0 && (
-            <li className="px-4 py-6 text-center text-sm text-gray-400">Aucune décision. Créez-en une pour structurer un arbitrage.</li>
-          )}
-          {decisions.map((d) => {
-            const active = selected?.id === d.id;
-            return (
-              <li key={d.id}>
-                <button
-                  type="button"
-                  aria-pressed={active}
-                  className={`block w-full border-b border-gray-50 px-3 py-2.5 text-left transition ${active ? "bg-indigo-50/70" : "hover:bg-gray-50"}`}
-                  onClick={() => { setSelectedId(d.id); setOpenBoardId(null); }}
-                >
-                  <span className="block truncate text-sm font-medium text-gray-800">{d.title || "(sans titre)"}</span>
-                  <span className="mt-0.5 block text-[11px] text-gray-400">
-                    {STATUS_LABEL[d.status]} · {d.options.length} option(s) · {d.risks.length} risque(s)
-                  </span>
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-
-        {/* Tableaux (tous les boards, liés ou autonomes). */}
-        <div className="relative shrink-0 border-t border-gray-100">
-          <div className="flex items-center justify-between px-3 py-2">
-            <h3 className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Tableaux</h3>
-            <button type="button" className="rounded-lg border border-gray-200 px-2 py-0.5 text-[11px] font-medium text-gray-600 transition hover:border-indigo-300 hover:text-indigo-700" onClick={() => setShowPresets((v) => !v)}>
-              + Tableau
+        <div className="flex shrink-0 gap-1 border-b border-gray-100 px-2 py-2" role="tablist">
+          {([["decisions", "🧭 Décisions"], ["boards", "📊 Tableaux"]] as ["decisions" | "boards", string][]).map(([t, label]) => (
+            <button
+              key={t}
+              type="button"
+              role="tab"
+              aria-selected={railTab === t}
+              className={`flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition ${railTab === t ? "bg-indigo-50 text-indigo-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-800"}`}
+              onClick={() => setRailTab(t)}
+            >
+              {label}
             </button>
-          </div>
-          <ul className="max-h-40 overflow-y-auto px-2 pb-2">
-            {allBoards.length === 0 && <li className="px-1 text-[11px] text-gray-400">Aucun tableau.</li>}
-            {allBoards.map((b) => (
-              <li key={b.id}>
-                <button type="button" aria-pressed={openBoardId === b.id} className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1 text-left text-xs transition ${openBoardId === b.id ? "bg-indigo-50 text-indigo-800" : "text-gray-700 hover:bg-gray-100"}`} onClick={() => setOpenBoardId(b.id)}>
-                  <span aria-hidden>{ENGINE_ICON[b.engine] ?? "📊"}</span>
-                  <span className="min-w-0 flex-1 truncate">{b.title || b.engine}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-          {showPresets && (
-            <div className="absolute bottom-2 left-2 z-30 max-h-72 w-52 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl">
-              {presetGroups.map(([eng, presets]) => (
-                <div key={eng} className="mb-1">
-                  <p className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">{ENGINE_ICON[eng]} {eng}</p>
-                  {presets.map((p) => (
-                    <button key={p.id} type="button" className="block w-full truncate rounded-lg px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100" title={p.description} onClick={() => createFromPreset(p.id)}>
-                      {p.title}
+          ))}
+        </div>
+
+        {railTab === "decisions" ? (
+          <>
+            <div className="flex shrink-0 items-center justify-between px-3 py-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{decisions.length} décision(s)</span>
+              <button type="button" className="rounded-lg bg-indigo-600 px-2 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700" onClick={newDecision}>
+                + Nouvelle
+              </button>
+            </div>
+            <ul className="min-h-0 flex-1 overflow-y-auto">
+              {decisions.length === 0 && (
+                <li className="px-4 py-6 text-center text-sm text-gray-400">Aucune décision. Créez-en une pour structurer un arbitrage.</li>
+              )}
+              {decisions.map((d) => {
+                const active = railTab === "decisions" && !openBoardId && selected?.id === d.id;
+                return (
+                  <li key={d.id}>
+                    <button
+                      type="button"
+                      aria-pressed={active}
+                      className={`block w-full border-b border-gray-50 px-3 py-2.5 text-left transition ${active ? "bg-indigo-50/70" : "hover:bg-gray-50"}`}
+                      onClick={() => { setSelectedId(d.id); setOpenBoardId(null); }}
+                    >
+                      <span className="block truncate text-sm font-medium text-gray-800">{d.title || "(sans titre)"}</span>
+                      <span className="mt-0.5 block text-[11px] text-gray-400">
+                        {STATUS_LABEL[d.status]} · {d.options.length} option(s) · {d.risks.length} risque(s)
+                      </span>
                     </button>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
+        ) : (
+          <>
+            <div className="relative flex shrink-0 items-center justify-between px-3 py-2">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-400">{allBoards.length} tableau(x)</span>
+              <button type="button" className="rounded-lg bg-indigo-600 px-2 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700" onClick={() => setShowPresets((v) => !v)}>
+                + Tableau
+              </button>
+              {showPresets && (
+                <div className="absolute right-2 top-full z-30 max-h-80 w-52 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl">
+                  {presetGroups.map(([eng, presets]) => (
+                    <div key={eng} className="mb-1">
+                      <p className="px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-gray-400">{ENGINE_ICON[eng]} {eng}</p>
+                      {presets.map((p) => (
+                        <button key={p.id} type="button" className="block w-full truncate rounded-lg px-2 py-1 text-left text-xs text-gray-700 hover:bg-gray-100" title={p.description} onClick={() => createFromPreset(p.id)}>
+                          {p.title}
+                        </button>
+                      ))}
+                    </div>
                   ))}
                 </div>
-              ))}
+              )}
             </div>
-          )}
-        </div>
+            <ul className="min-h-0 flex-1 overflow-y-auto px-2 pb-2">
+              {allBoards.length === 0 && <li className="px-1 py-4 text-center text-[11px] text-gray-400">Aucun tableau. « + Tableau » pour en créer un.</li>}
+              {allBoards.map((b) => (
+                <li key={b.id}>
+                  <button type="button" aria-pressed={openBoardId === b.id} className={`flex w-full items-center gap-1.5 rounded-lg px-2 py-1.5 text-left text-xs transition ${openBoardId === b.id ? "bg-indigo-50 text-indigo-800" : "text-gray-700 hover:bg-gray-100"}`} onClick={() => setOpenBoardId(b.id)}>
+                    <span aria-hidden>{ENGINE_ICON[b.engine] ?? "📊"}</span>
+                    <span className="min-w-0 flex-1 truncate">{b.title || b.engine}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </aside>
 
       {/* Zone principale. */}
@@ -176,6 +193,12 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
               <BoardView board={openBoard} dispatch={dispatch} />
             </div>
           </>
+        ) : railTab === "boards" ? (
+          <div className="flex flex-1 items-center justify-center">
+            <p className="max-w-xs text-center text-sm text-gray-400">
+              Sélectionnez un tableau à gauche, ou créez-en un avec « + Tableau » : Impact/Effort, SWOT, Kanban, roadmap, graphe.
+            </p>
+          </div>
         ) : !selected ? (
           <div className="flex flex-1 items-center justify-center">
             <p className="max-w-xs text-center text-sm text-gray-400">
