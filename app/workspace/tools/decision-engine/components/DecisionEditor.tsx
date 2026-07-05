@@ -205,7 +205,7 @@ export function DecisionEditor({
                 </button>
               ))}
             </div>
-            <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => dispatch(createRisk(decision.id, { label: "", probability: 3, impact: 3 }))}>
+            <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => { setRiskView("registre"); dispatch(createRisk(decision.id, { label: "", probability: 3, impact: 3 })); }}>
               + Risque
             </button>
           </div>
