@@ -191,10 +191,7 @@
       "required_params": [
         "instructions"
       ],
-      "default_tools": [
-        "decision-engine",
-        "bloc-notes"
-      ]
+      "default_tools": []
     },
     {
       "id": "facilitation",
@@ -209,11 +206,7 @@
         "participants",
         "objective"
       ],
-      "default_tools": [
-        "bloc-notes",
-        "decision-engine",
-        "whiteboard"
-      ]
+      "default_tools": []
     }
   ]
 }

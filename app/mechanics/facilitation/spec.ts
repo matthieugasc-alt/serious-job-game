@@ -6,17 +6,21 @@
  * présents dans le MÊME fil Messages et répondent chacun selon leur rôle.
  * À NE PAS confondre avec `entretien` (échange dirigé à une personne) ni
  * `presentation` (exposer/convaincre un auditoire) : ici on fait AVANCER
- * un groupe. L'observable : distribution de la parole, dynamique et ce que
- * la réunion PRODUIT (décisions, actions, synthèse).
+ * un groupe. Deuxième mécanique multi-acteurs après `mediation`.
  *
- * PUR / node-safe : n'importe que des API de tools pures (aucun React).
+ * INVARIANT D'INDÉPENDANCE (docs/TOOL_BLOC_NOTES.md §1, garde-fous des
+ * tools transversaux) : une mécanique n'importe JAMAIS bloc-notes /
+ * decision-engine / whiteboard et ne lit JAMAIS leur état. Ce que la
+ * réunion PRODUIT concrètement dans ces tools (décisions, actions, idées)
+ * est mesuré par le collecteur de débrief (app/lib/debrief/collect.ts),
+ * hors app/mechanics. Ici la mécanique observe le fil multi-acteurs, les
+ * notes génériques et la synthèse FORMALISÉE par le joueur.
+ *
+ * PUR / node-safe : aucun React, aucun import de tool.
  */
 
 import type { JsonObject } from "@/app/lib/engine/mechanics";
 import type { MechanicSpec } from "@/app/lib/engine/workspace";
-import { listDecisions } from "@/app/workspace/tools/decision-engine/api";
-import { selectAllTasks } from "@/app/workspace/tools/bloc-notes/api";
-import { selectNotes } from "@/app/workspace/tools/whiteboard/api";
 import {
   lastFormalisation,
   notesForObservation,
@@ -26,21 +30,13 @@ import {
   threadsForObservation,
 } from "../specHelpers";
 
+/** Critère conventionnel pilotant outcomes.productive s'il est déclaré. */
+export const FACILITATION_PRODUCTIVE_CRITERION = "reunion_productive";
+
 function participantIds(params: JsonObject): string[] {
   return Array.isArray(params.participants)
     ? params.participants.filter((x): x is string => typeof x === "string" && x.trim().length > 0)
     : [];
-}
-
-function production(ws: Parameters<MechanicSpec["buildArtifacts"]>[0]): JsonObject {
-  const dec = ws.toolStates?.["decision-engine"] ?? null;
-  const bloc = ws.toolStates?.["bloc-notes"] ?? null;
-  const wb = ws.toolStates?.["whiteboard"] ?? null;
-  return {
-    decisions: dec ? listDecisions(dec).length : 0,
-    actions: bloc ? selectAllTasks(bloc).length : 0,
-    idees: wb ? selectNotes(wb).length : 0,
-  };
 }
 
 export const facilitationSpec: MechanicSpec = {
@@ -52,7 +48,7 @@ export const facilitationSpec: MechanicSpec = {
       "Le joueur anime une réunion avec plusieurs acteurs IA présents dans le MÊME fil Messages, pour faire avancer le collectif vers un objectif. L'observateur regarde la distribution de la parole, la dynamique du groupe et ce que la réunion produit (décisions, actions, synthèse).",
     output_keys: ["dialogue", "outcomes"],
     required_params: ["participants", "objective"],
-    default_tools: ["bloc-notes", "decision-engine", "whiteboard"],
+    default_tools: [],
   },
 
   directive(params: JsonObject): string {
@@ -77,16 +73,19 @@ export const facilitationSpec: MechanicSpec = {
       participants,
       dialogue: threadsForObservation(ws, step, participants),
       notes: notesForObservation(ws),
-      production: production(ws),
       synthese_envoyee: lastFormalisation(ws, log, step) || "(aucune synthèse envoyée)",
     };
   },
 
-  buildOutput(ws, step, _observation, _log): JsonObject {
-    const p = production(ws) as { decisions: number; actions: number; idees: number };
+  buildOutput(ws, step, observation, log): JsonObject {
+    const synthese = lastFormalisation(ws, log, step);
+    const productive =
+      FACILITATION_PRODUCTIVE_CRITERION in observation.criteria
+        ? observation.criteria[FACILITATION_PRODUCTIVE_CRITERION] === true
+        : synthese.length > 0;
     return {
       dialogue: stepDialogue(ws, step, participantIds(step.params)),
-      outcomes: { ...p, productive: p.decisions + p.actions + p.idees > 0 },
+      outcomes: { synthese, productive },
     };
   },
 

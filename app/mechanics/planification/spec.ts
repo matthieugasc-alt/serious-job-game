@@ -4,38 +4,29 @@
  * Le joueur construit une ORGANISATION d'exécution : plan d'action,
  * roadmap, séquence de tâches, jalons, dépendances, ressources, risques.
  * À NE PAS confondre avec `decision` (choisir QUOI faire) : ici on organise
- * COMMENT exécuter. S'appuie sur le Decision Engine (timeline / kanban /
- * graphe de dépendances / registre de risques / RACI via table) et le
- * Bloc-notes (tâches). L'observable est le PLAN réellement produit.
+ * COMMENT exécuter.
  *
- * PUR / node-safe : n'importe que des API de tools pures (aucun React).
+ * INVARIANT D'INDÉPENDANCE (docs/TOOL_BLOC_NOTES.md §1, garde-fous des
+ * tools transversaux) : une mécanique n'importe JAMAIS bloc-notes /
+ * decision-engine / whiteboard et ne lit JAMAIS leur état — ces tools
+ * appartiennent au joueur, pas à une mécanique. Le joueur les mobilise
+ * librement (timeline, kanban, graphe de dépendances, registre de
+ * risques) ; l'observation FINE de ce qu'ils contiennent appartient au
+ * collecteur de débrief (app/lib/debrief/collect.ts), hors app/mechanics.
+ * Ici, la mécanique observe seulement ce que le joueur FORMALISE (plan
+ * rendu par message/mail) et ses notes génériques.
+ *
+ * PUR / node-safe : aucun React, aucun import de tool.
  */
 
 import type { JsonObject } from "@/app/lib/engine/mechanics";
 import type { MechanicSpec } from "@/app/lib/engine/workspace";
-import { listBoards, listDecisions, listDependencies } from "@/app/workspace/tools/decision-engine/api";
-import { selectAllTasks } from "@/app/workspace/tools/bloc-notes/api";
-import { notesForObservation, requireInstructions } from "../specHelpers";
-
-function planSummary(ws: Parameters<MechanicSpec["buildArtifacts"]>[0]): JsonObject {
-  const dec = ws.toolStates?.["decision-engine"] ?? null;
-  const bloc = ws.toolStates?.["bloc-notes"] ?? null;
-  const boards = dec ? listBoards(dec) : [];
-  const tasks = bloc ? selectAllTasks(bloc) : [];
-  const deps = dec ? listDependencies(dec) : [];
-  const risks = dec ? listDecisions(dec).reduce((s, d) => s + (d.risks?.length ?? 0), 0) : 0;
-  return {
-    outils: [...new Set(boards.map((b) => b.engine))],
-    jalons: boards.filter((b) => b.engine === "timeline").length,
-    taches: {
-      a_faire: tasks.filter((t) => t.status === "todo").length,
-      en_cours: tasks.filter((t) => t.status === "doing").length,
-      terminees: tasks.filter((t) => t.status === "done").length,
-    },
-    dependances: deps.length,
-    risques: risks,
-  };
-}
+import {
+  lastFormalisation,
+  notesForObservation,
+  rawNotes,
+  requireInstructions,
+} from "../specHelpers";
 
 export const planificationSpec: MechanicSpec = {
   manifest: {
@@ -46,7 +37,7 @@ export const planificationSpec: MechanicSpec = {
       "Le joueur organise l'exécution : plan d'action, roadmap, séquence de tâches, jalons, dépendances, ressources et risques. L'observateur regarde la cohérence et le réalisme du plan produit (pas le choix, mais l'organisation).",
     output_keys: ["plan"],
     required_params: ["instructions"],
-    default_tools: ["decision-engine", "bloc-notes"],
+    default_tools: [],
   },
 
   directive(params: JsonObject): string {
@@ -60,15 +51,21 @@ export const planificationSpec: MechanicSpec = {
       .join("\n");
   },
 
-  buildArtifacts(ws, _step, _log): JsonObject {
+  buildArtifacts(ws, step, log): JsonObject {
     return {
+      instructions: typeof step.params.instructions === "string" ? step.params.instructions : "",
       notes: notesForObservation(ws),
-      plan: planSummary(ws),
+      plan_formalise: lastFormalisation(ws, log, step) || "(aucun plan formalisé)",
     };
   },
 
-  buildOutput(ws, _step, _observation, _log): JsonObject {
-    return { plan: planSummary(ws) };
+  buildOutput(ws, step, _observation, log): JsonObject {
+    const formalisation = lastFormalisation(ws, log, step);
+    return {
+      plan: {
+        formalisation: formalisation.length > 0 ? formalisation : rawNotes(ws),
+      },
+    };
   },
 
   validateParams(params: JsonObject): string[] {
