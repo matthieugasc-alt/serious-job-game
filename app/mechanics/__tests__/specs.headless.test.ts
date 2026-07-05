@@ -70,6 +70,11 @@ const VALID_PARAMS: Record<string, JsonObject> = {
   presentation: { brief: "Pitch du MVP en 3 minutes devant le board." },
   production: { deliverable_type: "mail", instructions: "Rédige le mail." },
   qa: { actor_id: "acteur_test", question_count: 3 },
+  planification: { instructions: "Construis le plan de lancement (jalons, dépendances, risques)." },
+  facilitation: {
+    participants: ["acteur_test", "acteur_b"],
+    objective: "Aligner l'équipe sur le plan de sprint.",
+  },
 };
 
 function makeWorkspace(): WorkspaceState {

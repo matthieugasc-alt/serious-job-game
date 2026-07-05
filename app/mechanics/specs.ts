@@ -13,10 +13,12 @@ import { analyseSpec } from "./analyse/spec";
 import { decisionSpec } from "./decision/spec";
 import { diagnosticSpec } from "./diagnostic/spec";
 import { entretienSpec } from "./entretien/spec";
+import { facilitationSpec } from "./facilitation/spec";
 import { feedbackSpec } from "./feedback/spec";
 import { formationSpec } from "./formation/spec";
 import { mediationSpec } from "./mediation/spec";
 import { negociationSpec } from "./negociation/spec";
+import { planificationSpec } from "./planification/spec";
 import { presentationSpec } from "./presentation/spec";
 import { productionSpec } from "./production/spec";
 import { qaSpec } from "./qa/spec";
@@ -26,10 +28,12 @@ export const MECHANIC_SPECS: Record<string, MechanicSpec> = {
   [decisionSpec.manifest.id]: decisionSpec,
   [diagnosticSpec.manifest.id]: diagnosticSpec,
   [entretienSpec.manifest.id]: entretienSpec,
+  [facilitationSpec.manifest.id]: facilitationSpec,
   [feedbackSpec.manifest.id]: feedbackSpec,
   [formationSpec.manifest.id]: formationSpec,
   [mediationSpec.manifest.id]: mediationSpec,
   [negociationSpec.manifest.id]: negociationSpec,
+  [planificationSpec.manifest.id]: planificationSpec,
   [presentationSpec.manifest.id]: presentationSpec,
   [productionSpec.manifest.id]: productionSpec,
   [qaSpec.manifest.id]: qaSpec,

@@ -42,7 +42,7 @@ Inventaire des expériences joueur extraites de founder_00→05, due_diligence_s
 - **Diagnostic** (liste audit) → fusionnée dans `analyse` (+`entretien` si l'investigation est conversationnelle). Les outils spécifiques (arbre des causes) seront des `Tool` le jour où un scénario les exige. *Révisé le 2 juillet 2026 : `diagnostic` est désormais une mécanique anticipée — voir section dédiée.*
 - **Gestion de crise** (liste audit) → composition : steps `entretien`/`production` avec `time_limit_s` serré. La « crise » est une propriété du contenu et du rythme, pas une boucle de jeu distincte. DD phase 4 se modélise ainsi sans perte.
 - **Priorisation** → params de `decision` (options + contrainte de rareté). Conforme à l'audit.
-- **Facilitation / Coordination** → compositions de steps, conformément à l'audit. Aucun contenu actuel ne les exige.
+- ~~**Facilitation / Coordination** → compositions de steps, conformément à l'audit. Aucun contenu actuel ne les exige.~~ *Révisé le 5 juillet 2026 : décision PO renversée. `facilitation` (Réunion / Facilitation) et `planification` (Planification / Organisation) sont désormais des mécaniques de premier rang — voir section dédiée. La coordination d'un collectif (COPIL, atelier, sprint) et l'organisation de l'exécution (roadmap, jalons, dépendances) ont une dynamique d'observation propre — distribution de la parole et production collective d'un côté, cohérence/réalisme d'un plan de l'autre — irréductible à une composition de steps.*
 - **Feedback / Formation / Modération** (suggestions audit) → aucune occurrence dans le contenu réel. YAGNI : le registry rend l'ajout d'une mécanique trivial le jour où un scénario les demande. On ne construit pas de mécanique sans scénario consommateur. *Révisé le 2 juillet 2026 : `feedback`, `formation` et `mediation` sont désormais des mécaniques anticipées, par décision PO — voir section dédiée.*
 - **Analyse/Synthèse** (audit) → la moitié « synthèse » est couverte par `production` (le one-pager S1 est un livrable produit depuis `inputs_from: analyse.findings`). `analyse` ne garde que l'extraction.
 
@@ -78,9 +78,27 @@ Le joueur explique un `topic`, l'acteur apprend (directive universelle construit
 
 Nouveauté structurelle : première mécanique multi-acteurs. Chat à trois voix, sélecteur de destinataire (Partie A / Partie B / Les deux), chaque partie adressée répond séquentiellement (directive universelle de médiation + cadrage scénario), conclusion par « Accord trouvé ? » + termes/constat. Irréductible : aucune mécanique existante n'orchestre deux acteurs dans la même boucle ; output `resolution` {reached, terms}. Params requis : `party_a_actor`, `party_b_actor` (clés `*_actor` validées par le composer contre les acteurs déclarés), `conflict_brief`. Outputs : `dialogue`, `resolution`.
 
-### Ce qui reste NON-mécanique, même dans cette décision
+## Mécaniques réintégrées (décision PO du 5 juillet 2026)
 
-**Priorisation, gestion de crise, facilitation, coordination restent des params ou des compositions de steps** — la décision PO ne les requalifie pas. La priorisation est un `decision` paramétré (options + contrainte de rareté) ; la crise est une propriété du contenu et du rythme (`time_limit_s` serré sur `entretien`/`production`) ; facilitation et coordination sont des compositions de steps. Le critère d'irréductibilité (boucle de jeu structurellement distincte + output impossible autrement) reste la seule porte d'entrée du registre.
+Deux mécaniques manquaient au référentiel cible et sont réintégrées au premier rang, headless (zéro UI dédiée : elles s'observent via les tools du workspace — Decision Engine, Bloc-notes, Whiteboard, Messages).
+
+### `planification` — organiser l'exécution (gestion de projet)
+
+Le joueur organise COMMENT exécuter : plan d'action, roadmap, séquence de tâches, jalons, dépendances, ressources, risques. À NE PAS confondre avec `decision` (choisir QUOI faire) : ici la boucle porte sur l'organisation, pas l'arbitrage. S'observe via le Decision Engine (timeline / kanban / graphe de dépendances / registre de risques / RACI par table) et le Bloc-notes (tâches). Irréductible : l'output `plan` (outils mobilisés, jalons, charge à faire/en cours/terminé, dépendances, risques) synthétise une organisation, qu'aucune mécanique existante ne produit. Params requis : `instructions`. Outputs : `plan`. Default tools : `decision-engine`, `bloc-notes`.
+
+### `facilitation` — animer un collectif vers un objectif (Réunion / Facilitation)
+
+Deuxième mécanique multi-acteurs (après `mediation`). Le joueur ANIME une réunion (COPIL, atelier, staff, sprint planning, crise, comité) : plusieurs acteurs IA sont présents dans le MÊME fil Messages et répondent chacun selon leur rôle. À NE PAS confondre avec `entretien` (échange dirigé à une personne) ni `presentation` (exposer/convaincre un auditoire) : ici on fait AVANCER un groupe. L'observable : distribution de la parole, dynamique, et ce que la réunion PRODUIT (décisions via Decision Engine, actions via Bloc-notes, idées via Whiteboard, synthèse formalisée). Irréductible : aucune mécanique n'orchestre N acteurs autour d'une production collective ; output `outcomes` {decisions, actions, idees, productive}. Params requis : `participants` (≥2), `objective`. Outputs : `dialogue`, `outcomes`. Default tools : `bloc-notes`, `decision-engine`, `whiteboard`.
+
+### Couche d'analyse pédagogique (interne)
+
+`app/lib/debrief/analysisTools.ts` mappe `mechanic_id → analysis_tools[]` (id, titre, description, mécanique, données nécessaires, affichage débrief, affichage replay, statut V1/V2/non-implémenté). Couche INTERNE : jamais exposée au joueur — le bilan reste un bloc unifié 100 % IA sans vocabulaire moteur. Elle documente ce que chaque outil d'analyse observe, alimente la passe IA finale (`collect.ts` → `debrief-final`) et servira au replay. Les outils non utilisés dans une partie disparaissent silencieusement (aucune pénalité).
+
+### Ce qui reste NON-mécanique, même dans ces décisions
+
+**Priorisation et gestion de crise restent des params ou des compositions de steps** — non requalifiées. La priorisation est un `decision` paramétré (options + contrainte de rareté) ; la crise est une propriété du contenu et du rythme (`time_limit_s` serré sur `entretien`/`production`). Le critère d'irréductibilité (boucle de jeu structurellement distincte + output impossible autrement) reste la seule porte d'entrée du registre.
+
+**Q&A (`qa`) : dépréciation programmée.** `qa` reste au registre tant que 4 scénarios live l'utilisent (`cpo_qa`, `founder_00_cto`, `founder_01_incubator`, `vitrine_signer_le_pilote`). À terme elle devient un pattern transversal (un acteur pose une question, le joueur répond, l'observateur évalue, la mécanique parente tranche) réutilisable par `presentation` / `facilitation` / `entretien` / `negociation` — retrait du premier rang dans une passe ultérieure, une fois les scénarios migrés.
 
 ### Garanties de non-régression
 

@@ -179,6 +179,41 @@
         "question_count"
       ],
       "default_tools": []
+    },
+    {
+      "id": "planification",
+      "version": "3.0.0",
+      "title": "Planification / Organisation",
+      "description": "Le joueur organise l'exécution : plan d'action, roadmap, séquence de tâches, jalons, dépendances, ressources et risques. L'observateur regarde la cohérence et le réalisme du plan produit (pas le choix, mais l'organisation).",
+      "output_keys": [
+        "plan"
+      ],
+      "required_params": [
+        "instructions"
+      ],
+      "default_tools": [
+        "decision-engine",
+        "bloc-notes"
+      ]
+    },
+    {
+      "id": "facilitation",
+      "version": "3.0.0",
+      "title": "Réunion / Facilitation",
+      "description": "Le joueur anime une réunion avec plusieurs acteurs IA présents dans le MÊME fil Messages, pour faire avancer le collectif vers un objectif. L'observateur regarde la distribution de la parole, la dynamique du groupe et ce que la réunion produit (décisions, actions, synthèse).",
+      "output_keys": [
+        "dialogue",
+        "outcomes"
+      ],
+      "required_params": [
+        "participants",
+        "objective"
+      ],
+      "default_tools": [
+        "bloc-notes",
+        "decision-engine",
+        "whiteboard"
+      ]
     }
   ]
 }
