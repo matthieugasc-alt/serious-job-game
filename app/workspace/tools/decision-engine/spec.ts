@@ -74,8 +74,16 @@ export type RiskStatus = (typeof RISK_STATUSES)[number];
 export type RiskEntry = {
   id: string;
   label: string;
-  probability: number; // 1..5
-  impact: number; // 1..5
+  probability: number; // 1..5 (brut, avant mesures)
+  impact: number; // 1..5 (brut, avant mesures)
+  /** Moyen de PRÉVENIR — vise à réduire la probabilité. */
+  prevention?: string;
+  /** Moyen de GUÉRIR / réduire l'impact si le risque survient. */
+  cure?: string;
+  /** Cotations RÉSIDUELLES après mesures (1..5) — undefined = pas recoté. */
+  residual_probability?: number;
+  residual_impact?: number;
+  /** @deprecated remplacé par prevention/cure — conservé pour l'existant. */
   mitigation?: string;
   owner?: string;
   status: RiskStatus;

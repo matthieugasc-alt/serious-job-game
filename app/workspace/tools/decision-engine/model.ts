@@ -170,12 +170,20 @@ function parseRisk(v: Json | undefined): RiskEntry | null {
   if (id === undefined) return null;
   const status = asString(v.status);
   const mitigation = asString(v.mitigation);
+  const prevention = asString(v.prevention);
+  const cure = asString(v.cure);
+  const residualP = asNumber(v.residual_probability);
+  const residualI = asNumber(v.residual_impact);
   const owner = asString(v.owner);
   return {
     id,
     label: asString(v.label) ?? "",
     probability: asNumber(v.probability) ?? 1,
     impact: asNumber(v.impact) ?? 1,
+    ...(prevention !== undefined ? { prevention } : {}),
+    ...(cure !== undefined ? { cure } : {}),
+    ...(residualP !== undefined ? { residual_probability: residualP } : {}),
+    ...(residualI !== undefined ? { residual_impact: residualI } : {}),
     ...(mitigation !== undefined ? { mitigation } : {}),
     ...(owner !== undefined ? { owner } : {}),
     status: status !== undefined && RISK_STATUS_SET.has(status) ? (status as RiskStatus) : "open",
@@ -556,6 +564,10 @@ function riskUpdated(s: DecisionEngineState, p: JsonObject, at: number): Decisio
   const label = asString(patch.label);
   const probability = asNumber(patch.probability);
   const impact = asNumber(patch.impact);
+  const prevention = asString(patch.prevention);
+  const cure = asString(patch.cure);
+  const residualP = asNumber(patch.residual_probability);
+  const residualI = asNumber(patch.residual_impact);
   const mitigation = asString(patch.mitigation);
   const owner = asString(patch.owner);
   const status = asString(patch.status);
@@ -564,6 +576,10 @@ function riskUpdated(s: DecisionEngineState, p: JsonObject, at: number): Decisio
     ...(label !== undefined ? { label: label.trim() } : {}),
     ...(probability !== undefined ? { probability } : {}),
     ...(impact !== undefined ? { impact } : {}),
+    ...(prevention !== undefined ? { prevention } : {}),
+    ...(cure !== undefined ? { cure } : {}),
+    ...(residualP !== undefined ? { residual_probability: residualP } : {}),
+    ...(residualI !== undefined ? { residual_impact: residualI } : {}),
     ...(mitigation !== undefined ? { mitigation } : {}),
     ...(owner !== undefined ? { owner } : {}),
     ...(status !== undefined && RISK_STATUS_SET.has(status) ? { status: status as RiskStatus } : {}),

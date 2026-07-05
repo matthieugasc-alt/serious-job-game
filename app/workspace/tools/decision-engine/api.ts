@@ -184,7 +184,18 @@ export function createRisk(decisionId: DecisionId, input: CreateRiskInput, opts:
 export function updateRisk(
   decisionId: DecisionId,
   riskId: string,
-  patch: Partial<{ label: string; probability: number; impact: number; mitigation: string; owner: string; status: string }>,
+  patch: Partial<{
+    label: string;
+    probability: number;
+    impact: number;
+    prevention: string;
+    cure: string;
+    residual_probability: number;
+    residual_impact: number;
+    mitigation: string;
+    owner: string;
+    status: string;
+  }>,
   opts: OpOptions = {},
 ): DecisionToolOp {
   return op("risk_updated", { decision_id: decisionId, risk_id: riskId, patch: patch as unknown as Json, at: now(opts) });

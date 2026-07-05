@@ -108,6 +108,37 @@ describe("Risques & hypothèses", () => {
     expect(s.decisions.d1.risks[0].mitigation).toBe("double sourcing");
   });
 
+  it("documente prévention/guérison et recote le risque résiduel", () => {
+    let s = run(emptyDecisionEngineState(), [
+      ["decision_created", { decision_id: "d1", title: "A", at: T }],
+      ["risk_created", { decision_id: "d1", risk_id: "r1", label: "Rupture de stock", probability: 5, impact: 4, at: T }],
+    ]);
+    s = run(s, [
+      [
+        "risk_updated",
+        {
+          decision_id: "d1",
+          risk_id: "r1",
+          patch: {
+            prevention: "Double sourcing + stock de sécurité",
+            cure: "Fournisseur de secours activable en 48h",
+            residual_probability: 2,
+            residual_impact: 3,
+          },
+          at: T,
+        },
+      ],
+    ]);
+    const r = s.decisions.d1.risks[0];
+    expect(r.prevention).toBe("Double sourcing + stock de sécurité");
+    expect(r.cure).toBe("Fournisseur de secours activable en 48h");
+    expect(r.residual_probability).toBe(2);
+    expect(r.residual_impact).toBe(3);
+    // La cotation brute reste intacte (brut → résiduel).
+    expect(r.probability).toBe(5);
+    expect(r.impact).toBe(4);
+  });
+
   it("crée une hypothèse avec confiance", () => {
     const s = run(emptyDecisionEngineState(), [
       ["decision_created", { decision_id: "d1", title: "A", at: T }],

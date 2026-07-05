@@ -30,7 +30,7 @@ import {
 } from "../api";
 import { PRESETS } from "../presets";
 import { createTaskFromDecision, exportDecisionToNotebook, reviseDecision } from "../integrations";
-import type { Board, DecisionObject } from "../spec";
+import type { Board, DecisionObject, RiskEntry } from "../spec";
 import { RiskMatrix } from "./RiskMatrix";
 
 type Dispatch = (action: WorkspaceAction) => void;
@@ -201,7 +201,7 @@ export function DecisionEditor({
                 </button>
               ))}
             </div>
-            <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => dispatch(createRisk(decision.id, { label: "Nouveau risque", probability: 3, impact: 3 }))}>
+            <button type="button" className="rounded-lg border border-gray-200 px-2 py-1 text-[11px] font-medium text-gray-600 hover:border-indigo-300 hover:text-indigo-700" onClick={() => dispatch(createRisk(decision.id, { label: "", probability: 3, impact: 3 }))}>
               + Risque
             </button>
           </div>
@@ -209,48 +209,14 @@ export function DecisionEditor({
         {riskView === "matrice" ? (
           <div className="h-72"><RiskMatrix decision={decision} dispatch={dispatch} /></div>
         ) : decision.risks.length === 0 ? (
-          <p className="text-[11px] text-gray-400">Aucun risque identifié.</p>
+          <p className="text-[11px] text-gray-400">Aucun risque identifié. « + Risque » pour en documenter un.</p>
         ) : (
-          <table className="w-full border-collapse text-xs">
-            <thead>
-              <tr className="text-gray-500">
-                <th className="px-1 py-1 text-left font-medium">Risque</th>
-                <th className="px-1 py-1 font-medium">P</th>
-                <th className="px-1 py-1 font-medium">I</th>
-                <th className="px-1 py-1 text-left font-medium">Mitigation</th>
-                <th className="px-1 py-1 font-medium">Crit.</th>
-                <th className="w-6" />
-              </tr>
-            </thead>
-            <tbody>
-              {decision.risks.map((r) => {
-                const { score, band } = riskLevel(r.probability, r.impact);
-                return (
-                  <tr key={r.id} className="group border-t border-gray-100">
-                    <td className="px-1 py-1">
-                      <input value={r.label} onChange={(e) => dispatch(updateRisk(decision.id, r.id, { label: e.target.value }))} className="w-full min-w-[120px] bg-transparent text-gray-800 focus:outline-none" placeholder="Risque…" />
-                    </td>
-                    {(["probability", "impact"] as const).map((k) => (
-                      <td key={k} className="px-1 py-1 text-center">
-                        <select value={r[k]} onChange={(e) => dispatch(updateRisk(decision.id, r.id, { [k]: Number(e.target.value) }))} className="bg-transparent text-center focus:outline-none">
-                          {PI_SCALE.map((n) => <option key={n} value={n}>{n}</option>)}
-                        </select>
-                      </td>
-                    ))}
-                    <td className="px-1 py-1">
-                      <input value={r.mitigation ?? ""} onChange={(e) => dispatch(updateRisk(decision.id, r.id, { mitigation: e.target.value }))} className="w-full min-w-[100px] bg-transparent text-gray-700 focus:outline-none" placeholder="—" />
-                    </td>
-                    <td className="px-1 py-1 text-center">
-                      <span className="inline-flex h-4 w-6 items-center justify-center rounded text-[10px] font-bold text-gray-800" style={{ backgroundColor: BAND_COLOR[band] }}>{score}</span>
-                    </td>
-                    <td className="px-1 py-1 text-center">
-                      <button type="button" title="Retirer" className="text-gray-300 opacity-0 transition hover:text-red-500 group-hover:opacity-100" onClick={() => dispatch(updateRisk(decision.id, r.id, { status: "closed" }))}>✓</button>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="space-y-2">
+            <p className="text-[10px] text-gray-400">Cotez 1 (faible) à 5 (fort). Documentez les mesures, puis recotez le risque <em>résiduel</em> après mesures.</p>
+            {decision.risks.map((r) => (
+              <RiskCard key={r.id} decisionId={decision.id} risk={r} dispatch={dispatch} />
+            ))}
+          </div>
         )}
       </section>
 
@@ -330,6 +296,103 @@ export function DecisionEditor({
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+// ─── Carte de risque : brut → mesures (prévenir / guérir) → résiduel ──
+
+function CritBadge({ score, band, title }: { score: number; band: string; title: string }) {
+  return (
+    <span
+      title={title}
+      className="inline-flex h-5 min-w-6 items-center justify-center rounded px-1 text-[11px] font-bold text-gray-800"
+      style={{ backgroundColor: BAND_COLOR[band] }}
+    >
+      {score}
+    </span>
+  );
+}
+
+function PISelect({ value, onChange, label }: { value: number; onChange: (n: number) => void; label: string }) {
+  return (
+    <label className="flex items-center justify-between gap-1.5 rounded-lg border border-gray-200 px-2 py-1 text-[11px] text-gray-600">
+      <span className="truncate">{label}</span>
+      <select value={value} onChange={(e) => onChange(Number(e.target.value))} className="bg-transparent font-semibold text-gray-800 focus:outline-none">
+        {PI_SCALE.map((n) => (
+          <option key={n} value={n}>{n}</option>
+        ))}
+      </select>
+    </label>
+  );
+}
+
+function RiskCard({ decisionId, risk, dispatch }: { decisionId: string; risk: RiskEntry; dispatch: Dispatch }) {
+  const set = (patch: Parameters<typeof updateRisk>[2]) => dispatch(updateRisk(decisionId, risk.id, patch));
+  const brut = riskLevel(risk.probability, risk.impact);
+  const rp = risk.residual_probability ?? risk.probability;
+  const ri = risk.residual_impact ?? risk.impact;
+  const resid = riskLevel(rp, ri);
+  const recoted = risk.residual_probability !== undefined || risk.residual_impact !== undefined;
+  const closed = risk.status === "closed";
+
+  return (
+    <div className={`rounded-xl border p-2.5 transition ${closed ? "border-gray-100 bg-gray-50 opacity-60" : "border-gray-200 bg-white"}`}>
+      {/* Titre + criticité (brut → résiduel). */}
+      <div className="flex items-center gap-2">
+        <input
+          value={risk.label}
+          onFocus={(e) => e.currentTarget.select()}
+          onChange={(e) => set({ label: e.target.value })}
+          placeholder="Nommer le risque…"
+          className="min-w-0 flex-1 bg-transparent text-sm font-medium text-gray-800 placeholder:text-gray-300 focus:outline-none"
+        />
+        <div className="flex shrink-0 items-center gap-1">
+          <CritBadge score={brut.score} band={brut.band} title="Criticité brute (avant mesures)" />
+          {recoted && (
+            <>
+              <span aria-hidden className="text-[11px] text-gray-400">→</span>
+              <CritBadge score={resid.score} band={resid.band} title="Criticité résiduelle (après mesures)" />
+            </>
+          )}
+        </div>
+        <button
+          type="button"
+          title={closed ? "Rouvrir le risque" : "Marquer comme traité"}
+          className="shrink-0 rounded px-1 text-xs text-gray-300 transition hover:text-indigo-600"
+          onClick={() => set({ status: closed ? "open" : "closed" })}
+        >
+          {closed ? "↺" : "✓"}
+        </button>
+      </div>
+
+      {/* Avant mesures. */}
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <PISelect label="Probabilité" value={risk.probability} onChange={(n) => set({ probability: n })} />
+        <PISelect label="Impact" value={risk.impact} onChange={(n) => set({ impact: n })} />
+      </div>
+
+      {/* Mesures : prévenir (↓ proba) / guérir (↓ impact). */}
+      <div className="mt-2 space-y-1.5">
+        <input
+          value={risk.prevention ?? ""}
+          onChange={(e) => set({ prevention: e.target.value })}
+          placeholder="🛡 Prévenir — comment réduire la probabilité ?"
+          className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 placeholder:text-gray-400 focus:border-indigo-300 focus:outline-none"
+        />
+        <input
+          value={risk.cure ?? ""}
+          onChange={(e) => set({ cure: e.target.value })}
+          placeholder="🩹 Guérir — comment réduire l'impact si ça survient ?"
+          className="w-full rounded-lg border border-gray-200 px-2 py-1 text-xs text-gray-700 placeholder:text-gray-400 focus:border-indigo-300 focus:outline-none"
+        />
+      </div>
+
+      {/* Après mesures : re-cotation résiduelle. */}
+      <div className="mt-2 grid grid-cols-2 gap-2">
+        <PISelect label="Proba. résiduelle" value={rp} onChange={(n) => set({ residual_probability: n })} />
+        <PISelect label="Impact résiduel" value={ri} onChange={(n) => set({ residual_impact: n })} />
+      </div>
     </div>
   );
 }
