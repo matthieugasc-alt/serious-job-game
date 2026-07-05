@@ -37,6 +37,10 @@ export function DependencyPanel({ state, node, dispatch }: { state: Json; node: 
 
   const [over, setOver] = useState(false);
   const [menu, setMenu] = useState<DepNodeRef | null>(null);
+  const [query, setQuery] = useState("");
+
+  const q = query.trim().toLowerCase();
+  const filtered = q ? others.filter((o) => labelOfNode(state, o).toLowerCase().includes(q)) : others;
 
   const linkChild = (ref: DepNodeRef) => { dispatch(addDependency(node, ref, "parent-child")); setMenu(null); };
   const linkSibling = (ref: DepNodeRef) => { dispatch(addDependency(node, ref, "sibling")); setMenu(null); };
@@ -106,9 +110,21 @@ export function DependencyPanel({ state, node, dispatch }: { state: Json; node: 
       {/* Palette : objets à glisser (→ fille) ou clic droit (→ menu). */}
       {others.length > 0 && (
         <div className="mt-2 border-t border-gray-100 pt-2">
-          <p className="mb-1 text-[10px] text-gray-400">Glissez un objet dans « Filles », ou clic droit pour choisir le lien.</p>
+          <div className="mb-1 flex items-center gap-2">
+            <p className="text-[10px] text-gray-400">Glissez un objet dans « Filles », ou clic droit pour choisir le lien.</p>
+            {others.length > 6 && (
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Filtrer…"
+                className="ml-auto w-28 rounded-md border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] text-gray-700 placeholder:text-gray-400 focus:border-indigo-300 focus:bg-white focus:outline-none"
+              />
+            )}
+          </div>
           <div className="flex flex-wrap gap-1">
-            {others.map((o) => (
+            {filtered.length === 0 && <span className="text-[10px] text-gray-400">Aucun objet ne correspond.</span>}
+            {filtered.map((o) => (
               <span
                 key={`${o.type}:${o.id}`}
                 draggable
