@@ -265,3 +265,35 @@ export function selectAllTasks(state: Json): Task[] {
 export function selectNotebook(state: Json): NotebookState {
   return normalizeNotebookState(state);
 }
+
+// ─── Notes ACCROCHÉES à une source (marqueurs Messages / Mail) ─────
+// Les annotations d'un même fil / mail sont regroupées dans UNE note
+// (model.ts : sourceKey). Ces sélecteurs la retrouvent pour l'afficher
+// en marqueur survolable côté app hôte.
+
+function noteBySource(
+  state: Json,
+  match: (s: SourceRef) => boolean,
+): Note | null {
+  const s = normalizeNotebookState(state);
+  return (
+    s.order
+      .map((id) => s.notes[id])
+      .find((n): n is Note => Boolean(n?.source) && match(n!.source!)) ?? null
+  );
+}
+
+/** La note du fil Messages (ou null). */
+export function selectNoteForMessageThread(state: Json, threadId: string): Note | null {
+  return noteBySource(state, (src) => src.kind === "message" && src.thread_id === threadId);
+}
+
+/** La note du mail (ou null). */
+export function selectNoteForMail(state: Json, mailId: string): Note | null {
+  return noteBySource(state, (src) => src.kind === "mail" && src.mail_id === mailId);
+}
+
+/** La note d'un document (ou null). */
+export function selectNoteForDocument(state: Json, documentId: string): Note | null {
+  return noteBySource(state, (src) => src.kind === "document" && src.document_id === documentId);
+}

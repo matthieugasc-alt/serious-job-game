@@ -12,6 +12,7 @@ import type { ActorDef } from "@/app/lib/engine/mechanics";
 import type { Thread } from "@/app/lib/engine/workspace";
 import { ActorAvatar } from "@/app/workspace/primitives/ui";
 import { ArchiveButton } from "@/app/workspace/tools/bibliotheque/ArchiveButton";
+import { NoteMarker } from "@/app/workspace/tools/bloc-notes/NoteMarker";
 import { fmtWhen } from "../format";
 import type { WorkspaceAppProps } from "../types";
 import { ThreadConversation } from "./ThreadConversation";
@@ -115,7 +116,13 @@ export function MessagesApp({ workspace, actors, dispatch, busyThreads, context 
                     .join(" · ")}
                 </p>
               </div>
-              <div className="ml-auto shrink-0">
+              <div className="ml-auto flex shrink-0 items-center gap-2">
+                <NoteMarker
+                  workspace={workspace}
+                  source={{ kind: "message", thread_id: selected.thread_id }}
+                  side="below"
+                  align="right"
+                />
                 <ArchiveButton
                   target={{
                     kind: "thread",

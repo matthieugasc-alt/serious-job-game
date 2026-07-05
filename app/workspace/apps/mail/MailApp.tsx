@@ -13,6 +13,7 @@ import type { WsMail } from "@/app/lib/engine/workspace";
 import { Markdown } from "@/app/workspace/primitives/Markdown";
 import { ActorAvatar, PrimaryButton, SecondaryButton } from "@/app/workspace/primitives/ui";
 import { AnnotateButton, SelectionAnnotate } from "@/app/workspace/tools/bloc-notes/AnnotateButton";
+import { NoteMarker } from "@/app/workspace/tools/bloc-notes/NoteMarker";
 import { ArchiveButton } from "@/app/workspace/tools/bibliotheque/ArchiveButton";
 import { fmtWhen } from "../format";
 import type { WorkspaceAppProps } from "../types";
@@ -264,6 +265,12 @@ export function MailApp({ workspace, actors, documents, dispatch, openApp, conte
                     À : {selected.to.map(nameOf).join(", ")} · {fmtWhen(selected.at)}
                   </p>
                 </div>
+                <NoteMarker
+                  workspace={workspace}
+                  source={{ kind: "mail", mail_id: selected.mail_id }}
+                  side="below"
+                  align="right"
+                />
                 <AnnotateButton
                   source={mailSource(selected, selected.subject)}
                   sourceTitle={`Mail : ${selected.subject}`}

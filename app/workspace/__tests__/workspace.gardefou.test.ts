@@ -128,7 +128,10 @@ describe("Bloc-notes Universel — garde-fous du module (TOOL_BLOC_NOTES.md §1)
     }
   });
 
-  it("les apps hôtes n'importent que AnnotateButton (jamais api/model/spec du carnet)", () => {
+  it("les apps hôtes n'importent que des composants HÔTES du carnet (AnnotateButton/NoteMarker), jamais api/model/spec", () => {
+    // Seuls les composants FAÇADE du carnet (self-contained, ils font eux-mêmes
+    // leurs lectures via les sélecteurs) sont permis aux apps hôtes.
+    const allowed = /bloc-notes\/(AnnotateButton|NoteMarker)$/;
     const hosts = [
       join(wsDir, "apps", "messages", "MessagesApp.tsx"),
       join(wsDir, "apps", "messages", "ThreadConversation.tsx"),
@@ -140,8 +143,8 @@ describe("Bloc-notes Universel — garde-fous du module (TOOL_BLOC_NOTES.md §1)
       const carnet = [...src.matchAll(/from\s+["']([^"']*bloc-notes[^"']*)["']/g)].map((m) => m[1]);
       for (const spec of carnet) {
         expect(
-          /bloc-notes\/AnnotateButton$/.test(spec),
-          `l'app hôte ${file} importe "${spec}" — seul AnnotateButton est permis`,
+          allowed.test(spec),
+          `l'app hôte ${file} importe "${spec}" — seuls AnnotateButton et NoteMarker sont permis`,
         ).toBe(true);
       }
     }
