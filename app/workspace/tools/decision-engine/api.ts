@@ -261,6 +261,11 @@ export function openPreset(
     opts,
   );
 }
+/** Rattache un tableau à une décision, ou le détache (decisionId = null). */
+export function reparentBoard(boardId: BoardId, decisionId: DecisionId | null, opts: OpOptions = {}): DecisionToolOp {
+  return op("board_reparented", { board_id: boardId, decision_id: decisionId, at: now(opts) });
+}
+
 export function updateBoard(boardId: BoardId, patch: Partial<{ title: string; config: JsonObject }>, opts: OpOptions = {}): DecisionToolOp {
   return op("board_updated", { board_id: boardId, patch: patch as unknown as Json, at: now(opts) });
 }

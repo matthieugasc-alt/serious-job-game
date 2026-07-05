@@ -174,6 +174,28 @@ describe("Risques & hypothèses", () => {
     expect(s.dependencies).toHaveLength(0);
   });
 
+  it("ré-assigne un tableau à une décision puis le détache (sync board_ids)", () => {
+    let s = run(emptyDecisionEngineState(), [
+      ["decision_created", { decision_id: "d1", title: "D1", at: T }],
+      ["decision_created", { decision_id: "d2", title: "D2", at: T }],
+      ["board_created", { board_id: "b1", engine: "kanban", title: "B1", config: {}, data: { items: [] }, decision_id: "d1", at: T }],
+    ]);
+    expect(s.boards.b1.decision_id).toBe("d1");
+    expect(s.decisions.d1.board_ids).toContain("b1");
+    // Ré-assignation d1 → d2
+    s = run(s, [["board_reparented", { board_id: "b1", decision_id: "d2", at: T }]]);
+    expect(s.boards.b1.decision_id).toBe("d2");
+    expect(s.decisions.d1.board_ids).not.toContain("b1");
+    expect(s.decisions.d2.board_ids).toContain("b1");
+    // Détachement (tableau libre)
+    s = run(s, [["board_reparented", { board_id: "b1", decision_id: null, at: T }]]);
+    expect(s.boards.b1.decision_id).toBeUndefined();
+    expect(s.decisions.d2.board_ids).not.toContain("b1");
+    // Cible inexistante → no-op
+    s = run(s, [["board_reparented", { board_id: "b1", decision_id: "d_absent", at: T }]]);
+    expect(s.boards.b1.decision_id).toBeUndefined();
+  });
+
   it("crée une hypothèse avec confiance", () => {
     const s = run(emptyDecisionEngineState(), [
       ["decision_created", { decision_id: "d1", title: "A", at: T }],

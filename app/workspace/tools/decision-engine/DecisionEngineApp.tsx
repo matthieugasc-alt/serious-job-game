@@ -17,6 +17,7 @@ import {
   listDecisions,
   listPresets,
   openPreset,
+  reparentBoard,
   selectBoardsForDecision,
   updateDecision,
 } from "./api";
@@ -31,6 +32,7 @@ import { GraphBoard } from "./components/GraphBoard";
 import type { Board } from "./spec";
 
 const ENGINE_ICON: Record<string, string> = { matrix: "📊", registry: "📋", table: "🗂️", kanban: "🧱", timeline: "📅", graph: "🕸️" };
+const BOARD_MIME = "application/decision-board";
 
 function BoardView({ board, dispatch }: { board: Board; dispatch: WorkspaceAppProps["dispatch"] }) {
   if (board.engine === "registry") return <RegistryBoard board={board} dispatch={dispatch} />;
@@ -60,6 +62,8 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openBoardId, setOpenBoardId] = useState<string | null>(null);
   const [showNew, setShowNew] = useState(false);
+  const [dragBoardId, setDragBoardId] = useState<string | null>(null);
+  const [dropDecId, setDropDecId] = useState<string | null>(null);
 
   // Sélection par défaut : la décision la plus récente.
   const selected = decisions.find((d) => d.id === selectedId) ?? decisions[0] ?? null;
@@ -154,7 +158,7 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
             allBoards.length === 0 ? (
               <p className="px-4 py-6 text-center text-[11px] text-gray-400">Aucun tableau.</p>
             ) : (
-              allBoards.map((b) => <BoardRow key={b.id} board={b} active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} />)
+              allBoards.map((b) => <BoardRow key={b.id} board={b} active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} onDragStartBoard={() => setDragBoardId(b.id)} onDragEndBoard={() => { setDragBoardId(null); setDropDecId(null); }} />)
             )
           ) : (
             <>
@@ -166,7 +170,10 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
                     <button
                       type="button"
                       aria-pressed={active}
-                      className={`block w-full px-3 py-2 text-left transition ${active ? "bg-indigo-50/70" : "hover:bg-gray-50"}`}
+                      onDragOver={(e) => { if (dragBoardId) { e.preventDefault(); if (dropDecId !== d.id) setDropDecId(d.id); } }}
+                      onDragLeave={() => setDropDecId((x) => (x === d.id ? null : x))}
+                      onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData(BOARD_MIME); if (id) dispatch(reparentBoard(id, d.id)); setDropDecId(null); setDragBoardId(null); }}
+                      className={`block w-full px-3 py-2 text-left transition ${dropDecId === d.id ? "bg-indigo-100 ring-2 ring-inset ring-indigo-400" : active ? "bg-indigo-50/70" : "hover:bg-gray-50"}`}
                       onClick={() => openDecisionNode(d.id)}
                     >
                       <span className="flex items-center gap-1.5">
@@ -176,7 +183,7 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
                       <span className="mt-0.5 block pl-5 text-[11px] text-gray-400">{STATUS_LABEL[d.status]} · {d.options.length} opt · {d.risks.length} risq</span>
                     </button>
                     {railFilter === "all" && dBoards.map((b) => (
-                      <BoardRow key={b.id} board={b} indented active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} />
+                      <BoardRow key={b.id} board={b} indented active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} onDragStartBoard={() => setDragBoardId(b.id)} onDragEndBoard={() => { setDragBoardId(null); setDropDecId(null); }} />
                     ))}
                   </div>
                 );
@@ -186,11 +193,22 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
                 <>
                   <p className="px-3 pb-0.5 pt-2 text-[9px] font-semibold uppercase tracking-wide text-gray-400">Tableaux libres</p>
                   {standaloneBoards.map((b) => (
-                    <BoardRow key={b.id} board={b} active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} />
+                    <BoardRow key={b.id} board={b} active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} onDragStartBoard={() => setDragBoardId(b.id)} onDragEndBoard={() => { setDragBoardId(null); setDropDecId(null); }} />
                   ))}
                 </>
               )}
             </>
+          )}
+
+          {/* Zone de détachement — visible pendant un glisser de tableau. */}
+          {dragBoardId && (
+            <div
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData(BOARD_MIME); if (id) dispatch(reparentBoard(id, null)); setDropDecId(null); setDragBoardId(null); }}
+              className="m-2 rounded-lg border border-dashed border-gray-300 bg-gray-50 px-2 py-2.5 text-center text-[11px] text-gray-500"
+            >
+              Déposer ici pour détacher (tableau libre)
+            </div>
           )}
         </div>
       </aside>
@@ -237,14 +255,33 @@ export function DecisionEngineApp({ workspace, dispatch }: WorkspaceAppProps) {
   );
 }
 
-/** Ligne « tableau » du rail (indentée si rattachée à une décision). */
-function BoardRow({ board, active, indented, onClick }: { board: Board; active: boolean; indented?: boolean; onClick: () => void }) {
+/** Ligne « tableau » du rail (indentée si rattachée à une décision).
+ *  Glissable → déposer sur une décision pour la rattacher. */
+function BoardRow({
+  board,
+  active,
+  indented,
+  onClick,
+  onDragStartBoard,
+  onDragEndBoard,
+}: {
+  board: Board;
+  active: boolean;
+  indented?: boolean;
+  onClick: () => void;
+  onDragStartBoard?: () => void;
+  onDragEndBoard?: () => void;
+}) {
   return (
     <button
       type="button"
       aria-pressed={active}
+      draggable
+      onDragStart={(e) => { e.dataTransfer.setData(BOARD_MIME, board.id); e.dataTransfer.effectAllowed = "move"; onDragStartBoard?.(); }}
+      onDragEnd={() => onDragEndBoard?.()}
       onClick={onClick}
-      className={`flex w-full items-center gap-1.5 py-1.5 pr-3 text-left text-xs transition ${indented ? "pl-8" : "pl-3"} ${active ? "bg-indigo-50 text-indigo-800" : "text-gray-600 hover:bg-gray-100"}`}
+      title="Glisser vers une décision pour rattacher"
+      className={`flex w-full cursor-grab items-center gap-1.5 py-1.5 pr-3 text-left text-xs transition active:cursor-grabbing ${indented ? "pl-8" : "pl-3"} ${active ? "bg-indigo-50 text-indigo-800" : "text-gray-600 hover:bg-gray-100"}`}
     >
       <span aria-hidden>{ENGINE_ICON[board.engine] ?? "📊"}</span>
       <span className="min-w-0 flex-1 truncate">{board.title || board.engine}</span>

@@ -52,6 +52,7 @@ export const DECISION_OPS = [
   "board_created",
   "board_updated",
   "board_deleted",
+  "board_reparented",
   "item_added",
   "item_updated",
   "item_moved",
@@ -424,6 +425,7 @@ export function applyDecisionOp(state: Json, op: string, payload: JsonObject): J
     case "board_created": next = boardCreated(s, p, at); break;
     case "board_updated": next = boardUpdated(s, p, at); break;
     case "board_deleted": next = boardDeleted(s, p); break;
+    case "board_reparented": next = boardReparented(s, p, at); break;
     case "item_added": next = itemAdded(s, p, at); break;
     case "item_updated": next = itemUpdated(s, p, at); break;
     case "item_moved": next = itemUpdated(s, p, at); break;
@@ -752,6 +754,40 @@ function boardCreated(s: DecisionEngineState, p: JsonObject, at: number): Decisi
     const d = next.decisions[board.decision_id];
     if (!d.board_ids.includes(id)) {
       next = withDecision(next, { ...d, board_ids: [...d.board_ids, id], updated_at: at });
+    }
+  }
+  return next;
+}
+
+/** Ré-assigne un tableau à une décision (ou le détache si decision_id = null).
+ *  Maintient decision.board_ids des deux côtés. */
+function boardReparented(s: DecisionEngineState, p: JsonObject, at: number): DecisionEngineState | null {
+  const b = getBoard(s, p);
+  if (!b) return null;
+  const detach = p.decision_id === null;
+  const targetId = asString(p.decision_id);
+  if (!detach && targetId === undefined) return null; // ni détache, ni cible valide
+  const newDecisionId = detach ? undefined : targetId && targetId in s.decisions ? targetId : undefined;
+  if (!detach && newDecisionId === undefined) return null; // cible inexistante
+  if ((b.decision_id ?? undefined) === newDecisionId) return null; // aucun changement
+
+  const nextBoard: Board = { ...b, updated_at: at };
+  if (newDecisionId) nextBoard.decision_id = newDecisionId;
+  else delete nextBoard.decision_id;
+  let next = withBoard(s, nextBoard);
+
+  // Retrait de l'ancienne décision.
+  if (b.decision_id && b.decision_id in next.decisions) {
+    const od = next.decisions[b.decision_id];
+    if (od.board_ids.includes(b.id)) {
+      next = withDecision(next, { ...od, board_ids: od.board_ids.filter((x) => x !== b.id), updated_at: at });
+    }
+  }
+  // Ajout à la nouvelle décision.
+  if (newDecisionId && newDecisionId in next.decisions) {
+    const nd = next.decisions[newDecisionId];
+    if (!nd.board_ids.includes(b.id)) {
+      next = withDecision(next, { ...nd, board_ids: [...nd.board_ids, b.id], updated_at: at });
     }
   }
   return next;
