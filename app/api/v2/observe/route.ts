@@ -71,7 +71,8 @@ export async function POST(req: Request) {
     `Règles absolues :`,
     `- Tu OBSERVES. Tu ne juges pas, tu ne notes pas, tu ne décides pas si l'étape est réussie.`,
     `- true = le comportement/élément décrit par le critère est observable. false = il ne l'est pas.`,
-    `- Un critère de sévérité "critical" décrit une faute : true seulement si la faute a réellement eu lieu.`,
+    `- DOCTRINE : on évalue la QUALITÉ DE LA DÉMARCHE, pas la conformité à une réponse canonique. Pour un critère de démarche, réponds true dès que la démarche décrite est RAISONNABLEMENT présente, même imparfaite ou aboutissant à une conclusion différente de l'attendu ; réserve false aux absences réelles.`,
+    `- EXCEPTION STRICTE : un critère de sévérité "critical" décrit une faute éliminatoire (contradiction avec les données, irrespect…) : true UNIQUEMENT si la faute a réellement eu lieu — aucune indulgence ici.`,
     `- Fournis pour chaque critère une justification d'une phrase (evidence), citation à l'appui si possible.`,
     `- Réponds UNIQUEMENT en JSON strict : {"criteria": {"<id>": bool, ...}, "evidence": {"<id>": "…", ...}}`,
   ].join("\n");

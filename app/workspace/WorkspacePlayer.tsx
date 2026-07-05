@@ -287,7 +287,7 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
           {/* Bilan unifié : une seule analyse d'un bloc, écrite par l'IA à
               partir des pré-analyses de toute la session. Le joueur ne voit
               jamais les mécaniques du moteur. */}
-          <ScenarioDebrief scenario={scenario} workspace={session.workspace} actionLog={session.actionLog} />
+          <ScenarioDebrief scenario={scenario} workspace={session.workspace} actionLog={session.actionLog} stepResults={Object.values(session.stepResults)} />
           {!savingOutcome && (
             <div className="mt-6 text-center">
               <Link

@@ -17,7 +17,12 @@ import OpenAI from "openai";
 interface Body {
   scenario: { title: string; objective: string; competencies: string[] };
   signals: Record<string, unknown>;
+  /** Garde-fous durs déjà déclenchés (fautes éliminatoires observées :
+   *  contradiction avec les données, irrespect…). Non vide ⇒ Défaite. */
+  garde_fous?: string[];
 }
+
+const VERDICTS = ["victoire_complete", "victoire_partielle", "defaite"] as const;
 
 export async function POST(req: Request) {
   const apiKey = process.env.OPENAI_API_KEY;
@@ -37,20 +42,38 @@ export async function POST(req: Request) {
     ? `Axes de compétences suggérés : ${body.scenario.competencies.join(", ")}.`
     : `Choisis 5 à 7 axes de compétences transversales pertinents (ex. analyse, décision, communication, organisation, rigueur, relationnel, créativité).`;
 
+  const gardeFous = (body.garde_fous ?? []).filter((s) => typeof s === "string" && s.trim());
+
   const system = [
-    `Tu es un COACH qui rédige le bilan de performance d'un joueur après une simulation professionnelle.`,
+    `Tu es à la fois le JUGE et le COACH d'un joueur après une simulation professionnelle.`,
     `Tu écris pour le joueur, à la deuxième personne, avec bienveillance et franchise.`,
     ``,
-    `RÈGLES ABSOLUES :`,
+    `DOCTRINE D'ÉVALUATION (fondamentale) :`,
+    `- Tu évalues avant tout la QUALITÉ DE LA DÉMARCHE (raisonnement, méthode, exploitation des données, structure, mobilisation des bons interlocuteurs), presque JAMAIS le fait d'avoir trouvé "LA bonne réponse".`,
+    `- Une démarche solide qui n'aboutit PAS à l'action canonique reste une réussite de la démarche : au pire une VICTOIRE PARTIELLE, jamais une défaite.`,
+    `- Tu juges DEUX dimensions distinctes : la DÉMARCHE (prioritaire) et le RÉSULTAT (la substance des conclusions/actions tient-elle).`,
+    ``,
+    `VERDICT — choisis exactement un niveau parmi : "victoire_complete", "victoire_partielle", "defaite".`,
+    `- "victoire_complete" : démarche solide ET résultat juste.`,
+    `- "victoire_partielle" : démarche correcte mais résultat incomplet/imparfait (c'est le cas par défaut d'un raisonnement honnête qui n'a pas tout trouvé).`,
+    `- "defaite" : démarche faible/absente, OU un garde-fou dur signalé ci-dessous.`,
+    gardeFous.length
+      ? `- GARDE-FOUS DURS DÉCLENCHÉS (fautes éliminatoires) : ${gardeFous.join(" ; ")}. → le verdict est OBLIGATOIREMENT "defaite", et tu l'expliques franchement.`
+      : `- Aucun garde-fou dur déclenché : ne prononce "defaite" que si la démarche est réellement faible.`,
+    ``,
+    `RÈGLES DE RÉDACTION :`,
     `- Écris UN bilan unique et fluide, comme si tu avais tout observé d'un seul tenant.`,
-    `- N'utilise JAMAIS les mots "mécanique", "phase", "outil d'analyse", "module", ni aucun jargon technique du jeu.`,
-    `- Ne mentionne QUE ce qui est présent dans les données. Ne dis jamais qu'une chose "n'a pas été faite/utilisée" si elle est simplement absente des données.`,
-    `- Appuie-toi sur des EXEMPLES concrets tirés des données (une question posée, une décision, une formulation…).`,
-    `- Ne désigne pas une seule bonne manière de faire ; reconnais plusieurs approches valides.`,
+    `- N'utilise JAMAIS les mots "mécanique", "phase", "outil d'analyse", "module", "critère", "garde-fou", ni aucun jargon technique du jeu.`,
+    `- Ne mentionne QUE ce qui est présent dans les données. Ne dis jamais qu'une chose "n'a pas été faite" si elle est simplement absente des données.`,
+    `- Appuie-toi sur des EXEMPLES concrets tirés des données.`,
+    `- Le récit doit être COHÉRENT avec le verdict : ne présente jamais comme une réussite ce qui a fait échouer, et inversement.`,
     ``,
     `Rends UNIQUEMENT un JSON strict :`,
+    `- "verdict": une des trois valeurs ci-dessus.`,
+    `- "noteDemarche": entier 0-100 (qualité du raisonnement/méthode).`,
+    `- "noteResultat": entier 0-100 (justesse de la substance produite).`,
     `- "competencies": 5 à 7 objets {"label","score" (0-100)} — n'évalue que ce que les données permettent de juger.`,
-    `- "summary": un paragraphe d'ouverture (3-4 phrases) qui donne ton impression générale.`,
+    `- "summary": un paragraphe d'ouverture (3-4 phrases) qui donne ton impression générale et justifie le verdict.`,
     `- "wentWell": 3 à 5 points {"point","example"} — ce qui a bien fonctionné, avec un exemple concret.`,
     `- "wentLess": 3 à 5 points {"point","example"} — ce qui peut progresser, avec un exemple concret.`,
     `- "recommendations": 2 à 4 conseils actionnables (chaînes).`,
@@ -96,7 +119,19 @@ export async function POST(req: Request) {
         .slice(0, 8)
     : [];
 
+  const clampNote = (v: unknown): number | undefined =>
+    typeof v === "number" && isFinite(v) ? Math.max(0, Math.min(100, Math.round(v))) : undefined;
+  // Verdict IA, avec garde-fou dur déterministe : une faute éliminatoire
+  // observée force la Défaite quoi qu'en dise le modèle.
+  let verdict = (VERDICTS as readonly string[]).includes(str(parsed.verdict))
+    ? (str(parsed.verdict) as (typeof VERDICTS)[number])
+    : "victoire_partielle";
+  if (gardeFous.length > 0) verdict = "defaite";
+
   return NextResponse.json({
+    verdict,
+    noteDemarche: clampNote(parsed.noteDemarche),
+    noteResultat: clampNote(parsed.noteResultat),
     competencies,
     summary: str(parsed.summary),
     wentWell: points(parsed.wentWell),

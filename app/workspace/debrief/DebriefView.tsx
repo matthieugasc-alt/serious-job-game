@@ -18,12 +18,52 @@ export interface DebriefPoint {
   point: string;
   example: string;
 }
+export type Verdict = "victoire_complete" | "victoire_partielle" | "defaite";
+
 export interface FinalDebrief {
+  /** Verdict 3 niveaux du juge unique (optionnel : bilans d'avant l'ajout). */
+  verdict?: Verdict;
+  /** Notes 0-100 des deux dimensions jugées (démarche prioritaire). */
+  noteDemarche?: number;
+  noteResultat?: number;
   competencies: Competency[];
   summary: string;
   wentWell: DebriefPoint[];
   wentLess: DebriefPoint[];
   recommendations: string[];
+}
+
+const VERDICT_META: Record<Verdict, { label: string; icon: string; classes: string }> = {
+  victoire_complete: { label: "Victoire complète", icon: "🏆", classes: "border-emerald-200 bg-emerald-50 text-emerald-800" },
+  victoire_partielle: { label: "Victoire partielle", icon: "🎯", classes: "border-amber-200 bg-amber-50 text-amber-800" },
+  defaite: { label: "Défaite", icon: "🔁", classes: "border-rose-200 bg-rose-50 text-rose-800" },
+};
+
+function Note({ label, value }: { label: string; value?: number }) {
+  if (typeof value !== "number") return null;
+  return (
+    <span className="inline-flex items-baseline gap-1">
+      <span className="text-[11px] uppercase tracking-wide text-gray-500">{label}</span>
+      <span className="text-base font-bold tabular-nums text-gray-900">{value}</span>
+    </span>
+  );
+}
+
+function VerdictBanner({ debrief }: { debrief: FinalDebrief }) {
+  if (!debrief.verdict) return null;
+  const m = VERDICT_META[debrief.verdict];
+  return (
+    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3 ${m.classes}`}>
+      <span className="inline-flex items-center gap-2 text-base font-bold">
+        <span aria-hidden>{m.icon}</span>
+        {m.label}
+      </span>
+      <span className="flex items-center gap-4">
+        <Note label="Démarche" value={debrief.noteDemarche} />
+        <Note label="Résultat" value={debrief.noteResultat} />
+      </span>
+    </div>
+  );
 }
 
 function Radar({ data }: { data: Competency[] }) {
@@ -83,6 +123,7 @@ function PointsCard({ title, tone, points }: { title: string; tone: "good" | "le
 export function DebriefView({ debrief }: { debrief: FinalDebrief }) {
   return (
     <div className="space-y-5">
+      <VerdictBanner debrief={debrief} />
       {debrief.summary && <p className="text-sm leading-relaxed text-gray-700">{debrief.summary}</p>}
 
       {debrief.competencies.length > 0 && (

@@ -15,6 +15,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { LoggedAction, ScenarioV3, WorkspaceState } from "@/app/lib/engine/workspace";
+import type { StepResult } from "@/app/lib/engine/mechanics";
 import { collectDebrief } from "@/app/lib/debrief/collect";
 import { saveGameRecord } from "@/app/lib/gameHistory";
 import { DebriefView, type FinalDebrief } from "./DebriefView";
@@ -23,18 +24,44 @@ function endingFromScore(avg: number): "success" | "partial_success" | "failure"
   return avg >= 70 ? "success" : avg >= 45 ? "partial_success" : "failure";
 }
 
+/** Le verdict 3 niveaux du juge unique prime sur le score moyen. */
+function endingOf(d: FinalDebrief, avg: number): "success" | "partial_success" | "failure" {
+  if (d.verdict === "victoire_complete") return "success";
+  if (d.verdict === "victoire_partielle") return "partial_success";
+  if (d.verdict === "defaite") return "failure";
+  return endingFromScore(avg);
+}
+
+/** Descriptions des fautes éliminatoires observées (critères "critical"
+ *  déclenchés) → transmises au juge, qui force alors la Défaite. */
+function collectGardeFous(scenario: ScenarioV3, stepResults: StepResult[]): string[] {
+  const out: string[] = [];
+  for (const r of stepResults) {
+    const step = scenario.sequence?.find((s) => s.step_id === r.stepId);
+    const crits = step?.evaluation?.observed_criteria ?? [];
+    for (const id of r.evaluation?.criticalFailures ?? []) {
+      const c = crits.find((x) => x.id === id);
+      out.push(c?.description ?? c?.error_type ?? id);
+    }
+  }
+  return out;
+}
+
 export function ScenarioDebrief({
   scenario,
   workspace,
   actionLog,
+  stepResults = [],
   playerName = "",
 }: {
   scenario: ScenarioV3;
   workspace: WorkspaceState;
   actionLog: LoggedAction[];
+  stepResults?: StepResult[];
   playerName?: string;
 }) {
   const bundle = useMemo(() => collectDebrief(scenario, workspace, actionLog), [scenario, workspace, actionLog]);
+  const gardeFous = useMemo(() => collectGardeFous(scenario, stepResults), [scenario, stepResults]);
   const hasData = Object.keys(bundle.signals).length > 0;
 
   // TOUJOURS analyser la PARTIE COURANTE (workspace + actionLog de cette
@@ -64,7 +91,7 @@ export function ScenarioDebrief({
         scenarioId: scenario.scenario_id,
         scenarioTitle: scenario.meta?.title ?? scenario.scenario_id,
         playerName: playerName || localStorage.getItem("player_name") || "",
-        ending: endingFromScore(avg),
+        ending: endingOf(d, avg),
         avgScore: avg,
         durationMin,
         phasesCompleted: totalPhases,
@@ -84,7 +111,7 @@ export function ScenarioDebrief({
         scenarioId: scenario.scenario_id,
         scenarioTitle: scenario.meta?.title ?? scenario.scenario_id,
         playerName: playerName || (typeof window !== "undefined" ? localStorage.getItem("player_name") || "" : ""),
-        ending: endingFromScore(avg),
+        ending: endingOf(d, avg),
         avgScore: avg,
         debrief: d,
       });
@@ -100,7 +127,7 @@ export function ScenarioDebrief({
       const res = await fetch("/api/v2/debrief-final", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(bundle),
+        body: JSON.stringify({ ...bundle, garde_fous: gardeFous }),
       });
       if (!res.ok) throw new Error("ai");
       const d = (await res.json()) as FinalDebrief;
