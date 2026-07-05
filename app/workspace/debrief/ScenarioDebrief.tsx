@@ -46,6 +46,38 @@ export function ScenarioDebrief({
   const [phase, setPhase] = useState<"idle" | "loading" | "error">("idle");
   const started = useRef(false);
 
+  /** Persistance SERVEUR (par utilisateur, durable, visible côté coach/
+   *  admin). Fire-and-forget, ne bloque jamais l'affichage. N'a lieu que
+   *  si l'utilisateur a une session (Bearer) ; sinon on garde le
+   *  localStorage comme filet pour les joueurs anonymes. */
+  const persistServer = (d: FinalDebrief, avg: number) => {
+    if (typeof window === "undefined") return;
+    const token = localStorage.getItem("auth_token");
+    if (!token) return;
+    const totalPhases = scenario.sequence?.length ?? 1;
+    const startedAt = workspace.scenarioStartedAt ?? 0;
+    const durationMin = startedAt > 0 ? Math.max(0, Math.round((Date.now() - startedAt) / 60000)) : 0;
+    const orgId = localStorage.getItem("active_org_id") || undefined;
+    void fetch("/api/profile/save-game", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({
+        scenarioId: scenario.scenario_id,
+        scenarioTitle: scenario.meta?.title ?? scenario.scenario_id,
+        playerName: playerName || localStorage.getItem("player_name") || "",
+        ending: endingFromScore(avg),
+        avgScore: avg,
+        durationMin,
+        phasesCompleted: totalPhases,
+        totalPhases,
+        debrief: d,
+        organizationId: orgId,
+      }),
+    }).catch(() => {
+      /* réseau/serveur indisponible — le localStorage reste le filet */
+    });
+  };
+
   const persist = (d: FinalDebrief) => {
     const avg = d.competencies.length > 0 ? Math.round(d.competencies.reduce((s, c) => s + c.score, 0) / d.competencies.length) : 0;
     try {
@@ -58,8 +90,9 @@ export function ScenarioDebrief({
         debrief: d,
       });
     } catch {
-      /* stockage indisponible — le bilan reste affiché */
+      /* stockage local indisponible — le bilan reste affiché */
     }
+    persistServer(d, avg);
   };
 
   const run = async () => {

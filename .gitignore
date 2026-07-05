@@ -39,3 +39,13 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Données mutables à l'exécution (NE JAMAIS suivre : un `git pull` au
+# déploiement écraserait/entrerait en conflit avec les données users).
+# Les seeds (founder_rules, founder_invariants, categories, competencies)
+# restent suivis.
+/data/users.json
+/data/sessions.json
+/data/founder_campaigns/
+/data/game_records/
+/data/v2_completions/

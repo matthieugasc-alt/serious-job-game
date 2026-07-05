@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Serious Job Game — 5 chartes graphiques</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&family=DM+Sans:wght@400;500;600;700&family=Archivo:wght@500;600;700;800;900&family=Sora:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Inter',sans-serif; background:#0a0a0b; color:#e7e7ea; -webkit-font-smoothing:antialiased; }
+  .wrap { max-width:1180px; margin:0 auto; padding:64px 24px 120px; }
+  .intro { max-width:720px; margin-bottom:56px; }
+  .intro .kick { font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:#8a8a92; font-weight:600; margin-bottom:16px; }
+  .intro h1 { font-family:'Fraunces',serif; font-size:40px; line-height:1.1; font-weight:500; margin-bottom:18px; letter-spacing:-.01em; }
+  .intro p { font-size:16px; line-height:1.6; color:#a9a9b2; }
+  .intro p + p { margin-top:12px; }
+
+  .concept { margin-bottom:72px; border:1px solid #1e1e22; border-radius:20px; overflow:hidden; background:#101012; }
+  .concept-head { display:flex; align-items:baseline; justify-content:space-between; gap:20px; padding:26px 30px 22px; border-bottom:1px solid #1e1e22; flex-wrap:wrap; }
+  .concept-head .no { font-family:'JetBrains Mono',monospace; font-size:13px; color:#6b6b73; }
+  .concept-head h2 { font-family:'Fraunces',serif; font-size:26px; font-weight:500; letter-spacing:-.01em; }
+  .concept-head .tag { font-size:12.5px; color:#9a9aa3; font-style:italic; max-width:420px; text-align:right; }
+
+  /* the hero mock */
+  .mock { position:relative; }
+  .mock .browserbar { display:flex; align-items:center; gap:7px; padding:11px 16px; background:rgba(0,0,0,.25); }
+  .mock .browserbar i { width:11px; height:11px; border-radius:50%; background:#3a3a40; display:block; }
+
+  .hero { position:relative; padding:64px 56px 60px; min-height:420px; display:flex; flex-direction:column; }
+  .nav { display:flex; align-items:center; justify-content:space-between; margin-bottom:auto; }
+  .navlinks { display:flex; gap:22px; font-size:13.5px; }
+  .cta { border:none; cursor:default; font-weight:600; }
+  .h-eyebrow { font-size:13px; letter-spacing:.14em; text-transform:uppercase; margin-bottom:20px; }
+  .h-title { font-size:54px; line-height:1.02; letter-spacing:-.02em; margin-bottom:22px; max-width:640px; }
+  .h-sub { font-size:17.5px; line-height:1.55; max-width:500px; margin-bottom:32px; }
+  .h-actions { display:flex; align-items:center; gap:18px; }
+  .btn-primary { padding:14px 26px; border-radius:10px; font-size:15px; font-weight:600; }
+  .btn-ghost { font-size:15px; font-weight:500; }
+
+  .meta { display:grid; grid-template-columns:1.3fr 1fr 1fr; gap:0; border-top:1px solid #1e1e22; }
+  .meta > div { padding:22px 30px; border-right:1px solid #1e1e22; }
+  .meta > div:last-child { border-right:none; }
+  .meta h4 { font-size:11px; letter-spacing:.16em; text-transform:uppercase; color:#7a7a82; margin-bottom:12px; font-weight:600; }
+  .swatches { display:flex; gap:8px; flex-wrap:wrap; }
+  .sw { width:38px; height:38px; border-radius:9px; position:relative; box-shadow:inset 0 0 0 1px rgba(255,255,255,.08); }
+  .sw span { position:absolute; bottom:-17px; left:0; font-family:'JetBrains Mono',monospace; font-size:8.5px; color:#67676f; white-space:nowrap; }
+  .swrow { margin-bottom:20px; }
+  .type-line { font-size:15px; color:#c7c7cf; margin-bottom:6px; }
+  .type-line b { font-weight:600; color:#e7e7ea; }
+  .type-line small { color:#7a7a82; font-family:'JetBrains Mono',monospace; font-size:11px; }
+  .mood { font-size:13.5px; line-height:1.6; color:#a9a9b2; }
+  .mood b { color:#d5d5db; font-weight:600; }
+
+  .footer { max-width:720px; margin-top:20px; padding-top:28px; border-top:1px solid #1e1e22; }
+  .footer h3 { font-family:'Fraunces',serif; font-size:22px; font-weight:500; margin-bottom:14px; }
+  .footer p { color:#a9a9b2; font-size:15px; line-height:1.65; }
+  .footer ol { color:#a9a9b2; font-size:15px; line-height:1.7; margin:12px 0 0 20px; }
+
+  @media (max-width:820px){
+    .hero{padding:40px 28px;} .h-title{font-size:38px;} .meta{grid-template-columns:1fr;}
+    .meta>div{border-right:none;border-bottom:1px solid #1e1e22;}
+    .navlinks{display:none;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="intro">
+    <div class="kick">Serious Job Game · Direction artistique</div>
+    <h1>5 chartes graphiques, une seule à choisir</h1>
+    <p>Chaque piste est montrée sur le vrai hero du site : même message, même structure, identité totalement différente. Objectif commun : sobre, premium, lisible, aéré — jamais « startup gadget ».</p>
+    <p>Regarde-les comme un visiteur qui arrive sur la page. Laquelle te donne le plus envie de <em>vivre</em> un métier ? Dis-moi le numéro, je décline tout le site dessus.</p>
+  </div>
+
+  <!-- ============ 1 · ÉDITORIAL IVOIRE ============ -->
+  <div class="concept">
+    <div class="concept-head">
+      <div>
+        <div class="no">01</div>
+        <h2>Éditorial Ivoire</h2>
+      </div>
+      <div class="tag">La piste « manifeste ». Apple × Notion. Papier de luxe, presque un livre.</div>
+    </div>
+    <div class="mock">
+      <div class="browserbar"><i></i><i></i><i></i></div>
+      <div class="hero" style="background:#f4f1ea; color:#1a1815;">
+        <div class="nav">
+          <div style="font-family:'Fraunces',serif; font-size:19px; font-weight:600; letter-spacing:-.01em; color:#1a1815;">Serious&nbsp;Job&nbsp;Game</div>
+          <div class="navlinks" style="color:#57534a;">
+            <span>Découvrir</span><span>Métiers</span><span>Founder</span><span>Mécaniques</span>
+          </div>
+          <div class="cta btn-primary" style="background:#1a1815; color:#f4f1ea; padding:11px 20px; font-size:13.5px;">Rejoindre la bêta</div>
+        </div>
+        <div class="h-eyebrow" style="color:#a06a2c;">Le simulateur de métiers</div>
+        <div class="h-title" style="font-family:'Fraunces',serif; font-weight:500; color:#1a1815;">Vivez un métier.<br>Avant de le choisir.</div>
+        <div class="h-sub" style="color:#57534a;">Pas une formation. Pas une vidéo. Une vraie journée de travail, avec ses décisions, ses imprévus et ses conséquences.</div>
+        <div class="h-actions">
+          <div class="btn-primary" style="background:#a06a2c; color:#fff;">Commencer une expérience</div>
+          <div class="btn-ghost" style="color:#1a1815;">Voir le scénario Founder →</div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <div>
+        <h4>Palette</h4>
+        <div class="swatches">
+          <div class="sw" style="background:#f4f1ea;"><span>#F4F1EA</span></div>
+          <div class="sw" style="background:#1a1815;"><span>#1A1815</span></div>
+          <div class="sw" style="background:#a06a2c;"><span>#A06A2C</span></div>
+          <div class="sw" style="background:#57534a;"><span>#57534A</span></div>
+        </div>
+      </div>
+      <div>
+        <h4>Typographie</h4>
+        <div class="type-line"><b style="font-family:'Fraunces',serif;">Fraunces</b> — titres <small>serif</small></div>
+        <div class="type-line"><b>Inter</b> — texte <small>sans</small></div>
+      </div>
+      <div>
+        <h4>Positionnement</h4>
+        <div class="mood"><b>Confiance & maturité.</b> L'ivoire + serif dit « produit sérieux, pensé ». Se distingue de 99% des sites edtech qui sont blancs et froids.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 2 · NOCTURNE CINÉMATIQUE ============ -->
+  <div class="concept">
+    <div class="concept-head">
+      <div>
+        <div class="no">02</div>
+        <h2>Nocturne Cinématique</h2>
+      </div>
+      <div class="tag">La piste « immersion ». Linear × Arc. On entre dans la simulation.</div>
+    </div>
+    <div class="mock">
+      <div class="browserbar"><i></i><i></i><i></i></div>
+      <div class="hero" style="background:radial-gradient(120% 120% at 78% 8%, #16203a 0%, #0a0d15 55%); color:#eef1f6;">
+        <div class="nav">
+          <div style="font-family:'Space Grotesk',sans-serif; font-size:18px; font-weight:700; letter-spacing:-.01em; color:#eef1f6;">Serious Job Game</div>
+          <div class="navlinks" style="color:#8b93a7;">
+            <span>Découvrir</span><span>Métiers</span><span>Founder</span><span>Mécaniques</span>
+          </div>
+          <div class="cta btn-primary" style="background:#7cf29e; color:#07120a; padding:11px 20px; font-size:13.5px;">Rejoindre la bêta</div>
+        </div>
+        <div class="h-eyebrow" style="color:#7cf29e; font-family:'Space Grotesk',sans-serif;">◆ Simulation active</div>
+        <div class="h-title" style="font-family:'Space Grotesk',sans-serif; font-weight:600; color:#eef1f6;">Vivez un métier.<br>Avant de le choisir.</div>
+        <div class="h-sub" style="color:#9aa2b5;">Un environnement de travail réaliste où chaque décision compte. Vous ne lisez pas un métier — vous le pratiquez.</div>
+        <div class="h-actions">
+          <div class="btn-primary" style="background:#7cf29e; color:#07120a;">Entrer dans le Workspace</div>
+          <div class="btn-ghost" style="color:#c3c9d6;">Le scénario Founder →</div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <div>
+        <h4>Palette</h4>
+        <div class="swatches">
+          <div class="sw" style="background:#0a0d15;"><span>#0A0D15</span></div>
+          <div class="sw" style="background:#16203a;"><span>#16203A</span></div>
+          <div class="sw" style="background:#7cf29e;"><span>#7CF29E</span></div>
+          <div class="sw" style="background:#eef1f6;"><span>#EEF1F6</span></div>
+        </div>
+      </div>
+      <div>
+        <h4>Typographie</h4>
+        <div class="type-line"><b style="font-family:'Space Grotesk',sans-serif;">Space Grotesk</b> — titres <small>geometric</small></div>
+        <div class="type-line"><b>Inter</b> — texte <small>sans</small></div>
+      </div>
+      <div>
+        <h4>Positionnement</h4>
+        <div class="mood"><b>Ambition & tech premium.</b> Le sombre = focus, immersion, « je joue vraiment ». Risque : moins chaleureux, à manier avec beaucoup d'air.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 3 · WORKSPACE BLUEPRINT ============ -->
+  <div class="concept">
+    <div class="concept-head">
+      <div>
+        <div class="no">03</div>
+        <h2>Workspace Blueprint</h2>
+      </div>
+      <div class="tag">La piste « outil de pro ». Ça sent le vrai poste de travail, pas la brochure.</div>
+    </div>
+    <div class="mock">
+      <div class="browserbar"><i></i><i></i><i></i></div>
+      <div class="hero" style="background:#fbfaf8; color:#141619; background-image:linear-gradient(#eceae5 1px,transparent 1px),linear-gradient(90deg,#eceae5 1px,transparent 1px); background-size:34px 34px;">
+        <div class="nav">
+          <div style="font-family:'JetBrains Mono',monospace; font-size:15px; font-weight:600; color:#141619;">■ serious_job_game</div>
+          <div class="navlinks" style="color:#5c6067; font-family:'JetBrains Mono',monospace; font-size:12.5px;">
+            <span>découvrir</span><span>métiers</span><span>founder</span><span>mécaniques</span>
+          </div>
+          <div class="cta btn-primary" style="background:#1d4ed8; color:#fff; padding:11px 20px; font-size:13px; border-radius:6px; font-family:'JetBrains Mono',monospace;">rejoindre_la_bêta</div>
+        </div>
+        <div class="h-eyebrow" style="color:#1d4ed8; font-family:'JetBrains Mono',monospace;">// simulateur de métiers</div>
+        <div class="h-title" style="font-family:'Sora',sans-serif; font-weight:700; color:#141619;">Vivez un métier.<br>Avant de le choisir.</div>
+        <div class="h-sub" style="color:#4a4e56;">Objectif, scénario, décisions, débrief. Un vrai espace de travail où l'on vous confie de vraies responsabilités.</div>
+        <div class="h-actions">
+          <div class="btn-primary" style="background:#141619; color:#fff; border-radius:6px;">Lancer un scénario</div>
+          <div class="btn-ghost" style="color:#1d4ed8; font-family:'JetBrains Mono',monospace; font-size:14px;">→ founder.sim</div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <div>
+        <h4>Palette</h4>
+        <div class="swatches">
+          <div class="sw" style="background:#fbfaf8;"><span>#FBFAF8</span></div>
+          <div class="sw" style="background:#141619;"><span>#141619</span></div>
+          <div class="sw" style="background:#1d4ed8;"><span>#1D4ED8</span></div>
+          <div class="sw" style="background:#5c6067;"><span>#5C6067</span></div>
+        </div>
+      </div>
+      <div>
+        <h4>Typographie</h4>
+        <div class="type-line"><b style="font-family:'Sora',sans-serif;">Sora</b> — titres <small>sans</small></div>
+        <div class="type-line"><b style="font-family:'JetBrains Mono',monospace;">JetBrains Mono</b> — accents <small>mono</small></div>
+      </div>
+      <div>
+        <h4>Positionnement</h4>
+        <div class="mood"><b>Crédibilité & sérieux du travail.</b> La grille + le mono disent « c'est un outil, pas un jeu gadget ». Colle parfaitement au mot « Workspace ».</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 4 · HUMANISTE CHALEUREUX ============ -->
+  <div class="concept">
+    <div class="concept-head">
+      <div>
+        <div class="no">04</div>
+        <h2>Humaniste Chaleureux</h2>
+      </div>
+      <div class="tag">La piste « humaine ». Ambition sans froideur tech. On s'adresse à des gens.</div>
+    </div>
+    <div class="mock">
+      <div class="browserbar"><i></i><i></i><i></i></div>
+      <div class="hero" style="background:#fdf6ee; color:#2a211b;">
+        <div class="nav">
+          <div style="font-family:'DM Sans',sans-serif; font-size:19px; font-weight:700; letter-spacing:-.02em; color:#c0552f;">Serious Job Game</div>
+          <div class="navlinks" style="color:#6b5d51;">
+            <span>Découvrir</span><span>Métiers</span><span>Founder</span><span>Mécaniques</span>
+          </div>
+          <div class="cta btn-primary" style="background:#c0552f; color:#fff; padding:11px 22px; font-size:13.5px; border-radius:30px;">Rejoindre la bêta</div>
+        </div>
+        <div class="h-eyebrow" style="color:#1f6b52;">Le simulateur de métiers</div>
+        <div class="h-title" style="font-family:'Instrument Serif',serif; font-weight:400; color:#2a211b; font-size:60px;">Vivez un métier.<br>Avant de le choisir.</div>
+        <div class="h-sub" style="color:#6b5d51;">Avant de s'engager dans une voie, il faudrait pouvoir l'essayer. C'est exactement ce qu'on vous propose.</div>
+        <div class="h-actions">
+          <div class="btn-primary" style="background:#1f6b52; color:#fff; border-radius:30px;">Essayer une première journée</div>
+          <div class="btn-ghost" style="color:#c0552f;">Découvrir Founder →</div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <div>
+        <h4>Palette</h4>
+        <div class="swatches">
+          <div class="sw" style="background:#fdf6ee;"><span>#FDF6EE</span></div>
+          <div class="sw" style="background:#c0552f;"><span>#C0552F</span></div>
+          <div class="sw" style="background:#1f6b52;"><span>#1F6B52</span></div>
+          <div class="sw" style="background:#2a211b;"><span>#2A211B</span></div>
+        </div>
+      </div>
+      <div>
+        <h4>Typographie</h4>
+        <div class="type-line"><b style="font-family:'Instrument Serif',serif; font-size:17px;">Instrument Serif</b> — titres <small>serif</small></div>
+        <div class="type-line"><b style="font-family:'DM Sans',sans-serif;">DM Sans</b> — texte <small>sans</small></div>
+      </div>
+      <div>
+        <h4>Positionnement</h4>
+        <div class="mood"><b>Proximité & optimisme.</b> Terracotta + vert = humain, accessible, encourageant. Parle aux étudiants/jeunes diplômés sans infantiliser.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 5 · CONTRASTE SUISSE ============ -->
+  <div class="concept">
+    <div class="concept-head">
+      <div>
+        <div class="no">05</div>
+        <h2>Contraste Suisse</h2>
+      </div>
+      <div class="tag">La piste « affirmée ». Framer × design suisse. Typo énorme, aucun bruit.</div>
+    </div>
+    <div class="mock">
+      <div class="browserbar"><i></i><i></i><i></i></div>
+      <div class="hero" style="background:#ffffff; color:#0b0b0c; padding-top:52px;">
+        <div class="nav">
+          <div style="font-family:'Archivo',sans-serif; font-size:17px; font-weight:800; letter-spacing:-.02em; text-transform:uppercase; color:#0b0b0c;">Serious Job Game</div>
+          <div class="navlinks" style="color:#0b0b0c; font-weight:500;">
+            <span>Découvrir</span><span>Métiers</span><span>Founder</span><span>Mécaniques</span>
+          </div>
+          <div class="cta btn-primary" style="background:#2b2bff; color:#fff; padding:11px 20px; font-size:13.5px; border-radius:2px;">Rejoindre la bêta</div>
+        </div>
+        <div class="h-eyebrow" style="color:#2b2bff; font-weight:700;">SIMULATEUR DE MÉTIERS</div>
+        <div class="h-title" style="font-family:'Archivo',sans-serif; font-weight:900; color:#0b0b0c; font-size:66px; line-height:.94; letter-spacing:-.03em; text-transform:uppercase;">Vivez un métier avant de le choisir.</div>
+        <div class="h-sub" style="color:#3a3a40; margin-top:26px;">Une expérience professionnelle réelle, condensée. Vous décidez, vous assumez, vous progressez.</div>
+        <div class="h-actions">
+          <div class="btn-primary" style="background:#0b0b0c; color:#fff; border-radius:2px;">Commencer</div>
+          <div class="btn-ghost" style="color:#0b0b0c; text-decoration:underline; text-underline-offset:4px;">Scénario Founder</div>
+        </div>
+      </div>
+    </div>
+    <div class="meta">
+      <div>
+        <h4>Palette</h4>
+        <div class="swatches">
+          <div class="sw" style="background:#ffffff;"><span>#FFFFFF</span></div>
+          <div class="sw" style="background:#0b0b0c;"><span>#0B0B0C</span></div>
+          <div class="sw" style="background:#2b2bff;"><span>#2B2BFF</span></div>
+          <div class="sw" style="background:#f0f0ef;"><span>#F0F0EF</span></div>
+        </div>
+      </div>
+      <div>
+        <h4>Typographie</h4>
+        <div class="type-line"><b style="font-family:'Archivo',sans-serif;">Archivo Black</b> — titres <small>grotesk</small></div>
+        <div class="type-line"><b>Inter</b> — texte <small>sans</small></div>
+      </div>
+      <div>
+        <h4>Positionnement</h4>
+        <div class="mood"><b>Force & modernité.</b> Contraste maximal, typo massive, bleu électrique. Très mémorable, très « 2026 ». Risque : peut paraître froid si mal dosé.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ RECO ============ -->
+  <div class="footer">
+    <h3>Ma recommandation</h3>
+    <p>Si tu veux te démarquer <b style="color:#e7e7ea;">et</b> coller à la promesse « vivre un métier », mon classement : <b style="color:#e7e7ea;">03 Workspace Blueprint</b> (le plus aligné avec « c'est un vrai travail ») puis <b style="color:#e7e7ea;">01 Éditorial Ivoire</b> (le plus premium/durable). Le 02 Nocturne est le plus spectaculaire mais le plus risqué pour un public étudiant. Le 04 est le plus rassurant, le 05 le plus audacieux.</p>
+    <p style="margin-top:14px;">Dis-moi simplement le numéro que tu préfères — ou un mélange (ex. « le fond ivoire du 01 avec la typo du 03 ») — et je décline la charte complète : couleurs, typo, composants, puis toutes les pages du site.</p>
+  </div>
+
+</div>
+</body>
+</html>
