@@ -38,6 +38,7 @@ import { EntretienDebriefSection } from "./debrief/EntretienDebriefSection";
 import { DocSynthesisDebriefSection } from "./debrief/DocSynthesisDebriefSection";
 import { ArbitrageDebriefSection } from "./debrief/ArbitrageDebriefSection";
 import { ProductionDebriefSection } from "./debrief/ProductionDebriefSection";
+import { PresentationDebriefSection } from "./debrief/PresentationDebriefSection";
 import { TOOL_REGISTRY } from "./apps/registry";
 import { buildCompletionPayload, runPendingEffects } from "./orchestrator";
 import { useNavigationGuard, requestScenarioExit } from "@/app/workspace/useNavigationGuard";
@@ -316,6 +317,13 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
               />
             );
           })()}
+          {scenario.sequence?.some((s) => s.mechanic === "presentation") && (
+            <PresentationDebriefSection
+              workspace={session.workspace}
+              actionLog={session.actionLog}
+              documents={scenario.documents.map((d) => ({ id: d.id, title: d.title }))}
+            />
+          )}
           {!savingOutcome && (
             <div className="mt-6 text-center">
               <Link
