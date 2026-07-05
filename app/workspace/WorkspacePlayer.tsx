@@ -36,6 +36,8 @@ import { ActorAvatar, PrimaryButton } from "@/app/workspace/primitives/ui";
 import { WorkspaceShell } from "./WorkspaceShell";
 import { EntretienDebriefSection } from "./debrief/EntretienDebriefSection";
 import { DocSynthesisDebriefSection } from "./debrief/DocSynthesisDebriefSection";
+import { ArbitrageDebriefSection } from "./debrief/ArbitrageDebriefSection";
+import { ProductionDebriefSection } from "./debrief/ProductionDebriefSection";
 import { TOOL_REGISTRY } from "./apps/registry";
 import { buildCompletionPayload, runPendingEffects } from "./orchestrator";
 import { useNavigationGuard, requestScenarioExit } from "@/app/workspace/useNavigationGuard";
@@ -298,6 +300,22 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
               documents={scenario.documents.map((d) => ({ id: d.id, title: d.title }))}
             />
           )}
+          {scenario.sequence?.some((s) => s.mechanic === "decision") && (
+            <ArbitrageDebriefSection workspace={session.workspace} />
+          )}
+          {(() => {
+            const prod = scenario.sequence?.find((s) => s.mechanic === "production");
+            if (!prod) return null;
+            const params = (prod.params ?? {}) as { instructions?: string; deliverable_type?: string };
+            return (
+              <ProductionDebriefSection
+                workspace={session.workspace}
+                instructions={typeof params.instructions === "string" ? params.instructions : ""}
+                deliverableType={typeof params.deliverable_type === "string" ? params.deliverable_type : ""}
+                documents={scenario.documents.map((d) => ({ id: d.id, title: d.title }))}
+              />
+            );
+          })()}
           {!savingOutcome && (
             <div className="mt-6 text-center">
               <Link
