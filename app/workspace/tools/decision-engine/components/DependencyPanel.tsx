@@ -28,11 +28,28 @@ function Chip({ icon, label, tone, onRemove }: { icon: string; label: string; to
   );
 }
 
-export function DependencyPanel({ state, node, dispatch }: { state: Json; node: DepNodeRef; dispatch: Dispatch }) {
-  const { parents, children, siblings } = selectDependenciesFor(state, node);
+export function DependencyPanel({
+  state,
+  node,
+  dispatch,
+  restrictTo,
+  title = "Dépendances",
+}: {
+  state: Json;
+  node: DepNodeRef;
+  dispatch: Dispatch;
+  /** Ne lier qu'à ce type d'objet (ex. décision↔décision). */
+  restrictTo?: "decision" | "board";
+  title?: string;
+}) {
+  const raw = selectDependenciesFor(state, node);
+  const keep = (x: { ref: DepNodeRef }) => !restrictTo || x.ref.type === restrictTo;
+  const parents = raw.parents.filter(keep);
+  const children = raw.children.filter(keep);
+  const siblings = raw.siblings.filter(keep);
   const others: DepNodeRef[] = [
-    ...listDecisions(state).map((d) => ({ type: "decision" as const, id: d.id })),
-    ...listBoards(state).map((b) => ({ type: "board" as const, id: b.id })),
+    ...(restrictTo === "board" ? [] : listDecisions(state).map((d) => ({ type: "decision" as const, id: d.id }))),
+    ...(restrictTo === "decision" ? [] : listBoards(state).map((b) => ({ type: "board" as const, id: b.id }))),
   ].filter((o) => !(o.type === node.type && o.id === node.id));
 
   const [over, setOver] = useState(false);
@@ -62,7 +79,7 @@ export function DependencyPanel({ state, node, dispatch }: { state: Json; node: 
     <div className="rounded-xl border border-gray-200 bg-white p-2.5 text-xs">
       <div className="mb-1.5 flex items-center gap-1.5">
         <span aria-hidden>🔗</span>
-        <h3 className="text-xs font-semibold text-gray-700">Dépendances</h3>
+        <h3 className="text-xs font-semibold text-gray-700">{title}</h3>
       </div>
 
       {menu && (

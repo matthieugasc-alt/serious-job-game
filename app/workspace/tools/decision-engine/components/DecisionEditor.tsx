@@ -29,7 +29,7 @@ import {
   weightedScoreOf,
 } from "../api";
 import { PRESETS } from "../presets";
-import { createTaskFromDecision, exportDecisionToNotebook, reviseDecision } from "../integrations";
+import { reviseDecision } from "../integrations";
 import type { Json } from "@/app/lib/engine/mechanics";
 import type { Board, DecisionObject, RiskEntry } from "../spec";
 import { DependencyPanel } from "./DependencyPanel";
@@ -249,9 +249,15 @@ export function DecisionEditor({
         )}
       </section>
 
-      {/* Dépendances (décision ↔ tableaux / autres décisions). */}
+      {/* Décisions liées (les tableaux passent par « Tableaux d'arbitrage »). */}
       <section className="border-b border-gray-100 px-4 py-3">
-        <DependencyPanel state={engineState} node={{ type: "decision", id: decision.id }} dispatch={dispatch} />
+        <DependencyPanel
+          state={engineState}
+          node={{ type: "decision", id: decision.id }}
+          dispatch={dispatch}
+          restrictTo="decision"
+          title="Décisions liées"
+        />
       </section>
 
       {/* Décision finale. */}
@@ -270,20 +276,6 @@ export function DecisionEditor({
             {decision.status === "finalized" ? "✓ Décision actée" : "Brouillon"}
           </span>
           <div className="ml-auto flex flex-wrap gap-1.5">
-            <button
-              type="button"
-              className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition hover:border-indigo-300 hover:text-indigo-700"
-              onClick={() => exportDecisionToNotebook(decision).forEach((a) => dispatch(a))}
-            >
-              → Bloc-notes
-            </button>
-            <button
-              type="button"
-              className="rounded-lg border border-gray-200 px-2.5 py-1.5 text-xs font-medium text-gray-600 transition hover:border-indigo-300 hover:text-indigo-700"
-              onClick={() => dispatch(createTaskFromDecision(decision))}
-            >
-              → Tâche
-            </button>
             {decision.status === "finalized" ? (
               <button
                 type="button"

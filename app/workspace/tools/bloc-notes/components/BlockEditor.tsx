@@ -15,7 +15,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { WorkspaceAction } from "@/app/lib/engine/workspace";
 import { createTask, toggleTodo, updateBlocks } from "../api";
-import { createDecision } from "@/app/workspace/tools/decision-engine/api";
+import { createDecision, openPreset } from "@/app/workspace/tools/decision-engine/api";
 import type { Block } from "../spec";
 import {
   asAnyBlocks,
@@ -401,6 +401,16 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
     setMenuFor(null);
   };
 
+  /** Ligne → nouveau tableau (Kanban par défaut) dans le Decision Engine. */
+  const lineToBoard = (id: string) => {
+    const text = blockTextOf(id);
+    if (text) {
+      const action = openPreset("kanban.board", { title: text }, { id: uid("board") });
+      if (action) dispatch(action);
+    }
+    setMenuFor(null);
+  };
+
   /** Cocher/décocher : op dédiée toggle_todo (audit fin), jamais dupliquée
    *  dans update_blocks — le texte en attente est flushé AVANT. */
   const onToggleTodo = (id: string) => {
@@ -531,6 +541,7 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
                     onConvert={(k) => convertKind(b.id, k)}
                     onToTask={() => lineToTask(b.id)}
                     onToDecision={() => lineToDecision(b.id)}
+                    onToBoard={() => lineToBoard(b.id)}
                     onMoveUp={() => moveLine(b.id, -1)}
                     onMoveDown={() => moveLine(b.id, 1)}
                     onDuplicate={() => duplicateBlock(b.id)}
@@ -738,6 +749,7 @@ function LineMenu({
   onConvert,
   onToTask,
   onToDecision,
+  onToBoard,
   onMoveUp,
   onMoveDown,
   onDuplicate,
@@ -749,6 +761,7 @@ function LineMenu({
   onConvert: (k: BlockKind) => void;
   onToTask: () => void;
   onToDecision: () => void;
+  onToBoard: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
   onDuplicate: () => void;
@@ -802,6 +815,7 @@ function LineMenu({
           <span>🧭 Créer une décision</span>
           <span className="shrink-0 rounded bg-gray-100 px-1 text-[8px] text-gray-400">⌘⇧D</span>
         </button>
+        <button type="button" className="block w-full rounded-md px-2 py-1 text-left text-[11px] text-gray-700 hover:bg-gray-100" onClick={onToBoard}>📊 Créer un tableau</button>
 
         <div className="my-1 h-px bg-gray-100" />
         <div className="flex items-center gap-0.5">
