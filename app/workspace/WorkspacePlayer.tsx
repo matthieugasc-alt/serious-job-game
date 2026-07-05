@@ -34,6 +34,7 @@ import {
 import { MECHANIC_SPECS, MECHANIC_SPEC_MANIFESTS } from "@/app/mechanics/specs";
 import { ActorAvatar, PrimaryButton } from "@/app/workspace/primitives/ui";
 import { WorkspaceShell } from "./WorkspaceShell";
+import { EntretienDebriefSection } from "./debrief/EntretienDebriefSection";
 import { TOOL_REGISTRY } from "./apps/registry";
 import { buildCompletionPayload, runPendingEffects } from "./orchestrator";
 import { useNavigationGuard, requestScenarioExit } from "@/app/workspace/useNavigationGuard";
@@ -282,6 +283,12 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
                 <p className="text-gray-600"><span className="font-semibold">Conseil — </span>{microDebrief.advice}</p>
               )}
             </div>
+          )}
+          {scenario.sequence?.some((s) => s.mechanic === "entretien") && (
+            <EntretienDebriefSection
+              workspace={session.workspace}
+              nameOf={(id) => scenario.actors.find((a) => a.actor_id === id)?.name ?? id}
+            />
           )}
           {!savingOutcome && (
             <div className="mt-6 text-center">
