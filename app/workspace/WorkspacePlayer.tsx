@@ -41,6 +41,8 @@ import { ProductionDebriefSection } from "./debrief/ProductionDebriefSection";
 import { PresentationDebriefSection } from "./debrief/PresentationDebriefSection";
 import { PlanningDebriefSection } from "./debrief/PlanningDebriefSection";
 import { NegotiationDebriefSection, type TermDef } from "./debrief/NegotiationDebriefSection";
+import { FacilitationDebriefSection } from "./debrief/FacilitationDebriefSection";
+import { BrainstormDebriefSection } from "./debrief/BrainstormDebriefSection";
 import { TOOL_REGISTRY } from "./apps/registry";
 import { buildCompletionPayload, runPendingEffects } from "./orchestrator";
 import { useNavigationGuard, requestScenarioExit } from "@/app/workspace/useNavigationGuard";
@@ -342,6 +344,14 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
           })()}
           {/* Planification : pas de mécanique dédiée → s'affiche si un plan existe. */}
           <PlanningDebriefSection workspace={session.workspace} />
+          {/* Facilitation : pas de mécanique dédiée → s'affiche si réunion multi-acteurs. */}
+          <FacilitationDebriefSection
+            workspace={session.workspace}
+            actionLog={session.actionLog}
+            nameOf={(id) => scenario.actors.find((a) => a.actor_id === id)?.name ?? id}
+          />
+          {/* Brainstorming : pas de mécanique dédiée → s'affiche si des idées existent. */}
+          <BrainstormDebriefSection workspace={session.workspace} brief={scenario.meta?.description ?? ""} />
           {!savingOutcome && (
             <div className="mt-6 text-center">
               <Link
