@@ -36,6 +36,7 @@ import { ActorAvatar, PrimaryButton } from "@/app/workspace/primitives/ui";
 import { WorkspaceShell } from "./WorkspaceShell";
 import { ScenarioDebrief } from "./debrief/ScenarioDebrief";
 import { pickEndingForVerdict, VERDICT_LABEL, type Verdict } from "@/app/lib/debrief/verdict";
+import { indexScenarioDoc, selectAllEntries } from "./tools/bibliotheque/api";
 import { TOOL_REGISTRY } from "./apps/registry";
 import { buildCompletionPayload, runPendingEffects } from "./orchestrator";
 import { useNavigationGuard, requestScenarioExit } from "@/app/workspace/useNavigationGuard";
@@ -202,6 +203,26 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
     },
     [refresh, schedule],
   );
+
+  // Auto-indexe les documents du scénario dans le porte-documents DÈS le
+  // début de partie : le badge « Documents » est correct sans avoir à ouvrir
+  // l'app une première fois. Idempotent (verrou état + ref) — BibliothequeApp
+  // ne re-crée donc rien à l'ouverture.
+  const indexedDocsRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (!session) return;
+    const lib = session.workspace.toolStates?.bibliotheque ?? null;
+    const already = new Set<string>();
+    for (const e of selectAllEntries(lib)) {
+      if (e.source.kind === "scenario_doc") already.add(e.source.document_id);
+    }
+    for (const d of scenario.documents ?? []) {
+      if (!already.has(d.id) && !indexedDocsRef.current.has(d.id)) {
+        indexedDocsRef.current.add(d.id);
+        dispatch(indexScenarioDoc(d.id, d.title));
+      }
+    }
+  }, [session, scenario, dispatch]);
 
   // Horloge : clock_tick toutes les 5 s si le step est temporel
   // (events delay OU timer_elapsed dans le trigger / les exits).
