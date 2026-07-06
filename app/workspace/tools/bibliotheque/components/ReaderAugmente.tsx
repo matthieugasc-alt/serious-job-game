@@ -245,7 +245,7 @@ export function ReaderAugmente({
         const name = `bib_${instanceId}_h${i++}`;
         registry.set(name, new HighlightCtor(...ranges) as unknown);
         names.push(name);
-        css.push(`::highlight(${name}){ background-color:${hexToRgba(col, 0.25)}; }`);
+        css.push(`::highlight(${name}){ background-color:${hexToRgba(col, 0.6)}; }`);
       }
       if (commentRanges.length > 0) {
         const name = `bib_${instanceId}_c`;
