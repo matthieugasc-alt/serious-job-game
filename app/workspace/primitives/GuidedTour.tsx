@@ -26,6 +26,9 @@ export interface TourStep {
   waitFor?: () => boolean;
   /** Consigne d'action affichée tant que waitFor est faux (ex. « Crée une tâche »). */
   todo?: string;
+  /** Couleur d'accent du spotlight. « red » = cerclage rouge pulsant très
+   *  voyant (pour une cible discrète comme la poignée ⋮ d'une ligne). */
+  accent?: "indigo" | "red";
 }
 
 const PAD = 6;
@@ -138,16 +141,32 @@ export function GuidedTour({
     <div className="pointer-events-none fixed inset-0 z-[100]">
       {/* Spotlight : trou clair autour de la cible via box-shadow sombre. */}
       {rect ? (
-        <div
-          className="pointer-events-none absolute rounded-lg ring-2 ring-indigo-400 transition-all"
-          style={{
-            top: rect.top - PAD,
-            left: rect.left - PAD,
-            width: rect.width + PAD * 2,
-            height: rect.height + PAD * 2,
-            boxShadow: "0 0 0 9999px rgba(17,24,39,0.55)",
-          }}
-        />
+        <>
+          <div
+            className={`pointer-events-none absolute rounded-lg transition-all ${
+              step.accent === "red" ? "ring-4 ring-red-500" : "ring-2 ring-indigo-400"
+            }`}
+            style={{
+              top: rect.top - PAD,
+              left: rect.left - PAD,
+              width: rect.width + PAD * 2,
+              height: rect.height + PAD * 2,
+              boxShadow: "0 0 0 9999px rgba(17,24,39,0.55)",
+            }}
+          />
+          {/* Halo pulsant (sans ombre) pour attirer l'œil sur une petite cible. */}
+          <div
+            className={`pointer-events-none absolute rounded-lg animate-ping ${
+              step.accent === "red" ? "ring-4 ring-red-500" : "ring-2 ring-indigo-400"
+            }`}
+            style={{
+              top: rect.top - PAD,
+              left: rect.left - PAD,
+              width: rect.width + PAD * 2,
+              height: rect.height + PAD * 2,
+            }}
+          />
+        </>
       ) : (
         <div className="absolute inset-0 bg-gray-900/55" />
       )}

@@ -503,9 +503,10 @@ export function BlockEditor({ noteId, blocks, dispatch }: Props) {
               <span className="relative flex shrink-0 items-center">
                 <button
                   type="button"
+                  data-tour="note-line-menu"
                   title="Actions de la ligne"
                   aria-label="Actions de la ligne"
-                  className="mt-1 rounded px-0.5 text-sm leading-none text-gray-300 opacity-0 transition hover:bg-gray-100 hover:text-gray-600 group-hover:opacity-100"
+                  className="mt-1 rounded px-0.5 text-sm leading-none text-gray-400 opacity-40 transition hover:bg-gray-100 hover:text-gray-600 group-hover:opacity-100"
                   onClick={() => setMenuFor((v) => (v === b.id ? null : b.id))}
                 >
                   ⋮

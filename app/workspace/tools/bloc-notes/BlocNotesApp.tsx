@@ -99,6 +99,15 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
     setSelectedId(newId);
   };
 
+  // Étape active « Crée une tâche » : on accepte AUTANT la case à cocher
+  // (bloc « ☑ Tâche ») que la vraie tâche (« → Tâche »). Les deux transforment
+  // une ligne en action et apparaissent dans l'onglet Tâches.
+  const hasTodoBlock = (blocks: AnyBlock[]): boolean =>
+    blocks.some((b) => b.kind === "todo" || (b.children ? hasTodoBlock(b.children) : false));
+  const hasActionItem = () =>
+    Object.keys(state.tasks).length > 0 ||
+    Object.values(state.notes).some((n) => hasTodoBlock(asAnyBlocks(n.blocks)));
+
   const tourSteps: TourStep[] = [
     {
       selector: "",
@@ -147,16 +156,17 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
       placement: "bottom",
     },
     {
-      selector: "[data-tour='note-blocks']",
+      selector: "[data-tour='note-line-menu']",
+      accent: "red",
       title: "Crée une tâche",
-      body: "Transforme une idée en action : sur une ligne de ta note, ouvre le menu (⋯ à gauche de la ligne) et choisis « → Tâche ». Fais-le une fois pour continuer.",
+      body: "Transforme une idée en action : sur une ligne de ta note, clique la poignée ⋮ cerclée de rouge (à gauche de la ligne), puis choisis « ☑ Tâche » ou « → Tâche ». Fais-le une fois pour continuer.",
       placement: "right",
       beforeShow: () => {
         setTab("notes");
         if (state.order.length === 0) create();
       },
-      waitFor: () => Object.keys(state.tasks).length > 0,
-      todo: "Crée une tâche depuis une ligne (menu ⋯ → « → Tâche »).",
+      waitFor: hasActionItem,
+      todo: "Ouvre le menu ⋮ (rouge) d'une ligne → « ☑ Tâche » ou « → Tâche ».",
     },
     {
       selector: "[data-tour='tasks-views']",
