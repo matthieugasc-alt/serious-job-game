@@ -392,7 +392,14 @@ export function WorkspacePlayer({ scenario, campaignId }: Props) {
         objective={step.title}
         timerDeadline={timerDeadline}
         busyThreads={busyThreads}
-        onQuit={() => requestScenarioExit(campaignId ? `/founder/${campaignId}` : "/")}
+        onQuit={() => {
+          // Scénario bac à sable (tuto) : on efface la session locale à la
+          // sortie pour repartir propre au prochain lancement.
+          if (scenario.meta.reset_on_exit) {
+            try { window.localStorage.removeItem(storageKey); } catch { /* noop */ }
+          }
+          requestScenarioExit(campaignId ? `/founder/${campaignId}` : "/");
+        }}
         dispatch={dispatch}
       />
     </div>

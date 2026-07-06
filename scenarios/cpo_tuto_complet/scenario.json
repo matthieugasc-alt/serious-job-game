@@ -4,6 +4,7 @@
   "version": "3.0.0",
   "locale": "fr-FR",
   "meta": {
+    "reset_on_exit": true,
     "title": "Atelier — tout tester",
     "description": "Le bac à sable complet du poste de travail. Tu as trois outils à découvrir, chacun avec son tour interactif « ❓ Guide » :\n\n• 📁 Documents (porte-documents) : range, tague, crée un bureau, surligne et commente.\n• 📓 Bloc-notes : écris en blocs, transforme une ligne en tâche/décision, mind map, tags.\n• 🧭 Decision Engine : pose une décision (options, critères, risques) et un tableau (Kanban, matrice, roadmap, SWOT, arbre des causes).\n\nEssaie aussi le Mail (⌘/Ctrl + Entrée pour envoyer, « 📎 Joindre » une note/décision). Aucune bonne réponse : explore, puis envoie un récap à Léa.",
     "difficulty": "beginner",

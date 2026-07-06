@@ -297,10 +297,23 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
     {
       selector: "[data-tour='de-new']",
       title: "Crée une matrice multicritère",
-      body: "Appuie une décision sur un tableau : « + Nouveau » (en haut du rail) → catégorie 📊 matrix → un preset de matrice (ex. Matrice multicritère). Fais-le pour continuer.",
+      body: "« + Nouveau » (en haut du rail) → catégorie 📊 matrix → un preset de matrice (ex. Matrice multicritère). Fais-le pour continuer.",
       placement: "right",
       waitFor: () => allBoards.some((b) => b.engine === "matrix"),
       todo: "« + Nouveau » → 📊 matrix → « Matrice multicritère ».",
+    },
+    {
+      selector: "[data-tour='de-rail']",
+      accent: "red",
+      title: "Rattache la matrice à ta décision",
+      body: "Une matrice seule ne sert à rien : rattache-la. Dans le rail (à gauche), glisse la matrice — sous « Tableaux libres » — sur ta décision. Elle se rangera dessous et entrera dans son analyse.",
+      placement: "right",
+      beforeShow: () => {
+        setRailFilter("all");
+        setOpenBoardId(null);
+      },
+      waitFor: () => allBoards.some((b) => b.engine === "matrix" && !!b.decision_id && decisionIds.has(b.decision_id)),
+      todo: "Glisse la matrice sur ta décision dans le rail.",
     },
     {
       selector: "[data-tour='de-attach']",

@@ -351,7 +351,15 @@ export interface ScenarioV3 {
   scenario_id: string;
   version: string;
   locale: string;
-  meta: { title: string; description: string; difficulty?: string; estimated_minutes?: number };
+  meta: {
+    title: string;
+    description: string;
+    difficulty?: string;
+    estimated_minutes?: number;
+    /** Scénario bac à sable (tuto) : la session locale est effacée à chaque
+     *  sortie, pour repartir propre au prochain lancement. */
+    reset_on_exit?: boolean;
+  };
   actors: ActorDef[];
   documents: DocumentDef[];
   competencies?: string[];

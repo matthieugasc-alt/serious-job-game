@@ -4,6 +4,7 @@
   "version": "3.0.0",
   "locale": "fr-FR",
   "meta": {
+    "reset_on_exit": true,
     "title": "Prise en main — le porte-documents",
     "description": "Un scénario bac à sable pour découvrir le Gestionnaire documentaire (porte-documents). Ouvre l'app Documents, clique sur « ❓ Guide » pour lancer le tour interactif, puis entraîne-toi : range dans un dossier, tague, crée un bureau, surligne et commente un document, et retrouve une info par la recherche. Quand tu es à l'aise, envoie un court récap à Léa Fontaine.\n\nAucune bonne réponse ici : l'objectif est de prendre en main l'outil.",
     "difficulty": "beginner",
