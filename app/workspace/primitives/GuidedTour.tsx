@@ -34,17 +34,34 @@ export function GuidedTour({
   steps,
   open,
   onClose,
+  index,
+  onIndexChange,
 }: {
   steps: TourStep[];
   open: boolean;
   onClose: () => void;
+  /** Index d'étape CONTRÔLÉ par le parent — nécessaire quand le composant
+   *  peut être remonté pendant le tour (ex. changement de vue). Sinon état
+   *  interne. Le parent gère alors la remise à 0 à l'ouverture. */
+  index?: number;
+  onIndexChange?: (i: number) => void;
 }) {
-  const [i, setI] = useState(0);
+  const [internalI, setInternalI] = useState(0);
+  const controlled = index !== undefined;
+  const i = controlled ? (index as number) : internalI;
+  const setI = (u: number | ((v: number) => number)) => {
+    const next = typeof u === "function" ? u(i) : u;
+    if (onIndexChange) onIndexChange(next);
+    else setInternalI(next);
+  };
   const [rect, setRect] = useState<DOMRect | null>(null);
   const [tick, setTick] = useState(0);
 
   useEffect(() => {
-    if (open) setI(0);
+    // En mode contrôlé, c'est le parent qui remet à 0 à l'ouverture (sinon
+    // un remontage pendant le tour réinitialiserait l'étape).
+    if (open && !controlled) setInternalI(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
   const step = open ? steps[i] : undefined;
@@ -77,17 +94,16 @@ export function GuidedTour({
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      else if (e.key === "ArrowRight" || e.key === "Enter")
-        setI((v) => {
-          const st = steps[v];
-          if (st?.waitFor && !st.waitFor()) return v; // étape active non satisfaite
-          return v + 1 < steps.length ? v + 1 : v;
-        });
-      else if (e.key === "ArrowLeft") setI((v) => Math.max(0, v - 1));
+      else if (e.key === "ArrowRight" || e.key === "Enter") {
+        const st = steps[i];
+        if (st?.waitFor && !st.waitFor()) return; // étape active non satisfaite
+        if (i + 1 < steps.length) setI(i + 1);
+      } else if (e.key === "ArrowLeft") setI(Math.max(0, i - 1));
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [open, steps.length, onClose]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, i, steps]);
 
   if (!open || !step) return null;
 

@@ -110,6 +110,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
   const [newDesk, setNewDesk] = useState("");
   const [dropDeskId, setDropDeskId] = useState<string | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
   const handledContext = useRef<string | null>(null);
   const dispatchedIndex = useRef<Set<string>>(new Set());
 
@@ -236,15 +237,15 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
       placement: "bottom",
     },
     {
-      selector: "[data-tour='grid']",
-      title: "Lire & annoter",
-      body: "Ouvre un document pour le lire en grand : surligne en couleur, commente, pose des signets — tout est extrait automatiquement dans ton Bloc-notes. Épingle ⭐, mets en favori, ajoute des tags.",
-      placement: "bottom",
+      selector: "",
+      title: "Lire & annoter (l'essentiel)",
+      body: "Ouvre un document : clique une carte, il s'affiche en grand. Sélectionne un passage pour le SURLIGNER en couleur, le COMMENTER, ou poser un SIGNET — tout est extrait automatiquement dans ton Bloc-notes. Essaie tranquillement, puis clique « Suivant » : tu reviendras à la bibliothèque.",
     },
     {
       selector: "",
       title: "Aussi : archiver & joindre",
       body: "Depuis Mail ou Messages, le bouton 📁 archive un échange ICI pour le garder comme preuve. Et depuis un document, une note ou un tableau, « 📎 Joindre à l'email » l'attache à un mail — son contenu entre alors dans l'analyse.",
+      beforeShow: () => setView("library"),
     },
     {
       selector: "[data-tour='desks']",
@@ -431,6 +432,10 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
             decisionState={workspace.toolStates["decision-engine"] ?? null}
           />
         </div>
+
+        {/* Le tour survit à l'ouverture d'un document (vue desk) : l'étape
+            « Lire & annoter » reste affichée pendant qu'on lit/annote. */}
+        <GuidedTour steps={tourSteps} open={tourOpen} onClose={() => setTourOpen(false)} index={tourStep} onIndexChange={setTourStep} />
       </div>
     );
   }
@@ -584,7 +589,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
             data-tour="guide"
             title="Guide interactif du porte-documents"
             className="shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
-            onClick={() => setTourOpen(true)}
+            onClick={() => { setTourStep(0); setTourOpen(true); }}
           >
             ❓ Guide
           </button>
@@ -641,7 +646,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
         </div>
       </section>
 
-      <GuidedTour steps={tourSteps} open={tourOpen} onClose={() => setTourOpen(false)} />
+      <GuidedTour steps={tourSteps} open={tourOpen} onClose={() => setTourOpen(false)} index={tourStep} onIndexChange={setTourStep} />
     </div>
   );
 }
