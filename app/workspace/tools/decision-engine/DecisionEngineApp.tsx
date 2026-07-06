@@ -68,6 +68,15 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openBoardId, setOpenBoardId] = useState<string | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+
+  const toggleCollapsed = (id: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   // Navigation entrante (lien d'artefact depuis un mail) : ouvrir la
   // décision ou le tableau ciblé.
@@ -176,6 +185,8 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
     const dBoards = boardsByDecision.get(d.id) ?? [];
     const kids = childDecisions.get(d.id) ?? [];
     const active = !openBoardId && selected?.id === d.id;
+    const hasChildren = dBoards.length > 0 || kids.length > 0;
+    const isCollapsed = collapsed.has(d.id);
     return (
       <div key={d.id}>
         <button
@@ -204,15 +215,26 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
           className={`block w-full cursor-grab py-2 pr-3 text-left transition active:cursor-grabbing ${dropDecId === d.id ? "bg-indigo-100 ring-2 ring-inset ring-indigo-400" : active ? "bg-indigo-50/70" : "hover:bg-gray-50"}`}
         >
           <span className="flex items-center gap-1.5">
+            <span
+              className={`w-3 shrink-0 text-center text-[10px] leading-none text-gray-400 ${hasChildren ? "cursor-pointer hover:text-gray-800" : ""}`}
+              role={hasChildren ? "button" : undefined}
+              aria-label={hasChildren ? (isCollapsed ? "Déplier" : "Replier") : undefined}
+              onClick={hasChildren ? (e) => { e.stopPropagation(); toggleCollapsed(d.id); } : undefined}
+            >
+              {hasChildren ? (isCollapsed ? "▸" : "▾") : ""}
+            </span>
             <span aria-hidden>🧭</span>
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-gray-800">{d.title || "(sans titre)"}</span>
+            {hasChildren && isCollapsed && (
+              <span className="shrink-0 rounded-full bg-gray-100 px-1.5 text-[10px] font-medium text-gray-500">{dBoards.length + kids.length}</span>
+            )}
           </span>
-          <span className="mt-0.5 block pl-5 text-[11px] text-gray-400">{STATUS_LABEL[d.status]} · {d.options.length} opt · {d.risks.length} risq</span>
+          <span className="mt-0.5 block pl-8 text-[11px] text-gray-400">{STATUS_LABEL[d.status]} · {d.options.length} opt · {d.risks.length} risq</span>
         </button>
-        {railFilter === "all" && dBoards.map((b) => (
+        {!isCollapsed && railFilter === "all" && dBoards.map((b) => (
           <BoardRow key={b.id} board={b} depth={depth + 1} active={openBoardId === b.id} onClick={() => setOpenBoardId(b.id)} onDragStartBoard={() => setDragBoardId(b.id)} onDragEndBoard={clearDrag} />
         ))}
-        {kids.map((k) => renderDecision(k, depth + 1))}
+        {!isCollapsed && kids.map((k) => renderDecision(k, depth + 1))}
       </div>
     );
   };
