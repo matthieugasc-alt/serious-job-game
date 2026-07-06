@@ -154,18 +154,21 @@ export function GuidedTour({
               boxShadow: "0 0 0 9999px rgba(17,24,39,0.55)",
             }}
           />
-          {/* Halo pulsant (sans ombre) pour attirer l'œil sur une petite cible. */}
-          <div
-            className={`pointer-events-none absolute rounded-lg animate-ping ${
-              step.accent === "red" ? "ring-4 ring-red-500" : "ring-2 ring-indigo-400"
-            }`}
-            style={{
-              top: rect.top - PAD,
-              left: rect.left - PAD,
-              width: rect.width + PAD * 2,
-              height: rect.height + PAD * 2,
-            }}
-          />
+          {/* Halo pulsant (sans ombre) — UNIQUEMENT sur l'accent rouge, pour
+              attirer l'œil sur une petite cible (la poignée ⋮). Sur les étapes
+              normales, pas d'animation : un carré qui s'étend en continu est
+              gênant tout au long du tuto. */}
+          {step.accent === "red" && (
+            <div
+              className="pointer-events-none absolute rounded-lg animate-ping ring-4 ring-red-500"
+              style={{
+                top: rect.top - PAD,
+                left: rect.left - PAD,
+                width: rect.width + PAD * 2,
+                height: rect.height + PAD * 2,
+              }}
+            />
+          )}
         </>
       ) : (
         <div className="absolute inset-0 bg-gray-900/55" />
