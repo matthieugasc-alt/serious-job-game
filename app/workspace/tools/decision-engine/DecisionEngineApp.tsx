@@ -11,6 +11,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import type { WorkspaceAppProps } from "../../apps/types";
 import { AttachToMailButton } from "../../artifacts/AttachToMailButton";
+import { GuidedTour, type TourStep } from "@/app/workspace/primitives/GuidedTour";
 import {
   addDependency,
   createDecision,
@@ -66,6 +67,7 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
   const [railFilter, setRailFilter] = useState<"all" | "decisions" | "boards">("all");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [openBoardId, setOpenBoardId] = useState<string | null>(null);
+  const [tourOpen, setTourOpen] = useState(false);
 
   // Navigation entrante (lien d'artefact depuis un mail) : ouvrir la
   // décision ou le tableau ciblé.
@@ -220,12 +222,69 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
     (eng) => [eng, listPresets(eng)],
   );
 
+  const tourSteps: TourStep[] = [
+    {
+      selector: "",
+      title: "Bienvenue dans le Decision Engine",
+      body: "Ta boîte à outils pour structurer un arbitrage : poser une décision (options, critères, risques) et l'appuyer sur des tableaux (Kanban, roadmap, matrices, SWOT, arbre des causes…).",
+    },
+    {
+      selector: "[data-tour='de-filter']",
+      title: "Filtrer l'arborescence",
+      body: "Affiche tout, les décisions seules, ou les tableaux seuls.",
+      placement: "bottom",
+    },
+    {
+      selector: "[data-tour='de-new']",
+      title: "Créer",
+      body: "Une nouvelle décision, ou un tableau depuis un preset : Kanban, roadmap (Timeline), matrice Impact/Effort ou RICE, SWOT, Eisenhower, arbre des causes, 5 pourquoi, Ishikawa…",
+      placement: "bottom",
+    },
+    {
+      selector: "[data-tour='de-rail']",
+      title: "Ton arborescence",
+      body: "Les décisions, et en dessous leurs tableaux rattachés. Glisse un tableau sur une décision pour le rattacher, ou une décision sur une autre pour l'imbriquer.",
+      placement: "right",
+    },
+    {
+      selector: "[data-tour='de-editor']",
+      title: "Structurer la décision",
+      body: "Contexte, options, critères pondérés, matrice de scores, hypothèses — et surtout les risques : chaque risque a un moyen de PRÉVENIR (↓ probabilité) et de GUÉRIR (↓ impact), avec re-cotation résiduelle brut → après mesures.",
+      placement: "left",
+      beforeShow: () => {
+        setOpenBoardId(null);
+        if (decisions.length === 0) newDecision();
+      },
+    },
+    {
+      selector: "[data-tour='de-attach']",
+      title: "Joindre à l'email",
+      body: "Attache la décision (ou un tableau) à un mail : tout son contenu entre alors dans l'analyse de ta partie.",
+      placement: "bottom",
+    },
+    {
+      selector: "",
+      title: "Les tableaux",
+      body: "Ouvre un tableau pour l'éditer en pleine page : Kanban, Timeline/roadmap, Matrice (Impact/Effort, Prob/Impact, RICE), Registre de risques, Table (RACI, SWOT, comparatif) et Graphe (arbre, 5 pourquoi, Ishikawa, dépendances).",
+    },
+    {
+      selector: "",
+      title: "Relier les objets",
+      body: "Décisions et tableaux se relient entre eux : glisse pour une relation mère-fille ; le panneau Dépendances gère aussi les relations sœur. Les cycles sont refusés automatiquement.",
+    },
+    {
+      selector: "",
+      title: "À toi de jouer",
+      body: "Une décision solide, c'est une démarche visible : des options comparées, des critères assumés, des risques anticipés. Le moteur observe tout ça pour ton bilan. Bon arbitrage !",
+    },
+  ];
+
   return (
     <div className="flex h-full min-h-0 bg-gray-50/60">
       {/* Rail : arborescence (décisions ⊃ leurs tableaux) + filtre. */}
       <aside className="flex w-60 shrink-0 flex-col border-r border-gray-200 bg-white">
         <div className="relative flex shrink-0 items-center gap-1.5 border-b border-gray-100 px-2 py-2">
-          <div className="flex flex-1 gap-0.5 rounded-lg bg-gray-100 p-0.5">
+          <div data-tour="de-filter" className="flex flex-1 gap-0.5 rounded-lg bg-gray-100 p-0.5">
             {([["all", "Tout"], ["decisions", "🧭"], ["boards", "📊"]] as ["all" | "decisions" | "boards", string][]).map(([f, label]) => (
               <button
                 key={f}
@@ -239,8 +298,11 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
               </button>
             ))}
           </div>
-          <button type="button" className="shrink-0 rounded-lg bg-indigo-600 px-2 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700" onClick={() => setShowNew((v) => !v)}>
+          <button type="button" data-tour="de-new" className="shrink-0 rounded-lg bg-indigo-600 px-2 py-1 text-xs font-semibold text-white transition hover:bg-indigo-700" onClick={() => setShowNew((v) => !v)}>
             + Nouveau
+          </button>
+          <button type="button" data-tour="guide" title="Guide interactif du Decision Engine" className="shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-1.5 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100" onClick={() => setTourOpen(true)}>
+            ❓
           </button>
           {showNew && (
             <div className="absolute right-2 top-full z-30 mt-1 max-h-80 w-52 overflow-y-auto rounded-xl border border-gray-200 bg-white p-1.5 shadow-xl">
@@ -259,7 +321,7 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
           )}
         </div>
 
-        <div className="min-h-0 flex-1 overflow-y-auto py-1">
+        <div data-tour="de-rail" className="min-h-0 flex-1 overflow-y-auto py-1">
           {decisions.length === 0 && allBoards.length === 0 && (
             <p className="px-4 py-6 text-center text-sm text-gray-400">Rien encore. « + Nouveau » pour créer une décision ou un tableau.</p>
           )}
@@ -346,21 +408,25 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
                 className="min-w-0 flex-1 bg-transparent text-base font-semibold text-gray-900 focus:outline-none"
                 placeholder="Titre de la décision"
               />
-              <AttachToMailButton
-                tool={DECISION_ENGINE_TOOL_ID}
-                id={selected.id}
-                kind="decision"
-                title={selected.title || "Décision"}
-                dispatch={dispatch}
-                compact
-              />
+              <span data-tour="de-attach">
+                <AttachToMailButton
+                  tool={DECISION_ENGINE_TOOL_ID}
+                  id={selected.id}
+                  kind="decision"
+                  title={selected.title || "Décision"}
+                  dispatch={dispatch}
+                  compact
+                />
+              </span>
             </header>
-            <div className="min-h-0 flex-1">
+            <div data-tour="de-editor" className="min-h-0 flex-1">
               <DecisionEditor key={selected.id} decision={selected} boards={boards} engineState={state} dispatch={dispatch} onOpenBoard={setOpenBoardId} onSelectDecision={setSelectedId} />
             </div>
           </>
         )}
       </section>
+
+      <GuidedTour steps={tourSteps} open={tourOpen} onClose={() => setTourOpen(false)} />
     </div>
   );
 }
