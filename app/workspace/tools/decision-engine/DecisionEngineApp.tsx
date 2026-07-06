@@ -273,8 +273,8 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
     {
       selector: "[data-tour='de-new']",
       title: "Crée une décision",
-      body: "Clique « + Nouveau » puis « 🧭 Nouvelle décision ». Fais-le pour continuer.",
-      placement: "bottom",
+      body: "Clique « + Nouveau » (en haut du rail) puis « 🧭 Nouvelle décision ». Fais-le pour continuer.",
+      placement: "right",
       waitFor: () => decisions.length > 0,
       todo: "Clique « + Nouveau » → « Nouvelle décision ».",
     },
@@ -297,8 +297,8 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
     {
       selector: "[data-tour='de-new']",
       title: "Crée une matrice multicritère",
-      body: "Appuie une décision sur un tableau : « + Nouveau » → catégorie 📊 matrix → un preset de matrice (ex. Matrice multicritère). Fais-le pour continuer.",
-      placement: "bottom",
+      body: "Appuie une décision sur un tableau : « + Nouveau » (en haut du rail) → catégorie 📊 matrix → un preset de matrice (ex. Matrice multicritère). Fais-le pour continuer.",
+      placement: "right",
       waitFor: () => allBoards.some((b) => b.engine === "matrix"),
       todo: "« + Nouveau » → 📊 matrix → « Matrice multicritère ».",
     },
@@ -307,6 +307,9 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
       title: "Joindre à l'email",
       body: "Attache la décision (ou un tableau) à un mail : tout son contenu entre alors dans l'analyse de ta partie.",
       placement: "bottom",
+      // On revient sur la décision : l'ancre de-attach n'existe que dans cette
+      // vue (l'étape précédente a ouvert un tableau en pleine page).
+      beforeShow: () => setOpenBoardId(null),
     },
     {
       selector: "",

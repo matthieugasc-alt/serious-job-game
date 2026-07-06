@@ -150,7 +150,7 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
       selector: "[data-tour='note-blocks']",
       title: "Crée une tâche",
       body: "Transforme une idée en action : sur une ligne de ta note, ouvre le menu (⋯ à gauche de la ligne) et choisis « → Tâche ». Fais-le une fois pour continuer.",
-      placement: "left",
+      placement: "right",
       beforeShow: () => {
         setTab("notes");
         if (state.order.length === 0) create();
