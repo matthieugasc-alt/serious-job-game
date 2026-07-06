@@ -45,6 +45,7 @@ import type { SortKey } from "./api";
 import { BIBLIOTHEQUE_TOOL_ID } from "./spec";
 import type { DeskLayout, DocEntry } from "./spec";
 import { DeskView } from "./components/DeskView";
+import { GuidedTour, type TourStep } from "@/app/workspace/primitives/GuidedTour";
 
 const SORT_OPTIONS: { key: SortKey; label: string }[] = [
   { key: "added", label: "Ajout récent" },
@@ -65,6 +66,55 @@ const LAYOUT_OPTIONS: { key: DeskLayout; icon: string; label: string }[] = [
   { key: "split-v", icon: "▥", label: "Deux colonnes" },
   { key: "split-h", icon: "▤", label: "Deux lignes" },
   { key: "grid", icon: "▦", label: "Grille" },
+];
+
+const TOUR_STEPS: TourStep[] = [
+  {
+    selector: "",
+    title: "Bienvenue dans le porte-documents",
+    body: "C'est ton dossier de travail : les pièces du scénario y sont indexées automatiquement, et tu peux y ranger, retrouver, annoter et rapprocher tous tes documents. Suivons les fonctions ensemble.",
+  },
+  {
+    selector: "[data-tour='filters']",
+    title: "Tes vues",
+    body: "Filtre d'un clic : tous les documents, les récemment consultés, les épinglés, les favoris, ou ce qui n'est pas encore rangé.",
+    placement: "right",
+  },
+  {
+    selector: "[data-tour='folders']",
+    title: "Dossiers",
+    body: "Crée des dossiers pour organiser tes pièces (ex. « Preuves », « À traiter ») et range chaque document dedans.",
+    placement: "right",
+  },
+  {
+    selector: "[data-tour='desks']",
+    title: "Bureaux personnalisés",
+    body: "Un bureau est une boîte de travail : glisse-y plusieurs documents, puis rouvre-les tous ensemble, côte à côte, d'un seul clic.",
+    placement: "right",
+  },
+  {
+    selector: "[data-tour='search']",
+    title: "Recherche plein texte",
+    body: "Cherche dans TOUT : titres, contenu des documents, tags et même tes annotations. Idéal pour retrouver une preuve précise.",
+    placement: "bottom",
+  },
+  {
+    selector: "[data-tour='sort']",
+    title: "Tri",
+    body: "Trie par ajout récent, dernière consultation, alphabétique, type ou favoris d'abord.",
+    placement: "bottom",
+  },
+  {
+    selector: "[data-tour='grid']",
+    title: "Tes documents",
+    body: "Chaque carte : ouvre le document pour le LIRE en grand — tu peux alors surligner en couleur, commenter, poser des signets, et tout est extrait automatiquement dans ton Bloc-notes. Épingle ⭐, mets en favori, ajoute des tags, ou glisse la carte sur un bureau.",
+    placement: "top",
+  },
+  {
+    selector: "",
+    title: "Et aussi : archiver & joindre",
+    body: "Depuis Mail ou Messages, le bouton 📁 archive un échange ICI pour le garder comme preuve. Et depuis un document, une note ou un tableau, « 📎 Joindre à l'email » l'attache à un mail — son contenu entre alors dans l'analyse. Bon travail !",
+  },
 ];
 
 type Selection =
@@ -108,6 +158,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
   const [newFolder, setNewFolder] = useState("");
   const [newDesk, setNewDesk] = useState("");
   const [dropDeskId, setDropDeskId] = useState<string | null>(null);
+  const [tourOpen, setTourOpen] = useState(false);
   const handledContext = useRef<string | null>(null);
   const dispatchedIndex = useRef<Set<string>>(new Set());
 
@@ -372,7 +423,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
     <div className="flex h-full min-h-0 bg-gray-50/60">
       {/* Panneau latéral : vues, dossiers, tags. */}
       <aside className="flex w-56 shrink-0 flex-col gap-3 overflow-y-auto border-r border-gray-200 bg-white px-2.5 py-3">
-        <nav className="flex flex-col gap-0.5">
+        <nav data-tour="filters" className="flex flex-col gap-0.5">
           <SideItem label="Tous les documents" icon="🗂️" count={allEntries.length} active={sel.type === "all"} onClick={() => setSel({ type: "all" })} />
           <SideItem label="Récemment consultés" icon="🕘" active={sel.type === "recent"} onClick={() => setSel({ type: "recent" })} />
           <SideItem label="Épinglés" icon="📌" count={countFor((e) => e.pinned)} active={sel.type === "pinned"} onClick={() => setSel({ type: "pinned" })} />
@@ -380,7 +431,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
           <SideItem label="Non classés" icon="📥" count={countFor((e) => e.folder_id === undefined)} active={sel.type === "unfiled"} onClick={() => setSel({ type: "unfiled" })} />
         </nav>
 
-        <div>
+        <div data-tour="folders">
           <p className="px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Dossiers</p>
           <div className="flex flex-col gap-0.5">
             {folders.map((f) => (
@@ -426,7 +477,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
 
         {/* Bureaux personnalisés : des « boîtes » où l'on dépose des docs
             (glisser une carte dessus) ; un clic les rouvre tous ensemble. */}
-        <div>
+        <div data-tour="desks">
           <p className="px-1.5 pb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-400">Bureaux</p>
           <div className="flex flex-col gap-1">
             {desks.map((d) => (
@@ -506,12 +557,23 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="flex shrink-0 items-center gap-2 border-b border-gray-200 bg-white px-4 py-2.5">
           <input
+            data-tour="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher dans le dossier (titre, contenu, tags, annotations…)"
             className="min-w-0 flex-1 rounded-lg border border-gray-300 px-3 py-1.5 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100"
           />
+          <button
+            type="button"
+            data-tour="guide"
+            title="Guide interactif du porte-documents"
+            className="shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1.5 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+            onClick={() => setTourOpen(true)}
+          >
+            ❓ Guide
+          </button>
           <select
+            data-tour="sort"
             value={sort}
             onChange={(e) => setSort(e.target.value as SortKey)}
             disabled={sel.type === "recent"}
@@ -540,7 +602,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
               {query ? "Aucun document ne correspond à cette recherche." : "Aucun document dans cette vue."}
             </p>
           ) : (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+            <div data-tour="grid" className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
               {filtered.map((e) => (
                 <EntryCard
                   key={e.id}
@@ -562,6 +624,8 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
           )}
         </div>
       </section>
+
+      <GuidedTour steps={TOUR_STEPS} open={tourOpen} onClose={() => setTourOpen(false)} />
     </div>
   );
 }
