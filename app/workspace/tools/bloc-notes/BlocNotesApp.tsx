@@ -48,13 +48,6 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
   const [taskView, setTaskView] = useState<TaskView>("bdd");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [tourOpen, setTourOpen] = useState(false);
-  const rootRef = useRef<HTMLDivElement>(null);
-
-  // À l'arrivée dans l'app, le conteneur prend le focus : appuyer sur
-  // Entrée (sans être dans un champ) ouvre alors une nouvelle note.
-  useEffect(() => {
-    rootRef.current?.focus();
-  }, []);
 
   // Navigation entrante (QuickPanel, Base de données) : ouvrir une note.
   const requested = context?.note_id;
@@ -167,18 +160,7 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
   ];
 
   return (
-    <div
-      ref={rootRef}
-      tabIndex={-1}
-      onKeyDown={(e) => {
-        // Entrée sur le conteneur lui-même (pas dans un champ/bouton) → nouvelle note.
-        if (e.key === "Enter" && e.target === e.currentTarget) {
-          e.preventDefault();
-          create();
-        }
-      }}
-      className="flex h-full min-h-0 flex-col bg-white outline-none"
-    >
+    <div className="flex h-full min-h-0 flex-col bg-white outline-none">
       {/* Onglets. */}
       <header
         data-tour="notes-tabs"
