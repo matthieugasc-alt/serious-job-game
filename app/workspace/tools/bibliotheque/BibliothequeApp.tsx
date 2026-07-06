@@ -224,28 +224,6 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
       placement: "right",
     },
     {
-      selector: "[data-tour='desks']",
-      title: "Crée un bureau",
-      body: "Un bureau est une boîte de travail : on y regroupe des documents pour les rouvrir ensemble. Crée-en un : dans « Bureaux », tape un nom et valide (Entrée). Fais-le pour continuer.",
-      placement: "right",
-      waitFor: () => desks.length > 0,
-      todo: "Crée un bureau (tape un nom dans « + bureau », valide).",
-    },
-    {
-      selector: "[data-tour='grid']",
-      title: "Remplis ton bureau",
-      body: "Glisse maintenant DEUX cartes de documents (en haut) sur ton bureau, dans le panneau de gauche. Fais-le pour continuer.",
-      placement: "bottom",
-      waitFor: () => desks.some((d) => d.entry_ids.length >= 2),
-      todo: "Glisse deux documents sur ton bureau.",
-    },
-    {
-      selector: "[data-tour='desks']",
-      title: "Ouvre ton bureau",
-      body: "Bien joué ! Clique sur ton bureau : il rouvre tous ses documents d'un coup, côte à côte — parfait pour comparer des preuves. (Le tour s'arrête ici quand tu cliques.)",
-      placement: "right",
-    },
-    {
       selector: "[data-tour='search']",
       title: "Recherche plein texte",
       body: "Cherche dans TOUT : titres, contenu des documents, tags et même tes annotations. Idéal pour retrouver une preuve précise.",
@@ -265,8 +243,30 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
     },
     {
       selector: "",
-      title: "Et aussi : archiver & joindre",
-      body: "Depuis Mail ou Messages, le bouton 📁 archive un échange ICI pour le garder comme preuve. Et depuis un document, une note ou un tableau, « 📎 Joindre à l'email » l'attache à un mail — son contenu entre alors dans l'analyse. Bon travail !",
+      title: "Aussi : archiver & joindre",
+      body: "Depuis Mail ou Messages, le bouton 📁 archive un échange ICI pour le garder comme preuve. Et depuis un document, une note ou un tableau, « 📎 Joindre à l'email » l'attache à un mail — son contenu entre alors dans l'analyse.",
+    },
+    {
+      selector: "[data-tour='desks']",
+      title: "Crée un bureau",
+      body: "Un bureau est une boîte de travail : on y regroupe des documents pour les rouvrir ensemble. Crée-en un : dans « Bureaux », tape un nom et valide (Entrée). Fais-le pour continuer.",
+      placement: "right",
+      waitFor: () => desks.length > 0,
+      todo: "Crée un bureau (tape un nom dans « + bureau », valide).",
+    },
+    {
+      selector: "[data-tour='grid']",
+      title: "Remplis ton bureau",
+      body: "Glisse maintenant DEUX cartes de documents (en haut) sur ton bureau, dans le panneau de gauche. Fais-le pour continuer.",
+      placement: "bottom",
+      waitFor: () => desks.some((d) => d.entry_ids.length >= 2),
+      todo: "Glisse deux documents sur ton bureau.",
+    },
+    {
+      selector: "[data-tour='desks']",
+      title: "Ouvre ton bureau — c'est fini !",
+      body: "Dernière étape : clique sur ton bureau. Il rouvre tous ses documents d'un coup, côte à côte — parfait pour comparer des preuves. Ce clic clôt le tour. Bon travail !",
+      placement: "right",
     },
   ];
   const allEntries = selectAllEntries(libState);
