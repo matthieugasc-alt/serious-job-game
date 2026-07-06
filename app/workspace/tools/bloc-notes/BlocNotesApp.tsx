@@ -169,11 +169,12 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
       todo: "Ouvre le menu ⋮ (rouge) d'une ligne → « ☑ Tâche » ou « → Tâche ».",
     },
     {
-      selector: "[data-tour='tasks-views']",
-      title: "L'onglet Tâches",
-      body: "Voilà ta tâche ! L'onglet Tâches agrège tous tes todos. Bascule entre la vue Base de données (filtrable, triable) et la vue Kanban (3 colonnes : à faire / en cours / fait). Chaque case cochée d'une note apparaît aussi ici.",
+      selector: "[data-tour='tab-taches']",
+      title: "Ouvre l'onglet Tâches",
+      body: "À toi de cliquer : ouvre l'onglet « Tâches » (en haut). Il agrège tous tes todos — vue Base de données (filtrable, triable) ou Kanban (à faire / en cours / fait). Chaque case cochée d'une note apparaît aussi ici.",
       placement: "bottom",
-      beforeShow: () => setTab("base"),
+      waitFor: () => tab === "base",
+      todo: "Clique l'onglet « Tâches ».",
     },
     {
       selector: "",
@@ -196,6 +197,7 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
             key={t}
             type="button"
             role="tab"
+            data-tour={t === "base" ? "tab-taches" : undefined}
             aria-selected={tab === t}
             className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
               tab === t
