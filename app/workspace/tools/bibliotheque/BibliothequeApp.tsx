@@ -234,8 +234,8 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
     {
       selector: "[data-tour='grid']",
       title: "Remplis ton bureau",
-      body: "Glisse maintenant DEUX cartes de documents sur ton bureau (dans le panneau de gauche). Fais-le pour continuer.",
-      placement: "top",
+      body: "Glisse maintenant DEUX cartes de documents (en haut) sur ton bureau, dans le panneau de gauche. Fais-le pour continuer.",
+      placement: "bottom",
       waitFor: () => desks.some((d) => d.entry_ids.length >= 2),
       todo: "Glisse deux documents sur ton bureau.",
     },
@@ -261,7 +261,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
       selector: "[data-tour='grid']",
       title: "Lire & annoter",
       body: "Ouvre un document pour le lire en grand : surligne en couleur, commente, pose des signets — tout est extrait automatiquement dans ton Bloc-notes. Épingle ⭐, mets en favori, ajoute des tags.",
-      placement: "top",
+      placement: "bottom",
     },
     {
       selector: "",
