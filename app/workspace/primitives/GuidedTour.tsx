@@ -116,7 +116,10 @@ export function GuidedTour({
   }
 
   return (
-    <div className="fixed inset-0 z-[100]">
+    // pointer-events-none : l'overlay ne fait que la SURBRILLANCE, il ne
+    // capture pas les clics — le joueur peut donc interagir avec l'élément
+    // mis en avant (ex. « + bureau »). Seule la bulle reste cliquable.
+    <div className="pointer-events-none fixed inset-0 z-[100]">
       {/* Spotlight : trou clair autour de la cible via box-shadow sombre. */}
       {rect ? (
         <div
@@ -133,9 +136,9 @@ export function GuidedTour({
         <div className="absolute inset-0 bg-gray-900/55" />
       )}
 
-      {/* Bulle. */}
+      {/* Bulle (seul élément cliquable de l'overlay). */}
       <div
-        className="absolute rounded-xl border border-gray-200 bg-white p-3.5 shadow-2xl"
+        className="pointer-events-auto absolute rounded-xl border border-gray-200 bg-white p-3.5 shadow-2xl"
         style={bubbleStyle}
       >
         <div className="mb-1 flex items-center justify-between">
