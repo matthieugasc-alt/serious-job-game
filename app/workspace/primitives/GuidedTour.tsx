@@ -21,6 +21,11 @@ export interface TourStep {
   placement?: "top" | "bottom" | "left" | "right";
   /** Action à exécuter en entrant dans l'étape (ex. ouvrir un document). */
   beforeShow?: () => void;
+  /** Étape ACTIVE : « Suivant » reste bloqué tant que ce prédicat est faux
+   *  (le joueur DOIT faire l'action décrite). Réévalué à chaque rendu. */
+  waitFor?: () => boolean;
+  /** Consigne d'action affichée tant que waitFor est faux (ex. « Crée une tâche »). */
+  todo?: string;
 }
 
 const PAD = 6;
@@ -72,7 +77,12 @@ export function GuidedTour({
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") onClose();
-      else if (e.key === "ArrowRight" || e.key === "Enter") setI((v) => (v + 1 < steps.length ? v + 1 : v));
+      else if (e.key === "ArrowRight" || e.key === "Enter")
+        setI((v) => {
+          const st = steps[v];
+          if (st?.waitFor && !st.waitFor()) return v; // étape active non satisfaite
+          return v + 1 < steps.length ? v + 1 : v;
+        });
       else if (e.key === "ArrowLeft") setI((v) => Math.max(0, v - 1));
     };
     window.addEventListener("keydown", onKey);
@@ -82,6 +92,7 @@ export function GuidedTour({
   if (!open || !step) return null;
 
   const last = i === steps.length - 1;
+  const gated = !!step.waitFor && !step.waitFor();
   const vw = typeof window !== "undefined" ? window.innerWidth : 1024;
   const vh = typeof window !== "undefined" ? window.innerHeight : 768;
   const BW = 320;
@@ -137,6 +148,15 @@ export function GuidedTour({
         </div>
         <p className="text-sm font-semibold text-gray-900">{step.title}</p>
         <p className="mt-1 text-[13px] leading-relaxed text-gray-600">{step.body}</p>
+        {step.waitFor && (
+          <p
+            className={`mt-2 rounded-lg px-2 py-1.5 text-[12px] font-medium ${
+              gated ? "bg-amber-50 text-amber-800" : "bg-emerald-50 text-emerald-800"
+            }`}
+          >
+            {gated ? `👉 ${step.todo ?? "Fais l'action décrite pour continuer."}` : "✓ C'est fait — tu peux continuer."}
+          </p>
+        )}
         <div className="mt-3 flex items-center justify-between">
           <button
             type="button"
@@ -148,8 +168,9 @@ export function GuidedTour({
           </button>
           <button
             type="button"
-            className="rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700"
+            className="rounded-lg bg-indigo-600 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
             onClick={() => (last ? onClose() : setI(i + 1))}
+            disabled={gated}
           >
             {last ? "Terminer" : "Suivant →"}
           </button>

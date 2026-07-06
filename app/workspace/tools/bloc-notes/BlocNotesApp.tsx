@@ -147,10 +147,23 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
       placement: "bottom",
     },
     {
-      selector: "[data-tour='notes-tabs']",
-      title: "Onglet Tâches",
-      body: "L'onglet Tâches suit tes todos, en base de données filtrable ou en Kanban (3 colonnes). Chaque case cochée d'une note y apparaît automatiquement.",
+      selector: "[data-tour='note-blocks']",
+      title: "Crée une tâche",
+      body: "Transforme une idée en action : sur une ligne de ta note, ouvre le menu (⋯ à gauche de la ligne) et choisis « → Tâche ». Fais-le une fois pour continuer.",
+      placement: "left",
+      beforeShow: () => {
+        setTab("notes");
+        if (state.order.length === 0) create();
+      },
+      waitFor: () => Object.keys(state.tasks).length > 0,
+      todo: "Crée une tâche depuis une ligne (menu ⋯ → « → Tâche »).",
+    },
+    {
+      selector: "[data-tour='tasks-views']",
+      title: "L'onglet Tâches",
+      body: "Voilà ta tâche ! L'onglet Tâches agrège tous tes todos. Bascule entre la vue Base de données (filtrable, triable) et la vue Kanban (3 colonnes : à faire / en cours / fait). Chaque case cochée d'une note apparaît aussi ici.",
       placement: "bottom",
+      beforeShow: () => setTab("base"),
     },
     {
       selector: "",
@@ -198,7 +211,7 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
       {tab === "base" && (
         <div className="flex min-h-0 flex-1 flex-col">
           {/* Sous-vue : base de données ⟷ kanban. */}
-          <div className="flex shrink-0 items-center gap-1 border-b border-gray-100 bg-white px-3 py-1.5">
+          <div data-tour="tasks-views" className="flex shrink-0 items-center gap-1 border-b border-gray-100 bg-white px-3 py-1.5">
             {(
               [
                 ["bdd", "🗂 Base de données"],

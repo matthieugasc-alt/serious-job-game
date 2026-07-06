@@ -60,6 +60,20 @@ function localId(prefix: string): string {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
+/** Bouton « ❓ Guide » — bien visible, placé à côté du trombone. */
+function GuideButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      title="Guide interactif du Decision Engine"
+      className="shrink-0 rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+      onClick={onClick}
+    >
+      ❓ Guide
+    </button>
+  );
+}
+
 export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceAppProps) {
   const state = workspace.toolStates[DECISION_ENGINE_TOOL_ID] ?? null;
   const decisions = listDecisions(state);
@@ -258,14 +272,16 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
     },
     {
       selector: "[data-tour='de-new']",
-      title: "Créer",
-      body: "Une nouvelle décision, ou un tableau depuis un preset : Kanban, roadmap (Timeline), matrice Impact/Effort ou RICE, SWOT, Eisenhower, arbre des causes, 5 pourquoi, Ishikawa…",
+      title: "Crée une décision",
+      body: "Clique « + Nouveau » puis « 🧭 Nouvelle décision ». Fais-le pour continuer.",
       placement: "bottom",
+      waitFor: () => decisions.length > 0,
+      todo: "Clique « + Nouveau » → « Nouvelle décision ».",
     },
     {
       selector: "[data-tour='de-rail']",
       title: "Ton arborescence",
-      body: "Les décisions, et en dessous leurs tableaux rattachés. Glisse un tableau sur une décision pour le rattacher, ou une décision sur une autre pour l'imbriquer.",
+      body: "Ta décision apparaît ici. En dessous se rangeront ses tableaux. Glisse un tableau sur une décision pour le rattacher, ou une décision sur une autre pour l'imbriquer.",
       placement: "right",
     },
     {
@@ -277,6 +293,14 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
         setOpenBoardId(null);
         if (decisions.length === 0) newDecision();
       },
+    },
+    {
+      selector: "[data-tour='de-new']",
+      title: "Crée une matrice multicritère",
+      body: "Appuie une décision sur un tableau : « + Nouveau » → catégorie 📊 matrix → un preset de matrice (ex. Matrice multicritère). Fais-le pour continuer.",
+      placement: "bottom",
+      waitFor: () => allBoards.some((b) => b.engine === "matrix"),
+      todo: "« + Nouveau » → 📊 matrix → « Matrice multicritère ».",
     },
     {
       selector: "[data-tour='de-attach']",
@@ -399,7 +423,7 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
               </button>
               <span aria-hidden>{ENGINE_ICON[openBoard.engine] ?? "📊"}</span>
               <span className="text-sm font-medium text-gray-800">{openBoard.title || openBoard.engine}</span>
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-1.5">
                 <AttachToMailButton
                   tool={DECISION_ENGINE_TOOL_ID}
                   id={openBoard.id}
@@ -408,6 +432,7 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
                   dispatch={dispatch}
                   compact
                 />
+                <GuideButton onClick={() => setTourOpen(true)} />
               </div>
             </header>
             <div className="min-h-0 flex-1">
@@ -440,6 +465,7 @@ export function DecisionEngineApp({ workspace, dispatch, context }: WorkspaceApp
                   compact
                 />
               </span>
+              <GuideButton onClick={() => setTourOpen(true)} />
             </header>
             <div data-tour="de-editor" className="min-h-0 flex-1">
               <DecisionEditor key={selected.id} decision={selected} boards={boards} engineState={state} dispatch={dispatch} onOpenBoard={setOpenBoardId} onSelectDecision={setSelectedId} />

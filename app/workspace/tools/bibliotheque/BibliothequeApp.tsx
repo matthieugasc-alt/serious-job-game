@@ -68,55 +68,6 @@ const LAYOUT_OPTIONS: { key: DeskLayout; icon: string; label: string }[] = [
   { key: "grid", icon: "▦", label: "Grille" },
 ];
 
-const TOUR_STEPS: TourStep[] = [
-  {
-    selector: "",
-    title: "Bienvenue dans le porte-documents",
-    body: "C'est ton dossier de travail : les pièces du scénario y sont indexées automatiquement, et tu peux y ranger, retrouver, annoter et rapprocher tous tes documents. Suivons les fonctions ensemble.",
-  },
-  {
-    selector: "[data-tour='filters']",
-    title: "Tes vues",
-    body: "Filtre d'un clic : tous les documents, les récemment consultés, les épinglés, les favoris, ou ce qui n'est pas encore rangé.",
-    placement: "right",
-  },
-  {
-    selector: "[data-tour='folders']",
-    title: "Dossiers",
-    body: "Crée des dossiers pour organiser tes pièces (ex. « Preuves », « À traiter ») et range chaque document dedans.",
-    placement: "right",
-  },
-  {
-    selector: "[data-tour='desks']",
-    title: "Bureaux personnalisés",
-    body: "Un bureau est une boîte de travail : glisse-y plusieurs documents, puis rouvre-les tous ensemble, côte à côte, d'un seul clic.",
-    placement: "right",
-  },
-  {
-    selector: "[data-tour='search']",
-    title: "Recherche plein texte",
-    body: "Cherche dans TOUT : titres, contenu des documents, tags et même tes annotations. Idéal pour retrouver une preuve précise.",
-    placement: "bottom",
-  },
-  {
-    selector: "[data-tour='sort']",
-    title: "Tri",
-    body: "Trie par ajout récent, dernière consultation, alphabétique, type ou favoris d'abord.",
-    placement: "bottom",
-  },
-  {
-    selector: "[data-tour='grid']",
-    title: "Tes documents",
-    body: "Chaque carte : ouvre le document pour le LIRE en grand — tu peux alors surligner en couleur, commenter, poser des signets, et tout est extrait automatiquement dans ton Bloc-notes. Épingle ⭐, mets en favori, ajoute des tags, ou glisse la carte sur un bureau.",
-    placement: "top",
-  },
-  {
-    selector: "",
-    title: "Et aussi : archiver & joindre",
-    body: "Depuis Mail ou Messages, le bouton 📁 archive un échange ICI pour le garder comme preuve. Et depuis un document, une note ou un tableau, « 📎 Joindre à l'email » l'attache à un mail — son contenu entre alors dans l'analyse. Bon travail !",
-  },
-];
-
 type Selection =
   | { type: "all" }
   | { type: "recent" }
@@ -253,6 +204,71 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
   const folders = selectFolders(libState);
   const tags = selectAllTags(libState);
   const desks = selectDesks(libState);
+
+  const tourSteps: TourStep[] = [
+    {
+      selector: "",
+      title: "Bienvenue dans le porte-documents",
+      body: "C'est ton dossier de travail : les pièces du scénario y sont indexées automatiquement, et tu peux y ranger, retrouver, annoter et rapprocher tous tes documents. On va faire quelques manips ensemble.",
+    },
+    {
+      selector: "[data-tour='filters']",
+      title: "Tes vues",
+      body: "Filtre d'un clic : tous les documents, les récemment consultés, les épinglés, les favoris, ou ce qui n'est pas encore rangé.",
+      placement: "right",
+    },
+    {
+      selector: "[data-tour='folders']",
+      title: "Dossiers",
+      body: "Crée des dossiers pour organiser tes pièces (ex. « Preuves », « À traiter ») et range chaque document dedans.",
+      placement: "right",
+    },
+    {
+      selector: "[data-tour='desks']",
+      title: "Crée un bureau",
+      body: "Un bureau est une boîte de travail : on y regroupe des documents pour les rouvrir ensemble. Crée-en un : dans « Bureaux », tape un nom et valide (Entrée). Fais-le pour continuer.",
+      placement: "right",
+      waitFor: () => desks.length > 0,
+      todo: "Crée un bureau (tape un nom dans « + bureau », valide).",
+    },
+    {
+      selector: "[data-tour='grid']",
+      title: "Remplis ton bureau",
+      body: "Glisse maintenant DEUX cartes de documents sur ton bureau (dans le panneau de gauche). Fais-le pour continuer.",
+      placement: "top",
+      waitFor: () => desks.some((d) => d.entry_ids.length >= 2),
+      todo: "Glisse deux documents sur ton bureau.",
+    },
+    {
+      selector: "[data-tour='desks']",
+      title: "Ouvre ton bureau",
+      body: "Bien joué ! Clique sur ton bureau : il rouvre tous ses documents d'un coup, côte à côte — parfait pour comparer des preuves. (Le tour s'arrête ici quand tu cliques.)",
+      placement: "right",
+    },
+    {
+      selector: "[data-tour='search']",
+      title: "Recherche plein texte",
+      body: "Cherche dans TOUT : titres, contenu des documents, tags et même tes annotations. Idéal pour retrouver une preuve précise.",
+      placement: "bottom",
+    },
+    {
+      selector: "[data-tour='sort']",
+      title: "Tri",
+      body: "Trie par ajout récent, dernière consultation, alphabétique, type ou favoris d'abord.",
+      placement: "bottom",
+    },
+    {
+      selector: "[data-tour='grid']",
+      title: "Lire & annoter",
+      body: "Ouvre un document pour le lire en grand : surligne en couleur, commente, pose des signets — tout est extrait automatiquement dans ton Bloc-notes. Épingle ⭐, mets en favori, ajoute des tags.",
+      placement: "top",
+    },
+    {
+      selector: "",
+      title: "Et aussi : archiver & joindre",
+      body: "Depuis Mail ou Messages, le bouton 📁 archive un échange ICI pour le garder comme preuve. Et depuis un document, une note ou un tableau, « 📎 Joindre à l'email » l'attache à un mail — son contenu entre alors dans l'analyse. Bon travail !",
+    },
+  ];
   const allEntries = selectAllEntries(libState);
 
   /** Ouvrir un bureau personnalisé : tous ses documents, en grille. */
@@ -625,7 +641,7 @@ export function BibliothequeApp({ workspace, actors, documents, dispatch, contex
         </div>
       </section>
 
-      <GuidedTour steps={TOUR_STEPS} open={tourOpen} onClose={() => setTourOpen(false)} />
+      <GuidedTour steps={tourSteps} open={tourOpen} onClose={() => setTourOpen(false)} />
     </div>
   );
 }
