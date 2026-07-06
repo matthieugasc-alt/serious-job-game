@@ -590,6 +590,13 @@ function Composer({
   /** Rendu carte compacte au bas d'un fil (réponse Gmail) vs plein écran. */
   inline?: boolean;
 }) {
+  // ⌘/Ctrl + Entrée = Envoyer (depuis l'objet ou le corps).
+  const onComposeKey = (e: React.KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+      e.preventDefault();
+      if (canSend) send();
+    }
+  };
   return (
     <div className={inline ? "mt-3 flex flex-col rounded-xl border border-indigo-200 bg-white shadow-sm" : "flex min-h-0 flex-1 flex-col bg-white"}>
       <header className="flex shrink-0 items-center justify-between border-b border-gray-200 px-4 py-2.5">
@@ -622,13 +629,15 @@ function Composer({
           placeholder="Objet"
           value={draft.subject}
           onChange={(e) => editDraft({ subject: e.target.value })}
+          onKeyDown={onComposeKey}
         />
         <textarea
           autoFocus
           className={`${inline ? "min-h-[140px]" : "min-h-[200px] flex-1"} resize-none rounded-lg border border-gray-300 px-3 py-2.5 text-sm leading-relaxed text-gray-900 placeholder:text-gray-400 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-100`}
-          placeholder="Rédigez votre mail…"
+          placeholder="Rédigez votre mail… (⌘/Ctrl + Entrée pour envoyer)"
           value={draft.body}
           onChange={(e) => editDraft({ body: e.target.value })}
+          onKeyDown={onComposeKey}
         />
 
         {/* Pièces jointes déjà attachées (documents + artefacts). */}
@@ -661,7 +670,10 @@ function Composer({
       </div>
 
       <footer className="flex shrink-0 items-center gap-2 border-t border-gray-200 px-4 py-3">
-        <PrimaryButton disabled={!canSend} onClick={send}>Envoyer</PrimaryButton>
+        <PrimaryButton disabled={!canSend} onClick={send}>
+          Envoyer
+          <span className="ml-1.5 rounded bg-white/20 px-1 py-0.5 text-[10px] font-normal">⌘⏎</span>
+        </PrimaryButton>
         <SecondaryButton onClick={onClose}>Fermer</SecondaryButton>
         {/* Joindre un document (menu simple). */}
         {documents.length > 0 && (
