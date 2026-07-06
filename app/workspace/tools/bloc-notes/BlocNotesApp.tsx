@@ -13,6 +13,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { WorkspaceAppProps } from "../../apps/types";
 import { AttachToMailButton } from "../../artifacts/AttachToMailButton";
+import { GuidedTour, type TourStep } from "@/app/workspace/primitives/GuidedTour";
 import { addTag, createNote, deleteNote, removeTag, renameNote, updateBlocks } from "./api";
 import type { Note } from "./spec";
 import { BlockEditor } from "./components/BlockEditor";
@@ -46,6 +47,7 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
   const [tab, setTab] = useState<Tab>("notes");
   const [taskView, setTaskView] = useState<TaskView>("bdd");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [tourOpen, setTourOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
   // À l'arrivée dans l'app, le conteneur prend le focus : appuyer sur
@@ -104,6 +106,66 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
     setSelectedId(newId);
   };
 
+  const tourSteps: TourStep[] = [
+    {
+      selector: "",
+      title: "Bienvenue dans le Bloc-notes",
+      body: "Ton carnet universel : écris en blocs riches, transforme une ligne en tâche ou en décision, visualise en mind map, et annote tout le poste de travail sans t'interrompre.",
+    },
+    {
+      selector: "[data-tour='notes-tabs']",
+      title: "Deux onglets",
+      body: "Notes pour écrire, Tâches pour suivre tes todos.",
+      placement: "bottom",
+    },
+    {
+      selector: "[data-tour='note-list']",
+      title: "Tes notes",
+      body: "Toutes tes notes ici. Crée-en une nouvelle (bouton +, ou la touche Entrée), recherche, filtre par tag.",
+      placement: "right",
+      beforeShow: () => setTab("notes"),
+    },
+    {
+      selector: "[data-tour='note-blocks']",
+      title: "Écriture en blocs",
+      body: "Titres, listes, cases à cocher… ⌘B/I/U pour la mise en forme. Le menu d'une ligne la transforme en tâche ou en décision, la déplace ou la duplique — et tu peux glisser un bloc vers une autre note.",
+      placement: "left",
+      beforeShow: () => {
+        setTab("notes");
+        if (state.order.length === 0) create();
+      },
+    },
+    {
+      selector: "[data-tour='note-mindmap']",
+      title: "Mind map",
+      body: "Bascule la même note en carte mentale : titres et puces deviennent des nœuds, le reste se rattache et s'affiche au survol.",
+      placement: "bottom",
+    },
+    {
+      selector: "[data-tour='note-tags']",
+      title: "Tags",
+      body: "Tague tes notes pour les regrouper et les retrouver.",
+      placement: "bottom",
+    },
+    {
+      selector: "[data-tour='note-attach']",
+      title: "Joindre à l'email",
+      body: "Attache la note (ou sa mind map) à un mail — son contenu entre alors dans l'analyse de ta partie.",
+      placement: "bottom",
+    },
+    {
+      selector: "[data-tour='notes-tabs']",
+      title: "Onglet Tâches",
+      body: "L'onglet Tâches suit tes todos, en base de données filtrable ou en Kanban (3 colonnes). Chaque case cochée d'une note y apparaît automatiquement.",
+      placement: "bottom",
+    },
+    {
+      selector: "",
+      title: "Astuce : annoter partout",
+      body: "Depuis Messages, Mail ou Documents, sélectionne du texte et clique sur le 📓 : l'extrait (et ton commentaire) atterrit ici, groupé par source, avec un lien pour y revenir. Un marqueur 📓 jaune signale ce qui est annoté.",
+    },
+  ];
+
   return (
     <div
       ref={rootRef}
@@ -119,6 +181,7 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
     >
       {/* Onglets. */}
       <header
+        data-tour="notes-tabs"
         className="flex shrink-0 items-center gap-1 border-b border-gray-200 bg-white px-3 py-2"
         role="tablist"
       >
@@ -139,6 +202,15 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
             {label}
           </button>
         ))}
+        <button
+          type="button"
+          data-tour="guide"
+          title="Guide interactif du Bloc-notes"
+          className="ml-auto rounded-lg border border-indigo-200 bg-indigo-50 px-2.5 py-1 text-xs font-semibold text-indigo-700 transition hover:bg-indigo-100"
+          onClick={() => setTourOpen(true)}
+        >
+          ❓ Guide
+        </button>
       </header>
 
       {tab === "base" && (
@@ -210,6 +282,8 @@ export function BlocNotesApp({ workspace, dispatch, openApp, context }: Workspac
           )}
         </div>
       )}
+
+      <GuidedTour steps={tourSteps} open={tourOpen} onClose={() => setTourOpen(false)} />
     </div>
   );
 }
@@ -263,7 +337,7 @@ function NoteEditorPane({
             onChange={(e) => editTitle(e.target.value)}
           />
           {/* Bascule éditeur ⟷ mind map (même note, mêmes blocs). */}
-          <div className="mt-1 flex shrink-0 items-center gap-0.5 rounded-lg bg-gray-100 p-0.5">
+          <div data-tour="note-mindmap" className="mt-1 flex shrink-0 items-center gap-0.5 rounded-lg bg-gray-100 p-0.5">
             {(
               [
                 ["edit", "✎ Éditer"],
@@ -283,7 +357,7 @@ function NoteEditorPane({
               </button>
             ))}
           </div>
-          <div className="mt-1 shrink-0">
+          <div data-tour="note-attach" className="mt-1 shrink-0">
             <AttachToMailButton
               tool="bloc-notes"
               id={note.id}
@@ -305,7 +379,7 @@ function NoteEditorPane({
         </div>
 
         {/* Tags + provenance. */}
-        <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+        <div data-tour="note-tags" className="mt-1.5 flex flex-wrap items-center gap-1.5">
           {note.tags.map((t) => (
             <span
               key={t}
@@ -343,7 +417,7 @@ function NoteEditorPane({
         </div>
       </div>
 
-      <div className="min-h-0 flex-1 px-5">
+      <div data-tour="note-blocks" className="min-h-0 flex-1 px-5">
         {view === "edit" ? (
           <BlockEditor noteId={note.id} blocks={note.blocks} dispatch={dispatch} />
         ) : (

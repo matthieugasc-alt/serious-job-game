@@ -122,7 +122,7 @@ export function NotesSidebar({ state, selectedId, onSelect, onCreate, onMoveBloc
   }
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-r border-gray-200 bg-white">
+    <aside data-tour="note-list" className="flex w-72 shrink-0 flex-col border-r border-gray-200 bg-white">
       <div className="shrink-0 space-y-2 border-b border-gray-100 px-3 py-2.5">
         <div className="flex items-center gap-1.5">
           <input
